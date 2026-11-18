@@ -7,3 +7,7 @@ To complete T5, retrieve the **original QB 37627297 job/package result export** 
 No second QB image is needed to obtain the ledger. Record unknowns if the service retained only successful artifacts.
 
 Round 0003 adds a [concrete launcher](qb37627297-export.sh.txt) and [copy-paste commands](../../comms/codex_to_claude/0003_reply.md). It saves QuickBuild build, status, step, repository, dependency and artifact metadata, then emits rows with explicit package names and outcomes. An empty CSV means the parent step API did not expose package records. Use the published package result artifact or linked package build job in that case. [QuickBuild build API](https://wiki.pmease.com/display/QB16/Interact%2Bwith%2BBuilds) · [Artifact index API](https://wiki.pmease.com/display/QB16/Access%2BInformation%2Bof%2BPublished%2BFiles)
+
+## 18 November native result
+
+The operator ran the pinned T5 launcher. All QuickBuild REST and listing calls returned HTTP 403 under the current account. The export produced zero per-package rows. T5 remains blocked. An operator export from the QB web UI can supply the package result list. [Native evidence](../evidence/native-run-r0004-20261118.txt#L151)

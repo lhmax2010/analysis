@@ -241,3 +241,12 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - The candidate QuickBuild has started using 20261118.1 and the other QB 37627297 inputs per the operator. Capture its ID and candidate Product URL once available. Compare the 2,342 baseline-installed package identities, preserving all changed ELF paths and confounders.
 - Prepare reviewable KantSU2E boot, microbench and 4K collectors. Follow the attended flash and rollback checklist after verifying the approved board-specific procedure and known-good bundle. Keep measurements pending until collected.
 - Status: **Agreed — user direction**. Native GitHub access is download-only.
+
+## D-027 — Round 0005 evidence gates
+
+- Date: 2026-11-18.
+- Resume OBS binary pinning using the successful read-only Python transport and exact published RPM digests. Keep validated Base-list and source status evidence separate from binary equality.
+- Pair non-LLVM before/after rows and join the exact installed roster. Use the resulting categories in the image ELF comparison. Preserve all unresolved package and payload evidence.
+- Close the T5 REST route after the account's HTTP 403 responses. Accept a web UI export if provided.
+- Qualify PIC members by bytes and consumer. Start the full compiler-marker proposal after review and after the running ARM/Thumb scan finishes. Continue per-file cause attribution once its complete roster arrives.
+- Status: **Agreed — user direction**. Live readbacks and candidate QB artifacts are pending.

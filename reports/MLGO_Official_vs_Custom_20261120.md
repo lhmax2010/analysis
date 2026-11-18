@@ -26,3 +26,7 @@ Keep each run and both exact artifacts. Preserve rollback before flashing. Repor
 Independently prepare vdlinux baseline 14293732 with shelf 14427407 and the KantSU2E perf defconfig. Compare both Base compilers in four advisor modes using three fixed kernel translation units and the probe. Keep differing default artifacts or identical release artifacts as findings. Confirm the effective QuickBuild compiler separately when its job evidence arrives. [Standalone model identity launcher](../comms/codex_to_claude/0004_reply.md#g-standalone-mlgo-model-identity-replay-for-friday)
 
 The 2,342-RPM image comparison is staged for the candidate Product URL. Board measurement tools and the attended flash/rollback checklist are ready for review. Exact approved flash/recovery instructions and a verified playback drop counter are still needed for live runs. [Image and board procedures](../comms/codex_to_claude/0004_reply.md#h-official-versus-customized-product-payloads)
+
+## Round 0005 preflight and confounders
+
+Native preflight shows identical Base and shelf lists and 3,000 delta rows, 2,952 outside LLVM. The previous successful OBS status packet records rev12 published/succeeded on both arches. The read-only direct Python transport will verify actual RPM bytes after the initial OSC proxy error. The image comparison uses the same retained non-LLVM input as the installed-overlap and release/version classification. Candidate job ID and Product URL, installed overlap, and observed image and TV results remain pending. [Round 0005](../comms/codex_to_claude/0005_reply.md)

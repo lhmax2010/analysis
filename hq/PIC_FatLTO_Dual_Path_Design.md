@@ -24,3 +24,7 @@ These are synthetic fixtures and strict linker outcomes. Record producer, exact 
 5. Design an advisory post-build check using the same classification and packaging metadata. Begin with a report of unqualified inputs and narrowly documented exceptions. Move a consumer to enforcement only when its producer policy and positive/negative controls are verified.
 
 For pure-native GCC/vendor inputs, obtain or build a PIC variant or reject the incompatible consumer. Arbitrary native instruction rewriting is outside the design. Keep ordinary runtime ABI review separate, including the documented prebuilt Bluetooth shared-interface mismatch. If wider PIC policy is proposed, compare paired ARM32 builds for code size, relocations, startup, media throughput and memory on matched hardware before adoption.
+
+## Round 0005 evidence for Friday review
+
+The native matrix returned 56/56 validated fixtures. The production screen processed 92 RPM identities with 78 scanned and 14 incomplete. It recorded 1,910 relocation-flagged members and 17,891 outside the classifier's resolved member set. Prioritize by actual consumer. CRT startup inputs, cross-toolchain payloads, Go and JDK must be assessed in their intended contexts. Classify unresolved member formats against their retained hashes, then qualify each candidate with its producer, PIC flags and native/IR consumption path. [Round 0005 evidence and launchers](../comms/codex_to_claude/0005_reply.md#4-pic-scan-and-friday-t7)
