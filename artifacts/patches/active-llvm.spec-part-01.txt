@@ -1,0 +1,350 @@
+%define keepstatic 1
+
+# MLGO AOT support for LLVM MLGO (Ahead-of-Time compilation)
+# TODO: switch back to a project_config-controlled macro after MLGO is enabled
+# for all required arches.
+# %%bcond_with mlgo
+%ifarch armv7l aarch64 x86_64
+%bcond_without mlgo
+%endif
+
+# Model selection for the Customized MLGO Base build; explicit zero retains the reference model.
+%{!?mlgo_custom_inliner: %define mlgo_custom_inliner 1}
+%{!?mlgo_custom_regalloc: %define mlgo_custom_regalloc 1}
+
+# Complete SR asset selection by default; set runtime to 0 for a fixed-VD-runtime control.
+%{!?mlgo_sr_runtime: %define mlgo_sr_runtime 1}
+%ifarch armv7l
+%global mlgo_pkg_arch armv7l
+%endif
+%ifarch aarch64
+%global mlgo_pkg_arch aarch64
+%endif
+%ifarch x86_64
+%global mlgo_pkg_arch x86_64
+%endif
+
+%if %{defined _toolchain}
+%define _toolchain_override clang
+%define llvm_release_build 0
+%else
+%define llvm_release_build 1
+%endif
+
+%if 0%{llvm_release_build}
+%global _lto_cflags %{nil}
+%endif
+
+%define llvm_version 22
+
+%define sdk_install_prefix /home/owner/share/tmp/sdk_tools/lldb
+%define sdk_bin_dir %{sdk_install_prefix}/bin
+%define sdk_lib_dir %{sdk_install_prefix}/%{_lib}
+
+%if 0%{llvm_release_build}
+# Disable debug packages building
+%define debug_package %{nil}
+%define __debug_install_post %{_rpmconfigdir}/find-debuginfo.sh %{?_find_debuginfo_opts} %{?_find_debuginfo_strip_opts} %{?_find_debuginfo_ko_strip_opts} "%{_builddir}/%{?buildsubdir}"\
+	rm -rf "%{buildroot}/usr/lib/debug"\
+	rm -rf "%{buildroot}/usr/src/debug"
+%endif
+
+Name:      llvm
+Summary:   The LLVM Project is a collection of modular and reusable compiler and toolchain technologies
+Version:   22.1.8
+Release:   1
+Group:     Development/Toolchain
+License:   NCSA
+Source0:   %{name}-%{version}.tar.gz
+Source1000: openmp.patch
+Source1001: llvm.manifest
+
+# Bundled MLGO AOT assets for the inliner and regalloc models.
+# These override build-time AOT compilation, avoiding the need for TensorFlow
+# Python in GBS.
+Source1002: mlgo_arm_model.tar.gz
+Source1003: mlgo_aarch_model.tar.gz
+Source1004: mlgo_x86_model.tar.gz
+Source1005: lto-nonpic-in-pic-output-fallback.patch
+Source1006: driver-pass-llvmgold-to-gnu-ld-by-default.patch
+Source1007: driver-O4-as-O3-upstream-85e76ec53ae4.patch
+
+# SR model/runtime components; each selection can be controlled independently.
+Source1020: mlgo_inliner_armv7l.tar.gz
+Source1021: mlgo_inliner_aarch64.tar.gz
+Source1022: mlgo_inliner_x86_64.tar.gz
+Source1023: mlgo_regalloc_armv7l.tar.gz
+Source1024: mlgo_regalloc_aarch64.tar.gz
+Source1025: mlgo_regalloc_x86_64.tar.gz
+Source1026: mlgo_runtime_armv7l.tar.gz
+Source1027: mlgo_runtime_aarch64.tar.gz
+Source1028: mlgo_runtime_x86_64.tar.gz
+Source1029: verify-mlgo-inputs.py
+
+%{!?mlgo_build_jobs: %define mlgo_build_jobs 6}
+%{!?mlgo_verify_configure_only: %define mlgo_verify_configure_only 0}
+
+BuildRequires: cmake
+BuildRequires: python3
+BuildRequires: python3-devel
+BuildRequires: patchelf
+BuildRequires: binutils-devel
+BuildRequires: libxml2-devel
+%if 0%{llvm_release_build}
+BuildRequires: sed
+%endif
+BuildRequires: ninja
+
+
+Requires: libllvm = %{version}-%{release}
+
+%description
+LLVM is a compiler infrastructure designed for compile-time, link-time, runtime,
+and idle-time optimization of programs from arbitrary programming languages.
+LLVM is written in C++ and has been developed since 2000 at the University of
+Illinois and Apple. It currently supports compilation of C and C++ programs,
+using front-ends derived from GCC 4.0.1. A new front-end for the C family of
+languages is in development. The compiler infrastructure
+includes mirror sets of programming tools as well as libraries with equivalent
+functionality.
+
+%package devel
+Summary: Libraries and Header Files for LLVM %{version}
+Requires: %{name} = %{version}
+
+%description devel
+This package contains library and header files needed to develop
+new native programs that use the LLVM infrastructure.
+
+%package static-devel
+Summary: Static libraries for LLVM
+Requires: %{name} = %{version}
+
+%description static-devel
+This package contains static libraries needed to develop new
+native programs that use the LLVM infrastructure.
+
+%package -n libllvm
+Summary: LLVM shared libraries
+
+%description -n libllvm
+Shared libraries for the LLVM compiler infrastructure.
+
+%package -n clang
+Summary: Clang %{version} (C Language family frontend for LLVM)
+License: NCSA
+Requires: llvm = %{version}-%{release}
+# compiler-rt holds the clang runtimes (profile runtime for --coverage/-fprofile-arcs, builtins, sanitizers);
+# without it a chroot that only has clang cannot link instrumented binaries (TSYSTEM: analog-input-control-impl UT).
+Requires: compiler-rt = %{version}-%{release}
+# libomp is the OpenMP runtime clang links for -fopenmp; without it any -fopenmp package fails at link time.
+Requires: libomp = %{version}-%{release}
+Provides: libclang.so.%{version}
+
+%description -n clang
+A new front-end for the C family of languages is in development.
+
+%package -n clang-devel
+Summary: Clang %{version} Development Library
+Requires: clang = %{version}-%{release}
+
+%description -n clang-devel
+This package contains the clang (C language) frontend for LLVM.
+(development files)
+
+%package -n lldb
+Summary: LLDB
+License: NCSA
+
+%description -n lldb
+LLDB is a next generation, high-performance debugger. It is built as a set
+of reusable components which highly leverage existing libraries in the
+larger LLVM Project, such as the Clang expression parser and LLVM
+disassembler.
+
+%package -n lldb-devel
+Summary: Development header files for LLDB
+Requires: lldb = %{version}-%{release}
+
+%description -n lldb-devel
+The package contains header files for the LLDB debugger.
+
+%package -n compiler-rt
+Summary: Compiler runtime libraries
+
+%description -n compiler-rt
+Compiler runtime libraries
+
+%package -n libomp
+Summary:    OpenMP runtime
+
+%description -n libomp
+OpenMP runtime.
+
+%package -n libomp-devel
+Summary:    Development files for the OpenMP runtime
+
+%description -n libomp-devel
+Development files for the OpenMP runtime.
+
+%package -n python-clang
+Summary: Python bindings to parts of the Clang library
+
+%description -n python-clang
+Python bindings to parts of the Clang library
+
+%prep
+%setup -q
+# Tizen: regular LTO fallback for modules compiled without -fPIC/-fPIE that are
+# linked into a shared object or PIE (llvm/lib/LTO/LTO.cpp, LTO.h + tests).
+patch -p1 --fuzz=0 < %{SOURCE1005}
+# Tizen: like gcc, hand LLVMgold to GNU ld by default so -flto objects get LTO even
+# without -flto on the link line (clang/lib/Driver/ToolChains/Gnu.cpp + test).
+patch -p1 --fuzz=0 < %{SOURCE1006}
+# Backport of upstream 85e76ec53ae4: -O4 counted as -O3 when building the LTO link command.
+patch -p1 --fuzz=0 < %{SOURCE1007}
+%if %{with mlgo}
+# A fresh directory avoids mixing model/runtime inputs from an earlier selection.
+rm -rf -- mlgo_verify_assets
+mkdir -p mlgo_verify_assets
+# Keep VD bundles only as explicit fallback inputs for independently selected components.
+%if 0%{mlgo_custom_inliner} == 0 || 0%{mlgo_custom_regalloc} == 0 || 0%{mlgo_sr_runtime} == 0
+%ifarch armv7l
+tar -C mlgo_verify_assets -xzf %{SOURCE1002}
+%endif
+%ifarch aarch64
+tar -C mlgo_verify_assets -xzf %{SOURCE1003}
+%endif
+%ifarch x86_64
+tar -C mlgo_verify_assets -xzf %{SOURCE1004}
+%endif
+%endif
+%if 0%{mlgo_sr_runtime}
+# Replace the entire runtime/sysroot pair; an overlay could leave VD-only headers.
+rm -rf -- mlgo_verify_assets/mlgo_sysroot mlgo_verify_assets/xla_runtime_objects
+%ifarch armv7l
+tar -C mlgo_verify_assets -xzf %{SOURCE1026}
+%endif
+%ifarch aarch64
+tar -C mlgo_verify_assets -xzf %{SOURCE1027}
+%endif
+%ifarch x86_64
+tar -C mlgo_verify_assets -xzf %{SOURCE1028}
+%endif
+echo 'MLGO_RUNTIME_SELECTION=SR_SPLIT'
+%else
+echo 'MLGO_RUNTIME_SELECTION=VD_BASELINE'
+%endif
+%if 0%{mlgo_custom_inliner}
+%ifarch armv7l
+tar -C mlgo_verify_assets -xzf %{SOURCE1020}
+%endif
+%ifarch aarch64
+tar -C mlgo_verify_assets -xzf %{SOURCE1021}
+%endif
+%ifarch x86_64
+tar -C mlgo_verify_assets -xzf %{SOURCE1022}
+%endif
+%endif
+%if 0%{mlgo_custom_regalloc}
+%ifarch armv7l
+tar -C mlgo_verify_assets -xzf %{SOURCE1023}
+%endif
+%ifarch aarch64
+tar -C mlgo_verify_assets -xzf %{SOURCE1024}
+%endif
+%ifarch x86_64
+tar -C mlgo_verify_assets -xzf %{SOURCE1025}
+%endif
+%endif
+%endif
+
+# -DENABLE_LINKER_BUILD_ID=ON (10-27, PLEASE CHECK): clang passes --build-id to the linker by default, as the Tizen GCC does
+# (--enable-linker-build-id); without it no Clang-built binary of the image has a build-id note (crash reports, debuginfo matching).
+%build
+%if 0%{llvm_release_build}
+# Not to build debug info
+RELCFLAGS=$(echo $CFLAGS | sed -e 's*\(^\|[[:space:]]\)-g\([[:digit:]]\+\|gdb\|dwarf-[[:digit:]]\)\?* *g')
+export CFLAGS=${RELCFLAGS}
+RELCXXFLAGS=$(echo $CXXFLAGS | sed -e 's*\(^\|[[:space:]]\)-g\([[:digit:]]\+\|gdb\|dwarf-[[:digit:]]\)\?* *g')
+export CXXFLAGS=${RELCXXFLAGS}
+RELFFLAGS=$(echo $FFLAGS | sed -e 's*\(^\|[[:space:]]\)-g\([[:digit:]]\+\|gdb\)|dwarf-[[:digit:]]\\?* *g')
+export FFLAGS=${RELFFLAGS}
+%endif
+
+cp %{SOURCE1001} .
+%{?asan:%gcc_unforce_options}
+
+%if 0%{llvm_release_build}
+filter_lto_flags() {
+    filtered_flags=
+    for flag in "$@"; do
+        case "$flag" in
+            -flto|-flto=*|-ffat-lto-objects|-fuse-linker-plugin) ;;
+            *) filtered_flags="${filtered_flags:+$filtered_flags }$flag" ;;
+        esac
+    done
+    echo "$filtered_flags"
+}
+
+export CFLAGS="$(filter_lto_flags $CFLAGS)"
+export CXXFLAGS="$(filter_lto_flags $CXXFLAGS)"
+export FFLAGS="$(filter_lto_flags $FFLAGS)"
+export LDFLAGS="$(filter_lto_flags $LDFLAGS)"
+%endif
+
+#%ifarch armv7l
+#export QEMU_RESERVED_VA=0x70000000
+#%endif
+
+# Set up MLGO AOT model paths from bundled verify assets
+%if %{with mlgo}
+MLGO_AOT_DIR="$PWD/mlgo_verify_assets"
+MLGO_BUILD_DIR="$PWD/build"
+MLGO_RUNTIME_OBJECTS="${MLGO_AOT_DIR}/xla_runtime_objects/xla_compiled_cpu_function.cc.o;${MLGO_AOT_DIR}/xla_runtime_objects/cpu_function_runtime.cc.o;${MLGO_AOT_DIR}/xla_runtime_objects/custom_call_status.cc.o;${MLGO_AOT_DIR}/xla_runtime_objects/executable_run_options.cc.o;${MLGO_AOT_DIR}/xla_runtime_objects/runtime_single_threaded_matmul_f32.cc.o"
+MLGO_REQUIRED_RUNTIME_OBJECTS="xla_compiled_cpu_function.cc.o cpu_function_runtime.cc.o custom_call_status.cc.o executable_run_options.cc.o runtime_single_threaded_matmul_f32.cc.o"
+%endif
+
+mkdir -p build
+cd build
+cmake \
+    -DENABLE_LINKER_BUILD_ID=ON \
+    -G Ninja \
+	-DCMAKE_MAKE_PROGRAM=/usr/bin/ninja \
+    -DTIZEN=1 \
+    -DCMAKE_C_COMPILER=%__cc \
+    -DCMAKE_CXX_COMPILER=%__cxx \
+    -DLLVM_HOST_TRIPLE=%{_host} \
+    -DLLVM_DEFAULT_TARGET_TRIPLE=%{_host} \
+    -DLLVM_TARGET_TRIPLE_ENV=%{_host} \
+    -DCMAKE_ASM_FLAGS="$CFLAGS" \
+    -DCMAKE_C_FLAGS="$CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+%if %{defined _toolchain}
+    -DCMAKE_SHARED_LINKER_FLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections" \
+    -DCMAKE_EXE_LINKER_FLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections" \
+%endif
+    -DLLVM_ENABLE_ASSERTIONS=No \
+    -DLLVM_ENABLE_RTTI=ON \
+%ifarch x86_64 i686
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLVM_TARGETS_TO_BUILD='X86;ARM;AArch64;BPF' \
+%endif
+%ifarch armv7l
+    -DCMAKE_BUILD_TYPE=MinSizeRel \
+    -DLLVM_TARGETS_TO_BUILD='ARM;BPF' \
+    -DLLVM_TARGET_ARCH="ARM" \
+%endif
+%ifarch aarch64
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLVM_TARGETS_TO_BUILD='AArch64;BPF' \
+    -DLLVM_TARGET_ARCH="AArch64" \
+%endif
+%ifarch riscv64
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLVM_TARGETS_TO_BUILD='RISCV;BPF' \
+%endif
+    -DCLANG_ENABLE_ARCMT=OFF \
+    -DLLVM_BUILD_LLVM_DYLIB=ON \
+    -DCLANG_BUILD_CLANG_DYLIB=ON \
+%if %{defined _toolchain}

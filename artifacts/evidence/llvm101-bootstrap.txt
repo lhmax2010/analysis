@@ -1,0 +1,197 @@
+{
+  "workdir": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj",
+  "stage": "ARM_LLVM22_BUILT_AND_VERSION_SMOKE_PASSED",
+  "source_manifest": [
+    {
+      "name": "llvm-22.1.8.tar.gz",
+      "sha256": "9bc2837ba3df87dc70cdc804e2ef2ab3aa0c963c842cd1073df5986a1a7f0c62",
+      "bytes": 353369735
+    },
+    {
+      "name": "mlgo_aarch_model.tar.gz",
+      "sha256": "76f896dfdce3fa19d0ed467554ed3a643f062f52b4a4db81f576d04c469014a1",
+      "bytes": 30461764
+    },
+    {
+      "name": "driver-O4-as-O3-upstream-85e76ec53ae4.patch",
+      "sha256": "ed039f74b5a6f2fd0766b155436e985acba1e6839621c7d19a109da16d7302c2",
+      "bytes": 2324
+    },
+    {
+      "name": "llvm.manifest",
+      "sha256": "55449a170ea90537532d2fd52a2e2f7c9a53dbcb6b1894c8a321c53a8685524d",
+      "bytes": 189
+    },
+    {
+      "name": "driver-pass-llvmgold-to-gnu-ld-by-default.patch",
+      "sha256": "0bf92bc071e2d8edbf7837a521fcf00b3ed2cb512b40519e6e175c2604441728",
+      "bytes": 3889
+    },
+    {
+      "name": "lto-nonpic-in-pic-output-fallback.patch",
+      "sha256": "7d89083453e1d75707a4a6b3a6d9510a4c31e09d8e99865de2a18e07945bf76f",
+      "bytes": 45397
+    },
+    {
+      "name": "llvm.spec",
+      "sha256": "c3a1f3c4363683f6142678d60d6518c50c69dfc1ecd2a7fc0b4cbf3d708b9378",
+      "bytes": 22235
+    },
+    {
+      "name": "openmp.patch",
+      "sha256": "3b1ae89ee5a513f9c1843908133a9cc70d4b54c02f2cc4d928153c493fb37677",
+      "bytes": 478
+    },
+    {
+      "name": "mlgo_arm_model.tar.gz",
+      "sha256": "dd468cce897c7f578b38668e9d869c6785f3fdbcf97879fd7775b430bd0a3a9a",
+      "bytes": 28477748
+    },
+    {
+      "name": "mlgo_x86_model.tar.gz",
+      "sha256": "6c221a08aa63f80c3d82713ba968125797f16351c258a174fc0eec6fdffdbf43",
+      "bytes": 28652731
+    }
+  ],
+  "source_mode": "flat OBS, original archives retained",
+  "config_sha256": "ff0e45a7e2f27ef380f549de39481e3d678a83f5d9726e2b3c1fc90c7454cbcc",
+  "helper_evidence_sha256": "ebf15114e43e88784074237d2303d2602bf558c578cf54e578cc54b013be469a",
+  "phases": [
+    {
+      "name": "configure-probe",
+      "exit": 1,
+      "log": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/configure-probe.log",
+      "retained_detail": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/configure-probe-detail.log",
+      "configure_marker": true
+    },
+    {
+      "name": "full-build",
+      "exit": 0,
+      "log": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/full-build.log",
+      "retained_detail": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/full-build-detail.log",
+      "configure_marker": false
+    }
+  ],
+  "compiler_evidence": [
+    {
+      "cache": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/llvm-22.1.8/build/CMakeCache.txt",
+      "values": [
+        "CMAKE_BUILD_TYPE:STRING=MinSizeRel",
+        "CMAKE_CXX_COMPILER:STRING=/bin/armv7l-tizen-linux-gnueabi-g++",
+        "CMAKE_CXX_COMPILER_AR:FILEPATH=/bin/armv7l-tizen-linux-gnueabi-gcc-ar",
+        "CMAKE_CXX_COMPILER_RANLIB:FILEPATH=/bin/armv7l-tizen-linux-gnueabi-gcc-ranlib",
+        "CMAKE_C_COMPILER:STRING=/bin/armv7l-tizen-linux-gnueabi-gcc",
+        "CMAKE_C_COMPILER_AR:FILEPATH=/bin/armv7l-tizen-linux-gnueabi-gcc-ar",
+        "CMAKE_C_COMPILER_RANLIB:FILEPATH=/bin/armv7l-tizen-linux-gnueabi-gcc-ranlib",
+        "LLVM_ENABLE_ASSERTIONS:BOOL=No",
+        "LLVM_ENABLE_PROJECTS:STRING=clang;lldb;clang-tools-extra;lld;compiler-rt;openmp",
+        "LLVM_ENABLE_PROJECTS_USED:BOOL=ON",
+        "LLVM_HOST_TRIPLE:STRING=armv7l-tizen-linux-gnueabi",
+        "LLVM_MLGO_EMBED_TF_XLA_RUNTIME_OBJECTS:STRING=/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/xla_runtime_objects/xla_compiled_cpu_function.cc.o;/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/xla_runtime_objects/cpu_function_runtime.cc.o;/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/xla_runtime_objects/custom_call_status.cc.o;/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/xla_runtime_objects/executable_run_options.cc.o;/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/xla_runtime_objects/runtime_single_threaded_matmul_f32.cc.o",
+        "LLVM_MLGO_EXPORT_TF_XLA_RUNTIME:BOOL=OFF",
+        "LLVM_OVERRIDE_MODEL_HEADER_INLINERSIZEMODEL:UNINITIALIZED=/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/InlinerSizeModel.h",
+        "LLVM_OVERRIDE_MODEL_HEADER_REGALLOCEVICTMODEL:UNINITIALIZED=/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/RegAllocEvictModel.h",
+        "LLVM_OVERRIDE_MODEL_OBJECT_INLINERSIZEMODEL:UNINITIALIZED=/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/InlinerSizeModel.o",
+        "LLVM_OVERRIDE_MODEL_OBJECT_REGALLOCEVICTMODEL:UNINITIALIZED=/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/RegAllocEvictModel.o",
+        "LLVM_PARALLEL_COMPILE_JOBS:STRING=6",
+        "LLVM_PARALLEL_LINK_JOBS:STRING=2",
+        "LLVM_PARALLEL_TABLEGEN_JOBS:STRING=",
+        "LLVM_TARGETS_TO_BUILD:STRING=ARM;BPF",
+        "TENSORFLOW_AOT_PATH:PATH=/home/abuild/rpmbuild/BUILD/llvm-22.1.8/mlgo_verify_assets/mlgo_sysroot",
+        "CMAKE_CXX_COMPILER-ADVANCED:INTERNAL=1",
+        "CMAKE_CXX_COMPILER_AR-ADVANCED:INTERNAL=1",
+        "CMAKE_CXX_COMPILER_RANLIB-ADVANCED:INTERNAL=1",
+        "CMAKE_C_COMPILER-ADVANCED:INTERNAL=1",
+        "CMAKE_C_COMPILER_AR-ADVANCED:INTERNAL=1",
+        "CMAKE_C_COMPILER_RANLIB-ADVANCED:INTERNAL=1",
+        "LLVM_ENABLE_PROJECTS_USED-ADVANCED:INTERNAL=1"
+      ],
+      "compiler_ids": [
+        "set(CMAKE_CXX_COMPILER_ID \"GNU\")",
+        "set(CMAKE_CXX_COMPILER_VERSION \"14.2.0\")",
+        "set(CMAKE_C_COMPILER_ID \"GNU\")",
+        "set(CMAKE_C_COMPILER_VERSION \"14.2.0\")"
+      ]
+    }
+  ],
+  "rpms": [
+    {
+      "name": "clang",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/clang-22.1.8-1.armv7l.rpm",
+      "sha256": "2fd2d861bb2f84fc50173607a91939816206a7ffba6c86f142186b8635d4cc83",
+      "header": "clang|22.1.8-1|armv7l"
+    },
+    {
+      "name": "clang-devel",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/clang-devel-22.1.8-1.armv7l.rpm",
+      "sha256": "39f81ec33628af1be7f7ef0edf09f8b12f647d73621b88e253748b3ea9cc78d7",
+      "header": "clang-devel|22.1.8-1|armv7l"
+    },
+    {
+      "name": "compiler-rt",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/compiler-rt-22.1.8-1.armv7l.rpm",
+      "sha256": "4955c7cd37b440c3ecaea20dd367defe036b04a7fa3efafdcc8709b6bc6e0325",
+      "header": "compiler-rt|22.1.8-1|armv7l"
+    },
+    {
+      "name": "libllvm",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/libllvm-22.1.8-1.armv7l.rpm",
+      "sha256": "5e3c7ccc28e625183055da749aadda4d06b0e4f77e1c2b7855281289decc3f90",
+      "header": "libllvm|22.1.8-1|armv7l"
+    },
+    {
+      "name": "libomp",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/libomp-22.1.8-1.armv7l.rpm",
+      "sha256": "b4af4c390da4283c2c36d4bd44a3e334a6a6c53664838e948f199fa80ea9846d",
+      "header": "libomp|22.1.8-1|armv7l"
+    },
+    {
+      "name": "libomp-devel",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/libomp-devel-22.1.8-1.armv7l.rpm",
+      "sha256": "041bc99a2f97a00a4fee1931537e4344c1b2ccc2566b3bec8c3e44dde422a4b8",
+      "header": "libomp-devel|22.1.8-1|armv7l"
+    },
+    {
+      "name": "lldb",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/lldb-22.1.8-1.armv7l.rpm",
+      "sha256": "2f30bcb0222feb97673c959bcf3ead426e9eb8d9db9d1498e67c6fdd97896ed8",
+      "header": "lldb|22.1.8-1|armv7l"
+    },
+    {
+      "name": "lldb-devel",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/lldb-devel-22.1.8-1.armv7l.rpm",
+      "sha256": "ab6e3d596881836b5e4d3d455a6745a6c4018e21a0dd231287e4d66ccdee7267",
+      "header": "lldb-devel|22.1.8-1|armv7l"
+    },
+    {
+      "name": "llvm",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/llvm-22.1.8-1.armv7l.rpm",
+      "sha256": "5c524c7d0bcd4e3c330624dfe4de6b38990e3277966572e845333cea8a6284b9",
+      "header": "llvm|22.1.8-1|armv7l"
+    },
+    {
+      "name": "llvm-devel",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/llvm-devel-22.1.8-1.armv7l.rpm",
+      "sha256": "bb5042ae976dabd094c6b3a5ad7a82bea8875c634aeb8f625561227e3a5de8b8",
+      "header": "llvm-devel|22.1.8-1|armv7l"
+    },
+    {
+      "name": "llvm-static-devel",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/llvm-static-devel-22.1.8-1.armv7l.rpm",
+      "sha256": "f57f457fd4575bbb7460a31895b3f473b72b7cfcfa3adb97aaee82883fa0b601",
+      "header": "llvm-static-devel|22.1.8-1|armv7l"
+    },
+    {
+      "name": "python-clang",
+      "path": "/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/repos/migration101/armv7l/RPMS/python-clang-22.1.8-1.armv7l.rpm",
+      "sha256": "bdaa4b1143b0c8c0c6e27d9625a350368aba20c2f6b02e8374074008f68e060b",
+      "header": "python-clang|22.1.8-1|armv7l"
+    }
+  ],
+  "runtime_smoke": {
+    "clang_version": "clang version 22.1.8\nTarget: armv7l-tizen-linux-gnueabi\nThread model: posix\nInstalledDir: /home/abuild/rpmbuild/BUILD/llvm-22.1.8/build/bin\n"
+  },
+  "parallel_compile_jobs": 4,
+  "parallel_link_jobs": 2,
+  "limits": "Isolated ARM LLVM22 bootstrap using fixed10.1 GCC Product/Base dependencies. Configure probe deliberately fails GBS after recipe exit86; full package pass is separate. No new OBS project/Base publication, accelerator update, SDK build, compiler installation on host/TV, source/shelf replacement or cleanup. Default-driver/LTO/MLGO codegen tests, remaining Base rebases, ABI/runtime and10.0 Product compatibility remain pending."
+}

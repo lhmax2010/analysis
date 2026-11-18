@@ -1,0 +1,6 @@
+package,baseline,GCC_result,LLVM_result,fixed,evidence
+org.tizen.AVControl,10.0 candidate experiment,PASS candidate,PASS control and candidate,Candidate built; not shelved/adopted,evidence/avcontrol-build.txt
+gst-ffmpeg,10.0 seek fix,PASS,PASS,Shelved 14466526; targeted Clang TV regression,historical-reports/usb-thumbnail-crash.md
+llvm,10.1 isolated GCC bootstrap,PASS as bootstrap producer,Not a Clang self-build,12 RPMs; scoped smoke passed,evidence/llvm101-bootstrap.txt
+capi-multiprofile-tv1.4.7,10.1 migration,PASS,Pending,Candidate only,evidence/migration101.csv
+gst-plugins-atsc3,10.1 migration,PASS,Pending,Candidate only,evidence/migration101.csv

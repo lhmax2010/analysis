@@ -1,0 +1,350 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,5 +1,10 @@
+ cmake_minimum_required(VERSION 3.5)
+ project(capi-multiprofile-tv VERSION 1.0.0 LANGUAGES C CXX)
++IF(CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
++# Clang only: -pie for the executables. The spec leaves it out of LDFLAGS for Clang, because Clang reports it as unused
++# when it links a shared library (an error with -Werror); GCC drops it there. The executables get -pie as before.
++SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
++ENDIF()
+ 
+ set(CMAKE_CXX_STANDARD 17)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+--- a/packaging/capi-multiprofile-tv.spec
++++ b/packaging/capi-multiprofile-tv.spec
+@@ -84,8 +84,16 @@
+ sh ./prebuild.sh
+ 
+ %build
++%if "%{?_toolchain}" == "clang"
++# Clang only: -Wl,-z,relro and -pie are link options. Clang reports -Wl,-z,relro as unused on every compile-only step
++# and -pie as unused when it links a shared library (errors with -Werror); GCC ignores both there. So for Clang
++# -Wl,-z,relro goes into LDFLAGS, which CMake uses for every link, and -pie only to the executables (CMakeLists.txt).
++export CFLAGS="-Wall -Werror -fPIE -fstack-protector-strong -DTIZEN -D_FORTIFY_SOURCE=2 -O2" LDFLAGS="-Wl,-z,relro"
++export CXXFLAGS="-Wall -Werror -fPIE -fstack-protector-strong -DTIZEN -D_FORTIFY_SOURCE=2 -O2" LDFLAGS="-Wl,-z,relro"
++%else
+ export CFLAGS="-Wall -Werror -fPIE -Wl,-z,relro -fstack-protector-strong -DTIZEN -D_FORTIFY_SOURCE=2 -O2" LDFLAGS="-pie"
+ export CXXFLAGS="-Wall -Werror -fPIE -Wl,-z,relro -fstack-protector-strong -DTIZEN -D_FORTIFY_SOURCE=2 -O2" LDFLAGS="-pie"
++%endif
+ 
+ ##UT PACKAGE
+ %if ("%{vdut}" == "=c")
+--- a/src/core/multiprofile_mapi.h
++++ b/src/core/multiprofile_mapi.h
+@@ -18,6 +18,8 @@
+ #include <string>
+ #include <list>
+ #include <map>
++#include <deque>
++#include <cstdint>
+ #include <vconf.h>
+ #include <app_control.h>
+ 
+@@ -114,11 +116,32 @@
+   MultiprofileMAPI(const MultiprofileMAPI&) = delete;
+   MultiprofileMAPI& operator=(const MultiprofileMAPI&) = delete;
+ 
+-   std::mutex mutex_;
++   mutable std::mutex mutex_;
+    std::unique_ptr<TidlProxyProvider> provider_;
+    bool initialized_ = false;
+    bool connected_ = false;
+-   bool initializing_ = false;   // guarded by mutex_; true while Initialize() is connecting
++
++   // Lifecycle calls release mutex_ before Connect/Disconnect dispatch events.
++   bool lifecycle_busy_ = false;
++   struct LifecycleGuard {
++     MultiprofileMAPI& owner;
++     ~LifecycleGuard() { owner.FinishLifecycleOperation(); }
++   };
++   void FinishLifecycleOperation();
++
++   struct PendingProfileEvent {
++     std::string value;
++     int type;
++     std::list<std::uint64_t> subscribers;
++   };
++   std::deque<PendingProfileEvent> pending_profile_events_;
++   unsigned int profile_dispatch_source_ = 0;
++   bool profile_dispatching_ = false;
++   void ScheduleProfileEventsLocked();
++   void ClearProfileSubscriptions();
++   static int DispatchPendingProfileEvents(void* data);
++   std::uint64_t next_subscriber_id_ = 0;
++
+ 
+    // ===== Persisted connection status callback (survives init/deinit cycles) =====
+    multiprofile_connection_status_cb saved_connection_cb_ = nullptr;
+@@ -129,6 +152,7 @@
+   struct ProfileStatusSubscriber {
+     multiprofile_profile_status_changed_cb callback;
+     void *user_data;
++    std::uint64_t id;
+   };
+ 
+   static std::list<ProfileStatusSubscriber> s_subscribers;
+--- a/src/core/multiprofile_mapi.cpp
++++ b/src/core/multiprofile_mapi.cpp
+@@ -80,6 +80,7 @@
+   if (initialized_) {
+     Deinitialize();
+   }
++  ClearProfileSubscriptions();
+ }
+ 
+ MultiprofileMAPI& MultiprofileMAPI::GetInstance() {
+@@ -91,127 +92,100 @@
+ 
+ int MultiprofileMAPI::Initialize() {
+   MAPI_LOGI("[INIT] ++");
+-  // ========== Phase 1: check & claim (LOCKED, microseconds) ==========
+-  std::unique_ptr<TidlProxyProvider> stale_provider;
+-  // Critical section only. The lock MUST NOT span the connect loop below:
+-  // Connect() pumps GMainContext, which can dispatch application callbacks
+-  // (idle/timeout/vconf) that re-enter this MAPI on the same thread.
++  std::unique_ptr<TidlProxyProvider> previous;
++  multiprofile_connection_status_cb connection_cb = nullptr;
++  void* connection_cb_data = nullptr;
+   {
+     std::lock_guard<std::mutex> lock(mutex_);
+-
+-    if (initialized_) {
+-      MAPI_LOGW("[INIT] Already initialized");
+-      return MULTIPROFILE_ERROR_NONE;
+-    }
+-    if (initializing_) {
+-      MAPI_LOGW("[INIT] Re-entrant call while initializing");
++    if (lifecycle_busy_) {
++      MAPI_LOGW("[INIT] Lifecycle operation in progress");
+       return MULTIPROFILE_ERROR_OPERATION_FAILED;
+     }
+-    initializing_ = true;
+-    // move out instead of reset(): the destructor may fire OnDisconnected ->
+-    // OnProviderDisconnected(), which locks mutex_ - never destroy under the lock
+-    stale_provider = std::move(provider_);
+-  }                      // lock released BEFORE any slow work
+-  stale_provider.reset();   // destroyed unlocked; method guards see NOT_INITIALIZED
+-
+-  // ========== Phase 2: connect (NO LOCK) ==========
+-  std::unique_ptr<TidlProxyProvider> provider;
+-  int ret = MULTIPROFILE_ERROR_OPERATION_FAILED;
+-
++    if (initialized_) return MULTIPROFILE_ERROR_NONE;
++    lifecycle_busy_ = true;
++    connected_ = false;
++    previous = std::move(provider_);
++    connection_cb = saved_connection_cb_;
++    connection_cb_data = saved_connection_cb_user_data_;
++  }
++  LifecycleGuard lifecycle{*this};
+   try {
++    // Destruction and Connect can dispatch events. Neither may hold mutex_.
++    previous.reset();
++    std::unique_ptr<TidlProxyProvider> candidate;
++    int ret = MULTIPROFILE_ERROR_OPERATION_FAILED;
+     for (int attempt = 1; attempt <= MULTIPROFILE_INIT_RETRY_COUNT; ++attempt) {
+-      provider = std::make_unique<TidlProxyProvider>();
++      candidate = std::make_unique<TidlProxyProvider>();
+       MAPI_LOGI("[INIT] Creating TidlProxyProvider (attempt %d/%d)",
+                 attempt, MULTIPROFILE_INIT_RETRY_COUNT);
+-
+-      ret = provider->Connect();
+-      if (ret == MULTIPROFILE_ERROR_NONE) {
+-        // Register lifecycle callbacks on the LOCAL provider while no lock is
+-        // held (avoids lock-order inversion with the OnProviderDisconnected /
+-        // OnConnected paths). Nobody else can see this provider yet.
+-        provider->SetDisconnectCallback([]() {
+-          MultiprofileMAPI::GetInstance().OnProviderDisconnected();
+-        });
+-
+-        if (saved_connection_cb_ != nullptr) {
+-          provider->RegisterConnectionStatusCallback(saved_connection_cb_,
+-                                                     saved_connection_cb_user_data_);
+-          MAPI_LOGI("[INIT] Re-registered persisted connection status callback");
+-        }
+-        break;
+-      }
+-
+-      // LCOV_EXCL_START
++      ret = candidate->Connect();
++      if (ret == MULTIPROFILE_ERROR_NONE) break;
+       MAPI_LOGE("[INIT] Connect FAILED (attempt %d/%d) with error: %d",
+                 attempt, MULTIPROFILE_INIT_RETRY_COUNT, ret);
+-      provider.reset();
+-
++      candidate.reset();
+       if (attempt < MULTIPROFILE_INIT_RETRY_COUNT) {
+-        MAPI_LOGI("[INIT] Retrying in %d ms...", MULTIPROFILE_INIT_RETRY_INTERVAL_MS);
+         std::this_thread::sleep_for(
+             std::chrono::milliseconds(MULTIPROFILE_INIT_RETRY_INTERVAL_MS));
+       }
+-      // LCOV_EXCL_STOP
+-    }
++    }
++    if (ret != MULTIPROFILE_ERROR_NONE) return ret;
++    if (!candidate->IsConnected()) return MULTIPROFILE_ERROR_NOT_CONNECTED;
++
++    candidate->SetDisconnectCallback([]() {
++      MultiprofileMAPI::GetInstance().OnProviderDisconnected();
++    });
++    // provider_ is detached while the lifecycle is busy, so registration APIs
++    // cannot change the saved callback. Register outside mutex_ in case it dispatches.
++    if (connection_cb != nullptr) {
++      candidate->RegisterConnectionStatusCallback(connection_cb, connection_cb_data);
++    }
++    {
++      std::lock_guard<std::mutex> lock(mutex_);
++      if (!candidate->IsConnected()) return MULTIPROFILE_ERROR_NOT_CONNECTED;
++      provider_ = std::move(candidate);
++      initialized_ = true;
++      connected_ = true;
++    }
++    MAPI_LOGI("[INIT] -- SUCCESS");
++    return MULTIPROFILE_ERROR_NONE;
+   } catch (...) {
+-    // Never leak the initializing_ claim - otherwise every future
+-    // Initialize() would be rejected until process restart.
+-    std::lock_guard<std::mutex> lock(mutex_);
+-    initializing_ = false;
+     MAPI_LOGE("[INIT] Unexpected exception during connect");
+     return MULTIPROFILE_ERROR_OPERATION_FAILED;
+   }
+-
+-  // ========== Phase 3: publish (LOCKED, microseconds) ==========
+-  std::lock_guard<std::mutex> lock(mutex_);
+-  initializing_ = false;   // cleared on every exit path
+-
+-  if (ret != MULTIPROFILE_ERROR_NONE) {
+-    MAPI_LOGE("[INIT] All %d connect attempts failed, last error: %d",
+-              MULTIPROFILE_INIT_RETRY_COUNT, ret);
+-    return ret;
+-  }
+-
+-  if (!provider->IsConnected()) {
+-    // Connected, then dropped before publish - never advertise a dead provider
+-    MAPI_LOGW("[INIT] Provider disconnected between connect and publish");
+-    return MULTIPROFILE_ERROR_NOT_CONNECTED;
+-  }
+-
+-  provider_ = std::move(provider);
+-  initialized_ = true;
+-  connected_ = true;
+-
+-  MAPI_LOGI("[INIT] -- SUCCESS");
+-  return MULTIPROFILE_ERROR_NONE;
+-}
+-
++}
+ 
+ int MultiprofileMAPI::Deinitialize() {
+   MAPI_LOGI("[DEINIT] ++");
+-  std::lock_guard<std::mutex> lock(mutex_);
+-
+-  if (!initialized_) {
+-    MAPI_LOGW("[DEINIT] Not initialized");
+-    return MULTIPROFILE_ERROR_NOT_INITIALIZED;
+-  }
+-
+-  if (provider_ != nullptr) {
+-    provider_->Disconnect();
+-    provider_.reset();
+-  }
+-
+-  initialized_ = false;
+-  connected_ = false;
++  std::unique_ptr<TidlProxyProvider> previous;
++  {
++    std::lock_guard<std::mutex> lock(mutex_);
++    if (lifecycle_busy_) return MULTIPROFILE_ERROR_OPERATION_FAILED;
++    if (!initialized_) return MULTIPROFILE_ERROR_NOT_INITIALIZED;
++    lifecycle_busy_ = true;
++    initialized_ = false;
++    connected_ = false;
++    previous = std::move(provider_);
++  }
++  LifecycleGuard lifecycle{*this};
++  if (previous) {
++    // OnProviderDisconnected takes mutex_, so disconnect outside that lock.
++    previous->Disconnect();
++    previous.reset();
++  }
+   MAPI_LOGI("[DEINIT] -- SUCCESS");
+   return MULTIPROFILE_ERROR_NONE;
+ }
+ 
+-// LCOV_EXCL_START
++void MultiprofileMAPI::FinishLifecycleOperation() {
++  std::lock_guard<std::mutex> lock(mutex_);
++  lifecycle_busy_ = false;
++  ScheduleProfileEventsLocked();
++}
++
+ bool MultiprofileMAPI::IsInitialized() const {
++  std::lock_guard<std::mutex> lock(mutex_);
+   return initialized_;
+ }
+-// LCOV_EXCL_STOP
+ 
+ // ==================== Async API Methods ====================
+ 
+--- a/src/core/multiprofile_mapi_subscribe_profile_status.cpp
++++ b/src/core/multiprofile_mapi_subscribe_profile_status.cpp
+@@ -19,6 +19,8 @@
+ #include <vconf.h>
+ #include <cstdlib>
+ #include <cstring>
++#include <algorithm>
++#include <glib.h>
+ 
+ #define VCONF_KEY_PROFILE_INFO "db/multiprofile/event_info"
+ 
+@@ -27,7 +29,7 @@
+ 
+ 
+ 
+-void MultiprofileMAPI::VconfProfileStatusChangedCb(keynode_t *key, void *data) {
++void MultiprofileMAPI::VconfProfileStatusChangedCb(keynode_t *key, void* /*data*/) {
+   MAPI_LOGI("VconfProfileStatusChangedCb ++");
+   char *value = vconf_keynode_get_str(key);
+   if (value == nullptr) {
+@@ -60,10 +62,15 @@
+ 
+   MAPI_LOGI("Profile status changed: event_data=%s, eventType=%d", value, event_type);
+ 
+-  for (auto &sub : s_subscribers) {
+-    if (sub.callback) {
+-      sub.callback(value, event_type, sub.user_data);
+-    }
++  auto& self = GetInstance();
++  {
++    std::lock_guard<std::mutex> lock(self.mutex_);
++    // vconf owns value; copy it before the keynode callback returns.
++    PendingProfileEvent event{std::string(value), event_type, {}};
++    for (const auto& sub : s_subscribers) event.subscribers.push_back(sub.id);
++    if (event.subscribers.empty()) return;
++    self.pending_profile_events_.push_back(std::move(event));
++    self.ScheduleProfileEventsLocked();
+   }
+   /* Note: vconf_keynode_get_str() returns internal keynode data, do not free. */
+ 
+@@ -72,62 +79,93 @@
+ 
+ 
+ 
++void MultiprofileMAPI::ClearProfileSubscriptions() {
++  std::lock_guard<std::mutex> lock(mutex_);
++  if (s_vconf_registered) {
++    vconf_ignore_key_changed(VCONF_KEY_PROFILE_INFO, VconfProfileStatusChangedCb);
++    s_vconf_registered = false;
++  }
++  s_subscribers.clear();
++  pending_profile_events_.clear();
++  if (profile_dispatch_source_ != 0) {
++    g_source_remove(profile_dispatch_source_);
++    profile_dispatch_source_ = 0;
++  }
++}
++
++// Called with mutex_ held. Idle delivery also serializes nested profile events.
++void MultiprofileMAPI::ScheduleProfileEventsLocked() {

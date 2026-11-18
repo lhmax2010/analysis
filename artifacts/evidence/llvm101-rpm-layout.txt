@@ -1,0 +1,122 @@
+{
+  "status": "RPM_LAYOUT_REVIEWED_PRODUCTION_ACCELERATION_PENDING",
+  "packet_sha256": "b29b58a28adf04b12cd8a5c47a0872a35f55e9f504e132c82b1fcc0217926e3f",
+  "packages_verified": 12,
+  "commands": 59,
+  "all_commands_exit_zero": true,
+  "resource_directory": "/usr/lib/clang/22",
+  "findings": [
+    "Clang and compiler-rt resource prefixes agree; selected clang launcher and library symlinks have matching RPM targets.",
+    "Selected clang, compiler-rt, libLLVM, libomp and LLVMgold payloads are ARM32. LLVMgold is owned by llvm-devel.",
+    "Retained accelerated GNU ld is x86_64 (machine 62), whereas new RPM LLVMgold is ARM32 (machine 40); this static inventory does not close production acceleration integration.",
+    "All three fixed VD AOT source archive hashes equal the pinned 10.0 baseline model inputs."
+  ],
+  "providers": [
+    "binutils-libs|2.43-1.15|armv7l|binutils-2.43-1.15.src.rpm",
+    "qemu-accel-x86_64-armv7l|0.4-1.1|armv7l|qemu-accel-0.4-1.1.src.rpm",
+    "binutils-devel|2.43-1.15|armv7l|binutils-2.43-1.15.src.rpm",
+    "qemu-linux-user-x86_64-cross|5.2.0-21.5|armv7l|qemu-linux-user-5.2.0-21.5.src.rpm",
+    "binutils|2.43-1.15|armv7l|binutils-2.43-1.15.src.rpm"
+  ],
+  "accelerator_linker_observations": [
+    {
+      "requested": "/emul/usr/armv7l-tizen-linux-gnueabi/bin/ld",
+      "resolved_inside": "/emul/usr/bin/ld",
+      "sha256": "a2693c7bf59082cb2187a087915cf8c977874f6510829e543a4eb686ea6b5599",
+      "elf": {
+        "kind": "ELF",
+        "bits": 64,
+        "machine": 62,
+        "machine_name": "x86_64"
+      },
+      "needed": [
+        "libbfd-2.43.so",
+        "libctf.so.0",
+        "libc.so.6"
+      ],
+      "rpaths": [
+        "0x000000000000001d (RUNPATH)            Library runpath: [/emul/usr/lib64]"
+      ]
+    },
+    {
+      "requested": "/emul/usr/armv7l-tizen-linux-gnueabi/bin/ld.bfd",
+      "resolved_inside": "/emul/usr/bin/ld.bfd",
+      "sha256": "a2693c7bf59082cb2187a087915cf8c977874f6510829e543a4eb686ea6b5599",
+      "elf": {
+        "kind": "ELF",
+        "bits": 64,
+        "machine": 62,
+        "machine_name": "x86_64"
+      },
+      "needed": [
+        "libbfd-2.43.so",
+        "libctf.so.0",
+        "libc.so.6"
+      ],
+      "rpaths": [
+        "0x000000000000001d (RUNPATH)            Library runpath: [/emul/usr/lib64]"
+      ]
+    },
+    {
+      "requested": "/emul/usr/bin/ld",
+      "resolved_inside": "/emul/usr/bin/ld",
+      "sha256": "a2693c7bf59082cb2187a087915cf8c977874f6510829e543a4eb686ea6b5599",
+      "elf": {
+        "kind": "ELF",
+        "bits": 64,
+        "machine": 62,
+        "machine_name": "x86_64"
+      },
+      "needed": [
+        "libbfd-2.43.so",
+        "libctf.so.0",
+        "libc.so.6"
+      ],
+      "rpaths": [
+        "0x000000000000001d (RUNPATH)            Library runpath: [/emul/usr/lib64]"
+      ]
+    },
+    {
+      "requested": "/emul/usr/bin/ld.bfd",
+      "resolved_inside": "/emul/usr/bin/ld.bfd",
+      "sha256": "a2693c7bf59082cb2187a087915cf8c977874f6510829e543a4eb686ea6b5599",
+      "elf": {
+        "kind": "ELF",
+        "bits": 64,
+        "machine": 62,
+        "machine_name": "x86_64"
+      },
+      "needed": [
+        "libbfd-2.43.so",
+        "libctf.so.0",
+        "libc.so.6"
+      ],
+      "rpaths": [
+        "0x000000000000001d (RUNPATH)            Library runpath: [/emul/usr/lib64]"
+      ]
+    }
+  ],
+  "model_inputs": [
+    {
+      "name": "mlgo_aarch_model.tar.gz",
+      "sha256": "76f896dfdce3fa19d0ed467554ed3a643f062f52b4a4db81f576d04c469014a1",
+      "matches_pinned_VD_baseline": true
+    },
+    {
+      "name": "mlgo_arm_model.tar.gz",
+      "sha256": "dd468cce897c7f578b38668e9d869c6785f3fdbcf97879fd7775b430bd0a3a9a",
+      "matches_pinned_VD_baseline": true
+    },
+    {
+      "name": "mlgo_x86_model.tar.gz",
+      "sha256": "6c221a08aa63f80c3d82713ba968125797f16351c258a174fc0eec6fdffdbf43",
+      "matches_pinned_VD_baseline": true
+    }
+  ],
+  "limits": [
+    "Selected payload inspection is not installation/loader/runtime validation of every file.",
+    "Previously passed private-ARM-linker smoke remains valid in its scope; do not rerun it.",
+    "SDK, full Base and both Product compatibility matrices remain pending."
+  ],
+  "next": "Inspect retained qemu-accel compiler/plugin/model packaging and prepare architecture-matched x86 host variants before production acceleration validation."
+}

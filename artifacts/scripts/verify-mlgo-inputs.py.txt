@@ -1,0 +1,105 @@
+"""Check the selected MLGO assets and actual CMake copies before the full build."""
+from pathlib import Path
+import argparse
+import hashlib
+import json
+
+EXPECTED = {'armv7l': {'runtime_tree_sha256': 'd4224319dcd35b485f927cd19a0d8cbc5e8b76d9d3fafcd9715b8c28c06c74f3', 'runtime_regular_file_count': 8388, 'runtime_objects': ['xla_compiled_cpu_function.cc.o', 'cpu_function_runtime.cc.o', 'custom_call_status.cc.o', 'executable_run_options.cc.o', 'runtime_single_threaded_matmul_f32.cc.o'], 'models': {'InlinerSizeModel.h': 'c96096d4bec47e966bdc7e8ed98f2dce70bce760381a559fcc7e555ac42861f0', 'InlinerSizeModel.o': 'cd32bf0712dd0482646875e80b26375a6e3083fa108609b586ac36ac940392e4', 'RegAllocEvictModel.h': '6ad1f352356f45f1484b5c582aa87df83e72ba4824a16c60de4d1ea75dcc3ce5', 'RegAllocEvictModel.o': '56e8584b1fdd4759a544de1d16c58e2006b0df6056ac87fdbd218439e037d02f'}}, 'aarch64': {'runtime_tree_sha256': '1a10045e6f5b7722f9e7f2456f583180907209b299105d4a7f3a1817d7b51f37', 'runtime_regular_file_count': 8388, 'runtime_objects': ['xla_compiled_cpu_function.cc.o', 'cpu_function_runtime.cc.o', 'custom_call_status.cc.o', 'executable_run_options.cc.o', 'runtime_single_threaded_matmul_f32.cc.o'], 'models': {'InlinerSizeModel.h': 'c96096d4bec47e966bdc7e8ed98f2dce70bce760381a559fcc7e555ac42861f0', 'InlinerSizeModel.o': '73f7a3cae4cf3635e36b7b6015c35ce58bba5b8ef4e214c1e2237c298f80058d', 'RegAllocEvictModel.h': '6ad1f352356f45f1484b5c582aa87df83e72ba4824a16c60de4d1ea75dcc3ce5', 'RegAllocEvictModel.o': 'b69621c4493bf14d7b1788aa1bb95bb9057751db9c39c4c4486057465b44f710'}}, 'x86_64': {'runtime_tree_sha256': '004695e28d8951f1fe30301560f74e312d04b6959e5143a65dd66cd3ee342ea5', 'runtime_regular_file_count': 8388, 'runtime_objects': ['xla_compiled_cpu_function.cc.o', 'cpu_function_runtime.cc.o', 'custom_call_status.cc.o', 'executable_run_options.cc.o', 'runtime_single_threaded_matmul_f32.cc.o'], 'models': {'InlinerSizeModel.h': 'c96096d4bec47e966bdc7e8ed98f2dce70bce760381a559fcc7e555ac42861f0', 'InlinerSizeModel.o': '148626e810459177b292ec683f58ebf8f80789a8fd49e3e4b1fa4d5c98e79d54', 'RegAllocEvictModel.h': '6ad1f352356f45f1484b5c582aa87df83e72ba4824a16c60de4d1ea75dcc3ce5', 'RegAllocEvictModel.o': '7c81714f3ccec70d9cd02af69280835703ab6beac3f2378979167f61a9538ab6'}}}
+
+
+def sha(path):
+    h = hashlib.sha256()
+    with path.open('rb') as f:
+        for block in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(block)
+    return h.hexdigest()
+
+
+def regular(path):
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError('Missing/non-regular MLGO input: ' + str(path))
+
+
+def tree_digest(root):
+    rows = []
+    for directory in ('mlgo_sysroot', 'xla_runtime_objects'):
+        base = root / directory
+        if base.is_symlink() or not base.is_dir():
+            raise RuntimeError('Missing/non-directory runtime tree: ' + directory)
+        for path in sorted(base.rglob('*')):
+            if path.is_symlink():
+                raise RuntimeError('Runtime tree contains a symlink')
+            if path.is_dir():
+                continue
+            regular(path)
+            rows.append((path.relative_to(root).as_posix(), path.stat().st_size, sha(path)))
+    rows.sort()
+    return hashlib.sha256(json.dumps(rows, separators=(',', ':')).encode()).hexdigest()
+
+
+def elf(path, arch):
+    regular(path)
+    raw = path.read_bytes()[:64]
+    machine, bits = {'armv7l': (40, 1), 'aarch64': (183, 2), 'x86_64': (62, 2)}[arch]
+    if len(raw) < 52 or raw[:4] != b'\x7fELF' or raw[4] != bits or raw[5] != 1 or int.from_bytes(raw[16:18], 'little') != 1 or int.from_bytes(raw[18:20], 'little') != machine:
+        raise RuntimeError('Wrong MLGO object class/endianness/type/machine: ' + str(path))
+    return int.from_bytes(raw[36:40], 'little') & 0x600 if arch == 'armv7l' else None
+
+
+def verify(assets, build, arch, sr_runtime, custom_inliner, custom_regalloc):
+    assets, build = assets.resolve(strict=True), build.resolve(strict=True)
+    expected = EXPECTED[arch]
+    if sr_runtime and tree_digest(assets) != expected['runtime_tree_sha256']:
+        raise RuntimeError('SR runtime/sysroot content differs from pinned complete tree')
+    cache = {}
+    for line in (build / 'CMakeCache.txt').read_text().splitlines():
+        if line.startswith(('#', '//')) or '=' not in line or ':' not in line.split('=', 1)[0]:
+            continue
+        key, value = line.split('=', 1)
+        key = key.split(':', 1)[0]
+        cache[key] = value
+    if cache.get('LLVM_MLGO_EXPORT_TF_XLA_RUNTIME') != 'OFF':
+        raise RuntimeError('Runtime export must remain OFF')
+    if Path(cache.get('TENSORFLOW_AOT_PATH', '/missing')).resolve() != assets / 'mlgo_sysroot':
+        raise RuntimeError('CMake selected a different runtime sysroot')
+    runtime_paths = [str(assets / 'xla_runtime_objects' / name) for name in expected['runtime_objects']]
+    if cache.get('LLVM_MLGO_EMBED_TF_XLA_RUNTIME_OBJECTS', '').split(';') != runtime_paths:
+        raise RuntimeError('CMake selected a different runtime object list')
+    abi = []
+    for path in runtime_paths:
+        abi.append(elf(Path(path), arch))
+    for model, subdir, custom in [('InlinerSizeModel', 'Analysis', custom_inliner), ('RegAllocEvictModel', 'CodeGen', custom_regalloc)]:
+        if cache.get('LLVM_INLINER_MODEL_PATH' if subdir == 'Analysis' else 'LLVM_RAEVICT_MODEL_PATH') == 'autogenerate':
+            raise RuntimeError('MLGO fell back to autogenerate')
+        for suffix in ('.h', '.o'):
+            source = assets / (model + suffix)
+            copied = build / 'lib' / subdir / (model + suffix)
+            regular(source)
+            regular(copied)
+            if sha(source) != sha(copied):
+                raise RuntimeError('CMake did not copy the selected model: ' + model + suffix)
+            if custom and sha(source) != expected['models'][model + suffix]:
+                raise RuntimeError('Custom model differs from pinned SR model: ' + model + suffix)
+        abi.append(elf(assets / (model + '.o'), arch))
+    if arch == 'armv7l' and len(set(abi)) != 1:
+        raise RuntimeError('ARM model/runtime float ABI flags differ')
+    result = dict(arch=arch, runtime='SR_SPLIT' if sr_runtime else 'VD_BASELINE',
+                  custom_inliner=custom_inliner, custom_regalloc=custom_regalloc,
+                  sr_complete_runtime_tree_verified=bool(sr_runtime), model_copies_verified=True)
+    (build / 'mlgo-input-verification.json').write_text(json.dumps(result, indent=2) + '\n')
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--assets', required=True, type=Path)
+    parser.add_argument('--build', required=True, type=Path)
+    parser.add_argument('--arch', required=True, choices=tuple(EXPECTED))
+    for flag in ('sr-runtime', 'custom-inliner', 'custom-regalloc'):
+        parser.add_argument('--' + flag, required=True, type=int, choices=(0, 1))
+    args = parser.parse_args()
+    print('MLGO_INPUT_VERIFY_PASS:', json.dumps(verify(args.assets, args.build, args.arch, args.sr_runtime, args.custom_inliner, args.custom_regalloc), sort_keys=True))
+
+
+if __name__ == '__main__':
+    main()

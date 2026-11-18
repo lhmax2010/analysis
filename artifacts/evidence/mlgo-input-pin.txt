@@ -1,0 +1,138 @@
+{
+  "project": "Tizen:10.0:Base:Dev:LLVM",
+  "package": "llvm",
+  "repository": "standard",
+  "architecture": "armv7l",
+  "architectures": [
+    "armv7l",
+    "x86_64"
+  ],
+  "baseline_revision": "e8e200ad246092d1bdd5fc1aae385d86",
+  "expected_baseline_rev": "11",
+  "baseline_project_config_sha256": "7416f7cb91d57be5541025d64e3b2958287d7ee061f45d9a2516be4e584a61a9",
+  "baseline_files": {
+    "driver-O4-as-O3-upstream-85e76ec53ae4.patch": {
+      "md5": "0afb050992c9b698747965553632ca05",
+      "sha256": "ed039f74b5a6f2fd0766b155436e985acba1e6839621c7d19a109da16d7302c2",
+      "bytes": 2324
+    },
+    "driver-pass-llvmgold-to-gnu-ld-by-default.patch": {
+      "md5": "6a5db721b6ab4e7613b8cce944fc9654",
+      "sha256": "0bf92bc071e2d8edbf7837a521fcf00b3ed2cb512b40519e6e175c2604441728",
+      "bytes": 3889
+    },
+    "llvm-22.1.8.tar.gz": {
+      "md5": "0615ccfcf34432e0e18c7597d35b870d",
+      "sha256": "9bc2837ba3df87dc70cdc804e2ef2ab3aa0c963c842cd1073df5986a1a7f0c62",
+      "bytes": 353369735
+    },
+    "llvm.manifest": {
+      "md5": "882ecd960d3652fbdad6c37a7000362a",
+      "sha256": "55449a170ea90537532d2fd52a2e2f7c9a53dbcb6b1894c8a321c53a8685524d",
+      "bytes": 189
+    },
+    "llvm.spec": {
+      "sha256": "b450097409a22b16de6ea3710624c6abca8a9de21312a12399a979ed95aa5f12",
+      "md5": "f0faca0d54a26caf107d6fd8c619e2bc",
+      "bytes": 23235
+    },
+    "lto-nonpic-in-pic-output-fallback.patch": {
+      "md5": "4e74b6a945ef50e3ad1887a133b6e6ad",
+      "sha256": "7d89083453e1d75707a4a6b3a6d9510a4c31e09d8e99865de2a18e07945bf76f",
+      "bytes": 45397
+    },
+    "mlgo_aarch_model.tar.gz": {
+      "md5": "292d056f28170f6d1980e67e0d1d3ae3",
+      "sha256": "76f896dfdce3fa19d0ed467554ed3a643f062f52b4a4db81f576d04c469014a1",
+      "bytes": 30461764
+    },
+    "mlgo_arm_model.tar.gz": {
+      "md5": "cc0be0465d5fae5a79b19a35af25dcb8",
+      "sha256": "dd468cce897c7f578b38668e9d869c6785f3fdbcf97879fd7775b430bd0a3a9a",
+      "bytes": 28477748
+    },
+    "mlgo_x86_model.tar.gz": {
+      "md5": "1d4287762587dbd1b056ab3a3c7c848f",
+      "sha256": "6c221a08aa63f80c3d82713ba968125797f16351c258a174fc0eec6fdffdbf43",
+      "bytes": 28652731
+    },
+    "openmp.patch": {
+      "md5": "56625f17ddc870da91394e64d42443d6",
+      "sha256": "3b1ae89ee5a513f9c1843908133a9cc70d4b54c02f2cc4d928153c493fb37677",
+      "bytes": 478
+    },
+    "mlgo_inliner_armv7l.tar.gz": {
+      "sha256": "078b3e94f38659ae9f7f789860223ad508fa5bfa5a2a57a1657d6c8fc3084377",
+      "md5": "d1c6f5f472a8d6bf90e457e564d0cde5",
+      "bytes": 42180
+    },
+    "mlgo_inliner_aarch64.tar.gz": {
+      "sha256": "85f941e38f2b93cfc7f899e00328f2f9d7ffd16a7ed409fae8abba9dca77dcb8",
+      "md5": "e8eaec355ac997d6e9b9abf2f5a4aea2",
+      "bytes": 40467
+    },
+    "mlgo_inliner_x86_64.tar.gz": {
+      "sha256": "867f82166ef9211ebb1a085020d9aa374beebd59e75979372c3f70ae7fe4b65c",
+      "md5": "6492139721d802d9cd573e1388a88be5",
+      "bytes": 40466
+    },
+    "mlgo_regalloc_armv7l.tar.gz": {
+      "sha256": "8f284b6018edc5191882c51bcce5be6181b804554d90c7600186e19597981375",
+      "md5": "250c109946579efc5b596d00333affaf",
+      "bytes": 58636
+    },
+    "mlgo_regalloc_aarch64.tar.gz": {
+      "sha256": "9b6d1a90ca140a08bfc505b94a0f48c118b0ac9d9157aa30f763592f0201374d",
+      "md5": "cd30422f5e6398ec07d7865fc528ad49",
+      "bytes": 57785
+    },
+    "mlgo_regalloc_x86_64.tar.gz": {
+      "sha256": "c45752d78d09fabaf2da70def1859c84bb22c08cba9c17f4072ae9b884c702dd",
+      "md5": "ea0ecb3adb2a1c136b3de0b76bf01031",
+      "bytes": 58435
+    }
+  },
+  "modified_files": {
+    "llvm.spec": {
+      "md5": "0fcfe508d8c5be8f4d77edf6575fe5a9",
+      "sha256": "7a5d6d889251324334263691758b4113f5035ad85e56a6da14fae19fc6e4bf01",
+      "bytes": 24852
+    },
+    "verify-mlgo-inputs.py": {
+      "md5": "9b7e9511d168eaa463a88964a75cc7d1",
+      "sha256": "bfa86d4eaed2d57c7b16b2e92fe969913ea616d813761690386b4a4017d0d51e",
+      "bytes": 7143
+    },
+    "mlgo_runtime_armv7l.tar.gz": {
+      "md5": "90a7d20fb13747c5be2fd456a2120904",
+      "sha256": "fb2f43b8932d713753c8834a2584f6222449b2db1fb8e7efb461b9ace47f177e",
+      "bytes": 22611421
+    },
+    "mlgo_runtime_aarch64.tar.gz": {
+      "md5": "7c57850d9122f07f91b780f5b2b33901",
+      "sha256": "b93e1644f60f6473f0cc09a45106b461647e2e00e1974581c7805b44daeca70b",
+      "bytes": 22691742
+    },
+    "mlgo_runtime_x86_64.tar.gz": {
+      "md5": "0b22cf0ba895cf823efec82a3040546b",
+      "sha256": "360667c72ad682b75ab34e416147a072947cdd25ec5794a06414c426da602248",
+      "bytes": 22840653
+    }
+  },
+  "engine_sha256": "d5697be7473e971ea427c71b844cace670e713b4f498578559b614c5f5270ee4",
+  "model_selection": {
+    "inliner": "Customized",
+    "regalloc": "Customized"
+  },
+  "runtime_selection": "SR_SPLIT",
+  "source_branch_commit": "18307011adddd987a824ac53807ca91b8df1232a",
+  "comment": "Complete SR split MLGO runtime and header assets with independent model controls and normal-build provenance checks; retain VD LLVM code and adapters.",
+  "stage_result_relative": "workspace/temp/custom_mlgo_minipatch100_dial0dkr/result.json",
+  "stage_sha256": "37f8f73123d4b4747b45ed54436a8cb7362723da9c2a219ff7b14938d3f6a020",
+  "aot_probe_engine_sha256": "32bbbf42c05da48b0abb64e9b45e3f0c904275aba11634bb25db5d8479ec347d",
+  "preflight_archive_sha256": {
+    "mlgo_x86_model.tar.gz": "6c221a08aa63f80c3d82713ba968125797f16351c258a174fc0eec6fdffdbf43",
+    "mlgo_inliner_x86_64.tar.gz": "867f82166ef9211ebb1a085020d9aa374beebd59e75979372c3f70ae7fe4b65c",
+    "mlgo_regalloc_x86_64.tar.gz": "c45752d78d09fabaf2da70def1859c84bb22c08cba9c17f4072ae9b884c702dd"
+  }
+}

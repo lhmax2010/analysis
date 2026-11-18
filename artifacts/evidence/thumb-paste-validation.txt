@@ -1,0 +1,8 @@
+{
+  "status": "STRUCTURALLY_RECONCILED_NOT_BYTE_IDENTICAL",
+  "received_CU_rows": 28004,
+  "debug_records": 78,
+  "CU_and_producer_group_counts_match": true,
+  "association_errors": [],
+  "limits": "Paste converted tabs to spaces and stripped trailing whitespace. Original TSV/review hashes are reported provenance, not locally verified. Raw input preserved."
+}

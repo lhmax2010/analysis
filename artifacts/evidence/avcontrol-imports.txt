@@ -1,0 +1,37 @@
+{
+  "status": "STATIC_IMPORT_COVERAGE_CAPTURED_RUNTIME_PENDING",
+  "previous": "/home1/chengkai/vd-tree/workspace/temp/avcontrol_artifact_review100_14q6nb_a/result.json",
+  "previous_sha256": "4ac0971a3607da198902e3a759878ae80a7154a0339352bfce21c5580e3e79d3",
+  "source_dynamic_lookup": [],
+  "limits": "Static symbol/version coverage in retained build-root dependency closures only. No target execution, package installation or rebuild. Search uses package ELF RPATH/RUNPATH, common library directories and retained ld.so.conf directories; not a complete dynamic-loader simulation. Weak-export users/plugins, constructors, runtime and the newly flashed image remain unvalidated.",
+  "lanes": [
+    {
+      "name": "clang-candidate",
+      "missing_libraries": [],
+      "strong_import_count": 308,
+      "unresolved_strong_imports": [],
+      "unresolved_weak_imports": [
+        "_ITM_registerTMCloneTable",
+        "_ITM_deregisterTMCloneTable",
+        "__gmon_start__"
+      ],
+      "status": "STATIC_COVERAGE_COMPLETE",
+      "provider_count": 201
+    },
+    {
+      "name": "gcc-candidate",
+      "missing_libraries": [],
+      "strong_import_count": 312,
+      "unresolved_strong_imports": [],
+      "unresolved_weak_imports": [
+        "_ITM_registerTMCloneTable",
+        "_ITM_deregisterTMCloneTable",
+        "__gmon_start__"
+      ],
+      "status": "STATIC_COVERAGE_COMPLETE",
+      "provider_count": 201
+    }
+  ],
+  "full_result_sha256": "b162f8e5ad35e2bfbe590fbb65722bcbbdd13064c5ad6cc8ce12696ae1f57663",
+  "command_count": 804
+}

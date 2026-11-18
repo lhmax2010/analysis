@@ -1,0 +1,189 @@
+{
+  "status": "CU_SOURCE_ASSOCIATIONS_REVIEWED_COMPILE_COMMANDS_STILL_PENDING",
+  "matched_board_paths": 77,
+  "debug_records": 78,
+  "CU_records": 28004,
+  "CU_records_without_producer": 23456,
+  "priority_ELFs": 7,
+  "priority_debug_package_names": 2,
+  "priority_CU_records_with_marm": 1617,
+  "candidates": [
+    {
+      "paths": [
+        "/prd/usr/lib/libaudio.a2dp.default.so"
+      ],
+      "debug_package": "bluetooth-impl-sec-oal-debuginfo",
+      "build_id": "b3cb09025660b5011e8117a36ede8a99e60472b0",
+      "CU_with_marm": 214,
+      "sources_examples": [
+        "../../audio_a2dp_hw/src/audio_a2dp_hw.cc",
+        "../../audio_a2dp_hw/src/audio_a2dp_hw_utils.cc",
+        "../../common/message_loop_thread.cc",
+        "../../osi/src/alarm.cc",
+        "../../osi/src/allocation_tracker.cc",
+        "../../osi/src/allocator.cc",
+        "../../third_party/libchrome/base/allocator/allocator_shim.cc",
+        "../../third_party/libchrome/base/allocator/allocator_shim_default_dispatch_to_glibc.cc",
+        "../../third_party/libchrome/base/at_exit.cc",
+        "../../third_party/libchrome/base/barrier_closure.cc",
+        "../../third_party/libchrome/base/base64.cc",
+        "../../third_party/libchrome/base/base64url.cc"
+      ],
+      "status": "RECORDED_MARM_NON_CRT_CANDIDATE_NOT_CONFIRMED_DEFECT"
+    },
+    {
+      "paths": [
+        "/prd/usr/lib/libaudio.leaudio.default.so"
+      ],
+      "debug_package": "bluetooth-impl-sec-oal-debuginfo",
+      "build_id": "39dd991fd484eaddc77978faac5309056aca3386",
+      "CU_with_marm": 213,
+      "sources_examples": [
+        "../../common/message_loop_thread.cc",
+        "../../le_audio_hw/leaudio_hw.cc",
+        "../../osi/src/alarm.cc",
+        "../../osi/src/allocation_tracker.cc",
+        "../../osi/src/allocator.cc",
+        "../../osi/src/config.cc",
+        "../../third_party/libchrome/base/allocator/allocator_shim.cc",
+        "../../third_party/libchrome/base/allocator/allocator_shim_default_dispatch_to_glibc.cc",
+        "../../third_party/libchrome/base/at_exit.cc",
+        "../../third_party/libchrome/base/barrier_closure.cc",
+        "../../third_party/libchrome/base/base64.cc",
+        "../../third_party/libchrome/base/base64url.cc"
+      ],
+      "status": "RECORDED_MARM_NON_CRT_CANDIDATE_NOT_CONFIRMED_DEFECT"
+    },
+    {
+      "paths": [
+        "/prd/usr/lib/libbluetooth_mtk.default.so"
+      ],
+      "debug_package": "bluetooth-impl-sec-oal-debuginfo",
+      "build_id": "1a7513c9c7973eb707613cc5f4b8769cda203e91",
+      "CU_with_marm": 558,
+      "sources_examples": [
+        "../../types/bluetooth/uuid.cc",
+        "../../types/raw_address.cc",
+        "../../audio_a2dp_hw/src/audio_a2dp_hw_utils.cc",
+        "../../bta/ag/bta_ag_act.cc",
+        "../../bta/ag/bta_ag_api.cc",
+        "../../bta/ag/bta_ag_at.cc",
+        "../../bta/ag/bta_ag_cfg.cc",
+        "../../bta/ag/bta_ag_cmd.cc",
+        "../../third_party/libchrome/base/allocator/allocator_shim.cc",
+        "../../third_party/libchrome/base/allocator/allocator_shim_default_dispatch_to_glibc.cc",
+        "../../third_party/libchrome/base/at_exit.cc",
+        "../../third_party/libchrome/base/barrier_closure.cc",
+        "../../third_party/libchrome/base/base64.cc",
+        "../../third_party/libchrome/base/base64url.cc",
+        "../../embdrv/sbc/decoder/srce/alloc.c",
+        "../../embdrv/sbc/decoder/srce/bitalloc-sbc.c",
+        "../../embdrv/sbc/decoder/srce/bitalloc.c",
+        "../../embdrv/sbc/decoder/srce/bitstream-decode.c",
+        "../../embdrv/sbc/decoder/srce/decoder-private.c",
+        "../../embdrv/sbc/decoder/srce/decoder-sbc.c"
+      ],
+      "status": "RECORDED_MARM_NON_CRT_CANDIDATE_NOT_CONFIRMED_DEFECT"
+    },
+    {
+      "paths": [
+        "/prd/usr/lib/libbluetooth_rtk.default.so"
+      ],
+      "debug_package": "bluetooth-impl-sec-oal-debuginfo",
+      "build_id": "07187e6fb1df118e3c6e7c74e84e8af3f002ef68",
+      "CU_with_marm": 582,
+      "sources_examples": [
+        "../../audio_a2dp_hw/src/audio_a2dp_hw_utils.cc",
+        "../../audio_le_audio_hw/src/audio_le_audio_hw_utils.cc",
+        "../../bta/ag/bta_ag_act.cc",
+        "../../bta/ag/bta_ag_api.cc",
+        "../../bta/ag/bta_ag_at.cc",
+        "../../bta/ag/bta_ag_cfg.cc",
+        "../../types/bluetooth/uuid.cc",
+        "../../types/class_of_device.cc",
+        "../../types/raw_address.cc",
+        "../../third_party/flatbuffers/src/code_generators.cpp",
+        "../../third_party/flatbuffers/src/idl_gen_fbs.cpp",
+        "../../third_party/flatbuffers/src/idl_gen_text.cpp",
+        "../../third_party/flatbuffers/src/idl_parser.cpp",
+        "../../third_party/flatbuffers/src/reflection.cpp",
+        "../../third_party/flatbuffers/src/util.cpp",
+        "../../embdrv/lc3/src/attdet.c",
+        "../../embdrv/lc3/src/bits.c",
+        "../../embdrv/lc3/src/bwdet.c",
+        "../../embdrv/lc3/src/energy.c",
+        "../../embdrv/lc3/src/lc3.c",
+        "../../embdrv/lc3/src/ltpf.c",
+        "../../embdrv/sbc/decoder/srce/alloc.c",
+        "../../embdrv/sbc/decoder/srce/bitalloc-sbc.c",
+        "../../embdrv/sbc/decoder/srce/bitalloc.c",
+        "../../embdrv/sbc/decoder/srce/bitstream-decode.c",
+        "../../embdrv/sbc/decoder/srce/decoder-oina.c",
+        "../../embdrv/sbc/decoder/srce/decoder-private.c"
+      ],
+      "status": "RECORDED_MARM_NON_CRT_CANDIDATE_NOT_CONFIRMED_DEFECT"
+    },
+    {
+      "paths": [
+        "/prd/usr/lib/librtkbt_codec.so"
+      ],
+      "debug_package": "bluetooth-impl-sec-oal-debuginfo",
+      "build_id": "457f8fb2694a2cd50442df8b790ee288313b1845",
+      "CU_with_marm": 6,
+      "sources_examples": [
+        "../../../staging/bt/system/codec/plc/sbcplc.c",
+        "../../../staging/bt/system/codec/sbc/sbc.c",
+        "../../../staging/bt/system/codec/sbc/sbc_primitives.c",
+        "../../../staging/bt/system/codec/sbc/sbc_primitives_armv6.c",
+        "../../../staging/bt/system/codec/sbc/sbc_primitives_mmx.c",
+        "../../../staging/bt/system/codec/sbc/sbc_primitives_neon.c"
+      ],
+      "status": "RECORDED_MARM_NON_CRT_CANDIDATE_NOT_CONFIRMED_DEFECT"
+    },
+    {
+      "paths": [
+        "/opt/usr/apps/Ddrm/WidevineCdm/lib/libwvcdm.so.0.1.1"
+      ],
+      "debug_package": "widevine-cdm-debuginfo",
+      "build_id": "831a30de4864243a3e5cc3845f645061f2e66cce",
+      "CU_with_marm": 22,
+      "sources_examples": [
+        "google/protobuf/arena.cc",
+        "google/protobuf/arenastring.cc",
+        "google/protobuf/extension_set.cc",
+        "google/protobuf/generated_enum_util.cc",
+        "google/protobuf/generated_message_util.cc",
+        "google/protobuf/implicit_weak_message.cc"
+      ],
+      "status": "RECORDED_MARM_NON_CRT_CANDIDATE_NOT_CONFIRMED_DEFECT"
+    },
+    {
+      "paths": [
+        "/opt/usr/apps/Ddrm/WidevineCdm/lib/libwvcdmleve3.so.0.1.1"
+      ],
+      "debug_package": "widevine-cdm-debuginfo",
+      "build_id": "4dbaa6c18c465eecff287b9cc317792ad860ffa8",
+      "CU_with_marm": 22,
+      "sources_examples": [
+        "google/protobuf/arena.cc",
+        "google/protobuf/arenastring.cc",
+        "google/protobuf/extension_set.cc",
+        "google/protobuf/generated_enum_util.cc",
+        "google/protobuf/generated_message_util.cc",
+        "google/protobuf/implicit_weak_message.cc"
+      ],
+      "status": "RECORDED_MARM_NON_CRT_CANDIDATE_NOT_CONFIRMED_DEFECT"
+    }
+  ],
+  "limitations": [
+    "Priority 89-path sample, not historical106 list/full-image affected set.",
+    "CU counts include duplicates across libraries and debug payloads; not source-file or byte counts.",
+    "All 78 saved debug symbol summaries have no symbol tables; cannot derive mode byte ratios from this result.",
+    "Assembly source presence alone does not establish .arm or instruction mode.",
+    "Actual commands missing for Clang/Rust units; DWARF producer strings not complete build commands."
+  ],
+  "priority_runtime_package_names": [
+    "bluetooth-impl-sec-oal",
+    "widevine-cdm"
+  ]
+}

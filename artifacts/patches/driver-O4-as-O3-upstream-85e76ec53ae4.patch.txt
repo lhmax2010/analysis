@@ -1,0 +1,49 @@
+From: Hao Lin <hao.lin@samsung.com>
+Subject: [PATCH] [Driver] Treat -O4 as -O3 in clang::getOptimizationLevel (backport)
+
+Backport of upstream llvm-project commit
+85e76ec53ae4e5caea5a13b084c19ba4e2f3a6ce (PR #216450, Wael Yehia,
+2026-08-17): "[Driver] Treat -O4 as -O3 in clang::getOptimizationLevel,
+which is called when building LTO link command". Not in 22.1.8.
+
+Why: LLVM 22 (PR #169762, commit e60a69ab8a9e7) changed
+tools::addLTOOptions() to compute -plugin-opt=O<n> with
+getOptimizationLevel(). That function does not expect -O4 (a flag
+without a value): with assertions clang aborts on
+assert(A->getOption().matches(options::OPT_O)), without assertions it
+reads the missing value of -O4. So "clang -flto -O4" linked through the
+LLVMgold plugin crashes. With Tizen patch 0002 the plugin is passed on
+every GNU ld link, so every link with -O4 would hit it (found as
+Driver/fsanitize-object-size.c RUN line 14, -fsanitize=object-size -O4
+-###, aborting). Upstream treats -O4 as -O3 again, as addLTOOptions did
+before PR #169762.
+---
+ clang/lib/Frontend/CompilerInvocation.cpp | 3 ++-
+ clang/test/Driver/lto.c                   | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/clang/lib/Frontend/CompilerInvocation.cpp b/clang/lib/Frontend/CompilerInvocation.cpp
+--- a/clang/lib/Frontend/CompilerInvocation.cpp
++++ b/clang/lib/Frontend/CompilerInvocation.cpp
+@@ -2732,7 +2732,8 @@
+     if (A->getOption().matches(options::OPT_O0))
+       return 0;
+ 
+-    if (A->getOption().matches(options::OPT_Ofast))
++    if (A->getOption().matches(options::OPT_Ofast) ||
++        A->getOption().matches(options::OPT_O4))
+       return 3;
+ 
+     assert(A->getOption().matches(options::OPT_O));
+diff --git a/clang/test/Driver/lto.c b/clang/test/Driver/lto.c
+--- a/clang/test/Driver/lto.c
++++ b/clang/test/Driver/lto.c
+@@ -66,6 +66,8 @@
+ // RUN:   -fuse-ld=lld -flto -O3 -### 2>&1 | FileCheck --check-prefix=O3 %s
+ // RUN: %clang --target=x86_64-unknown-linux-gnu --sysroot=%S/Inputs/basic_cross_linux_tree %s \
+ // RUN:   -fuse-ld=lld -flto -Ofast -### 2>&1 | FileCheck --check-prefix=O3 %s
++// RUN: %clang --target=x86_64-unknown-linux-gnu --sysroot=%S/Inputs/basic_cross_linux_tree %s \
++// RUN:   -fuse-ld=lld -flto -O4 -### 2>&1 | FileCheck --check-prefix=O3 %s
+ 
+ // O1: -plugin-opt=O1
+ // O2: -plugin-opt=O2

@@ -1,0 +1,230 @@
+"""Complete the existing VD LLVM OBS package with the pinned SR runtime assets."""
+from pathlib import Path
+import argparse
+import base64
+import hashlib
+import importlib.util
+import json
+import os
+import platform
+import re
+import resource
+import shutil
+import tempfile
+import xml.etree.ElementTree as ET
+import zlib
+
+ROOT = Path('/home1/chengkai/vd-tree')
+
+
+def digest(data, algorithm='sha256'):
+    return hashlib.new(algorithm, data).hexdigest()
+
+
+def load_engine(here, pin):
+    data = (here / 'obs-submit-engine.py').read_bytes()
+    if digest(data) != pin['engine_sha256']:
+        raise RuntimeError('Submission engine identity changed')
+    spec = importlib.util.spec_from_file_location('obs_submit_engine', here / 'obs-submit-engine.py')
+    engine = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(engine)
+    old_validate = engine.validate_config
+
+    def validate(raw, selected_pin):
+        old_validate(raw, selected_pin)
+        if re.search(rb'^\s*%\s*(?:define\s+|global\s+)?mlgo_sr_runtime\b', raw, re.M):
+            raise RuntimeError('Project already overrides runtime selection; review required')
+
+    engine.validate_config = validate
+    return engine
+
+
+def checkpoint(job, report):
+    (job / 'checkpoint.json').write_text(json.dumps(report, indent=2) + '\n')
+
+
+def preflight_sr_runtime(root, here, pin, job, report):
+    """Use real retained Official/Custom models with the same SR x86 runtime."""
+    if platform.machine().lower() not in ('x86_64', 'amd64'):
+        raise RuntimeError('AOT preflight requires the existing x86_64 intranet host')
+    stage_path = (root / pin['stage_result_relative']).resolve(strict=True)
+    if root not in stage_path.parents:
+        raise RuntimeError('Retained stage leaves vd-tree')
+    stage = json.loads(stage_path.read_text())
+    if digest(json.dumps(stage, separators=(',', ':')).encode()) != pin['stage_sha256']:
+        raise RuntimeError('Retained stage identity changed')
+    paths = {}
+    for name, expected in pin['preflight_archive_sha256'].items():
+        p = Path(stage['source_map'][name]).resolve(strict=True)
+        if root not in p.parents or digest(p.read_bytes()) != expected:
+            raise RuntimeError('Preflight archive identity changed: ' + name)
+        paths[name] = p
+    helper = here / 'aot-probe-engine.py'
+    if digest(helper.read_bytes()) != pin['aot_probe_engine_sha256']:
+        raise RuntimeError('AOT probe engine identity changed')
+    spec = importlib.util.spec_from_file_location('aot_probe_engine', helper)
+    probe = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(probe)
+    compiler = shutil.which('c++') or shutil.which('g++')
+    if not compiler:
+        raise RuntimeError('Existing native C++ compiler required for the preflight; none installed by this command')
+    work = job / 'sr-runtime-preflight'
+    work.mkdir()
+    original = probe.extract_runtime
+    # Only the runtime source changes. Official models still come from the actual VD bundle.
+    probe.extract_runtime = lambda _baseline, dest: original(here / 'mlgo_runtime_x86_64.tar.gz', dest)
+    try:
+        members, cases = probe.run_cases(work, paths['mlgo_x86_model.tar.gz'],
+                                         {'InlinerSizeModel': paths['mlgo_inliner_x86_64.tar.gz'],
+                                          'RegAllocEvictModel': paths['mlgo_regalloc_x86_64.tar.gz']}, compiler)
+    finally:
+        probe.extract_runtime = original
+    passed = len(cases) == 4 and all(x['compile_exit'] == 0 and x.get('run_exit') == 0 for x in cases)
+    result = dict(status='OFFICIAL_CUSTOM_WITH_SR_RUNTIME_PREFLIGHT_PASSED' if passed else 'FAILED',
+                  compiler=compiler, cases=cases, runtime_members=members,
+                  inference_executions=512 if passed else None,
+                  scope='Native host standalone AOT probes; not actual LLVM advisors, ARM execution or Kernel performance')
+    (work / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+    report['preflight'] = {k: v for k, v in result.items() if k != 'runtime_members'}
+    checkpoint(job, report)
+    if not passed:
+        raise RuntimeError('Official/Custom SR-runtime preflight failed; no OBS source update attempted')
+
+
+def capture(obs, engine, pin, report):
+    raw = obs.request('GET', ['build', pin['project'], '_result'], dict(package=pin['package']))
+    (obs.job / 'build-result.xml').write_bytes(raw)
+    report['build_states'] = [dict(repository=r.get('repository'), arch=r.get('arch'), state=r.get('state'),
+                                   statuses=[s.attrib for s in r.findall('status')])
+                              for r in ET.fromstring(raw).findall('result')]
+    report['buildinfo'] = {}
+    for arch in pin['architectures']:
+        try:
+            raw = obs.request('GET', ['build', pin['project'], pin['repository'], arch, pin['package'], '_buildinfo'])
+            (obs.job / ('buildinfo-' + arch + '.xml')).write_bytes(raw)
+            node = ET.fromstring(raw)
+            source = node.get('srcmd5') or node.findtext('srcmd5')
+            report['buildinfo'][arch] = dict(srcmd5=source, verifymd5=node.get('verifymd5') or node.findtext('verifymd5'),
+                                            matches_current_source=source == report.get('current_revision', {}).get('srcmd5'))
+        except Exception as exc:
+            report['buildinfo'][arch] = dict(pending=True, error_type=type(exc).__name__)
+
+
+def update(obs, engine, pin, uploads, job, report, status_only=False, rebuild_only=False, preflight=None):
+    baseline = {n: x['md5'] for n, x in pin['baseline_files'].items()}
+    wanted = engine.desired_files(pin)
+    raw, node = engine.check_live(obs, pin, [baseline, wanted])
+    report['before_revision'] = dict(node.attrib)
+    (job / 'source-before.xml').write_bytes(raw)
+    (job / 'rollback-rev11-filelist.xml').write_bytes(engine.commit_directory(baseline))
+    already = engine.directory_files(node) == wanted
+    if status_only:
+        report.update(current_revision=dict(node.attrib), source_matches_complete_sr_inputs=already)
+        capture(obs, engine, pin, report)
+        report['status'] = 'RUNTIME_OBS_STATUS_CAPTURED_NO_MUTATION'
+        return
+    if rebuild_only and not already:
+        raise RuntimeError('Rebuild-only requires the complete reviewed source revision')
+    if not already:
+        if node.get('srcmd5') != pin['baseline_revision'] or node.get('rev') != pin['expected_baseline_rev']:
+            raise RuntimeError('OBS source is not the pinned rev11; no overwrite attempted')
+        if preflight is not None:
+            preflight()
+        engine.upload_commit(obs, pin, wanted, uploads, report)
+        checkpoint(job, report)
+    raw, node = engine.check_live(obs, pin, [wanted])
+    report.update(current_revision=dict(node.attrib), source_matches_complete_sr_inputs=True)
+    (job / 'source-after.xml').write_bytes(raw)
+    checkpoint(job, report)
+    if already and not rebuild_only:
+        capture(obs, engine, pin, report)
+        report['status'] = 'COMPLETE_SR_SOURCE_ALREADY_PRESENT_STATUS_CAPTURED'
+        return
+    report['rebuild_requests'] = []
+    try:
+        for arch in pin['architectures']:
+            engine.check_live(obs, pin, [wanted])
+            # The reused engine authorizes one explicit architecture at a time.
+            obs.pin = dict(pin, architecture=arch)
+            raw = obs.request('POST', ['build', pin['project']],
+                              dict(cmd='rebuild', package=pin['package'], repository=pin['repository'], arch=arch))
+            if ET.fromstring(raw).get('code') != 'ok':
+                raise RuntimeError('OBS did not accept the rebuild request for ' + arch)
+            report['rebuild_requests'].append(dict(repository=pin['repository'], arch=arch, accepted=True))
+            checkpoint(job, report)
+            print('OBS_REBUILD_REQUESTED:', pin['project'], pin['package'], pin['repository'], arch, flush=True)
+    finally:
+        obs.pin = pin
+    capture(obs, engine, pin, report)
+    report['status'] = 'COMPLETE_SR_RUNTIME_SOURCE_COMMITTED_REBUILDS_REQUESTED'
+
+
+def main():
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--status-only', action='store_true')
+    group.add_argument('--rebuild-only', action='store_true')
+    args = parser.parse_args()
+    root = ROOT.resolve(strict=True)
+    parent = (root / 'workspace/temp').resolve(strict=True)
+    if root not in parent.parents:
+        raise RuntimeError('Output leaves vd-tree')
+    os.umask(0o077)
+    job = Path(tempfile.mkdtemp(prefix='custom_mlgo_runtime_obs100_', dir=parent))
+    for key in ('TMPDIR', 'TMP', 'TEMP', 'XDG_CACHE_HOME', 'XDG_STATE_HOME'):
+        os.environ[key] = str(job)
+    os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
+    tempfile.tempdir = str(job)
+    print('WORKDIR:', job, flush=True)
+    here = Path(__file__).resolve().parent
+    pin = json.loads((here / 'runtime-obs-pin.json').read_text())
+    report = dict(status='REVIEW_REQUIRED', project=pin['project'], package=pin['package'],
+                  model_selection=pin['model_selection'], runtime_selection='SR_SPLIT',
+                  baseline_revision=pin['baseline_revision'], source_commit_acknowledged=False,
+                  source_delta=pin['modified_files'],
+                  limits=['Changes only this existing LLVM source package and requests standard armv7l/x86_64 builds.',
+                          'Old LLVM source archives, VD control bundles, model files, driver/PIC patches and project configuration are retained.',
+                          'Commit and scheduling do not prove successful compilation, actual advisor execution, Base publication or Kernel performance.',
+                          'Live source/config drift is checked before commit; no automatic rollback or replacement of unrelated source edits.'])
+    try:
+        engine = load_engine(here, pin)
+        uploads = {}
+        if not args.status_only:
+            for name, info in pin['modified_files'].items():
+                path = (here / name).resolve(strict=True)
+                if here not in path.parents:
+                    raise RuntimeError('Upload leaves the reviewed bundle')
+                data = path.read_bytes()
+                if len(data) != info['bytes'] or digest(data) != info['sha256'] or digest(data, 'md5') != info['md5']:
+                    raise RuntimeError('Reviewed upload identity changed: ' + name)
+                uploads[name] = data
+        (job / 'input-pin.json').write_text(json.dumps(pin, indent=2) + '\n')
+        obs = engine.OBS(job, pin)
+        report['apiurl'] = obs.apiurl
+        update(obs, engine, pin, uploads, job, report, args.status_only, args.rebuild_only,
+               preflight=lambda: preflight_sr_runtime(root, here, pin, job, report))
+    except Exception as exc:
+        report['error_type'] = type(exc).__name__
+        if hasattr(exc, 'code'):
+            report['error'] = 'OBS HTTP status ' + str(exc.code) + '; inspect retained API state before retrying'
+        elif isinstance(exc, RuntimeError):
+            report['error'] = str(exc)[:1800]
+        else:
+            report['error'] = 'Local environment/initialization error; configuration and credential contents omitted'
+        if report['source_commit_acknowledged']:
+            report['status'] = 'SOURCE_COMMITTED_BUILD_FOLLOWUP_REVIEW_REQUIRED'
+    (job / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
+    raw = json.dumps(report, separators=(',', ':')).encode()
+    encoded = base64.b64encode(zlib.compress(raw, 9)).decode()
+    packet = 'CUSTOM_MLGO_RUNTIME_OBS100_SHA256: ' + digest(raw) + '\nCUSTOM_MLGO_RUNTIME_OBS100_BASE64_BEGIN\n' + '\n'.join(encoded[i:i+120] for i in range(0, len(encoded), 120)) + '\nCUSTOM_MLGO_RUNTIME_OBS100_BASE64_END\n'
+    (job / 'paste.txt').write_text(packet)
+    print(packet, flush=True)
+    print('REPORT:', job / 'result.json', flush=True)
+    print('DONE:', report['status'], flush=True)
+    if 'error' in report:
+        raise SystemExit(1)
+
+
+if __name__ == '__main__':
+    main()

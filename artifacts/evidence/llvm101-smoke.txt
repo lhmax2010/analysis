@@ -1,0 +1,106 @@
+{
+  "status": "SCOPED_DRIVER_LTO_CXX_MLGO_SMOKE_PASSED",
+  "packet_sha256": "fb73d070db4a0999a24059907e1aaca043bf7860c51751612e20161d1b826741",
+  "cases": [
+    {
+      "name": "RPM identities and plugin payload ownership",
+      "status": "PASS",
+      "seconds": 0.54,
+      "rpms_verified": 12,
+      "retained_from": "/home1/chengkai/vd-tree/workspace/temp/llvm22_checks101_zoda7ojg/result.json"
+    },
+    {
+      "name": "ARM C compile/link/run",
+      "status": "PASS",
+      "seconds": 1.13,
+      "compiler": "new retained ARM Clang",
+      "runtime": "ARM binary through existing chroot/binfmt"
+    },
+    {
+      "name": "GNU plugin driver and O4 matrix",
+      "status": "PASS",
+      "seconds": 1.93,
+      "checks": [
+        {
+          "name": "default",
+          "plugins": 1
+        },
+        {
+          "name": "explicit-lto",
+          "plugins": 1
+        },
+        {
+          "name": "disabled",
+          "plugins": 0
+        },
+        {
+          "name": "last-disable",
+          "plugins": 0
+        },
+        {
+          "name": "last-enable",
+          "plugins": 1
+        },
+        {
+          "name": "relocatable",
+          "plugins": 0
+        },
+        {
+          "name": "O4",
+          "plugins": 1
+        }
+      ],
+      "lld_no_GNU_plugin": true,
+      "default_pie_flag_observed": true,
+      "retained_from": "/home1/chengkai/vd-tree/workspace/temp/llvm22_checks101_zoda7ojg/result.json"
+    },
+    {
+      "name": "Non-PIC bitcode to shared output",
+      "status": "PASS",
+      "seconds": 2.15,
+      "default_GNU_plugin_claimed_bitcode": true,
+      "fallback_diagnostic": true,
+      "external_data_and_symbol_interposition": "PASS"
+    },
+    {
+      "name": "Non-PIC bitcode to PIE output",
+      "status": "PASS",
+      "seconds": 2.01,
+      "fallback_diagnostic": true,
+      "PIE": true
+    },
+    {
+      "name": "Fat LTO object without link-time flto",
+      "status": "PASS",
+      "seconds": 2.15,
+      "embedded_bitcode_section": true,
+      "fallback_diagnostic": true,
+      "link_without_flto": "PASS; embedded bitcode path observed"
+    },
+    {
+      "name": "GCC/Clang C++ cross-DSO smoke",
+      "status": "PASS",
+      "seconds": 6.95,
+      "std_string_and_cross_DSO_exception": "both compiler directions passed",
+      "limits": "Small ABI smoke test only; not clearance for all SDK or third-party applications"
+    },
+    {
+      "name": "Explicit MLGO release-advisor codegen",
+      "status": "PASS",
+      "seconds": 2.92,
+      "explicit_release_advisor_codegen": "Os and Oz compile/link/run passed",
+      "limits": "No invocation-count instrumentation, Product coverage or performance/size benefit is established"
+    }
+  ],
+  "new_commands_passed": 55,
+  "compiler_sha256": "102c2af5e161a4bb0739d4d844a3bafe95ffbf4fb6d266eb56e1d3501968108e",
+  "plugin_sha256": "340a2a3176e0665dd90a6f712098ef8f294604021e2e935c9675d9cd6f22b543",
+  "preflight_report": "/home1/chengkai/vd-tree/workspace/temp/llvm22_private_arm_ld101_nrxllqvi/preflight.json",
+  "limits": "These fixtures use a private ARM GNU ld copy without an /emul mirror; production accelerated ld/plugin is not validated; this is not validation of the production x86 accelerator configuration. Retained build-tree ARM compiler in the original isolated GCC bootstrap root only. No package installation, GBS rebuild, OBS/project publication, SDK/Product acceptance, host/TV compiler replacement or cleanup. Installed-RPM resource/plugin layout, sanitizer/OpenMP runtime, remaining Base migration and real-device compatibility remain pending.",
+  "next": [
+    "Installed RPM resource/plugin/runtime layout",
+    "Matched production accelerated host compiler/linker/plugin/model integration",
+    "Remaining Base/SDK rebases and Product/third-party ABI",
+    "Separate 10.1 Base + 10.0 Product compatibility matrix"
+  ]
+}

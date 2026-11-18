@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-17",
+  "status": "PASSED_LOCAL_EXPORT_CHECKS",
+  "files_before_this_report": 91,
+  "total_bytes": 1568086,
+  "max_lines": 367,
+  "historical_tracker_rows": 986,
+  "historical_cells_equal": true,
+  "build_package_labels": 942,
+  "source_manifest_entries": 40,
+  "request_sha256": "0a830703a5d4a0ddf1349b15340bd9f15d5cf78789bfe7f4438d5fda893c05df",
+  "relative_markdown_links": "all resolve",
+  "folder_indexes": "all present",
+  "credential_patterns": "no matches; not a guarantee against every possible credential format",
+  "binary_payloads": "none; UTF-8 text only",
+  "new_builds_or_remote_mutations": "none except authorized GitHub publication",
+  "claude_review": "pending"
+}

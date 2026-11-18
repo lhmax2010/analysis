@@ -1,0 +1,18 @@
+{
+  "captured_utc": "2026-11-18T04:13:09.102297+00:00",
+  "hostname": "toolchain-2026",
+  "platform": "Linux-6.17.0-1033-oem-x86_64-with-glibc2.39",
+  "logical_cpus": 20,
+  "disk_usage_bytes": {
+    "total": 1967844950016,
+    "used": 1778198974464,
+    "free": 89609363456
+  },
+  "memory": [
+    "MemTotal:       32297772 kB",
+    "MemFree:         8024964 kB",
+    "MemAvailable:   23687104 kB"
+  ],
+  "os_release": "PRETTY_NAME=\"Ubuntu 24.04.5 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.5 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo\n",
+  "method": "platform, os.cpu_count, shutil.disk_usage(workspace), /proc/meminfo, /etc/os-release; local read only"
+}

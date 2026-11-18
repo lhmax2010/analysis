@@ -1,0 +1,350 @@
+    -DLLVM_LINK_LLVM_DYLIB=ON \
+    -DCLANG_LINK_CLANG_DYLIB=ON \
+%endif
+    -DLLVM_ENABLE_PROJECTS="clang;lldb;clang-tools-extra;lld;compiler-rt;openmp" \
+    -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF \
+    -DLLVM_BUILD_EXAMPLES=OFF \
+    -DLLVM_INCLUDE_EXAMPLES=OFF \
+    -DLLVM_BUILD_TESTS=OFF \
+    -DLLVM_INCLUDE_TESTS=OFF \
+    -DLLVM_ENABLE_DOXYGEN=OFF \
+    -DLLVM_BUILD_DOCS=OFF \
+    -DLLVM_INCLUDE_DOCS=OFF \
+    -DLLVM_OPTIMIZED_TABLEGEN=ON \
+    -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+    -DLLVM_LIBDIR_SUFFIX=`echo %{_lib} | sed s/lib//g` \
+    -DCLANG_RESOURCE_DIR="../%{_lib}/clang/%{llvm_version}" \
+    -DLLVM_BINUTILS_INCDIR=/usr/include \
+    -DLLVM_PARALLEL_COMPILE_JOBS=6 \
+    -DLLVM_PARALLEL_LINK_JOBS=2 \
+%if %{with mlgo}
+%ifarch armv7l aarch64 x86_64
+    -DTENSORFLOW_AOT_PATH="${MLGO_AOT_DIR}/mlgo_sysroot" \
+    -DLLVM_MLGO_EXPORT_TF_XLA_RUNTIME=OFF \
+    -DLLVM_MLGO_EMBED_TF_XLA_RUNTIME_OBJECTS="${MLGO_RUNTIME_OBJECTS}" \
+    -DLLVM_OVERRIDE_MODEL_HEADER_INLINERSIZEMODEL="${MLGO_AOT_DIR}/InlinerSizeModel.h" \
+    -DLLVM_OVERRIDE_MODEL_OBJECT_INLINERSIZEMODEL="${MLGO_AOT_DIR}/InlinerSizeModel.o" \
+    -DLLVM_OVERRIDE_MODEL_HEADER_REGALLOCEVICTMODEL="${MLGO_AOT_DIR}/RegAllocEvictModel.h" \
+    -DLLVM_OVERRIDE_MODEL_OBJECT_REGALLOCEVICTMODEL="${MLGO_AOT_DIR}/RegAllocEvictModel.o" \
+%else
+    -DLLVM_INLINER_MODEL_PATH=none \
+    -DLLVM_RAEVICT_MODEL_PATH=none \
+%endif
+%else
+    -DLLVM_INLINER_MODEL_PATH=none \
+    -DLLVM_RAEVICT_MODEL_PATH=none \
+%endif
+    ../llvm || exit 1
+
+# This guard runs in normal builds as well as configure-only probes.
+%if %{with mlgo}
+%ifarch armv7l aarch64 x86_64
+python3 %{SOURCE1029} --assets "${MLGO_AOT_DIR}" --build "$PWD" \
+    --arch %{mlgo_pkg_arch} --sr-runtime 0%{mlgo_sr_runtime} \
+    --custom-inliner 0%{mlgo_custom_inliner} --custom-regalloc 0%{mlgo_custom_regalloc} || exit 1
+%endif
+%endif
+
+%if 0%{mlgo_verify_configure_only}
+  # ---- configure-only probe: guard against §0 traps; check sentinels, GBS exit code non-0 is expected ----
+  # Note: %%build does not guarantee set -e, so each assertion explicitly uses '|| { ...; exit 1; }'
+  # Assertion 0: MLGO_BUILD_DIR is correct (fail immediately with clear error if wrong)
+  test -f CMakeCache.txt || \
+    { echo "FATAL: MLGO_BUILD_DIR wrong (CMakeCache.txt not found in $(pwd))"; exit 1; }
+%if %{with mlgo}
+  # Assertion 1: override actually took effect (COPYONLY artifacts exist from configure stage)
+  test -f lib/Analysis/InlinerSizeModel.h || \
+    { echo "FATAL: Missing InlinerSizeModel.h (override not effective, likely trap 1: silent fallback to none)"; exit 1; }
+  test -f lib/Analysis/InlinerSizeModel.o || \
+    { echo "FATAL: Missing InlinerSizeModel.o (override not effective)"; exit 1; }
+  test -f lib/CodeGen/RegAllocEvictModel.h || \
+    { echo "FATAL: Missing RegAllocEvictModel.h(regalloc override not effective)"; exit 1; }
+  test -f lib/CodeGen/RegAllocEvictModel.o || \
+    { echo "FATAL: Missing RegAllocEvictModel.o(regalloc override not effective)"; exit 1; }
+  for mlgo_runtime_object in ${MLGO_REQUIRED_RUNTIME_OBJECTS}; do
+    test -f "${MLGO_AOT_DIR}/xla_runtime_objects/${mlgo_runtime_object}" || \
+        { echo "FATAL: missing MLGO runtime object: ${mlgo_runtime_object}"; exit 1; }
+  done
+  # Assertion 1b: bundled objects must match the target arch.
+%ifarch armv7l
+  MLGO_EXPECT_MACHINE="ARM"
+%endif
+%ifarch aarch64
+  MLGO_EXPECT_MACHINE="AArch64"
+%endif
+%ifarch x86_64
+  MLGO_EXPECT_MACHINE="X86-64"
+%endif
+  for mlgo_obj in lib/Analysis/InlinerSizeModel.o lib/CodeGen/RegAllocEvictModel.o; do
+    readelf -h "${mlgo_obj}" | grep -q "Machine:.*${MLGO_EXPECT_MACHINE}" || \
+      { echo "FATAL: ${mlgo_obj} arch mismatch (expected ${MLGO_EXPECT_MACHINE})"; exit 1; }
+  done
+  for mlgo_runtime_object in ${MLGO_REQUIRED_RUNTIME_OBJECTS}; do
+    mlgo_obj="${MLGO_AOT_DIR}/xla_runtime_objects/${mlgo_runtime_object}"
+    readelf -h "${mlgo_obj}" | grep -q "Machine:.*${MLGO_EXPECT_MACHINE}" || \
+      { echo "FATAL: ${mlgo_obj} arch mismatch (expected ${MLGO_EXPECT_MACHINE})"; exit 1; }
+  done
+  # Assertion 2: did not fall into autogenerate mock. Use && short-circuit: file missing => FATAL, don't let '! grep' pass
+  test -f CMakeCache.txt && \
+    ! grep -qE 'LLVM_INLINER_MODEL_PATH(:[^=]+)?=autogenerate' CMakeCache.txt || \
+    { echo "FATAL: Fell into autogenerate mock or CMakeCache missing (trap 2)"; exit 1; }
+  test -f CMakeCache.txt && \
+    ! grep -qE 'LLVM_RAEVICT_MODEL_PATH(:[^=]+)?=autogenerate' CMakeCache.txt || \
+    { echo "FATAL: regalloc fell into autogenerate mock"; exit 1; }
+  # Assertion 3: MLGO runtime is embedded and tf_xla_runtime is not exported.
+  grep -q '^LLVM_MLGO_EXPORT_TF_XLA_RUNTIME:BOOL=OFF$' "${MLGO_BUILD_DIR}/CMakeCache.txt" || \
+    { echo "FATAL: MLGO TensorFlow runtime export is not disabled"; exit 1; }
+  for mlgo_runtime_object in ${MLGO_REQUIRED_RUNTIME_OBJECTS}; do
+    grep -q "xla_runtime_objects/${mlgo_runtime_object}" "${MLGO_BUILD_DIR}/CMakeCache.txt" || \
+      { echo "FATAL: MLGO runtime object is not embedded: ${mlgo_runtime_object}"; exit 1; }
+  done
+  cmake --build . --target tf_xla_runtime || \
+    { echo "FATAL: tf_xla_runtime build failed"; exit 1; }
+  MLGO_PROBE_ROOT="$PWD/mlgo_probe_root"
+  rm -rf "${MLGO_PROBE_ROOT}"
+  mkdir -p "${MLGO_PROBE_ROOT}"
+  DESTDIR="${MLGO_PROBE_ROOT}" cmake --install . \
+    --prefix /usr --component tf_xla_runtime --verbose
+  ! find "${MLGO_PROBE_ROOT}" -name libtf_xla_runtime.a | grep -q . || \
+    { echo "FATAL: tf_xla_runtime archive should not be installed"; exit 1; }
+%endif
+  echo MLGO_VERIFY_CONFIGURE_PASS
+  exit 86
+%endif
+
+# Full build using ninja (already in build/ directory after cd build)
+ninja -j %{mlgo_build_jobs} || exit 1
+
+%install
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=%{buildroot}/usr -P cmake_install.cmake
+ln -sf %{_prefix}/bin/clang++ %{buildroot}%{_prefix}/bin/clang++-%{llvm_version}
+
+ln -sf clang %{buildroot}%{_prefix}/bin/%{_host}-clang
+ln -sf clang++ %{buildroot}%{_prefix}/bin/%{_host}-clang++
+# Use host triple and resource dir by default via <lang>.cfg
+# _FILE_OFFSET_BITS=64: Tizen gcc predefines it inside cc1, so every gcc compile uses the 64-bit file API whatever the
+# package does with $CFLAGS; clang gets the same default here. Config-file options come before the command line, so a
+# package that sets or undefines the macro itself still wins. Without this a package that drops the project optflags
+# is built against the 32-bit file API (cert-svc, MIC signature check, 2026-10).
+cat >> %{buildroot}/%{_prefix}/bin/clang.cfg << EOF
+-target %{_host}
+-resource-dir %{_prefix}/%{_lib}/clang/%{llvm_version}
+-D_FILE_OFFSET_BITS=64
+EOF
+ln -sf clang.cfg %{buildroot}/%{_prefix}/bin/clang++.cfg
+
+# copy lldb for sdk
+mkdir -p %{buildroot}%{sdk_bin_dir}
+mkdir -p %{buildroot}%{sdk_lib_dir}
+
+mv %{buildroot}%{_prefix}/bin/lldb %{buildroot}%{sdk_bin_dir}
+mv %{buildroot}%{_prefix}/bin/lldb-argdumper %{buildroot}%{sdk_bin_dir}
+mv %{buildroot}%{_prefix}/bin/lldb-server %{buildroot}%{sdk_bin_dir}
+
+ln -sf %{sdk_bin_dir}/lldb %{buildroot}%{_prefix}/bin/
+
+cp -P %{buildroot}%{_libdir}/liblldb.so* %{buildroot}%{sdk_lib_dir}/
+
+# Install the clang python bits
+mkdir -p %{buildroot}%{python3_sitelib}
+cp -a ../clang/bindings/python/clang %{buildroot}%{python3_sitelib}/
+
+rm -rf %{buildroot}%{_libdir}/debug/*
+rm -rf %{buildroot}/usr/lib/libear/*
+rm -rf %{buildroot}/usr/lib/libscanbuild/*
+
+%post -n clang -p /sbin/ldconfig
+%postun -n clang -p /sbin/ldconfig
+
+%post -n lldb
+echo "plugin load /usr/share/dotnet.tizen/netcoreapp/SOS/libsosplugin.so" > /root/.lldbinit
+
+%files
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{_prefix}/bin/analyze-build
+%{_prefix}/bin/bugpoint
+%{_prefix}/bin/clang-linker-wrapper
+%{_prefix}/bin/clang-offload-packager
+%{_prefix}/bin/clang-repl
+%{_prefix}/bin/intercept-build
+%{_prefix}/bin/llc
+%{_prefix}/bin/lld
+%{_prefix}/bin/ld.lld
+%{_prefix}/bin/ld64.lld
+%{_prefix}/bin/lld-link
+%{_prefix}/bin/wasm-ld
+%{_prefix}/bin/lli
+%{_prefix}/bin/llvm-ar
+%{_prefix}/bin/llvm-as
+%{_prefix}/bin/llvm-bcanalyzer
+%{_prefix}/bin/llvm-bitcode-strip
+%{_prefix}/bin/llvm-c-test
+%{_prefix}/bin/llvm-cat
+%{_prefix}/bin/llvm-cgdata
+%{_prefix}/bin/llvm-ctxprof-util
+%{_prefix}/bin/llvm-config
+%{_prefix}/bin/llvm-cov
+%{_prefix}/bin/llvm-cvtres
+%{_prefix}/bin/llvm-cxxdump
+%{_prefix}/bin/llvm-cxxfilt
+%{_prefix}/bin/llvm-debuginfo-analyzer
+%{_prefix}/bin/llvm-debuginfod
+%{_prefix}/bin/llvm-debuginfod-find
+%{_prefix}/bin/llvm-diff
+%{_prefix}/bin/llvm-dis
+%{_prefix}/bin/llvm-dlltool
+%{_prefix}/bin/llvm-dwarfdump
+%{_prefix}/bin/llvm-dwarfutil
+%{_prefix}/bin/llvm-dwp
+%{_prefix}/bin/llvm-extract
+%{_prefix}/bin/llvm-gsymutil
+%{_prefix}/bin/llvm-lib
+%{_prefix}/bin/llvm-libtool-darwin
+%{_prefix}/bin/llvm-link
+%{_prefix}/bin/llvm-lto
+%{_prefix}/bin/llvm-lto2
+%{_prefix}/bin/llvm-mc
+%{_prefix}/bin/llvm-ml
+%{_prefix}/bin/llvm-ml64
+%{_prefix}/bin/llvm-modextract
+%{_prefix}/bin/llvm-mt
+%{_prefix}/bin/llvm-nm
+%{_prefix}/bin/llvm-objdump
+%{_prefix}/bin/llvm-opt-report
+%{_prefix}/bin/llvm-otool
+%{_prefix}/bin/llvm-remarkutil
+%{_prefix}/bin/llvm-pdbutil
+%{_prefix}/bin/llvm-profdata
+%{_prefix}/bin/llvm-profgen
+%{_prefix}/bin/llvm-ranlib
+%{_prefix}/bin/llvm-readelf
+%{_prefix}/bin/llvm-readobj
+%{_prefix}/bin/llvm-readtapi
+%{_prefix}/bin/llvm-rtdyld
+%{_prefix}/bin/llvm-sim
+%{_prefix}/bin/llvm-size
+%{_prefix}/bin/llvm-split
+%{_prefix}/bin/llvm-stress
+%{_prefix}/bin/llvm-strings
+%{_prefix}/bin/llvm-symbolizer
+%{_prefix}/bin/llvm-tblgen
+%{_prefix}/bin/llvm-tli-checker
+%{_prefix}/bin/llvm-windres
+%{_prefix}/bin/llvm-xray
+%{_prefix}/bin/offload-arch
+%{_prefix}/bin/opt
+%{_prefix}/bin/run-clang-tidy
+%{_prefix}/bin/sancov
+%{_prefix}/bin/sanstats
+%{_prefix}/bin/scan-build
+%{_prefix}/bin/scan-build-py
+%{_prefix}/bin/scan-view
+%{_prefix}/bin/verify-uselistorder
+%{_prefix}/bin/diagtool
+%{_prefix}/bin/dsymutil
+%{_prefix}/bin/hmaptool
+%{_prefix}/bin/lldb-dap
+%{_prefix}/bin/lldb-instr
+%{_prefix}/bin/llvm-addr2line
+%{_prefix}/bin/llvm-cfi-verify
+%{_prefix}/bin/llvm-cxxmap
+%{_prefix}/bin/llvm-exegesis
+%{_prefix}/bin/llvm-ifs
+%{_prefix}/bin/llvm-install-name-tool
+%{_prefix}/bin/llvm-jitlink
+%{_prefix}/bin/llvm-lipo
+%{_prefix}/bin/llvm-mca
+%{_prefix}/bin/llvm-objcopy
+%{_prefix}/bin/llvm-rc
+%{_prefix}/bin/llvm-reduce
+%{_prefix}/bin/llvm-strip
+%{_prefix}/bin/llvm-undname
+%{_prefix}/bin/pp-trace
+%{_prefix}/bin/reduce-chunk-list
+%{_prefix}/bin/llvm-cas
+%{_prefix}/bin/llvm-ir2vec
+%{_prefix}/bin/llvm-offload-binary
+%{_prefix}/bin/llvm-offload-wrapper
+%{_prefix}/bin/yaml2macho-core
+
+%files devel
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{_prefix}/include/lld/*
+%{_prefix}/include/llvm/*
+%{_prefix}/include/llvm-c/*
+%{_prefix}/share/*
+%{_libdir}/cmake/lld/*
+%{_libdir}/cmake/llvm/*
+%{_libdir}/libLTO*.so*
+%{_libdir}/LLVMgold.so
+%{_libdir}/libRemarks.so*
+%{_prefix}/bin/amdgpu-arch
+%{_prefix}/bin/nvptx-arch
+
+%files static-devel
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{_libdir}/lib*.a
+
+%files -n libllvm
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{_libdir}/libLLVM*.so*
+
+%files -n clang
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{_prefix}/bin/clang
+%{_prefix}/bin/clang++
+%{_prefix}/bin/%{_host}-clang
+%{_prefix}/bin/%{_host}-clang++
+%{_prefix}/bin/clang-%{llvm_version}
+%{_prefix}/bin/clang++-%{llvm_version}
+%{_prefix}/bin/clang-apply-replacements
+%{_prefix}/bin/clang-change-namespace
+%{_prefix}/bin/clang-check
+%{_prefix}/bin/clang-cl
+%{_prefix}/bin/clang-cpp
+%{_prefix}/bin/clang-doc
+%{_prefix}/bin/clang-extdef-mapping
+%{_prefix}/bin/clang-move
+%{_prefix}/bin/clang-refactor
+%{_prefix}/bin/clang-scan-deps
+%{_prefix}/bin/clang-format
+%{_prefix}/bin/clang-include-cleaner
+%{_prefix}/bin/clang-include-fixer
+%{_prefix}/bin/clang-offload-bundler
+%{_prefix}/bin/clang-query
+%{_prefix}/bin/clang-sycl-linker
+%{_prefix}/bin/clang-reorder-fields
+%{_prefix}/bin/clang-tidy
+%{_prefix}/bin/clang-installapi
+%{_prefix}/bin/clang-nvlink-wrapper
+%{_prefix}/bin/clangd
+%{_prefix}/bin/git-clang-format
+%{_prefix}/bin/find-all-symbols
+%{_prefix}/bin/modularize
+%{_libdir}/clang/%{llvm_version}/include/*
+%{_libdir}/libclang*.so*
+%{_libdir}/cmake/clang/*
+%{_prefix}/libexec/analyze-c++
+%{_prefix}/libexec/analyze-cc
+%{_prefix}/libexec/c++-analyzer
+%{_prefix}/libexec/ccc-analyzer
+%{_prefix}/libexec/intercept-c++
+%{_prefix}/libexec/intercept-cc
+%{_prefix}/bin/clang.cfg
+%{_prefix}/bin/clang++.cfg
+
+%files -n clang-devel
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{_prefix}/bin/clang-tblgen
+%{_prefix}/include/clang/*
+%{_prefix}/include/clang-c/*
+%{_prefix}/include/clang-tidy/*
+
+%files -n lldb

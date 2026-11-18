@@ -1,0 +1,75 @@
+{
+  "status": "THREE_BUILDS_PASS_GENERATED_FLAGS_INHERITANCE_CONFIRMED_ARTIFACT_REVIEW_PENDING",
+  "packet_sha256": "5f447e0662b1cc46d056e4b1afa213a69ee0d75c2cb53c0fb3c8db53720cb4bf",
+  "rows": [
+    {
+      "lane": "clang-control",
+      "build_exit": 0,
+      "compiler": [
+        "[  225s] -- The CXX compiler identification is Clang 22.1.8"
+      ],
+      "compile_optimization": [],
+      "compile_lto": [],
+      "final_link_lto": [],
+      "file_offset_bits_64": false,
+      "fat_lto_requested": false,
+      "pie_requested": true,
+      "rpm": {
+        "path": "/home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-control/gbs_root/local/repos/globalopts100/armv7l/RPMS/org.tizen.AVControl-0.2.0-1.armv7l.rpm",
+        "sha256": "5db7e3f2189f328bd3238da0148c0c1585f22eceaaff0a668fca698357c6f7b3",
+        "header": "org.tizen.AVControl|0.2.0-1|armv7l"
+      }
+    },
+    {
+      "lane": "clang-candidate",
+      "build_exit": 0,
+      "compiler": [
+        "[  263s] -- The CXX compiler identification is Clang 22.1.8"
+      ],
+      "compile_optimization": [
+        "-Os"
+      ],
+      "compile_lto": [
+        "-flto"
+      ],
+      "final_link_lto": [
+        "-flto"
+      ],
+      "file_offset_bits_64": true,
+      "fat_lto_requested": true,
+      "pie_requested": true,
+      "rpm": {
+        "path": "/home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-candidate/gbs_root/local/repos/globalopts100/armv7l/RPMS/org.tizen.AVControl-0.2.0-1.armv7l.rpm",
+        "sha256": "a5fcf1007e004d462c14a1a9f5d98a07fb340554ab8103cd1a291682760d3c40",
+        "header": "org.tizen.AVControl|0.2.0-1|armv7l"
+      }
+    },
+    {
+      "lane": "gcc-candidate",
+      "build_exit": 0,
+      "compiler": [
+        "[  267s] -- The CXX compiler identification is GNU 14.2.0"
+      ],
+      "compile_optimization": [
+        "-O2"
+      ],
+      "compile_lto": [
+        "-flto"
+      ],
+      "final_link_lto": [
+        "-flto"
+      ],
+      "file_offset_bits_64": true,
+      "fat_lto_requested": true,
+      "pie_requested": true,
+      "rpm": {
+        "path": "/home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/gcc-candidate/gbs_root/local/repos/globalopts100/armv7l/RPMS/org.tizen.AVControl-0.2.0-1.armv7l.rpm",
+        "sha256": "e21a03a98316981efa486b2e8164e634a5c1840a7b63c3d2a59d338ee5c15f04",
+        "header": "org.tizen.AVControl|0.2.0-1|armv7l"
+      }
+    }
+  ],
+  "meaning": "Control has no explicit -O/-flto in recorded CMake commands. Candidate inherits -Os and -flto for compile/link; GCC candidate inherits -O2 and -flto. No claim about hidden wrapper injection, final-link LTO consumption, MLGO, ELF/ABI, size or runtime acceptance yet.",
+  "next_command": "/home/toolchain/Desktop/temp/tizen-llvm-handover/implementation-20261116/review-avcontrol-retained-artifacts-command.txt",
+  "limits": "One-line package candidate; fixed r10/older Product dependency control, not verification of the newly flashed image. GCC lane is a same-dependency build-compatibility check, not a GCC-image performance control. No P4 sync/edit/shelf, manifest change, package installation or target operation."
+}

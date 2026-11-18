@@ -1,0 +1,17 @@
+Thank you for the careful review. Our earlier validation did not sufficiently cover native consumption of fat objects. Following your comments, we analyzed this path and added paired LTO/native tests.
+
+In the Tizen ARM matrix, 38 of 56 cases linked and passed runtime checks; the remaining 18 were rejected at link time for incompatible native relocations. All 90 runtime invocations passed. For both GCC and Clang, the tested non-PIC fat inputs passed through their matched LTO paths, while native consumption of the same inputs for shared-library/PIE probes was rejected. The tested failures therefore stopped the build. This conclusion applies to the verified cases and linker settings, including -z text; it is not a guarantee for every native input or configuration.
+
+Our next validation batch covers 8 RPM entries plus 1 package-internal build-input scenario:
+
+| Scope | Planned entries |
+|---|---|
+| Product RPMs (5) | nnstreamer-devel-static; nnstreamer-single-devel-static; tensorflow2-lite-devel; ci-data-devel; vd-tpk-backend-smoke-tomato |
+| Base RPMs (3) | compiler-rt; glibc-devel; gcc |
+| Build-input scenario (1) | gst-ffmpeg, including retained static-library and internal object inputs |
+
+These are nine acceptance entries, not nine confirmed affected packages or nine unique source packages. The production affected-package count remains under investigation. The separately documented Bluetooth shared-interface ABI case is not included in this FatLTO/PIC count.
+
+We will inspect the actual archive members and their consumers, verify paired LTO/native consumption where supported, and test clean no-LTO rebuilds. Runtime and CRT objects will be assessed against their intended use. The comparison table will record failures before and after any required repair, binary size, applicable performance measurements and stability results. Those production measurements are pending.
+
+We are evaluating protection for both consumption paths. The current IR fallback and warning do not qualify native reuse of the same fat objects. We will provide the proposed design, coverage boundaries and verification plan by Friday.

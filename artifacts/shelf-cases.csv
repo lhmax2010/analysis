@@ -1,0 +1,21 @@
+CL,package,category,cause,solution,limit
+14392070,bluetooth-host-impl,GCC_PREBUILT_CALL_ABI,Clang trivial_abi register passing versus GCC prebuilt hidden reference; SIGBUS,Clear TRIVIAL_ABI across boundary,One confirmed historical GCC-prebuilt boundary case; latest image acceptance not repeated
+14329283,aul-1,ODR_DSO_LAYOUT,Different Builder layouts and destructor binding across DSOs; SIGBUS,Move internal class into aul::server,Shelf description evidence
+14329307,coba-source-native,ODR_DSO_LAYOUT,Different CSourceItemInfo layouts and destructor interposition; invalid free,Hide internal class symbols,Shelf description evidence
+14272968,key-manager,SYMBOL_EXPORT,Hidden template specialization export required by consumers,Explicit KEY_MANAGER_API,Shelf description; build and nm checks reported
+14248929,cryptsetup,SYMBOL_VERSION,Historical compiler ignored __symver__; crypt_format missing,Use asm .symver,Current toolchain binary acceptance pending
+14386323,argot (argo-tizen),MIXED_DEPENDENCY_REVIEW,Abseil symbols mismatch with mixed product dependencies,Use matching Clang dependencies,Not proof of inherent GCC/Clang ABI incompatibility
+14260922,nnstreamer,RUNTIME_HELPER_REVIEW,Missing __aeabi_d2h helper,Final implementation not established,Do not report as fixed
+14276420,sensor-hal-accelerometer-sensor,DEPENDENCY_LINK,Prebuilt provider required atomic symbol,Add -latomic to UT,Prebuilt GCC provenance not established
+14329273,vd_memps,PREBUILT_DEPENDENCY_VERSION,Prebuilt bpftool depends on old LLVM SONAME,Temporary private library path,Permanent rebuild pending
+14366057,broadcastapp-util,DEPENDENCY_DLOPEN,"Missing explicit core dependency, also in GCC image",Link core library explicitly,Not inherent compiler ABI issue
+14444254,pkgmgr-info,ALIGNMENT_UB,Unaligned typed access optimized into LDM; SIGBUS,Byte offsets and memcpy,Not GCC-prebuilt ABI
+14451023,dali-core,ASM_CONSTRAINT,NEON writeback pointer declared input-only,Use +r operand,Not GCC-prebuilt ABI
+14391800,slive-framework,UB,INFINITY macro collision and float-to-int UB,Restore integer macro and static_assert,Not ABI
+14392156,fw-update-service,LIFETIME,dlclose while detached thread executes plugin,Retain mapping at exit,Not ABI
+14398961,pisa-service,FORTIFY,snprintf uses full size after destination offset,Use remaining space,Not ABI
+14445927,prd-factory-api,UB,Uninitialized key data,Initialize keyData,Not ABI
+14466526,gst-ffmpeg,UB,Uninitialized seek bounds,Initialize pos_min/pos_max,Not ABI; long-term target tests pending
+14157988,libjxl,THUMB_EXCEPTION,Historical Thumb/O3 branch-range overflow,-marm on convolve_separable5.cc,Historical 106 membership and current command unknown
+14430185,pixman,ASSEMBLER_SELECTION,Assembler flag applied too broadly with fat-LTO probing,Limit fno-integrated-as to CCASFLAGS,Not proof of ARM-predominant code
+14329150,tvs-tpms-base,GLOBAL_FLAGS,Macro override lost CFLAGS including mthumb,Explicit set_build_flags,Historical 106 membership unknown

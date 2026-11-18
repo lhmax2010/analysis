@@ -1,0 +1,12 @@
+scope,metric,baseline,candidate,unit,delta_percent,runs,variance,evidence
+AVControl control vs inherited-flags candidate (both Clang),file_bytes,2386562,680730,bytes,-71.48,One retained artifact comparison,Not applicable to static bytes,evidence/avcontrol-size.txt
+AVControl control vs inherited-flags candidate (both Clang),alloc_file_bytes,1055033,364120,bytes,-65.49,One retained artifact comparison,Not applicable to static bytes,evidence/avcontrol-size.txt
+AVControl control vs inherited-flags candidate (both Clang),alloc_memory_bytes,1055461,364548,bytes,-65.46,One retained artifact comparison,Not applicable to static bytes,evidence/avcontrol-size.txt
+AVControl control vs inherited-flags candidate (both Clang),executable_section_bytes,740764,183324,bytes,-75.25,One retained artifact comparison,Not applicable to static bytes,evidence/avcontrol-size.txt
+AVControl control vs inherited-flags candidate (both Clang),load_file_bytes,1056292,365976,bytes,-65.35,One retained artifact comparison,Not applicable to static bytes,evidence/avcontrol-size.txt
+AVControl control vs inherited-flags candidate (both Clang),load_memory_bytes,1056720,366404,bytes,-65.33,One retained artifact comparison,Not applicable to static bytes,evidence/avcontrol-size.txt
+Historical GCC Product20261001.3 vs LLVM Product20261112.1; different source dates,ELF files,13169,13350,ELF paths,Not a controlled causal comparison,Historical inventory,Not available,historical-reports/hq-compiler-options-lto.md
+Historical GCC Product20261001.3 vs LLVM Product20261112.1; different source dates,Clang marker files,80,9967,ELF paths,Not a controlled causal comparison,Historical inventory,Not available,historical-reports/hq-compiler-options-lto.md
+Historical GCC Product20261001.3 vs LLVM Product20261112.1; different source dates,ARM GCC-only marker files,8679,903,ELF paths,Not a controlled causal comparison,Historical inventory,Not available,historical-reports/hq-compiler-options-lto.md
+Historical GCC Product20261001.3 vs LLVM Product20261112.1; different source dates,Rust ELF files,163,163,ELF paths,Not a controlled causal comparison,Historical inventory,Not available,historical-reports/hq-compiler-options-lto.md
+Historical GCC Product20261001.3 vs LLVM Product20261112.1; different source dates,Go ELF files,20,20,ELF paths,Not a controlled causal comparison,Historical inventory,Not available,historical-reports/hq-compiler-options-lto.md

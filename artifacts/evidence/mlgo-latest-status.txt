@@ -1,0 +1,15 @@
+{
+  "status": "VERIFIED_BOTH_PACKAGES_BUILDING_SOURCE_UNCHANGED",
+  "packet_sha256": "140ccfd3891afd8f34724cdbe0385849085c3906cdba1272a7ad26d49fa51703",
+  "source_revision": {
+    "name": "llvm",
+    "rev": "12",
+    "vrev": "11",
+    "srcmd5": "0b38aead137ec42dcd99dee28091acc1"
+  },
+  "package_states": {
+    "armv7l": "building",
+    "x86_64": "building"
+  },
+  "note": "source_commit_acknowledged=false reflects this read-only invocation; prior successful commit remains valid. No build success or publication established."
+}

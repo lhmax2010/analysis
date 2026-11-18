@@ -1,0 +1,22 @@
+{
+  "files": 5120,
+  "collector_errors": 0,
+  "counts": {
+    "ARM_PREDOMINANT": 27,
+    "THUMB_PREDOMINANT": 232,
+    "UNKNOWN_OR_TIE": 4861
+  },
+  "bytes": {
+    "a": 28083880,
+    "t": 18015198,
+    "d": 3480270,
+    "unknown": 805510992
+  },
+  "metadata_sha256": "f87893221f026be6e12fb582ceba3a88c17c437bff2d9f053072f9d771b647f6",
+  "limits": [
+    "ELF paths, not source translation units or deduplicated contents.",
+    "Mapping-symbol byte spans include padding; unclassified executable bytes explicitly retained.",
+    "Only unpacked ELF files in recorded scan paths; archives/TPKs not unpacked.",
+    "Observed installed image only; per-source compile commands remain required for causal classification."
+  ]
+}

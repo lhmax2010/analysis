@@ -1,0 +1,118 @@
+{
+  "status": "REVIEWED_56_ARM_MECHANISM_CASES_MATCH_EXPECTATIONS",
+  "packet_sha256": "732ed45b95770228a1b03596f35e90158d3044384fb9e618044e79a64949ac39",
+  "console_sha256": "c52d7767f94af4fc3137f117785b719de60e44e5dda01d7d5fa54532e67dafb7",
+  "case_count": 56,
+  "linked_runtime_passed": 38,
+  "expected_relocation_rejections": 18,
+  "runtime_invocations": 90,
+  "unexpected_command_failures": 0,
+  "linked_behavior_or_elf_failures": 0,
+  "input_hashes_unchanged_all_cases": true,
+  "compiler_sha256": "102c2af5e161a4bb0739d4d844a3bafe95ffbf4fb6d266eb56e1d3501968108e",
+  "plugin_sha256": "340a2a3176e0665dd90a6f712098ef8f294604021e2e935c9675d9cd6f22b543",
+  "linker_sha256": "9bfb55c623cc363b0618e8daef277d846db335b2fce010e76a64b3e41b3b48c4",
+  "previous_checks_sha256": "fb73d070db4a0999a24059907e1aaca043bf7860c51751612e20161d1b826741",
+  "scope": "Tizen ARM32 mechanism probes in the pinned retained 10.1 GCC bootstrap root with build-tree Clang22 and a private matched ARM GNU linker. ARM execution uses existing chroot/binfmt, not physical-TV stability/performance or latest 10.0 package validation.",
+  "limits": "No GBS/package build, package installation, production linker/compiler replacement, binfmt changes, OBS/shelf/source edits, native binary repair, ThinLTO or partial-link clearance. Only synthetic C probes and new fixture files under vd-tree.",
+  "grouped_results": [
+    {
+      "producer": "gcc",
+      "pic": "pic",
+      "route": "own-lto",
+      "status": "LINKED_RUNTIME_PASSED",
+      "count": 5
+    },
+    {
+      "producer": "gcc",
+      "pic": "pic",
+      "route": "gcc-native",
+      "status": "LINKED_RUNTIME_PASSED",
+      "count": 6
+    },
+    {
+      "producer": "gcc",
+      "pic": "pic",
+      "route": "direct-native",
+      "status": "LINKED_RUNTIME_PASSED",
+      "count": 3
+    },
+    {
+      "producer": "gcc",
+      "pic": "nonpic",
+      "route": "own-lto",
+      "status": "LINKED_RUNTIME_PASSED",
+      "count": 5
+    },
+    {
+      "producer": "gcc",
+      "pic": "nonpic",
+      "route": "gcc-native",
+      "status": "LINK_REJECTED_RELOCATION",
+      "count": 6
+    },
+    {
+      "producer": "gcc",
+      "pic": "nonpic",
+      "route": "direct-native",
+      "status": "LINK_REJECTED_RELOCATION",
+      "count": 3
+    },
+    {
+      "producer": "clang",
+      "pic": "pic",
+      "route": "own-lto",
+      "status": "LINKED_RUNTIME_PASSED",
+      "count": 5
+    },
+    {
+      "producer": "clang",
+      "pic": "pic",
+      "route": "gcc-native",
+      "status": "LINKED_RUNTIME_PASSED",
+      "count": 6
+    },
+    {
+      "producer": "clang",
+      "pic": "pic",
+      "route": "direct-native",
+      "status": "LINKED_RUNTIME_PASSED",
+      "count": 3
+    },
+    {
+      "producer": "clang",
+      "pic": "nonpic",
+      "route": "own-lto",
+      "status": "LINKED_RUNTIME_PASSED",
+      "count": 5
+    },
+    {
+      "producer": "clang",
+      "pic": "nonpic",
+      "route": "gcc-native",
+      "status": "LINK_REJECTED_RELOCATION",
+      "count": 6
+    },
+    {
+      "producer": "clang",
+      "pic": "nonpic",
+      "route": "direct-native",
+      "status": "LINK_REJECTED_RELOCATION",
+      "count": 3
+    }
+  ],
+  "findings": [
+    "PIC controls pass through regular LTO and native routes for both compilers.",
+    "The same non-PIC fat input passes the producer-matched regular-LTO path but fails supported negative native shared/PIE probes.",
+    "All five Clang non-PIC own-LTO cases record the tagged fallback diagnostic; native cases do not. GCC own-LTO cases retain ltrans artifacts.",
+    "GCC native consumption also rejects these non-PIC inputs despite -fPIC/-fPIE at the final driver invocation. GCC has no generic native machine-code repair in these cases.",
+    "PIC Clang fat inputs consumed natively through GCC pass, preserving the original mixed-toolchain motivation for fat objects.",
+    "18 link rejections are negative-probe outcomes, not deployed crashes; no linked behavior or TEXTREL failure was observed in the scoped fixtures."
+  ],
+  "decisions": [
+    "Keep FatLTO for supported GCC/native consumers.",
+    "State explicitly that the fallback and warning cover regular-LTO IR only; do not transfer LTO audit results to native/no-LTO reuse of the same fat bytes.",
+    "Validate shipped static inputs and internal consumers separately. Prioritize producer PIC repair/rebuilding dependencies if an actual native PIC problem is confirmed; do not implement a generic native fallback based on this matrix alone.",
+    "A clean full-RPM LTO rebuild covers only inputs actually recompiled and consumed as IR; external archives, local overrides, assembly and exported static inputs remain separate."
+  ]
+}

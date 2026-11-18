@@ -1,0 +1,103 @@
+--- a/llvm.spec
++++ b/llvm.spec
+@@ -11,6 +11,18 @@
+ # Model selection for the Customized MLGO Base build; explicit zero retains the reference model.
+ %{!?mlgo_custom_inliner: %define mlgo_custom_inliner 1}
+ %{!?mlgo_custom_regalloc: %define mlgo_custom_regalloc 1}
++
++# Complete SR asset selection by default; set runtime to 0 for a fixed-VD-runtime control.
++%{!?mlgo_sr_runtime: %define mlgo_sr_runtime 1}
++%ifarch armv7l
++%global mlgo_pkg_arch armv7l
++%endif
++%ifarch aarch64
++%global mlgo_pkg_arch aarch64
++%endif
++%ifarch x86_64
++%global mlgo_pkg_arch x86_64
++%endif
+ 
+ %if %{defined _toolchain}
+ %define _toolchain_override clang
+@@ -57,13 +69,17 @@
+ Source1006: driver-pass-llvmgold-to-gnu-ld-by-default.patch
+ Source1007: driver-O4-as-O3-upstream-85e76ec53ae4.patch
+ 
+-# SR VD-kernel-trained model assets; VD LLVM sources/runtime stay fixed.
++# SR model/runtime components; each selection can be controlled independently.
+ Source1020: mlgo_inliner_armv7l.tar.gz
+ Source1021: mlgo_inliner_aarch64.tar.gz
+ Source1022: mlgo_inliner_x86_64.tar.gz
+ Source1023: mlgo_regalloc_armv7l.tar.gz
+ Source1024: mlgo_regalloc_aarch64.tar.gz
+ Source1025: mlgo_regalloc_x86_64.tar.gz
++Source1026: mlgo_runtime_armv7l.tar.gz
++Source1027: mlgo_runtime_aarch64.tar.gz
++Source1028: mlgo_runtime_x86_64.tar.gz
++Source1029: verify-mlgo-inputs.py
+ 
+ %{!?mlgo_build_jobs: %define mlgo_build_jobs 6}
+ %{!?mlgo_verify_configure_only: %define mlgo_verify_configure_only 0}
+@@ -188,7 +204,11 @@
+ # Backport of upstream 85e76ec53ae4: -O4 counted as -O3 when building the LTO link command.
+ patch -p1 --fuzz=0 < %{SOURCE1007}
+ %if %{with mlgo}
++# A fresh directory avoids mixing model/runtime inputs from an earlier selection.
++rm -rf -- mlgo_verify_assets
+ mkdir -p mlgo_verify_assets
++# Keep VD bundles only as explicit fallback inputs for independently selected components.
++%if 0%{mlgo_custom_inliner} == 0 || 0%{mlgo_custom_regalloc} == 0 || 0%{mlgo_sr_runtime} == 0
+ %ifarch armv7l
+ tar -C mlgo_verify_assets -xzf %{SOURCE1002}
+ %endif
+@@ -197,6 +217,23 @@
+ %endif
+ %ifarch x86_64
+ tar -C mlgo_verify_assets -xzf %{SOURCE1004}
++%endif
++%endif
++%if 0%{mlgo_sr_runtime}
++# Replace the entire runtime/sysroot pair; an overlay could leave VD-only headers.
++rm -rf -- mlgo_verify_assets/mlgo_sysroot mlgo_verify_assets/xla_runtime_objects
++%ifarch armv7l
++tar -C mlgo_verify_assets -xzf %{SOURCE1026}
++%endif
++%ifarch aarch64
++tar -C mlgo_verify_assets -xzf %{SOURCE1027}
++%endif
++%ifarch x86_64
++tar -C mlgo_verify_assets -xzf %{SOURCE1028}
++%endif
++echo 'MLGO_RUNTIME_SELECTION=SR_SPLIT'
++%else
++echo 'MLGO_RUNTIME_SELECTION=VD_BASELINE'
+ %endif
+ %if 0%{mlgo_custom_inliner}
+ %ifarch armv7l
+@@ -347,7 +384,16 @@
+     -DLLVM_INLINER_MODEL_PATH=none \
+     -DLLVM_RAEVICT_MODEL_PATH=none \
+ %endif
+-    ../llvm
++    ../llvm || exit 1
++
++# This guard runs in normal builds as well as configure-only probes.
++%if %{with mlgo}
++%ifarch armv7l aarch64 x86_64
++python3 %{SOURCE1029} --assets "${MLGO_AOT_DIR}" --build "$PWD" \
++    --arch %{mlgo_pkg_arch} --sr-runtime 0%{mlgo_sr_runtime} \
++    --custom-inliner 0%{mlgo_custom_inliner} --custom-regalloc 0%{mlgo_custom_regalloc} || exit 1
++%endif
++%endif
+ 
+ %if 0%{mlgo_verify_configure_only}
+   # ---- configure-only probe: guard against §0 traps; check sentinels, GBS exit code non-0 is expected ----
+@@ -417,7 +463,7 @@
+ %endif
+ 
+ # Full build using ninja (already in build/ directory after cd build)
+-ninja -j %{mlgo_build_jobs}
++ninja -j %{mlgo_build_jobs} || exit 1
+ 
+ %install
+ cd build

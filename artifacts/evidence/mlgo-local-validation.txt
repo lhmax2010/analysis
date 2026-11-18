@@ -1,0 +1,274 @@
+{
+  "status": "COMPLETE_SR_UPDATE_LOCAL_REVIEW_PASSED",
+  "workdir": "/home/toolchain/Desktop/temp/tizen-llvm-handover/customized-mlgo-20261117/runtime-obs-update/validation-wpy0dpfh",
+  "checks": [
+    "Five-file delta commits; all other sources unchanged; both architecture rebuild requests accepted",
+    "Idempotent repeat and --status-only make no mutations",
+    "Reject source drift without overwriting a changed source",
+    "Reject config drift without overwriting a changed source",
+    "Reject concurrent drift without overwriting a changed source",
+    "Post-commit interruption retains acknowledgement; explicit --rebuild-only can resume",
+    "AOT preflight runs before the first source mutation; failure blocks all writes; idempotent repeat skips it",
+    "Real armv7l SR prep/tree/model identity, ELF ABI and cache/copy guards pass; corruptions reject",
+    "Real aarch64 SR prep/tree/model identity, ELF ABI and cache/copy guards pass; corruptions reject",
+    "Real x86_64 SR prep/tree/model identity, ELF ABI and cache/copy guards pass; corruptions reject"
+  ],
+  "spec_selection_combinations": [
+    {
+      "arch": "armv7l",
+      "inliner": 0,
+      "regalloc": 0,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_arm_model.tar.gz"
+      ]
+    },
+    {
+      "arch": "armv7l",
+      "inliner": 0,
+      "regalloc": 0,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_arm_model.tar.gz",
+        "mlgo_runtime_armv7l.tar.gz"
+      ]
+    },
+    {
+      "arch": "armv7l",
+      "inliner": 0,
+      "regalloc": 1,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_arm_model.tar.gz",
+        "mlgo_regalloc_armv7l.tar.gz"
+      ]
+    },
+    {
+      "arch": "armv7l",
+      "inliner": 0,
+      "regalloc": 1,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_arm_model.tar.gz",
+        "mlgo_runtime_armv7l.tar.gz",
+        "mlgo_regalloc_armv7l.tar.gz"
+      ]
+    },
+    {
+      "arch": "armv7l",
+      "inliner": 1,
+      "regalloc": 0,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_arm_model.tar.gz",
+        "mlgo_inliner_armv7l.tar.gz"
+      ]
+    },
+    {
+      "arch": "armv7l",
+      "inliner": 1,
+      "regalloc": 0,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_arm_model.tar.gz",
+        "mlgo_runtime_armv7l.tar.gz",
+        "mlgo_inliner_armv7l.tar.gz"
+      ]
+    },
+    {
+      "arch": "armv7l",
+      "inliner": 1,
+      "regalloc": 1,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_arm_model.tar.gz",
+        "mlgo_inliner_armv7l.tar.gz",
+        "mlgo_regalloc_armv7l.tar.gz"
+      ]
+    },
+    {
+      "arch": "armv7l",
+      "inliner": 1,
+      "regalloc": 1,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_runtime_armv7l.tar.gz",
+        "mlgo_inliner_armv7l.tar.gz",
+        "mlgo_regalloc_armv7l.tar.gz"
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "inliner": 0,
+      "regalloc": 0,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_aarch_model.tar.gz"
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "inliner": 0,
+      "regalloc": 0,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_aarch_model.tar.gz",
+        "mlgo_runtime_aarch64.tar.gz"
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "inliner": 0,
+      "regalloc": 1,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_aarch_model.tar.gz",
+        "mlgo_regalloc_aarch64.tar.gz"
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "inliner": 0,
+      "regalloc": 1,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_aarch_model.tar.gz",
+        "mlgo_runtime_aarch64.tar.gz",
+        "mlgo_regalloc_aarch64.tar.gz"
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "inliner": 1,
+      "regalloc": 0,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_aarch_model.tar.gz",
+        "mlgo_inliner_aarch64.tar.gz"
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "inliner": 1,
+      "regalloc": 0,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_aarch_model.tar.gz",
+        "mlgo_runtime_aarch64.tar.gz",
+        "mlgo_inliner_aarch64.tar.gz"
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "inliner": 1,
+      "regalloc": 1,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_aarch_model.tar.gz",
+        "mlgo_inliner_aarch64.tar.gz",
+        "mlgo_regalloc_aarch64.tar.gz"
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "inliner": 1,
+      "regalloc": 1,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_runtime_aarch64.tar.gz",
+        "mlgo_inliner_aarch64.tar.gz",
+        "mlgo_regalloc_aarch64.tar.gz"
+      ]
+    },
+    {
+      "arch": "x86_64",
+      "inliner": 0,
+      "regalloc": 0,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_x86_model.tar.gz"
+      ]
+    },
+    {
+      "arch": "x86_64",
+      "inliner": 0,
+      "regalloc": 0,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_x86_model.tar.gz",
+        "mlgo_runtime_x86_64.tar.gz"
+      ]
+    },
+    {
+      "arch": "x86_64",
+      "inliner": 0,
+      "regalloc": 1,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_x86_model.tar.gz",
+        "mlgo_regalloc_x86_64.tar.gz"
+      ]
+    },
+    {
+      "arch": "x86_64",
+      "inliner": 0,
+      "regalloc": 1,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_x86_model.tar.gz",
+        "mlgo_runtime_x86_64.tar.gz",
+        "mlgo_regalloc_x86_64.tar.gz"
+      ]
+    },
+    {
+      "arch": "x86_64",
+      "inliner": 1,
+      "regalloc": 0,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_x86_model.tar.gz",
+        "mlgo_inliner_x86_64.tar.gz"
+      ]
+    },
+    {
+      "arch": "x86_64",
+      "inliner": 1,
+      "regalloc": 0,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_x86_model.tar.gz",
+        "mlgo_runtime_x86_64.tar.gz",
+        "mlgo_inliner_x86_64.tar.gz"
+      ]
+    },
+    {
+      "arch": "x86_64",
+      "inliner": 1,
+      "regalloc": 1,
+      "sr_runtime": 0,
+      "selected": [
+        "mlgo_x86_model.tar.gz",
+        "mlgo_inliner_x86_64.tar.gz",
+        "mlgo_regalloc_x86_64.tar.gz"
+      ]
+    },
+    {
+      "arch": "x86_64",
+      "inliner": 1,
+      "regalloc": 1,
+      "sr_runtime": 1,
+      "selected": [
+        "mlgo_runtime_x86_64.tar.gz",
+        "mlgo_inliner_x86_64.tar.gz",
+        "mlgo_regalloc_x86_64.tar.gz"
+      ]
+    }
+  ],
+  "combinations": 24,
+  "real_sr_preparations": 3,
+  "default_and_disabled_checks": 6,
+  "installation_recipe_unchanged": true,
+  "actual_llvm_configure_performed": false,
+  "actual_obs_mutation_performed": false,
+  "limits": "CMake caches/copy destinations are fixtures; asset preparation uses real SR bytes. Full LLVM builds, actual advisors and target execution remain OBS/acceptance gates."
+}

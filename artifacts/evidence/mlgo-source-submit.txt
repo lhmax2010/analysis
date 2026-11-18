@@ -1,0 +1,25 @@
+{
+  "status": "VERIFIED_RUNTIME_SOURCE_COMMITTED_BUILDS_PENDING",
+  "packet_sha256": "d0a5339e6ef8ec0d3f005a12e8bcee5bd696e6956d047b227e17299713d48d8a",
+  "delta_matches_reviewed_pin": true,
+  "revision": {
+    "name": "llvm",
+    "rev": "12",
+    "vrev": "11",
+    "srcmd5": "0b38aead137ec42dcd99dee28091acc1"
+  },
+  "preflight_executions": 512,
+  "package_states": {
+    "armv7l": "scheduled",
+    "x86_64": "building"
+  },
+  "buildinfo_matches_source": true,
+  "limits": [
+    "Changes only this existing LLVM source package and requests standard armv7l/x86_64 builds.",
+    "Old LLVM source archives, VD control bundles, model files, driver/PIC patches and project configuration are retained.",
+    "Commit and scheduling do not prove successful compilation, actual advisor execution, Base publication or Kernel performance.",
+    "Live source/config drift is checked before commit; no automatic rollback or replacement of unrelated source edits.",
+    "Native host standalone AOT probes; not actual LLVM advisors, ARM execution or Kernel performance",
+    "Official/Custom Kernel comparison must use the same runtime and other build inputs. Equal probe outputs do not establish model equivalence."
+  ]
+}

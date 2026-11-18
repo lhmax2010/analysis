@@ -1,0 +1,77 @@
+{
+  "status": "STATIC_SIZE_AND_BASIC_ELF_GATES_PASS_IMPORT_CLOSURE_AND_RUNTIME_PENDING",
+  "packet_sha256": "4ac0971a3607da198902e3a759878ae80a7154a0339352bfce21c5580e3e79d3",
+  "packet_bytes": 1330638,
+  "parts_verified": 7,
+  "metrics": {
+    "file_bytes": {
+      "before": 2386562,
+      "after": 680730,
+      "percent": -71.48
+    },
+    "alloc_file_bytes": {
+      "before": 1055033,
+      "after": 364120,
+      "percent": -65.49
+    },
+    "alloc_memory_bytes": {
+      "before": 1055461,
+      "after": 364548,
+      "percent": -65.46
+    },
+    "executable_section_bytes": {
+      "before": 740764,
+      "after": 183324,
+      "percent": -75.25
+    },
+    "load_file_bytes": {
+      "before": 1056292,
+      "after": 365976,
+      "percent": -65.35
+    },
+    "load_memory_bytes": {
+      "before": 1056720,
+      "after": 366404,
+      "percent": -65.33
+    }
+  },
+  "basic_elf": "All three packaged applications ARM32 PIE, same EABI flags, RELRO, non-executable GNU_STACK, no TEXTREL",
+  "retained_objects": {
+    "clang-control": {
+      "total": 26,
+      "with_ir": 0
+    },
+    "clang-candidate": {
+      "total": 26,
+      "with_ir": 26
+    },
+    "gcc-candidate": {
+      "total": 26,
+      "with_ir": 26
+    }
+  },
+  "interface_changes": {
+    "removed_strong_definitions": 0,
+    "removed_weak_definitions": 782,
+    "new_imports": [
+      "_ZNKSt7__cxx1115basic_stringbufIcSt11char_traitsIcESaIcEE3strEv@GLIBCXX_3.4.21",
+      "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE10_M_replaceEjjPKcj@GLIBCXX_3.4.21",
+      "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7replaceEjjPKcj@GLIBCXX_3.4.21",
+      "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_createERjj@GLIBCXX_3.4.21",
+      "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC2EPKcRKS3_@GLIBCXX_3.4.21",
+      "_ZNSt7__cxx1118basic_stringstreamIcSt11char_traitsIcESaIcEED2Ev@GLIBCXX_3.4.21",
+      "_ZNSt8ios_baseD2Ev@GLIBCXX_3.4",
+      "_ZSt16__ostream_insertIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_PKS3_i@GLIBCXX_3.4.9",
+      "_ZTTNSt7__cxx1118basic_stringstreamIcSt11char_traitsIcESaIcEEE@GLIBCXX_3.4.21",
+      "__strncat_chk@GLIBC_2.4",
+      "__vsnprintf_chk@GLIBC_2.4"
+    ],
+    "direct_needed_before": 108,
+    "direct_needed_after": 34,
+    "new_needed": [],
+    "non_elf_payload_changes": [],
+    "scriptlets_equal": true
+  },
+  "next_command": "/home/toolchain/Desktop/temp/tizen-llvm-handover/implementation-20261116/check-avcontrol-import-closure-command.txt",
+  "limits": "Combined inherited optimization/LTO/architecture/linker policy change; do not attribute size delta to LTO alone or to Clang versus GCC. ELF file size includes nonloaded sections; alloc/load metrics are static and not PSS/RSS. Embedded IR does not alone prove final-link IR consumption. Export/interface/loader/runtime acceptance and image delivery pending."
+}

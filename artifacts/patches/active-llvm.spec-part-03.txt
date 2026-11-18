@@ -1,0 +1,37 @@
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{sdk_bin_dir}/lldb
+%{_prefix}/bin/lldb
+%{sdk_bin_dir}/lldb-argdumper
+%{sdk_bin_dir}/lldb-server
+%{sdk_lib_dir}/liblldb*.so*
+%{_prefix}/bin/lldb-mcp
+
+%files -n lldb-devel
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{_prefix}/include/lldb/*
+%{_libdir}/liblldb*.so*
+%{_prefix}/bin/lldb-tblgen
+
+%files -n compiler-rt
+%manifest %{name}.manifest
+%defattr(-,root,root,-)
+%{_libdir}/clang/%{llvm_version}/include/sanitizer/*
+%{_libdir}/clang/%{llvm_version}/*
+
+%files -n libomp
+%{_libdir}/libomp.so
+%ifnarch %arm
+%{_libdir}/libompd.so
+%{_libdir}/libarcher.so
+%endif
+
+%files -n libomp-devel
+%ifnarch %arm
+%{_libdir}/libarcher_static.a
+%endif
+%{_libdir}/cmake/openmp/FindOpenMPTarget.cmake
+
+%files -n python-clang
+%{python3_sitelib}/clang

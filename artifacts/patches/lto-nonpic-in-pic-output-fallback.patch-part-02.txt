@@ -1,0 +1,350 @@
++; PIC-DAG: @fa = alias void (), ptr @fn
++; PIC-DAG: @npa = alias void (), ptr @np.1
++; PIC-DAG: @i = ifunc void (), ptr @resolver
++; PIC-DAG: define dso_local void @fn()
++; PIC-DAG: declare void @np()
++; PIC-DAG: define internal void @np.1()
++
++;; The caller's code: the call to fn binds locally (no relocation against fn,
++;; checked over the whole output; the calls are in source order at -O0);
++;; the calls through the aliases and to the non-prevailing function go through
++;; the PLT.
++; RUN: llvm-lto2 run %t.bc -o %t.code -relocation-model=pic -O0 -r=%t.bc,g,px -r=%t.bc,c,px -r=%t.bc,d,px -r=%t.bc,npv, -r=%t.bc,wa,px -r=%t.bc,sa,px -r=%t.bc,fa,px -r=%t.bc,npa,px -r=%t.bc,i,px -r=%t.bc,fn,px -r=%t.bc,np, -r=%t.bc,caller,px
++; RUN: llvm-objdump -d -r %t.code.0 | FileCheck %s --check-prefix=CODE --implicit-check-not='R_X86_64_{{[A-Z0-9_]+}} fn-'
++; CODE-LABEL: <caller>:
++; CODE: R_X86_64_PLT32 fa-
++; CODE: R_X86_64_PLT32 np-
++; CODE: R_X86_64_PLT32 npa-
++
++;; Static relocation model (an executable): everything stays as compiled.
++; RUN: llvm-lto2 run %t.bc -o %t.static -relocation-model=static -save-temps -r=%t.bc,g,px -r=%t.bc,c,px -r=%t.bc,d,px -r=%t.bc,npv, -r=%t.bc,wa,px -r=%t.bc,sa,px -r=%t.bc,fa,px -r=%t.bc,npa,px -r=%t.bc,i,px -r=%t.bc,fn,px -r=%t.bc,np, -r=%t.bc,caller,px
++; RUN: llvm-dis %t.static.0.0.preopt.bc -o - | FileCheck %s --check-prefix=STATIC
++; STATIC-DAG: @g = dso_local global i32 1
++; STATIC-DAG: @c = common dso_local global i32 0
++; STATIC-DAG: @d = dso_local global i32 2, comdat
++; STATIC-DAG: @npv = external dso_local global i32
++; STATIC-DAG: @wa = weak dso_local alias i32, ptr @g
++; STATIC-DAG: @sa = dso_local alias i32, ptr @g
++; STATIC-DAG: @fa = dso_local alias void (), ptr @fn
++; STATIC-DAG: @npa = dso_local alias void (), ptr @np.1
++; STATIC-DAG: @i = dso_local ifunc void (), ptr @resolver
++; STATIC-DAG: define dso_local void @fn()
++; STATIC-DAG: declare dso_local void @np()
++; STATIC-DAG: define internal void @np.1()
++
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++$d = comdat any
++@g = dso_local global i32 1
++@c = common dso_local global i32 0
++@d = dso_local global i32 2, comdat
++@npv = dso_local global i32 7
++@wa = weak dso_local alias i32, ptr @g
++@sa = dso_local alias i32, ptr @g
++@fa = dso_local alias void (), ptr @fn
++@npa = dso_local alias void (), ptr @np
++@i = dso_local ifunc void (), ptr @resolver
++define dso_local void @fn() {
++  call void @np()
++  store i32 1, ptr @npv
++  ret void
++}
++define dso_local void @np() {
++  ret void
++}
++define dso_local void @caller() {
++  call void @fn()
++  call void @fa()
++  call void @np()
++  call void @npa()
++  ret void
++}
++define internal ptr @resolver() {
++  ret ptr @impl
++}
++define internal void @impl() {
++  ret void
++}
++!llvm.module.flags = !{!0}
++!0 = !{i32 1, !"wchar_size", i32 4}
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/X86/pic-dsolocal-definition-wins.ll	2026-11-09 23:28:30.042912088 +0800
+@@ -0,0 +1,36 @@
++; RUN: rm -rf %t && split-file %s %t
++; RUN: llvm-as %t/a.ll -o %t/a.bc
++; RUN: llvm-as %t/b.ll -o %t/b.bc
++
++;; The declaration in a and the variable definition in b were both marked
++;; dso_local by non-PIC compilation. In a shared object the declaration loses it
++;; (not resolved inside the linkage unit) and so does the variable definition
++;; (a non-PIE executable may copy-relocate it): the merged module carries no
++;; dso_local for x, in either link order.
++; RUN: llvm-lto2 run %t/a.bc %t/b.bc -o %t.ab -relocation-model=pic -save-temps -r=%t/a.bc,read,plx -r=%t/a.bc,x, -r=%t/b.bc,x,p
++; RUN: llvm-dis %t.ab.0.0.preopt.bc -o - | FileCheck %s --check-prefix=GOT
++; RUN: llvm-lto2 run %t/b.bc %t/a.bc -o %t.ba -relocation-model=pic -save-temps -r=%t/a.bc,read,plx -r=%t/a.bc,x, -r=%t/b.bc,x,p
++; RUN: llvm-dis %t.ba.0.0.preopt.bc -o - | FileCheck %s --check-prefix=GOT
++; GOT: @x = global i32 9
++
++;; When the linker reports the definition as final in the linkage unit ('l'),
++;; its dso_local wins over the cleared declaration, in either link order.
++; RUN: llvm-lto2 run %t/a.bc %t/b.bc -o %t.abl -relocation-model=pic -save-temps -r=%t/a.bc,read,plx -r=%t/a.bc,x, -r=%t/b.bc,x,pl
++; RUN: llvm-dis %t.abl.0.0.preopt.bc -o - | FileCheck %s --check-prefix=LOCAL
++; RUN: llvm-lto2 run %t/b.bc %t/a.bc -o %t.bal -relocation-model=pic -save-temps -r=%t/a.bc,read,plx -r=%t/a.bc,x, -r=%t/b.bc,x,pl
++; RUN: llvm-dis %t.bal.0.0.preopt.bc -o - | FileCheck %s --check-prefix=LOCAL
++; LOCAL: @x = dso_local global i32 9
++
++;--- a.ll
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++@x = external dso_local global i32
++define i32 @read() {
++  %v = load i32, ptr @x
++  ret i32 %v
++}
++
++;--- b.ll
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++@x = dso_local global i32 9
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/X86/pic-dsolocal-nonprevailing-pic.ll	2026-11-11 10:02:27.967601378 +0800
+@@ -0,0 +1,30 @@
++; RUN: llvm-as %s -o %t.bc
++
++;; A -fPIC -fno-semantic-interposition module (PIC Level 2, no PIE Level):
++;; ext is dso_local but does not prevail (possible in a link that allows
++;; multiple definitions). It is not an ODR definition, so it is not converted
++;; to available_externally; IRMover keeps only its declaration, which must not
++;; stay dso_local in a shared object (the regular-LTO counterpart of D74751):
++;; the address is taken through the GOT, not PC-relative.
++; RUN: llvm-lto2 run %t.bc -o %t.pic -relocation-model=pic -save-temps -r=%t.bc,ext, -r=%t.bc,take,px
++; RUN: llvm-dis %t.pic.0.0.preopt.bc -o - | FileCheck %s --check-prefix=PIC
++; RUN: llvm-readobj -r %t.pic.0 | FileCheck %s --check-prefix=PICREL
++; PIC: declare void @ext()
++; PICREL: R_X86_64_{{(REX_)?}}GOTPCRELX ext
++
++;; Static relocation model (an executable): the declaration keeps dso_local.
++; RUN: llvm-lto2 run %t.bc -o %t.static -relocation-model=static -save-temps -r=%t.bc,ext, -r=%t.bc,take,px
++; RUN: llvm-dis %t.static.0.0.preopt.bc -o - | FileCheck %s --check-prefix=STATIC
++; STATIC: declare dso_local void @ext()
++
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++define dso_local void @ext() {
++  ret void
++}
++define ptr @take() {
++  ret ptr @ext
++}
++!llvm.module.flags = !{!0, !1}
++!0 = !{i32 1, !"wchar_size", i32 4}
++!1 = !{i32 8, !"PIC Level", i32 2}
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/X86/pic-dsolocal-warning.ll	2026-11-09 23:07:21.990935371 +0800
+@@ -0,0 +1,48 @@
++; RUN: rm -rf %t && split-file %s %t
++; RUN: llvm-as %t/a.ll -o %t/a.bc
++; RUN: llvm-as %t/b.ll -o %t/b.bc
++; RUN: llvm-as %t/pie.ll -o %t/pie.bc
++
++;; The opt-in report names, once each, the modules compiled without
++;; -fPIC/-fPIE that are linked into a shared object or PIE; nothing is printed
++;; by default, for a static output, or for a -fPIE module.
++; RUN: llvm-lto2 run -relocation-model=pic -lto-warn-nonpic-in-pic-link -o %t/warn %t/a.bc %t/b.bc %t/pie.bc -r=%t/a.bc,g, -r=%t/a.bc,f,px -r=%t/b.bc,h, -r=%t/b.bc,k,px -r=%t/pie.bc,m,px 2>&1 | FileCheck %s --implicit-check-not=tizen-nonpic-fallback
++; CHECK: [tizen-nonpic-fallback] module '{{.*}}a.bc' was compiled without -fPIC/-fPIE but is linked into a shared object or PIE
++; CHECK: [tizen-nonpic-fallback] module '{{.*}}b.bc' was compiled without -fPIC/-fPIE
++; RUN: llvm-lto2 run -relocation-model=pic -o %t/quiet %t/a.bc -r=%t/a.bc,g, -r=%t/a.bc,f,px 2> %t/quiet.log
++; RUN: count 0 < %t/quiet.log
++; RUN: llvm-lto2 run -relocation-model=static -lto-warn-nonpic-in-pic-link -o %t/static %t/a.bc -r=%t/a.bc,g, -r=%t/a.bc,f,px 2> %t/static.log
++; RUN: count 0 < %t/static.log
++; RUN: llvm-lto2 run -relocation-model=pic -lto-warn-nonpic-in-pic-link -o %t/pie %t/pie.bc -r=%t/pie.bc,m,px 2> %t/pie.log
++; RUN: count 0 < %t/pie.log
++
++;--- a.ll
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++@g = external dso_local global i32
++define ptr @f() {
++  ret ptr @g
++}
++!llvm.module.flags = !{!0}
++!0 = !{i32 1, !"wchar_size", i32 4}
++
++;--- b.ll
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++@h = external dso_local global i32
++define ptr @k() {
++  ret ptr @h
++}
++!llvm.module.flags = !{!0}
++!0 = !{i32 1, !"wchar_size", i32 4}
++
++;--- pie.ll
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++define i32 @m() {
++  ret i32 0
++}
++!llvm.module.flags = !{!0, !1, !2}
++!0 = !{i32 8, !"PIC Level", i32 2}
++!1 = !{i32 7, !"PIE Level", i32 2}
++!2 = !{i32 1, !"wchar_size", i32 4}
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/X86/pic-dsolocal-tls-models.ll	2026-11-10 22:12:32.982993525 +0800
+@@ -0,0 +1,31 @@
++; RUN: llvm-as %s -o %t.bc
++
++;; TLS variables of a module compiled without -fPIC in a shared object: a
++;; variable without an explicit model loses dso_local and moves from the
++;; local-dynamic to the general-dynamic model; an explicit initialexec or
++;; localdynamic model is kept (TargetMachine::getTLSModel takes the more
++;; specific one); a variable the linker reports as final keeps dso_local and
++;; the local-dynamic model through its .L$local alias.
++; RUN: llvm-lto2 run %t.bc -o %t.pic -relocation-model=pic -r=%t.bc,t,px -r=%t.bc,ie,px -r=%t.bc,ld,px -r=%t.bc,get_t,px -r=%t.bc,get_ie,px -r=%t.bc,get_ld,px
++; RUN: llvm-readobj -r %t.pic.0 | FileCheck %s --check-prefix=PIC
++; PIC-DAG: R_X86_64_TLSGD t 0x
++; PIC-DAG: R_X86_64_GOTTPOFF ie 0x
++; PIC-DAG: R_X86_64_TLSLD ld 0x
++; RUN: llvm-lto2 run %t.bc -o %t.final -relocation-model=pic -r=%t.bc,t,plx -r=%t.bc,ie,px -r=%t.bc,ld,px -r=%t.bc,get_t,px -r=%t.bc,get_ie,px -r=%t.bc,get_ld,px
++; RUN: llvm-readobj -r %t.final.0 | FileCheck %s --check-prefix=FINAL
++; FINAL: R_X86_64_TLSLD {{(\.Lt\$local|t)}} 0x
++
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++@t = dso_local thread_local global i32 0
++@ie = dso_local thread_local(initialexec) global i32 0
++@ld = dso_local thread_local(localdynamic) global i32 0
++define ptr @get_t() {
++  ret ptr @t
++}
++define ptr @get_ie() {
++  ret ptr @ie
++}
++define ptr @get_ld() {
++  ret ptr @ld
++}
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/ARM/pic-dsolocal-declaration.ll	2026-11-09 19:41:00.251552999 +0800
+@@ -0,0 +1,26 @@
++; RUN: llvm-as %s -o %t.o
++
++;; The pattern that broke shared-library links with build-wide LTO: an object
++;; compiled without -fPIC references __stack_chk_guard (or any external
++;; variable) directly; LLVM generated R_ARM_MOVW_PREL_NC / R_ARM_MOVT_PREL
++;; against the undefined symbol, which no linker can resolve in a DSO. With the
++;; declaration no longer dso_local the access goes through the GOT.
++; RUN: llvm-lto2 run %t.o -o %t.pic -relocation-model=pic -r=%t.o,read_guard,plx -r=%t.o,guard,
++; RUN: llvm-readobj -r %t.pic.0 | FileCheck %s --check-prefix=PIC
++; PIC-NOT: R_ARM_MOVW_PREL_NC guard
++; PIC: R_ARM_GOT_PREL guard
++; PIC-NOT: R_ARM_MOVW_PREL_NC guard
++
++; RUN: llvm-lto2 run %t.o -o %t.static -relocation-model=static -r=%t.o,read_guard,plx -r=%t.o,guard,
++; RUN: llvm-readobj -r %t.static.0 | FileCheck %s --check-prefix=STATIC
++; STATIC: R_ARM_MOVW_ABS_NC guard
++
++target datalayout = "e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64"
++target triple = "armv7-unknown-linux-gnueabi"
++
++@guard = external dso_local global i32
++
++define i32 @read_guard() {
++  %v = load i32, ptr @guard
++  ret i32 %v
++}
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/ARM/pic-stack-guard.ll	2026-11-10 22:12:32.980993525 +0800
+@@ -0,0 +1,196 @@
++; REQUIRES: arm-registered-target
++; RUN: rm -rf %t && split-file %s %t
++; RUN: llvm-as %t/nonpic.ll -o %t/nonpic.bc
++; RUN: llvm-as %t/bare.ll -o %t/bare.bc
++; RUN: llvm-as %t/pie.ll -o %t/pie.bc
++; RUN: llvm-as %t/pie1.ll -o %t/pie1.bc
++; RUN: llvm-as %t/pic1.ll -o %t/pic1.bc
++; RUN: llvm-as %t/err1.ll -o %t/err1.bc
++; RUN: opt -module-summary %t/nonpic-summary.ll -o %t/nonpic-s.bc
++
++;; __stack_chk_guard exists in no input module: the stack protector creates it
++;; in the combined module at code generation time and makes it dso_local iff
++;; the module allows direct access to external data (by default: PIC Level is
++;; NotPIC; the level merges with Min, a missing flag counts as 0). A non-PIC
++;; module linked into a shared object or PIE must not do that: the guard is
++;; read through the GOT.
++; RUN: llvm-lto2 run %t/nonpic.bc -o %t/pic -relocation-model=pic -r=%t/nonpic.bc,f,px -r=%t/nonpic.bc,fill,
++; RUN: llvm-objdump -r %t/pic.0 | FileCheck %s --check-prefix=GOT
++
++;; Static output: unchanged.
++; RUN: llvm-lto2 run %t/nonpic.bc -o %t/static -relocation-model=static -r=%t/nonpic.bc,f,px -r=%t/nonpic.bc,fill,
++; RUN: llvm-objdump -r %t/static.0 | FileCheck %s --check-prefix=ABS
++
++;; A -fPIE program plus a non-PIC static library, both link orders.
++; RUN: llvm-lto2 run %t/pie.bc %t/nonpic.bc -o %t/m1 -relocation-model=pic -r=%t/pie.bc,main,px -r=%t/pie.bc,fill, -r=%t/pie.bc,f, -r=%t/nonpic.bc,f,px -r=%t/nonpic.bc,fill,
++; RUN: llvm-objdump -r %t/m1.0 | FileCheck %s --check-prefix=GOT
++; RUN: llvm-lto2 run %t/nonpic.bc %t/pie.bc -o %t/m2 -relocation-model=pic -r=%t/nonpic.bc,f,px -r=%t/nonpic.bc,fill, -r=%t/pie.bc,main,px -r=%t/pie.bc,fill, -r=%t/pie.bc,f,
++; RUN: llvm-objdump -r %t/m2.0 | FileCheck %s --check-prefix=GOT
++
++;; -fPIE only: already through the GOT, must stay so.
++; RUN: llvm-lto2 run %t/pie.bc -o %t/p -relocation-model=pic -r=%t/pie.bc,main,px -r=%t/pie.bc,fill, -r=%t/pie.bc,f,
++; RUN: llvm-objdump -r %t/p.0 | FileCheck %s --check-prefix=GOT
++
++;; A -fPIE module that carries an explicit "direct-access-external-data" = 1
++;; (the flag merges with Max): the non-PIC input still wins, in both orders,
++;; because the flag is set on the combined module after merging.
++; RUN: llvm-lto2 run %t/pie1.bc %t/nonpic.bc -o %t/e1 -relocation-model=pic -save-temps -r=%t/pie1.bc,main,px -r=%t/pie1.bc,fill, -r=%t/pie1.bc,f, -r=%t/nonpic.bc,f,px -r=%t/nonpic.bc,fill,
++; RUN: llvm-objdump -r %t/e1.0 | FileCheck %s --check-prefix=GOT
++; RUN: llvm-dis %t/e1.0.0.preopt.bc -o - | FileCheck %s --check-prefix=ZERO
++; RUN: llvm-lto2 run %t/nonpic.bc %t/pie1.bc -o %t/e2 -relocation-model=pic -save-temps -r=%t/nonpic.bc,f,px -r=%t/nonpic.bc,fill, -r=%t/pie1.bc,main,px -r=%t/pie1.bc,fill, -r=%t/pie1.bc,f,
++; RUN: llvm-objdump -r %t/e2.0 | FileCheck %s --check-prefix=GOT
++; RUN: llvm-dis %t/e2.0.0.preopt.bc -o - | FileCheck %s --check-prefix=ZERO
++
++;; The flag entry of the first input uses the Error behavior: the setter on
++;; the combined module replaces the whole entry, behavior included.
++; RUN: llvm-lto2 run %t/err1.bc %t/nonpic.bc -o %t/e3 -relocation-model=pic -save-temps -r=%t/err1.bc,main,px -r=%t/err1.bc,fill, -r=%t/err1.bc,f, -r=%t/nonpic.bc,f,px -r=%t/nonpic.bc,fill,
++; RUN: llvm-objdump -r %t/e3.0 | FileCheck %s --check-prefix=GOT
++; RUN: llvm-dis %t/e3.0.0.preopt.bc -o - | FileCheck %s --check-prefix=ZERO
++
++;; The non-PIC input carries a summary (regular LTO, "ThinLTO" flag 0): it is
++;; merged later, in runRegularLTO; the flag is still set afterwards.
++; RUN: llvm-lto2 run %t/nonpic-s.bc %t/pie1.bc -o %t/s1 -relocation-model=pic -save-temps -r=%t/nonpic-s.bc,f,px -r=%t/nonpic-s.bc,fill, -r=%t/pie1.bc,main,px -r=%t/pie1.bc,fill, -r=%t/pie1.bc,f,
++; RUN: llvm-objdump -r %t/s1.0 | FileCheck %s --check-prefix=GOT
++; RUN: llvm-dis %t/s1.0.0.preopt.bc -o - | FileCheck %s --check-prefix=ZERO
++
++;; The first input has no module flags at all.
++; RUN: llvm-lto2 run %t/bare.bc %t/pie.bc -o %t/b1 -relocation-model=pic -r=%t/bare.bc,g,px -r=%t/bare.bc,fill, -r=%t/pie.bc,main,px -r=%t/pie.bc,fill, -r=%t/pie.bc,f,
++; RUN: llvm-objdump -r %t/b1.0 | FileCheck %s --check-prefix=GOT
++
++;; Control: the explicit-1 PIE module alone is not touched (direct access, as
++;; it asked for).
++; RUN: llvm-lto2 run %t/pie1.bc -o %t/c1 -relocation-model=pic -save-temps -r=%t/pie1.bc,main,px -r=%t/pie1.bc,fill, -r=%t/pie1.bc,f,
++; RUN: llvm-objdump -r %t/c1.0 | FileCheck %s --check-prefix=DIRECT
++; RUN: llvm-dis %t/c1.0.0.preopt.bc -o - | FileCheck %s --check-prefix=ONE
++
++;; Control: a -fPIC module (no PIE Level) with an explicit 1 alone is outside
++;; the fallback and left alone as well: its declarations are not dso_local,
++;; only its guard follows the flag it asked for.
++; RUN: llvm-lto2 run %t/pic1.bc -o %t/c2 -relocation-model=pic -save-temps -r=%t/pic1.bc,main,px -r=%t/pic1.bc,fill, -r=%t/pic1.bc,f,
++; RUN: llvm-objdump -r %t/c2.0 | FileCheck %s --check-prefix=DIRECT
++; RUN: llvm-dis %t/c2.0.0.preopt.bc -o - | FileCheck %s --check-prefix=ONE
++
++; GOT-NOT: MOVW_PREL_NC {{.*}}__stack_chk_guard
++; GOT:     R_ARM_GOT_PREL {{ *}}__stack_chk_guard
++; GOT-NOT: MOVW_PREL_NC {{.*}}__stack_chk_guard
++; ABS:     R_ARM_MOVW_ABS_NC {{ *}}__stack_chk_guard
++; DIRECT:  R_ARM_MOVW_PREL_NC {{ *}}__stack_chk_guard
++; ZERO: !{i32 7, !"direct-access-external-data", i32 0}
++; ONE:  !{i32 7, !"direct-access-external-data", i32 1}
++
++;--- nonpic.ll
++target datalayout = "e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64"
++target triple = "armv7-unknown-linux-gnueabihf"
++declare void @fill(ptr)
++define i32 @f() #0 {
++  %buf = alloca [64 x i8], align 1
++  call void @fill(ptr %buf)
++  %p = getelementptr inbounds i8, ptr %buf, i32 3
++  %v = load i8, ptr %p, align 1
++  %r = sext i8 %v to i32
++  ret i32 %r
++}

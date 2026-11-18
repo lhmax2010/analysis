@@ -1,0 +1,350 @@
+--- a/llvm/include/llvm/LTO/LTO.h	2026-11-09 23:07:21.932181361 +0800
++++ b/llvm/include/llvm/LTO/LTO.h	2026-11-09 23:07:21.985660153 +0800
+@@ -492,6 +492,10 @@
+     };
+     std::vector<AddedModule> ModsWithSummaries;
+     bool EmptyCombinedModule = true;
++    // Tizen: set by addRegularLTO when a module compiled without -fPIC/-fPIE
++    // is linked into a shared object or PIE; runRegularLTO then disables
++    // direct access to external data on the combined module.
++    bool DisableDirectAccessExternalData = false;
+   } RegularLTO;
+ 
+   using ModuleMapType = MapVector<StringRef, BitcodeModule>;
+--- a/llvm/lib/LTO/LTO.cpp	2026-11-09 19:41:00.200956001 +0800
++++ b/llvm/lib/LTO/LTO.cpp	2026-11-11 10:02:27.839089711 +0800
+@@ -26,6 +26,7 @@
+ #include "llvm/CodeGen/Analysis.h"
+ #include "llvm/Config/llvm-config.h"
+ #include "llvm/IR/AutoUpgrade.h"
++#include "llvm/IR/DiagnosticInfo.h"
+ #include "llvm/IR/DiagnosticPrinter.h"
+ #include "llvm/IR/Intrinsics.h"
+ #include "llvm/IR/LLVMRemarkStreamer.h"
+@@ -71,6 +72,16 @@
+ 
+ #define DEBUG_TYPE "lto"
+ 
++// Tizen: opt-in report of the modules the non-PIC fallback in
++// LTO::addRegularLTO applies to, one line per module, tagged
++// [tizen-nonpic-fallback]. Off by default: some configure probes treat any
++// linker output on stderr as a failure, and -Wl,--fatal-warnings turns the
++// warning into one.
++static cl::opt<bool> WarnNonPICInPICLink(
++    "lto-warn-nonpic-in-pic-link", cl::init(false), cl::Hidden,
++    cl::desc("Report each module compiled without -fPIC/-fPIE that regular "
++             "LTO links into a shared object or PIE"));
++
+ static cl::opt<bool>
+     DumpThinCGSCCs("dump-thin-cg-sccs", cl::init(false), cl::Hidden,
+                    cl::desc("Dump the SCCs in the ThinLTO index's callgraph"));
+@@ -950,6 +961,76 @@
+   };
+   Skip();
+ 
++  // Tizen: a module compiled without -fPIC marks every global dso_local,
++  // declarations included. When the link produces a shared object or a PIE
++  // (PIC relocation model), a module that was not compiled with -fPIE has the
++  // dso_local assumptions taken back that -fPIC would not have made:
++  //  * declarations the linker does not resolve inside the linkage unit lose
++  //    dso_local - the regular-LTO counterpart of the ThinLTO
++  //    ClearDSOLocalOnDeclarations rule in lto::thinBackend (a non-prevailing
++  //    ODR definition converted to available_externally above counts as a
++  //    declaration here, as it does there; so does any other non-prevailing
++  //    definition, of which IRMover keeps only a declaration). clang never
++  //    marks a default-visibility declaration dso_local under -fPIC, so a
++  //    -fPIC module is reached by this rule only through an External
++  //    definition that -fno-semantic-interposition marked dso_local and that
++  //    does not prevail - the case of the ThinLTO rule (D74751), possible in
++  //    a link that allows multiple definitions;
++  //  * in a module really compiled without -fPIC (PIC Level NotPIC) every
++  //    preemptible definition loses dso_local, except a prevailing function
++  //    that can be reached through a .L$local alias - the choice clang makes
++  //    for -fPIC -fno-semantic-interposition, for the Function itself only:
++  //    an alias is not kept (as in clang; an alias has its own resolution,
++  //    and its aliasee need not prevail). A variable keeps no local alias: a
++  //    non-PIE executable may copy-relocate it, and the library must then use
++  //    the executable's copy through the GOT, or the two silently diverge.
++  //    weak, weak_odr, linkonce_odr, common, deduplicate-comdat and ifunc
++  //    definitions and non-prevailing definitions (IRMover keeps only a
++  //    declaration of those) cannot use a local alias either; ld.lld rejects
++  //    the PC-relative reference in a -shared link;
++  //  * the combined module may not let the code generator assume direct
++  //    access to external data: __stack_chk_guard exists in no input module,
++  //    the stack protector creates it in the combined module at code
++  //    generation time (TargetLoweringBase::insertSSPDeclarations) and makes
++  //    it dso_local iff Module::getDirectAccessExternalData(), which without
++  //    an explicit flag is "PIC Level == NotPIC"; "PIC Level" merges with Min,
++  //    so a single non-PIC module decides for the whole link. The flag is set
++  //    on the combined module in runRegularLTO, after every input (including
++  //    ModsWithSummaries) has been merged, so an explicit 1 in another input
++  //    (-fPIE -fdirect-access-external-data) cannot win the Max merge. The
++  //    guard of every function of the combined module then goes through the
++  //    GOT, functions from PIC/PIE inputs included. A link without a non-PIC
++  //    input is not touched: a -fPIC module that asked for
++  //    -fdirect-access-external-data (explicit 1) is left alone on purpose,
++  //    its declarations are not dso_local and only its guard follows the flag.
++  // Without this the link fails with e.g. R_ARM_THM_MOVW_PREL_NC against
++  // __stack_chk_guard. This is not a recompilation with -fPIC: in such a
++  // module the relocations and the binding of the declarations, variables and
++  // weak / ODR / common definitions change - a reference GNU ld may have bound
++  // locally at link time follows symbol interposition afterwards, unless the
++  // final link binds it locally again (final definition, -Bsymbolic,
++  // visibility); prevailing functions stay bound locally through their
++  // .L$local alias, as before; a TLS variable without an explicit model moves
++  // from the local-dynamic to the general-dynamic model; links that succeed
++  // today only through copy relocations (a non-PIC module in a PIE) or
++  // -Bsymbolic go through the GOT. Optimizations already done on the input
++  // (inlining, constant folding) are not undone.
++  bool ClearDSOLocalOnDeclarations =
++      M.getTargetTriple().isOSBinFormatELF() && Conf.RelocModel &&
++      *Conf.RelocModel != Reloc::Static &&
++      M.getPIELevel() == PIELevel::Default;
++  bool ClearDSOLocalOnPreemptibleDefinitions =
++      ClearDSOLocalOnDeclarations && M.getPICLevel() == PICLevel::NotPIC;
++  RegularLTO.DisableDirectAccessExternalData |=
++      ClearDSOLocalOnPreemptibleDefinitions;
++  if (WarnNonPICInPICLink && ClearDSOLocalOnPreemptibleDefinitions)
++    M.getContext().diagnose(DiagnosticInfoGeneric(
++        "[tizen-nonpic-fallback] module '" + M.getModuleIdentifier() +
++            "' was compiled without -fPIC/-fPIE but is linked into a shared "
++            "object or PIE; direct access to its preemptible symbols is "
++            "disabled",
++        DS_Warning));
++
+   std::set<const Comdat *> NonPrevailingComdats;
+   SmallSet<StringRef, 2> NonPrevailingAsmSymbols;
+   for (const InputFile::Symbol &Sym : Syms) {
+@@ -997,6 +1078,18 @@
+         if (GV->hasDLLImportStorageClass())
+           GV->setDLLStorageClass(GlobalValue::DLLStorageClassTypes::
+                                  DefaultStorageClass);
++      } else if (!GV->isImplicitDSOLocal()) {
++        // Tizen: see the comment above ClearDSOLocalOnDeclarations. As in
++        // clang, only the Function itself qualifies, not an alias to one.
++        bool KeepLocalAlias = R.Prevailing && isa<Function>(GV) &&
++                              GV->canBenefitFromLocalAlias();
++        // A non-prevailing definition is only a declaration after IRMover, so
++        // it is treated as one - what the ThinLTO rule does for the
++        // definitions importing turns into declarations (D74751).
++        if ((GV->isDeclarationForLinker() || !R.Prevailing)
++                ? ClearDSOLocalOnDeclarations
++                : ClearDSOLocalOnPreemptibleDefinitions && !KeepLocalAlias)
++          GV->setDSOLocal(false);
+       }
+     } else if (auto *AS =
+                    dyn_cast_if_present<ModuleSymbolTable::AsmSymbol *>(Msym)) {
+@@ -1300,6 +1393,14 @@
+         return Err;
+   }
+ 
++  // Tizen: a module compiled without -fPIC/-fPIE was linked into a shared
++  // object or PIE (see addRegularLTO): the stack protector guard the code
++  // generator creates must be reached through the GOT. Set after every input
++  // has been merged, so that an explicit 1 cannot win the Max merge.
++  if (RegularLTO.DisableDirectAccessExternalData)
++    RegularLTO.CombinedModule->setModuleFlag(
++        Module::Max, "direct-access-external-data", 0u);
++
+   // Ensure we don't have inconsistently split LTO units with type tests.
+   // FIXME: this checks both LTO and ThinLTO. It happens to work as we take
+   // this path both cases but eventually this should be split into two and
+--- a/lld/test/ELF/lto/wrap-unreferenced-before-codegen.test	2026-11-09 23:32:13.006058115 +0800
++++ b/lld/test/ELF/lto/wrap-unreferenced-before-codegen.test	2026-11-10 22:12:33.094776654 +0800
+@@ -37,6 +37,8 @@
+ # RUN: llvm-readelf --dyn-syms %t/libusetls.so | \
+ # RUN:   FileCheck --check-prefix=USETLS-DYNSYM %s
+ 
++## Tizen: the GOT access to __emutls_v.x the non-PIC fallback produces (see below).
++# USETLS-DISASM:       R_X86_64_GLOB_DAT __emutls_v.x
+ # USETLS-DISASM:       [[#%x,RELOC:]] R_X86_64_JUMP_SLOT __wrap_malloc
+ # USETLS-DISASM-LABEL: <__emutls_get_address>:
+ # USETLS-DISASM-NEXT:  jmp{{.*}}<__wrap_malloc@plt>
+@@ -46,8 +48,12 @@
+ # USETLS-DYNSYM:      Symbol table '.dynsym' contains 5 entries:
+ # USETLS-DYNSYM:      NOTYPE  LOCAL  DEFAULT   UND
+ # USETLS-DYNSYM-NEXT: NOTYPE  GLOBAL DEFAULT   UND __wrap_malloc
+-# USETLS-DYNSYM-NEXT: FUNC    GLOBAL DEFAULT     6 f
+-# USETLS-DYNSYM-NEXT: NOTYPE  GLOBAL DEFAULT     6 __emutls_get_address
++## Tizen: usetls.ll has no PIC Level, so in a shared object its variable x (lowered to
++## __emutls_v.x) is reached through the GOT under the non-PIC fallback; the extra .got
++## section shifts the section index, which is not what this test is about - only
++## "f and __emutls_get_address share a section" is kept.
++# USETLS-DYNSYM-NEXT: FUNC    GLOBAL DEFAULT     [[#TEXT:]] f
++# USETLS-DYNSYM-NEXT: NOTYPE  GLOBAL DEFAULT     [[#TEXT]] __emutls_get_address
+ 
+ #--- unwind.s
+ .globl _Unwind_Resume
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/X86/pic-dsolocal-declaration.ll	2026-11-09 20:55:44.392549746 +0800
+@@ -0,0 +1,59 @@
++; RUN: llvm-as %s -o %t.o
++
++;; A module compiled without -fPIC (no "PIC Level" flag) marks its declarations
++;; dso_local. When the link produces a shared object or a PIE (PIC relocation
++;; model), a declaration the linker does not resolve inside the linkage unit
++;; loses dso_local, so that the reference goes through the GOT (otherwise the
++;; DSO does not link). This is the regular-LTO counterpart of the ThinLTO
++;; ClearDSOLocalOnDeclarations rule. Hidden visibility is implicitly dso_local
++;; and keeps the direct access; extern_weak is not (even hidden: the symbol may
++;; be absent at run time) and goes through the GOT; a non-prevailing
++;; linkonce_odr definition becomes available_externally, a declaration for the
++;; linker, and is treated the same way.
++; RUN: llvm-lto2 run %t.o -o %t.pic -relocation-model=pic -r=%t.o,main,plx -r=%t.o,foo, -r=%t.o,bar, -r=%t.o,ew, -r=%t.o,hew, -r=%t.o,ao,
++; RUN: llvm-readobj -r %t.pic.0 | FileCheck %s --check-prefix=PIC
++; PIC-DAG: R_X86_64_{{(REX_)?}}GOTPCRELX foo
++; PIC-DAG: R_X86_64_PC32 bar
++; PIC-DAG: R_X86_64_{{(REX_)?}}GOTPCRELX ew
++; PIC-DAG: R_X86_64_{{(REX_)?}}GOTPCRELX hew
++; PIC-DAG: R_X86_64_{{(REX_)?}}GOTPCRELX ao
++
++;; Static relocation model (an executable): nothing changes.
++; RUN: llvm-lto2 run %t.o -o %t.static -relocation-model=static -r=%t.o,main,plx -r=%t.o,foo, -r=%t.o,bar, -r=%t.o,ew, -r=%t.o,hew, -r=%t.o,ao,
++; RUN: llvm-readobj -r %t.static.0 | FileCheck %s --check-prefix=STATIC
++; STATIC-DAG: R_X86_64_PC32 foo
++; STATIC-DAG: R_X86_64_PC32 bar
++; STATIC-DAG: R_X86_64_PC32 ew
++; STATIC-DAG: R_X86_64_PC32 ao
++
++;; The linker reports a final definition of foo in the linkage unit ('l'):
++;; the direct access is kept.
++; RUN: llvm-lto2 run %t.o -o %t.local -relocation-model=pic -r=%t.o,main,plx -r=%t.o,foo,l -r=%t.o,bar, -r=%t.o,ew, -r=%t.o,hew, -r=%t.o,ao,
++; RUN: llvm-readobj -r %t.local.0 | FileCheck %s --check-prefix=LOCAL
++; LOCAL-DAG: R_X86_64_PC32 foo
++; LOCAL-DAG: R_X86_64_PC32 bar
++
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++
++@foo = external dso_local global i32
++@bar = external hidden global i32
++@ew = extern_weak dso_local global i32
++@hew = extern_weak hidden global i32
++@ao = linkonce_odr dso_local global i32 0
++
++define i32 @main() {
++  %a = load i32, ptr @foo
++  %b = load i32, ptr @bar
++  %c = load i32, ptr @ew
++  %d = load i32, ptr @hew
++  %e = load i32, ptr @ao
++  %s1 = add i32 %a, %b
++  %s2 = add i32 %s1, %c
++  %s3 = add i32 %s2, %d
++  %s4 = add i32 %s3, %e
++  ret i32 %s4
++}
++
++!llvm.module.flags = !{!0}
++!0 = !{i32 1, !"wchar_size", i32 4}
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/X86/pic-dsolocal-declaration-pie.ll	2026-11-09 19:41:00.252330794 +0800
+@@ -0,0 +1,22 @@
++; RUN: llvm-as %s -o %t.o
++
++;; A module compiled -fPIE ("PIE Level" set) keeps dso_local on its declarations
++;; even under the PIC relocation model (a PIE link), as the ThinLTO rule does:
++;; -fPIE marks a declaration dso_local only where direct access is wanted.
++; RUN: llvm-lto2 run %t.o -o %t.pic -relocation-model=pic -r=%t.o,main,plx -r=%t.o,foo,
++; RUN: llvm-readobj -r %t.pic.0 | FileCheck %s
++; CHECK: R_X86_64_PC32 foo
++
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++
++@foo = external dso_local global i32
++
++define i32 @main() {
++  %a = load i32, ptr @foo
++  ret i32 %a
++}
++
++!llvm.module.flags = !{!0, !1}
++!0 = !{i32 8, !"PIC Level", i32 2}
++!1 = !{i32 7, !"PIE Level", i32 2}
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/X86/pic-dsolocal-definition.ll	2026-11-09 23:07:21.987935371 +0800
+@@ -0,0 +1,61 @@
++; RUN: rm -rf %t && split-file %s %t
++; RUN: llvm-as %t/nonpic.ll -o %t/nonpic.bc
++; RUN: llvm-as %t/pic.ll -o %t/pic.bc
++
++;; A module compiled without -fPIC marks its definitions dso_local too. In a
++;; shared object a preemptible definition must not be addressed PC-relatively
++;; (ld.lld rejects the link for weak / linkonce_odr; a variable with a .L$local
++;; alias silently diverges from an executable's copy relocation): they go
++;; through the GOT. Only a function keeps its local alias, see
++;; pic-dsolocal-definition-kinds.ll.
++; RUN: llvm-lto2 run %t/nonpic.bc -o %t/a -relocation-model=pic -r=%t/nonpic.bc,gw,plx -r=%t/nonpic.bc,gk,plx -r=%t/nonpic.bc,gs,plx -r=%t/nonpic.bc,w,px -r=%t/nonpic.bc,k,px -r=%t/nonpic.bc,s,px
++; RUN: llvm-readobj -r %t/a.0 | FileCheck %s --check-prefix=GOT
++; GOT-DAG: R_X86_64_{{(REX_)?}}GOTPCRELX w
++; GOT-DAG: R_X86_64_{{(REX_)?}}GOTPCRELX k
++; GOT-DAG: R_X86_64_{{(REX_)?}}GOTPCRELX s
++
++;; The linker reports them as final definitions in the linkage unit: direct
++;; (the .Ls$local alias is a local symbol: the relocation is against .data).
++; RUN: llvm-lto2 run %t/nonpic.bc -o %t/b -relocation-model=pic -r=%t/nonpic.bc,gw,plx -r=%t/nonpic.bc,gk,plx -r=%t/nonpic.bc,gs,plx -r=%t/nonpic.bc,w,plx -r=%t/nonpic.bc,k,plx -r=%t/nonpic.bc,s,plx
++; RUN: llvm-readobj -r %t/b.0 | FileCheck %s --check-prefix=DIRECT
++; DIRECT-DAG: R_X86_64_PC32 w
++; DIRECT-DAG: R_X86_64_PC32 k
++; DIRECT-DAG: R_X86_64_PC32 .data
++
++;; Static relocation model: nothing changes (absolute addresses in the small code model).
++; RUN: llvm-lto2 run %t/nonpic.bc -o %t/c -relocation-model=static -r=%t/nonpic.bc,gw,plx -r=%t/nonpic.bc,gk,plx -r=%t/nonpic.bc,gs,plx -r=%t/nonpic.bc,w,px -r=%t/nonpic.bc,k,px -r=%t/nonpic.bc,s,px
++; RUN: llvm-readobj -r %t/c.0 | FileCheck %s --check-prefix=STATIC
++; STATIC-DAG: R_X86_64_32 w
++; STATIC-DAG: R_X86_64_32 k
++; STATIC-DAG: R_X86_64_32 s
++
++;; The same definitions in a module with "PIC Level" 2 (-fPIC): not touched.
++; RUN: llvm-lto2 run %t/pic.bc -o %t/d -relocation-model=pic -r=%t/pic.bc,gw,plx -r=%t/pic.bc,gk,plx -r=%t/pic.bc,gs,plx -r=%t/pic.bc,w,px -r=%t/pic.bc,k,px -r=%t/pic.bc,s,px
++; RUN: llvm-readobj -r %t/d.0 | FileCheck %s --check-prefix=DIRECT
++
++;--- nonpic.ll
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++$w = comdat any
++@w = linkonce_odr dso_local global i32 1, comdat
++@k = weak dso_local global i32 3
++@s = dso_local global i32 2
++define ptr @gw() { ret ptr @w }
++define ptr @gk() { ret ptr @k }
++define ptr @gs() { ret ptr @s }
++!llvm.module.flags = !{!0}
++!0 = !{i32 1, !"wchar_size", i32 4}
++
++;--- pic.ll
++target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
++target triple = "x86_64-unknown-linux-gnu"
++$w = comdat any
++@w = linkonce_odr dso_local global i32 1, comdat
++@k = weak dso_local global i32 3
++@s = dso_local global i32 2
++define ptr @gw() { ret ptr @w }
++define ptr @gk() { ret ptr @k }
++define ptr @gs() { ret ptr @s }
++!llvm.module.flags = !{!0, !1}
++!0 = !{i32 1, !"wchar_size", i32 4}
++!1 = !{i32 8, !"PIC Level", i32 2}
+--- /dev/null	2026-11-11 02:33:11.949968437 +0800
++++ b/llvm/test/LTO/X86/pic-dsolocal-definition-kinds.ll	2026-11-11 10:02:27.965655389 +0800
+@@ -0,0 +1,88 @@
++; RUN: llvm-as %s -o %t.bc
++
++;; Which definitions of a module compiled without -fPIC keep dso_local in a
++;; shared object: only a prevailing function that can be reached through its
++;; .L$local alias - the Function itself, as clang decides under -fPIC
++;; -fno-semantic-interposition. A variable, a common or deduplicate-comdat
++;; definition, every alias (weak, to a variable, to a function, and a
++;; prevailing alias to a non-prevailing function, whose aliasee IRMover copies
++;; as an internal clone), an ifunc and non-prevailing definitions (IRMover
++;; keeps only a declaration of those) lose it. Checked on the merged IR before
++;; optimization, then on the code of a caller.
++; RUN: llvm-lto2 run %t.bc -o %t.pic -relocation-model=pic -save-temps -r=%t.bc,g,px -r=%t.bc,c,px -r=%t.bc,d,px -r=%t.bc,npv, -r=%t.bc,wa,px -r=%t.bc,sa,px -r=%t.bc,fa,px -r=%t.bc,npa,px -r=%t.bc,i,px -r=%t.bc,fn,px -r=%t.bc,np, -r=%t.bc,caller,px
++; RUN: llvm-dis %t.pic.0.0.preopt.bc -o - | FileCheck %s --check-prefix=PIC
++; PIC-DAG: @g = global i32 1
++; PIC-DAG: @c = common global i32 0
++; PIC-DAG: @d = global i32 2, comdat
++; PIC-DAG: @npv = external global i32
++; PIC-DAG: @wa = weak alias i32, ptr @g
++; PIC-DAG: @sa = alias i32, ptr @g

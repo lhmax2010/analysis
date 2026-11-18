@@ -1,0 +1,74 @@
+--- a/clang/lib/Driver/ToolChains/Gnu.cpp
++++ b/clang/lib/Driver/ToolChains/Gnu.cpp
+@@ -439,9 +439,30 @@
+ 
+   ToolChain.AddFilePathLibArgs(Args, CmdArgs);
+ 
+-  if (D.isUsingLTO())
++  if (D.isUsingLTO()) {
+     addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs,
+                   D.getLTOMode() == LTOK_Thin);
++  } else if (!Args.hasArg(options::OPT_flto, options::OPT_flto_EQ,
++                          options::OPT_fno_lto, options::OPT_r)) {
++    // Tizen local change: behave like the gcc driver, whose link spec hands
++    // its LTO plugin to the linker unless -fno-lto is given. Objects compiled
++    // with -flto (Tizen builds them with -ffat-lto-objects) then get LTO even
++    // when the package does not repeat -flto on its link line; without this
++    // the fat objects were linked silently as ordinary machine code. The
++    // plugin only claims LLVM bitcode, so other inputs link as before. Only
++    // for GNU ld / gold (lld reads bitcode itself) and only if LLVMgold.so is
++    // installed; never for -r, and not when the link line says -flto or
++    // -fno-lto (handled above / left alone).
++    bool LinkerIsLLD = false;
++    (void)ToolChain.GetLinkerPath(&LinkerIsLLD);
++    SmallString<1024> GoldPlugin;
++    llvm::sys::path::native(Twine(D.Dir) + "/../" CLANG_INSTALL_LIBDIR_BASENAME
++                                "/LLVMgold.so",
++                            GoldPlugin);
++    if (!LinkerIsLLD && D.getVFS().exists(GoldPlugin))
++      addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs,
++                    /*IsThinLTO=*/false);
++  }
+ 
+   if (Args.hasArg(options::OPT_Z_Xlinker__no_demangle))
+     CmdArgs.push_back("--no-demangle");
+--- /dev/null
++++ b/clang/test/Driver/tizen-default-lto-plugin.c
+@@ -0,0 +1,37 @@
++// Tizen local change: like the gcc driver, a link through GNU ld / gold gets the
++// LLVMgold plugin even without -flto, so that objects compiled with -flto still
++// get LTO. Not with -fno-lto, -r, lld, or when LLVMgold.so is not installed.
++
++// RUN: rm -rf %t && mkdir -p %t/with/bin %t/with/lib %t/without/bin
++// RUN: touch %t/with/lib/LLVMgold.so
++
++// RUN: %clang -### --target=x86_64-unknown-linux-gnu -ccc-install-dir %t/with/bin -fuse-ld=bfd %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=PLUGIN %s
++// RUN: %clang -### --target=armv7l-tizen-linux-gnueabi -ccc-install-dir %t/with/bin -fuse-ld=bfd -shared %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=PLUGIN %s
++// PLUGIN: "-plugin" "{{[^"]*}}LLVMgold.so"
++
++// -flto keeps the plugin exactly once.
++// RUN: %clang -### --target=x86_64-unknown-linux-gnu -ccc-install-dir %t/with/bin -fuse-ld=bfd -flto %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=ONCE %s
++// ONCE: "-plugin" "{{[^"]*}}LLVMgold.so"
++// ONCE-NOT: "-plugin"
++
++// -O4 is taken as -O3, as for the compile (upstream 85e76ec53ae4, patch 0003).
++// RUN: %clang -### --target=x86_64-unknown-linux-gnu -ccc-install-dir %t/with/bin -fuse-ld=bfd -O4 %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=O4 %s
++// O4: "-plugin-opt=O3"
++
++// RUN: %clang -### --target=x86_64-unknown-linux-gnu -ccc-install-dir %t/with/bin -fuse-ld=bfd -fno-lto %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=NOPLUGIN %s
++// RUN: %clang -### --target=x86_64-unknown-linux-gnu -ccc-install-dir %t/with/bin -fuse-ld=bfd -flto -fno-lto %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=NOPLUGIN %s
++// RUN: %clang -### --target=x86_64-unknown-linux-gnu -ccc-install-dir %t/with/bin -fuse-ld=bfd -r %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=NOPLUGIN %s
++// RUN: %clang -### --target=x86_64-unknown-linux-gnu -ccc-install-dir %t/with/bin -fuse-ld=lld %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=NOPLUGIN %s
++// RUN: %clang -### --target=x86_64-unknown-linux-gnu -ccc-install-dir %t/without/bin -fuse-ld=bfd %s 2>&1 \
++// RUN:   | FileCheck --check-prefix=NOPLUGIN %s
++// NOPLUGIN-NOT: "-plugin"
++
++int main(void) { return 0; }

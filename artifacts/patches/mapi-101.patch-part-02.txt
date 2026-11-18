@@ -1,0 +1,110 @@
++  if (lifecycle_busy_ || profile_dispatching_ || profile_dispatch_source_ != 0 ||
++      pending_profile_events_.empty()) return;
++  profile_dispatch_source_ = g_idle_add_full(
++      G_PRIORITY_DEFAULT, DispatchPendingProfileEvents, this, nullptr);
++}
++
++int MultiprofileMAPI::DispatchPendingProfileEvents(void* data) {
++  auto& self = *static_cast<MultiprofileMAPI*>(data);
++  std::deque<PendingProfileEvent> events;
++  {
++    std::lock_guard<std::mutex> lock(self.mutex_);
++    self.profile_dispatch_source_ = 0;
++    if (self.lifecycle_busy_ || self.profile_dispatching_) return G_SOURCE_REMOVE;
++    self.profile_dispatching_ = true;
++    events.swap(self.pending_profile_events_);
++  }
++  for (auto& event : events) {
++    for (const auto id : event.subscribers) {
++      ProfileStatusSubscriber sub{};
++      {
++        std::lock_guard<std::mutex> lock(self.mutex_);
++        // Match registration IDs: unsubscribe/re-subscribe is a new subscription.
++        const auto found = std::find_if(s_subscribers.begin(), s_subscribers.end(),
++            [id](const ProfileStatusSubscriber& live) { return live.id == id; });
++        if (found == s_subscribers.end()) continue;
++        sub = *found;
++      }
++      if (sub.callback) sub.callback(event.value.data(), event.type, sub.user_data);
++    }
++  }
++  {
++    std::lock_guard<std::mutex> lock(self.mutex_);
++    self.profile_dispatching_ = false;
++    self.ScheduleProfileEventsLocked();
++  }
++  return G_SOURCE_REMOVE;
++}
++
+ int MultiprofileMAPI::SubscribeProfileStatusChangedCb(
+     multiprofile_profile_status_changed_cb callback, void *user_data) {
+-  if (callback == nullptr) {
+-    MAPI_LOGE("Invalid parameter - callback is NULL");
+-    return MULTIPROFILE_ERROR_INVALID_PARAMETER;
+-  }
+-
+-  ProfileStatusSubscriber subscriber;
+-  subscriber.callback = callback;
+-  subscriber.user_data = user_data;
+-  s_subscribers.push_back(subscriber);
+-
++  if (!callback) return MULTIPROFILE_ERROR_INVALID_PARAMETER;
++  std::lock_guard<std::mutex> lock(mutex_);
++  s_subscribers.push_back({callback, user_data, ++next_subscriber_id_});
+   if (!s_vconf_registered) {
+-    int ret = vconf_notify_key_changed(VCONF_KEY_PROFILE_INFO,
+-                                        VconfProfileStatusChangedCb, nullptr);
++    const int ret = vconf_notify_key_changed(VCONF_KEY_PROFILE_INFO,
++                                            VconfProfileStatusChangedCb, nullptr);
+     if (ret != 0) {
+-      // LCOV_EXCL_START
+-      MAPI_LOGE("Failed to register vconf notification, ret=%d", ret);
+       s_subscribers.pop_back();
+       return MULTIPROFILE_ERROR_OPERATION_FAILED;
+-	  // LCOV_EXCL_STOP
+     }
+     s_vconf_registered = true;
+-    MAPI_LOGI("vconf notification registered (first subscriber)");
+   }
+-
+-  MAPI_LOGI("Subscriber added, total subscribers: %zu", s_subscribers.size());
+   return MULTIPROFILE_ERROR_NONE;
+ }
+ 
+-
+ int MultiprofileMAPI::UnsubscribeProfileStatusChangedCb(
+     multiprofile_profile_status_changed_cb callback) {
+-  if (callback == nullptr) {
+-    MAPI_LOGE("Invalid parameter - callback is NULL");
+-    return MULTIPROFILE_ERROR_INVALID_PARAMETER;
+-  }
+-
++  if (!callback) return MULTIPROFILE_ERROR_INVALID_PARAMETER;
++  std::lock_guard<std::mutex> lock(mutex_);
+   for (auto it = s_subscribers.begin(); it != s_subscribers.end(); ++it) {
+     if (it->callback == callback) {
+       s_subscribers.erase(it);
+-
+-      if (s_subscribers.empty() && s_vconf_registered) {
+-		// LCOV_EXCL_START
+-        vconf_ignore_key_changed(VCONF_KEY_PROFILE_INFO,
+-                                 VconfProfileStatusChangedCb);
+-        s_vconf_registered = false;
+-        MAPI_LOGI("vconf notification unregistered (no more subscribers)");
+-		// LCOV_EXCL_STOP
++      if (s_subscribers.empty()) {
++        if (s_vconf_registered) {
++          vconf_ignore_key_changed(VCONF_KEY_PROFILE_INFO, VconfProfileStatusChangedCb);
++          s_vconf_registered = false;
++        }
++        pending_profile_events_.clear();
+       }
+-
+-      MAPI_LOGI("Subscriber removed, remaining: %zu", s_subscribers.size());
+       return MULTIPROFILE_ERROR_NONE;
+     }
+   }
+-
+-  MAPI_LOGE("Callback not found in subscriber list");
+   return MULTIPROFILE_ERROR_OPERATION_FAILED;
+ }

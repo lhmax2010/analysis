@@ -1,0 +1,99 @@
+Please independently review a proposed PIC/FatLTO compatibility policy for Tizen ARM. We want counterexamples, semantic bugs, a better design if available, and a concrete implementation recommendation. Do not implement or deploy changes yet. This is a design review; the design is not approved and no new native fallback exists.
+
+Workspace and artifacts
+
+All files you create must remain under /home/toolchain/Desktop/temp. Use a task-specific subdirectory and put temporary files/caches there; disable Python bytecode. Do not change production tools, OBS, package sources, shelves or devices. Do not send the HQ reply. Read these local files first:
+
+1. /home/toolchain/Desktop/temp/tizen-llvm-handover/hq-prebuilt-20261117/PIC_FatLTO_Dual_Path_Proposal_CN.txt — proposed design, not an implementation.
+2. /home/toolchain/Desktop/temp/claude_mem/docs/LLVM_LTO_PIC_Fallback_Design_v6_1111_EN.md — existing regular-LTO IR fallback design and scope.
+3. /home/toolchain/Desktop/temp/tizen-llvm-handover/hq-prebuilt-20261117/arm-pic-fat-4wzsv8nf/review.json and case-results.tsv — reviewed ARM results; inspect result.json for detailed evidence/log excerpts.
+4. /home/toolchain/Desktop/temp/tizen-llvm-handover/hq-prebuilt-20261117/PIC_FatLTO_Package_Acceptance.tsv and PIC_FatLTO_Path_Acceptance.tsv — full direct-suffix candidate identities and paths, not confirmed defects.
+5. /home/toolchain/Desktop/temp/tizen-llvm-handover/hq-prebuilt-20261117/HQ_FatLTO_Review_Reply_EN.txt — requested external response; please check that it does not overstate the evidence.
+
+If a file is unavailable, report that limitation; do not invent its contents. Source analysis and small isolated host experiments are allowed, but distinguish them from actual Tizen ARM evidence. We are asking you for your independent recommendation, not agreement with the draft.
+
+Background and motivation
+
+We are migrating a mixed GCC/Clang platform. Some producers or consumers still use GCC. Clang LLVM bitcode is not GCC LTO IR. FatLTO was enabled to preserve a native representation in static objects/archives so GCC or no-LTO consumers can use that representation. A normally linked shared library/executable is machine code; dynamic use of a Clang-built shared library by a GCC-built program does not itself require GCC to read LLVM bitcode.
+
+Global Options adds -ffat-lto-objects only when LTO is enabled. A clean no-LTO rebuild is distinct from reusing exactly the same fat object produced earlier. A whole-RPM LTO rebuild does not automatically rebuild external/vendor archives, eliminate per-target -fno-lto, convert assembly to IR, or qualify future native consumers of shipped static inputs.
+
+Our current fallback operates on eligible IR during regular LTO for a PIC output. It adjusts inappropriate symbol-locality assumptions and direct-access-external-data handling before code generation, including a concern about accesses introduced by stack-protector codegen. Read the actual design for its precise conditions, including prevailing definitions/local aliases. It is not a rewrite of native instructions and is not a claim to undo arbitrary earlier optimization.
+
+HQ's review concern
+
+A Clang fat object compiled with -fno-pic contains non-PIC native code and an embedded .llvm.lto representation. When a compatible LTO consumer claims the embedded IR, the fallback can operate there. If the same bytes are consumed natively, the old machine code remains. The IR warning does not diagnose the native path. An LTO-only audit therefore does not qualify a native/no-LTO consumer.
+
+We accept the missing validation scope and have investigated it. For HQ, we will thank the reviewer, present measured results and accurately scoped package candidates, and say we are evaluating coverage for both paths and will provide design details by Friday. We are not promising delivery of a universal binary repair by Friday.
+
+Actual ARM evidence
+
+The matrix used a retained Tizen ARM32 bootstrap root, a build-tree Clang, and a matched private ARM GNU linker/plugin. Execution used chroot/binfmt. It is not a latest-image package run or physical-TV stability/performance test. The tool versions/identities are recorded in the raw evidence; do not replace this with current upstream behavior.
+
+For each of GCC and Clang, the 28 cases comprise:
+- PIC fat: 5 matched regular-LTO passes, 8 native passes.
+- Non-PIC fat: 5 matched regular-LTO passes, 8 native relocation rejections.
+- Clean no-LTO controls: 1 PIC pass and 1 non-PIC relocation rejection.
+
+Totals: 56 cases, 38 linked/runtime passes, 18 expected link rejections, and 90 runtime invocations returning zero. Input SHA values are unchanged across paired paths. All five Clang non-PIC LTO cases have the tagged fallback diagnostic. GCC LTO retains ltrans evidence. PIC Clang fat objects consumed natively by GCC pass, supporting the original motivation for FatLTO.
+
+Example: Clang case-043 regular LTO passes with the non-PIC fallback diagnostic. Case-044 uses the same fat input via GCC -fno-lto native linking and is rejected for R_ARM_MOVW_ABS_NC against own_value, requiring recompilation with -fPIC. GCC shows the same native limitation. Final-link -fPIC/-fPIE options did not repair the input. Shared/PIE probes retained -z text. The linked fixtures exercised data values/address identity and executable overrides/copy relocation consumers as recorded. No linked behavior/TEXTREL failure was observed in this scope.
+
+Important limits: the native negative cases failed the build; they were not delivered crashes. This does not prove every harmful native case always fails to link. Non-PIC compilation alone does not imply every object or relocation is invalid for every output. Link success or absence of TEXTREL alone is not correctness acceptance. Partial linking, ThinLTO, arbitrary C++/TLS/assembly cases and broad production-package correctness are not cleared by these 56 fixtures.
+
+Inventory and completeness
+
+Complete primary/filelists matching was performed for fixed armv7l/noarch repository snapshots: Product 5,880 target RPM identities and Base 890. Direct .a/.o/.obj/.lo matching found Product 43 and Base 49 repository/RPM identities, with 981 .a, 134 .o and 48 other selected paths: 1,163 path instances total. Base has multiple releases under one package name. These are not 92 unique source packages, GCC prebuilts, confirmed non-PIC defects, or installed-image libraries.
+
+The original container suffix scan recorded 963 Product and 167 Base paths (1,130 total). The offline full-ledger export has now completed: it retains all 6,770 repository/RPM identities, including packages without direct matches. Its expanded suffix filter reports 1,450 Product and 2,255 Base container/compressed paths (3,705 total), across 686 Product and 102 Base repository/RPM identities. The difference reflects the expanded suffix filter, including ordinary compressed resources, not newly introduced libraries or defects. These categories may overlap the 92 direct candidates; do not sum them as disjoint package groups. This is metadata only, not inspected payload content; only the summary and reported file hashes have been returned locally so far. Suffixless inputs, hidden/nested archives and build-tree-only inputs require content and source/build evidence. Containers with unsupported formats or limits must remain Pending, not be counted clean. Metadata alone cannot produce a complete affected-package list.
+
+Retained gst-ffmpeg builds show LLVM fat members in an external FDK static archive although its inspected main RPMs export no .a/.o. This is a build-input candidate, not proof of a non-PIC production defect. Static ML interfaces, standalone non-CRT objects, SDK/toolchain/CRT/Go/BPF/test/resource candidates need classification. Do not conflate this with the separate libbluetooth.so C++ trivial_abi interface issue or count GCC signatures as ABI defects.
+
+Proposed baseline to challenge
+
+1. Keep existing regular-LTO fallback and package PIC repairs.
+2. For identified user-space targets that must support shared-library consumers or export general PIC static inputs, generate the entire object with -fPIC before frontend/IR optimization. Both embedded IR and native code then follow a consistent PIC contract. A PIE application target is a separate contract; -fPIE is not a universal substitute for -fPIC static libraries.
+3. Start with target-aware build configuration. If coverage requires compiler support, evaluate an explicit opt-in, reversible policy option applied early enough to coordinate frontend semantics, IR properties/locality and backend relocation model. No option name or patch point is approved. Do not silently override an explicit -fno-pic conflict: diagnose it until the policy is deliberately resolved. Avoid changing legitimate visibility or semantic-interposition requests.
+4. Do not infer future shared output from -flto/fat alone. Keep Kernel/modules/firmware/bare-metal/CRT/special targets outside the user-space contract. The Customized MLGO model-comparison Base must not acquire this experimental PIC change.
+5. Historical pure-native GCC/vendor inputs cannot be promised automatic repair. Rebuild from source with appropriate PIC, request a PIC variant, or reject the unsupported consumer. Better diagnostics/auditing can identify RPM, object/member SHA, relocations and actual consumer; that is protection, not successful binary repair.
+
+Alternative worth reviewing: native-only PIC generation in FatLTO
+
+LLVM's buildFatLTODefaultPipeline currently performs pre-link optimization, EmbedBitcodePass, cleanup, then additional optimization/native emission. This suggests a potential split but does not prove a post-embed PIC pass is sound. It may be too late to undo non-PIC assumptions.
+
+Evaluate frontend __PIC__/__PIE__ conditionals, TLS model selection, dso_local/interposition assumptions, early optimization of address comparisons, direct-access-external-data, TargetMachine relocation model, late stack protector references, visibility/aliases/COMDAT, CFI/EH and inline assembly. Cloning already optimized IR may preserve irreversible assumptions. A second frontend invocation under PIC may change definitions, layouts and symbols relative to the embedded original IR, so simply combining two outputs may be unsound.
+
+We currently prefer consistent PIC generation for both representations over preserving non-PIC IR and independently repairing native code, unless a sound narrower contract and useful benefit can be demonstrated. Please disagree if there is a better feasible design.
+
+Other alternatives to assess briefly
+
+- A separate PIC static variant for libraries whose non-PIC native variant must remain supported.
+- Restricted native linker relaxation/rewriting. Distinguish a genuinely supported, provably safe pattern from a proposed universal non-PIC-to-PIC rewrite. Explain register allocation/instruction-layout/interposition/unwind implications.
+- Extracting .llvm.lto and regenerating PIC at link time: this is an IR path, not native-only consumption. Consider incomplete coverage of inline/module assembly, ld -r combinations, archive symbol indexes and mixed objects. Do not suggest transparent substitution without a sound losslessness contract.
+- -z notext, suppressing errors, forcing symbols local or hiding TEXTREL: these are not accepted general fixes.
+
+Required acceptance criteria
+
+Use checksum-pinned new objects in paired LLVM regular-LTO / GCC -fno-lto native / direct no-plugin GNU linker cases, shared and PIE, objects and archives, plus clean no-LTO rebuilds. Preserve old failing inputs as negative controls. Explicit policy conflicts should reject; do not call that a failed repair if rejection is the defined behavior. Prove actual consumption rather than inferring it from flags.
+
+Request a staged matrix for ARM/Thumb, TLS/threads, external/internal data and pointer identity, executable overrides/copy relocs, weak/hidden/protected aliases and COMDAT, stack protector, C++/EH, archive extraction/whole-archive/thin archives, mixed assembly, partial linking and optimization levels. ThinLTO must be separately qualified or explicitly excluded. Include target isolation tests for Kernel/special builds, disabled-policy behavior and no-LTO builds. A targeted native relocation check must account for actual archive extraction, live sections, symbol binding/output type and architecture; do not reject every ABS relocation or debug-section relocation indiscriminately.
+
+Production acceptance must follow actual producer/consumer dependencies and compare against explicit -fPIC controls. Record build failures separately from runtime regressions, and measure size/performance/stability rather than speculate. Do not present absence of warnings/TEXTREL as sufficient acceptance.
+
+Please return
+
+1. A verdict: approve with conditions, revise, or reject, with the smallest recommended implementation scope.
+2. Ranked correctness findings, including exact local/source references and concrete counterexamples or small reproducers. Clearly label hypotheses and host-only results.
+3. A comparison of consistent PIC generation, native-only FatLTO PIC, separate PIC variants, and native linker approaches. Identify any easier existing mechanism that avoids a new compiler option.
+4. If compiler code is required, identify the actual frontend/driver/backend/pipeline touch points to inspect; explain why the chosen timing preserves semantics. Do not claim a fix based only on module PIC metadata.
+5. A minimal regression/production acceptance matrix, unsupported cases, opt-in/rollback plan, and how to close inventory gaps without inventing affected-package totals.
+6. Corrections to the HQ reply if any sentence overstates link-time rejection or inventory completeness.
+
+Save your review under /home/toolchain/Desktop/temp/tizen-llvm-handover/hq-prebuilt-20261117/claude-dual-path-review/ and report the main findings. Do not implement the proposal; we will select the implementation after reviewing your feedback.
+
+Primary references to verify, not authority for untested platform claims
+
+- https://llvm.org/docs/FatLTO.html
+- https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/lib/Passes/PassBuilderPipelines.cpp#L1607
+- https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
+- https://sourceware.org/binutils/docs/ld/Options.html
