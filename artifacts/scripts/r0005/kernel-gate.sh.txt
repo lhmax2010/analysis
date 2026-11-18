@@ -29,8 +29,9 @@ for f in packaging/tztv-kernel.spec linux-6.12/Makefile linux-6.12/init/Kconfig 
                 next
             }
             /BuildRequires.*clang|BuildRequires.*llvm|LLVM(_IAS)?[[:space:]]*=|_toolchain|CROSS_COMPILE|BUILD\.sh/ && ctx++<10 {
-                print NR ":" substr($0,1,370)
-            }' "$out.stdout"
+                context[++count] = NR ":" substr($0,1,370)
+            }
+            END { for (n=1; n<=count; n++) print context[n] }' "$out.stdout"
         head -5 "$out.stderr" | cut -c1-470
     else
         code=$?

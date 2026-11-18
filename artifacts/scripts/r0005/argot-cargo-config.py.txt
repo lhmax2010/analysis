@@ -1,0 +1,344 @@
+#!/usr/bin/env python3
+"""Read the pinned argot shelf and inspect its Cargo wrapper/configuration as data."""
+import hashlib
+import io
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shutil
+import subprocess
+import tarfile
+import tempfile
+import zipfile
+
+ROOT = Path('/home1/chengkai/vd-tree')
+DEPOT = '//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/AGENTIC_PLATFORM/AgenticPlatform/Agentic/argo-tizen'
+BASE, SHELF = '14296233', '14386323'
+P4 = ('p4', '-c', 'DEV-IPTV-VC_TOOLCHAIN')
+MANIFESTS = {
+    'tizen10.0_base_urls_1114_noprelink.txt': (BASE, 'bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3'),
+    'tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt': (SHELF, 'c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736'),
+}
+WANTED = ('cargo-tizen*', '.cargo/config', '.cargo/config.toml', 'cargo-config*',
+          'cargo*.toml', 'arm*gnueabi*.json', 'thumb*.json')
+EXPECTED = 'armv7-unknown-linux-gnueabi'
+TRIPLE = re.compile(r'\b(?:arm|thumb|aarch64)[a-zA-Z0-9_]*(?:-[a-zA-Z0-9_.]+){2,5}\b')
+RELEVANT = re.compile(
+    r'cargo[-_]tizen|cargo\s|(?:--target|--config)|'
+    r'CARGO_HOME|CARGO_BUILD_TARGET|CARGO_ENCODED_RUSTFLAGS|RUSTFLAGS|RUST_TARGET(?:_PATH)?|'
+    r'CARGO_TARGET|RUSTC_WRAPPER|\b(?:target|rustflags|linker|rustc|rustc-wrapper|llvm-target|features|cpu|llvm-floatabi|float-abi|abi)\b|'
+    r'target-feature|thumb-mode|soft-float|gnueabi|\.cargo/', re.I)
+BINARY_LIMIT = 64 * 1024**2
+TEXT_LIMIT = 256 * 1024
+
+
+class Preview:
+    def __init__(self):
+        self.count = 0
+
+    def line(self, *items):
+        if self.count < 245:
+            print(*items, flush=True)
+        elif self.count == 245:
+            print('PREVIEW_TRUNCATED see report.json and retained files', flush=True)
+        self.count += 1
+
+
+def scrub(value):
+    text = re.sub(r'(?i)(https?://)[^\s/@]+@', r'\1<redacted>@', str(value))
+    text = re.sub(r'(?i)(\b[\w-]*(?:password|token|secret|credential)[\w-]*\b\s*[:=])[^\r\n]*',
+                  r'\1<redacted>', text)
+    return ' '.join(text.splitlines())[:650]
+
+
+def sha(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+
+def checked_p4(work, name, *args):
+    log = work / (name + '.stderr')
+    out = work / (name + '.stdout')
+    with out.open('wb') as stdout, log.open('wb') as stderr:
+        result = subprocess.run([*P4, *args], cwd=ROOT, stdout=stdout, stderr=stderr, timeout=40)
+    if result.returncode:
+        diagnostic = (log.read_text(errors='replace') or out.read_text(errors='replace')).strip()
+        raise ValueError(f'p4 {name} exit {result.returncode}: {diagnostic or "no diagnostic"}')
+    if out.stat().st_size > BINARY_LIMIT:
+        raise ValueError(f'p4 {name} exceeds the retained inspection limit')
+    return out.read_bytes()
+
+
+def manifests(out):
+    for name, (change, pin) in MANIFESTS.items():
+        raw = (ROOT / 'manifest' / name).read_bytes()
+        selected = f'{DEPOT}/...@{change}'
+        found = [line.strip() for line in raw.decode().splitlines() if line.strip() == selected]
+        if sha(raw) != pin or len(found) != 1:
+            raise ValueError(f'expected pinned manifest and argot path at {change}: {name}')
+        out.line('MANIFEST', name, change, pin)
+
+
+def shelf_paths(raw):
+    text = raw.decode(errors='replace')
+    if not re.search(rf'(?m)^Change\s+{SHELF}\b', text):
+        raise ValueError('describe did not identify the argot shelf')
+    revisions = {}
+    for path, action in re.findall(r'(?m)^\.\.\. (//[^\r\n]+?)#\d+\s+(\S+)', text):
+        if path.startswith(DEPOT + '/'):
+            revisions[path] = action
+    if revisions.get(DEPOT+'/packaging/argot.spec') in (None, 'delete', 'move/delete'):
+        raise ValueError('pinned shelf omits the expected argot.spec')
+    return revisions
+
+
+def base_files(raw):
+    matches = {}
+    path = None
+    for line in raw.decode(errors='replace').splitlines():
+        if line.startswith('... depotFile '):
+            path = line.removeprefix('... depotFile ')
+        elif line.startswith('... rev ') and path:
+            rev = line.removeprefix('... rev ')
+            if path.startswith(DEPOT+'/') and rev.isdigit():
+                matches[path] = '#'+rev
+    return matches
+
+
+def build_excerpt(text, out):
+    lines = text.splitlines()
+    starts = [i for i, line in enumerate(lines) if re.match(r'^\s*%build(?:\s|$)', line)]
+    if not starts:
+        raise ValueError('argot.spec has no %build section')
+    start = starts[0]
+    stop = next((i for i in range(start+1, len(lines)) if re.match(
+        r'^\s*%(?:install|check|clean|files|package|pre|post|changelog)(?:\s|$)', lines[i])), len(lines))
+    focus = 200
+    if start <= focus < stop:
+        low, high = max(start, focus-20), min(stop, focus+35)
+    else:
+        low, high = start, min(stop,start+55)
+    out.line('SPEC_BUILD_CONTEXT', f'{low+1}-{high}', 'section', f'{start+1}-{stop}')
+    if low != start:
+        out.line('SPEC', f'{start+1}:', scrub(lines[start]))
+    for number, line in enumerate(lines[low:high], low+1):
+        out.line('SPEC', f'{number}:', scrub(line))
+    if not low <= focus < high and focus < len(lines):
+        out.line('SPEC_LINE_201_CONTEXT')
+        for number in range(max(0,focus-5),min(len(lines),focus+6)):
+            out.line('SPEC', f'{number+1}:', scrub(lines[number]))
+    return '\n'.join(lines[start:stop])
+
+
+def archive_text(raw, path):
+    """Return scoped config/wrapper excerpts from a known Cargo bundle without extracting paths."""
+    def wanted(name):
+        part = PurePosixPath(name)
+        return (not part.is_absolute() and '..' not in part.parts and
+                (part.name.startswith(('cargo-tizen','cargo-config')) or
+                 (part.name.startswith('config') and '.cargo' in part.parts) or
+                 (part.suffix == '.json' and part.name.startswith(('arm','thumb')))))
+    def tar_members(bundle):
+        for item in bundle:
+            if wanted(item.name) and item.isfile() and item.size <= TEXT_LIMIT:
+                with bundle.extractfile(item) as member:
+                    yield item.name,member.read()
+
+    stream = io.BytesIO(raw)
+    if zipfile.is_zipfile(stream):
+        with zipfile.ZipFile(stream) as bundle:
+            for item in bundle.infolist():
+                if wanted(item.filename) and not item.is_dir() and item.file_size <= TEXT_LIMIT:
+                    yield item.filename,bundle.read(item)
+    elif raw.startswith((b'\x1f\x8b',b'BZh')) or raw[257:262] == b'ustar':
+        stream.seek(0)
+        with tarfile.open(fileobj=stream,mode='r:*') as bundle:
+            yield from tar_members(bundle)
+    elif raw.startswith((b'\xfd7zXZ\x00',b'\x28\xb5\x2f\xfd')):
+        tool = 'xz' if raw.startswith(b'\xfd') else 'zstd'
+        with subprocess.Popen([tool,'-dc',str(path)],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL) as proc:
+            try:
+                with tarfile.open(fileobj=proc.stdout,mode='r|') as bundle:
+                    yield from tar_members(bundle)
+            finally:
+                if proc.poll() is None:
+                    proc.terminate()
+                proc.stdout.close()
+
+
+def source_lines(raw):
+    if b'\0' in raw[:2048] or len(raw) > TEXT_LIMIT:
+        return None
+    return raw.decode('utf-8',errors='replace').splitlines()
+
+
+def inspect_text(reference, raw, relation, out, report, print_budget):
+    lines = source_lines(raw)
+    if lines is None:
+        if relation != 'DEPOT_CANDIDATE' and raw[:4] == b'\x7fELF':
+            report['opaque_wrappers'].append(reference)
+        out.line('NON_TEXT_OR_LARGE', relation, reference, len(raw))
+        return
+    selected = []
+    literals = []
+    for n, line in enumerate(lines,1):
+        if not (RELEVANT.search(line) or TRIPLE.search(line)):
+            continue
+        selected.append([n,scrub(line)])
+        if not line.lstrip().startswith(('#','//','/*','*')):
+            for triple in TRIPLE.findall(line):
+                literals.append({'line':n,'value':triple})
+    record = {'ref':reference,'sha256':sha(raw),'relation':relation,'lines':selected,'triple_literals':literals}
+    report['text_sources'].append(record)
+    out.line('SOURCE', relation, reference, record['sha256'],'matching_lines',len(selected))
+    for n, text in selected[:print_budget]:
+        out.line('SETTING', f'{n}:', text)
+
+
+def referenced(path, build, known_text):
+    rel = path.removeprefix(DEPOT+'/')
+    name = PurePosixPath(path).name
+    if rel in build or (name.startswith('cargo-tizen') and re.search(
+            rf'(?<![\w.-]){re.escape(name)}(?![\w.-])', build)):
+        return 'SPEC_BUILD_REFERENCE'
+    if rel in known_text or (name.startswith(('cargo-config','arm','thumb')) and
+                             re.search(rf'(?<![\w.-]){re.escape(name)}(?![\w.-])',known_text)):
+        return 'WRAPPER_REFERENCE'
+    return 'DEPOT_CANDIDATE'
+
+
+def binary_clues(path, reference, work, out, report):
+    if not shutil.which('strings'):
+        out.line('WRAPPER_BINARY_REVIEW', reference, 'strings unavailable')
+        return
+    retained = work/(path.stem+'.strings')
+    with retained.open('wb') as stdout:
+        result = subprocess.run(['strings','-a','-t','x',str(path)],stdout=stdout,stderr=subprocess.DEVNULL,timeout=25)
+    if result.returncode:
+        return
+    clues = []
+    with retained.open(errors='replace') as lines:
+        for line in lines:
+            if re.search(r'CARGO_BUILD_TARGET|CARGO_ENCODED_RUSTFLAGS|RUST_TARGET|--target|armv7.*gnueabi|thumb-mode|[\w-]+-tizen-linux-gnueabi',line):
+                clues.append(scrub(line))
+            if len(clues)==18:
+                break
+    report['binary_clues'].append({'ref':reference,'clues':clues})
+    for line in clues:
+        out.line('BINARY_STRING_CLUE',reference,line)
+
+
+def collect(work,out,report):
+    try:
+        checked_p4(work,'login','login','-s')
+    except (ValueError,OSError,subprocess.SubprocessError) as exc:
+        raise ValueError(f'P4_TICKET_INVALID_OR_UNAVAILABLE: {exc}') from exc
+    manifests(out)
+    shelf = shelf_paths(checked_p4(work,'shelf','describe','-S','-s',SHELF))
+    spec = checked_p4(work,'argot-spec','print','-q',DEPOT+'/packaging/argot.spec@='+SHELF)
+    text = spec.decode(errors='replace')
+    report['spec_sha256'] = sha(spec)
+    out.line('SPEC_SOURCE', DEPOT+'/packaging/argot.spec@='+SHELF, sha(spec))
+    build = build_excerpt(text,out)
+    inspect_text('argot.spec %build', build.encode(), 'SPEC_BUILD',out,report,0)
+    build_refs = '\n'.join(line for line in build.splitlines() if not line.lstrip().startswith('#'))
+
+    # Discover only configuration-shaped names in the fixed project, including
+    # a path literally named by the spec. Never consult the current depot tip.
+    quoted = re.findall(r'[\w./+-]*cargo-tizen[\w./+-]*',build_refs)
+    input_names = {}
+    for number,line in enumerate(text.splitlines(),1):
+        entry = re.match(r'^\s*Source(\d*)\s*:\s*(\S+)',line,re.I)
+        if entry and ('%{SOURCE'+(entry[1] or '0')+'}').lower() in build_refs.lower():
+            source_name = PurePosixPath(entry[2]).name
+            if re.fullmatch(r'[\w.+-]+',source_name):
+                input_names[source_name] = number
+        if (entry or re.match(r'^\s*BuildRequires\s*:',line,re.I)) and re.search(r'cargo|rust',line,re.I):
+            if number <= 180:
+                out.line('SPEC_INPUT',f'{number}:',scrub(line))
+    # A spec macro links the named source to %build even when the filename
+    # occurs only in the RPM preamble.
+    build_refs += '\n' + '\n'.join(input_names)
+    patterns = set(WANTED)
+    patterns.update(input_names)
+    patterns.update(name for name in quoted if '/' in name and '..' not in PurePosixPath(name).parts
+                    and not name.startswith('/'))
+    files = {}
+    for i, name in enumerate(sorted(patterns)):
+        paths = [f'{DEPOT}/{name}@{BASE}', f'{DEPOT}/.../{name}@{BASE}']
+        try:
+            result = checked_p4(work,f'files-{i}','-ztag','files','-e','-m','60',*paths)
+        except ValueError as exc:
+            if re.search(r'no such file|no file\(s\)',str(exc),re.I):
+                continue
+            out.line('FILES_REVIEW',name,scrub(exc))
+            continue
+        files.update(base_files(result))
+    for path,action in shelf.items():
+        if action in ('delete','move/delete'):
+            files.pop(path,None)
+        elif path != DEPOT+'/packaging/argot.spec':
+            name=PurePosixPath(path).name
+            if any(x in path.lower() for x in ('cargo','target')) or name in quoted:
+                files[path] = '@='+SHELF
+    ranked = sorted(files,key=lambda path: (referenced(path,build_refs,'')=='DEPOT_CANDIDATE',
+                                          'cargo-tizen' not in path,path))
+    out.line('CANDIDATES',len(ranked),'inspection_limit',18)
+    report['candidates']=[{'path':p,'revision':files[p]} for p in ranked]
+    known_text = ''
+    for i,path in enumerate(ranked[:18]):
+        relation = referenced(path,build_refs,known_text)
+        reference = path+files[path]
+        try:
+            raw=checked_p4(work,f'payload-{i}','print','-q',reference)
+        except (ValueError,OSError,subprocess.SubprocessError) as exc:
+            out.line('SOURCE_READ_REVIEW', reference, scrub(exc))
+            continue
+        inspect_text(reference,raw,relation,out,report,13 if i<9 else 0)
+        if relation != 'DEPOT_CANDIDATE' and (lines := source_lines(raw)) is not None:
+            known_text += '\n'.join(line for line in lines if not line.lstrip().startswith('#'))
+        if relation != 'DEPOT_CANDIDATE':
+            payload = work/f'payload-{i}.stdout'
+            try:
+                if raw[:4] == b'\x7fELF':
+                    binary_clues(payload,reference,work,out,report)
+                for ordinal,(member,data) in enumerate(archive_text(raw,payload)):
+                    if ordinal >= 8:
+                        out.line('BUNDLE_REVIEW',reference,'member_preview_capped')
+                        break
+                    (work/f'bundle-{i}-{ordinal}.bytes').write_bytes(data)
+                    inspect_text(reference+'!'+member,data,'REFERENCED_BUNDLE_MEMBER',out,report,8)
+            except (OSError,ValueError,RuntimeError,tarfile.TarError,zipfile.BadZipFile,subprocess.SubprocessError,NotImplementedError) as exc:
+                out.line('BUNDLE_REVIEW',reference,scrub(exc))
+    linked = sorted({x['value'] for entry in report['text_sources']
+                     if entry['relation'] != 'DEPOT_CANDIDATE'
+                     for x in entry['triple_literals']})
+    report['linked_triple_literals'] = linked
+    report['hypothesis'] = ('PRESENT_IN_LINKED_SOURCE' if EXPECTED in linked else
+                            'OTHER_LITERAL_IN_LINKED_SOURCE' if linked else 'UNRESOLVED')
+    print('SOURCE_TARGET_HYPOTHESIS',EXPECTED,report['hypothesis'],json.dumps(linked)[:900],flush=True)
+    print('EFFECTIVE_STATUS','REVIEW_WRAPPER_BRANCH_CONFIG_AND_ACTUAL_RUSTC_ARGV',flush=True)
+
+
+def main():
+    work = Path(tempfile.mkdtemp(prefix='pm0005-argot-cargo.',dir=ROOT/'workspace/temp'))
+    os.environ['TMPDIR'] = str(work)
+    out = Preview()
+    out.line('WORKDIR',work)
+    report = {'text_sources':[],'opaque_wrappers':[],'binary_clues':[]}
+    try:
+        collect(work,out,report)
+        status = 'COLLECTED'
+    except (ValueError,OSError,subprocess.SubprocessError) as exc:
+        report['error'] = scrub(exc)
+        out.line('BLOCKED',report['error'])
+        status = 'BLOCKED'
+    path=work/'report.json'
+    path.write_text(json.dumps({'status':status,**report},indent=2)+'\n')
+    print('REPORT',path,sha(path.read_bytes()))
+    print('DONE',status)
+    return int(status=='BLOCKED')
+
+
+if __name__=='__main__':
+    raise SystemExit(main())
