@@ -1,0 +1,550 @@
+#!/usr/bin/env python3
+"""Replay pinned KantSU2E kernel compilations with the Official and Customized Base compilers."""
+import argparse
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shlex
+import shutil
+import struct
+import subprocess
+import sys
+import tempfile
+import xml.etree.ElementTree as ET
+from urllib.parse import urlsplit
+from urllib.request import ProxyHandler, HTTPRedirectHandler, build_opener
+
+ROOT = Path("/home1/chengkai/vd-tree")
+BASES = {"official": "20261113.1", "custom": "20261118.1"}
+REPO = "http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/"
+OBS_PIN = "0b38aead137ec42dcd99dee28091acc1"
+DEPOT = "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/linux-6.12/"
+SHELF = "14427407"
+SHELF_BASE = "14293732"
+P4 = ["p4", "-c", "DEV-IPTV-VC_TOOLCHAIN"]
+PREFERRED = ("ipc/kdbus/connection.c", "fs/minimal_core.c", "kernel/sched/core.c",
+             "mm/page_alloc.c", "net/core/dev.c", "kernel/fork.c")
+ADVISORS = ("-enable-ml-inliner", "-regalloc-enable-advisor")
+MODES = {"a": ("release", "release"), "b": ("release", "default"),
+         "c": ("default", "release"), "d": ("default", "default")}
+STATS = ("NumSpills", "NumFoldedSpills", "NumReloads", "NumFoldedReloads")
+PROBE = """static int blend(int x, int y) { return (x * 31) ^ (y + 3); }
+extern void take(int, int, int, int, int, int, int, int, int, int);
+int test_advisor(int a, int b, int c, int d, int e, int f) {
+    int p = blend(a,b), q = blend(c,d), r = blend(e,f);
+    take(p,q,r,a,b,c,d,e,f,p+q+r);
+    return blend(p,q) + blend(r,e);
+}
+"""
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024**2), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def under_tree(path):
+    path = Path(path).resolve(strict=True)
+    if ROOT not in path.parents:
+        raise ValueError(f"expected a retained path under vd-tree: {path}")
+    return path
+
+
+def log_command(argv, cwd, log, env=None, timeout=240):
+    with log.open("wb") as stream:
+        return subprocess.run(argv, cwd=cwd, env=env, stdout=stream, stderr=subprocess.STDOUT,
+                              timeout=timeout).returncode
+
+
+def last_error(log):
+    lines = log.read_text(errors="replace").splitlines()
+    match = next((line for line in lines if re.search(r"error:|fatal:|Could not|not found", line, re.I)), None)
+    return (match or (lines[-1] if lines else "no diagnostic"))[:270]
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, url):
+        raise ValueError(f"unexpected RPM redirect from {req.host}: HTTP {code}")
+
+
+def inventory(preflight, label):
+    with (preflight / f"{label}-full-inventory.csv").open(newline="") as stream:
+        items = list(csv.DictReader(stream))
+    prefix = REPO + f"tizen-10.0-base-dev-llvm-standard_{BASES[label]}/"
+    for row in items:
+        if not row["url"].startswith(prefix) or not re.fullmatch(r"[0-9a-f]{64}", row["sha256"]):
+            raise ValueError(f"unexpected {label} preflight inventory row")
+    return items
+
+
+def select_rpm(items, package, arch):
+    choices = {(row["url"], row["sha256"]) for row in items
+               if row["name"] == package and row["arch"] == arch}
+    payloads = {digest for _, digest in choices}
+    if len(payloads) != 1:
+        raise ValueError(f"expected unique {package}.{arch} payload, got {len(payloads)}")
+    return min(choices, key=lambda pair: (f"/repos/base/{arch}/" not in pair[0], pair[0]))
+
+
+def cached_rpm(pair, work, preflight_cache=None):
+    url, digest = pair
+    dest = work / (digest[:16] + "-" + Path(urlsplit(url).path).name)
+    if dest.is_file():
+        if sha(dest) != digest:
+            raise ValueError(f"cached RPM hash mismatch: {dest.name}")
+        return dest
+    if preflight_cache is not None:
+        if not preflight_cache.is_file() or sha(preflight_cache) != digest:
+            raise ValueError(f"retained PINNED_LLVM_BINARY mismatch: {preflight_cache}")
+        shutil.copyfile(preflight_cache, dest)
+    else:
+        with build_opener(ProxyHandler({}), NoRedirect()).open(url, timeout=45) as src, dest.open("xb") as out:
+            shutil.copyfileobj(src, out, 1024**2)
+    if sha(dest) != digest:
+        raise ValueError(f"snapshot RPM hash mismatch: {dest.name}")
+    return dest
+
+
+def extract(rpm, dest, log):
+    dest.mkdir(exist_ok=True)
+    with log.open("wb") as stream:
+        with subprocess.Popen(["rpm2cpio", str(rpm)], stdout=subprocess.PIPE, stderr=stream) as producer:
+            try:
+                result = subprocess.run(["cpio", "-idm", "--quiet", "--no-absolute-filenames",
+                                         "--no-preserve-owner"], stdin=producer.stdout, cwd=dest,
+                                        stdout=stream, stderr=stream, timeout=300).returncode
+            finally:
+                producer.stdout.close()
+                if producer.poll() is None and sys.exc_info()[0] is not None:
+                    producer.kill()
+            if producer.wait(timeout=30) or result:
+                raise ValueError(f"RPM extraction failed; see {log.name}")
+
+
+def resolve_rpm_path(root, path):
+    pending = list(PurePosixPath(path).parts[1:])
+    if not path.startswith("/") or not pending:
+        raise ValueError("use an absolute path inside the selected RPM payload")
+    parts = []
+    links = 0
+    while pending:
+        name = pending.pop(0)
+        if name == "..":
+            if not parts:
+                raise ValueError(f"RPM link escapes payload root: {path}")
+            parts.pop()
+        else:
+            current = root.joinpath(*parts, name)
+            if current.is_symlink():
+                links += 1
+                if links > 24:
+                    raise ValueError(f"RPM symlink cycle: {path}")
+                target = PurePosixPath(os.readlink(current))
+                if target.is_absolute():
+                    parts.clear()
+                pending = list(target.parts[int(target.is_absolute()):]) + pending
+            else:
+                parts.append(name)
+    return root.joinpath(*parts).resolve(strict=True)
+
+
+def elf_kind(path):
+    with path.open("rb") as stream:
+        head = stream.read(20)
+    if head.startswith((b"BC\xc0\xde", b"\xde\xc0\x17\x0b")):
+        return "LLVM_IR"
+    if head.startswith(b"\x7fELF") and len(head) == 20 and head[5] == 1:
+        return {40: "ELF_ARM", 62: "ELF_X86_64"}.get(struct.unpack_from("<H", head, 18)[0], "ELF_OTHER")
+    return "OTHER"
+
+
+def compiler(root, path, arch, args, work):
+    binary = resolve_rpm_path(root, path)
+    expected = "ELF_ARM" if arch == "armv7l" else "ELF_X86_64"
+    if elf_kind(binary) != expected:
+        raise ValueError(f"{path} is not the {expected} compiler ELF; use the resolved driver executable")
+    libdirs = ("usr/lib64", "usr/lib", "lib64", "lib", "usr/lib/llvm")
+    libs = ":".join(str(root / name) for name in libdirs if (root / name).is_dir())
+    env = {key: os.environ[key] for key in ("PATH",) if key in os.environ}
+    env.update(LC_ALL="C", TZ="UTC", TMPDIR=str(work), SOURCE_DATE_EPOCH="1")
+    if arch == "armv7l":
+        prefix = [args.qemu, "-L", str(args.arm_sysroot)]
+        fallback = [str(args.arm_sysroot / name) for name in libdirs if (args.arm_sysroot / name).is_dir()]
+        prefix += ["-E", "LD_LIBRARY_PATH=" + ":".join([*([libs] if libs else []), *fallback])]
+    else:
+        prefix = []
+        if libs:
+            env["LD_LIBRARY_PATH"] = libs
+    return {"binary": str(binary), "kind": expected, "sha256": sha(binary),
+            "argv": [*prefix, str(binary)], "env": env}
+
+
+def stage_tools(args, work):
+    result = {}
+    for label in BASES:
+        items = inventory(args.preflight, label)
+        for arch, role, extras in (("armv7l", "target", args.arm_companion), ("x86_64", "host", args.host_companion)):
+            lane = work / f"{label}-{role}"
+            lane.mkdir()
+            root = lane / "root"
+            pair = select_rpm(items, "clang", arch)
+            pin = "PUBLISHED_OFFICIAL_METADATA"
+            cache = None
+            if label == "custom":
+                buildinfo = ET.parse(args.preflight / f"{arch}-llvm-buildinfo.xml").getroot()
+                if (buildinfo.get("srcmd5") or buildinfo.findtext("srcmd5")) != OBS_PIN:
+                    raise ValueError(f"{arch}: wrong retained OBS revision")
+                cache = args.preflight / f"{arch}-clang.rpm"
+                pin = "MATCH_PINNED_LLVM_BINARY"
+            names = list(dict.fromkeys(["clang", *(["libllvm"] if any(
+                row["name"] == "libllvm" and row["arch"] == arch for row in items) else []),
+                *extras, *([args.host_package] if arch == "x86_64" else [])]))
+            canonical_hash = None
+            for name in names:
+                package_arch = args.host_package_arch if role == "host" and name == args.host_package != "clang" else arch
+                pkg = pair if name == "clang" else select_rpm(items, name, package_arch)
+                rpm = cached_rpm(pkg, lane, cache if name == "clang" else None)
+                extract(rpm, root, lane / f"extract-{name}.log")
+                if name == "clang":
+                    canonical_hash = sha(resolve_rpm_path(root, "/usr/bin/clang"))
+                print("RPM", BASES[label], role, name, Path(urlsplit(pkg[0]).path).name, pkg[1],
+                      pin if name == "clang" else "SNAPSHOT_COMPANION", flush=True)
+            if sha(resolve_rpm_path(root, "/usr/bin/clang")) != canonical_hash:
+                raise ValueError("companion RPM changed the pinned clang payload")
+            tool = args.host_tool if arch == "x86_64" else "/usr/bin/clang"
+            for key, path in dict(canonical="/usr/bin/clang", replay=tool).items():
+                if key == "replay" and path == "/usr/bin/clang":
+                    result[label, role] = info
+                    continue
+                info = compiler(root, path, arch, args, work)
+                version = lane / f"{key}-version.log"
+                code = log_command(info["argv"] + ["--version"], lane, version, info["env"], 60)
+                info["version"] = " | ".join(version.read_text(errors="replace").splitlines()[:4])
+                info["version_exit"] = code
+                print("CLANG", BASES[label], role, key, path, info["sha256"], info["version"][:360], flush=True)
+                if code:
+                    print("CLANG_VERSION_FAILED", BASES[label], role, key, code, last_error(version), flush=True)
+                if key == "replay":
+                    result[label, role] = info
+    return result
+
+
+def clean_flags(words):
+    if words and Path(words[0]).name in {"ccache", "sccache"}:
+        words = words[1:]
+    if not words or not re.search(r"(?:^|[-/])clang(?:-[\d.]+)?$", words[0]):
+        raise ValueError("compile database must record the Clang argv after wrappers")
+    cleaned = []
+    it = iter(words[1:])
+    for item in it:
+        if item in {"-o", "-MF", "-MT", "-MQ", "-MJ", "--serialize-diagnostics"}:
+            next(it)
+        elif item.startswith("-o") and not item.startswith(("-objc", "-object")):
+            continue
+        elif item in {"-MD", "-MMD", "-MP", "-MG"} or item.startswith(("-Wp,-MD,", "-Wp,-MMD,")):
+            continue
+        elif item == "-mllvm":
+            option = next(it)
+            if option.split("=", 1)[0] not in ADVISORS:
+                cleaned += [item, option]
+        elif item.startswith("-mllvm=") and item.split("=", 2)[1] in ADVISORS:
+            continue
+        elif (item.startswith(("@", "-save-temps", "--save-temps", "-fplugin", "-ftime-trace",
+                              "-fprofile-generate", "-fprofile-instr-generate", "-foptimization-record",
+                              "-fcrash-diagnostics-dir", "--output=", "-fmodule", "-femit-", "-fpass-plugin",
+                              "-MF", "-MJ", "-serialize-diagnostics", "-Xassembler", "-Wa,")) or
+              item in {"-Xclang", "-E", "-S", "-M", "-MM"}):
+            raise ValueError(f"unsupported side-output or indirect option: {item}")
+        else:
+            cleaned.append(item)
+    if "-c" not in cleaned:
+        raise ValueError("expected a compile-only Clang command")
+    return cleaned
+
+
+def map_build_path(value, build_root):
+    if build_root is None:
+        return value
+    return re.sub(r"^(?:(-[IBL]|--sysroot=|-resource-dir=|--config=))?(/(?:home/abuild|usr)(?:/.*)?)$",
+                  lambda match: (match[1] or "") + str(build_root / match[2].lstrip("/")), value)
+
+
+def load_units(args, work):
+    if args.compile_db:
+        db = args.compile_db
+    else:
+        db = work / "compile_commands.json"
+        gen = under_tree(args.kernel_source / "scripts/clang-tools/gen_compile_commands.py")
+        code = log_command([sys.executable, "-B", str(gen), "-d", str(args.kernel_build), "-o", str(db)],
+                           work, work / "compile-db.log")
+        if code:
+            raise ValueError("unable to generate compile database from retained .cmd files")
+    records = {}
+    for row in json.loads(db.read_text()):
+        cwd = Path(map_build_path(row["directory"], args.build_root))
+        source = (cwd / map_build_path(row["file"], args.build_root)).resolve()
+        if args.kernel_source not in source.parents:
+            continue
+        relative = source.relative_to(args.kernel_source).as_posix()
+        if relative in (args.tu or PREFERRED):
+            records.setdefault(relative, []).append((cwd, source, row))
+    chosen = args.tu or [name for name in PREFERRED if name in records][:3]
+    if not 2 <= len(chosen) <= 4 or len(set(chosen)) != len(chosen):
+        raise ValueError("select two to four distinct compiled kernel C translation units with --tu")
+    describe = work / "shelf-describe.log"
+    if log_command(P4 + ["describe", "-S", "-s", SHELF], work, describe, timeout=45):
+        raise ValueError("unable to read vdlinux shelved file list")
+    if not re.search(r"(?m)^Change\s+" + SHELF + r"\b", describe.read_text(errors="replace")):
+        raise ValueError("P4 describe result does not identify selected shelf")
+    shelved = set(re.findall(r"(?m)^\.\.\. (//[^\n]+?)#\d+\s", describe.read_text(errors="replace")))
+    units = []
+    for index, relative in enumerate(chosen):
+        if len(records.get(relative, [])) != 1 or not relative.endswith(".c"):
+            raise ValueError(f"expected one C compile command for {relative}")
+        cwd, source, row = records[relative][0]
+        cwd, source = under_tree(cwd), under_tree(source)
+        words = row.get("arguments") or shlex.split(row["command"])
+        flags = [map_build_path(word, args.build_root) for word in clean_flags(words)]
+        source_args = [(cwd / word).resolve() for word in flags if word.endswith(".c") and not word.startswith("-")]
+        if source_args != [source]:
+            raise ValueError(f"captured argv does not select exactly {relative}")
+        switches = {flag for flag in words if flag.split("=", 1)[0] in ADVISORS}
+        switches.update(flag.removeprefix("-mllvm=") for flag in words if flag.startswith("-mllvm="))
+        if not all(option + "=release" in switches for option in ADVISORS):
+            print("KERNEL_RELEASE_FLAGS_REVIEW", relative, ",".join(sorted(switches)) or "MISSING", flush=True)
+        depot_file = DEPOT + relative
+        revision = "@=" + SHELF if depot_file in shelved else "@" + SHELF_BASE
+        expected = work / f"pinned-source-{index}.c"
+        code = log_command(P4 + ["print", "-q", "-o", str(expected), depot_file + revision],
+                           work, work / f"p4-source-{index}.log", timeout=45)
+        if code or not expected.is_file() or sha(expected) != sha(source):
+            raise ValueError(f"kernel TU bytes do not match pinned source: {relative}{revision}")
+        units.append({"name": relative, "cwd": str(cwd), "source": str(source), "flags": flags,
+                      "source_sha256": sha(source), "shelf_ref": depot_file + revision,
+                      "original_argv": words})
+        print("KERNEL_TU", relative, revision, sha(source), flush=True)
+    probe = work / "probe.c"
+    probe.write_text(PROBE)
+    units.append({"name": "probe.c", "cwd": str(work), "source": str(probe),
+                  "flags": ["-c", "-Oz", str(probe)], "source_sha256": sha(probe)})
+    return units
+
+
+def summaries(record, kind):
+    if not record.is_file():
+        return {"inline": "NA", "missed": "NA", "spills": "NA", "folded_spills": "NA",
+                "reloads": "NA", "folded_reloads": "NA"}
+    inline = missed = 0
+    totals = dict.fromkeys(STATS, 0)
+    for remark in record.read_text(errors="replace").split("\n--- "):
+        if re.search(r"(?m)^Pass:\s+inline\s*$", remark):
+            inline += bool(re.search(r"(?m)^Name:\s+Inlined\s*$", remark))
+            missed += bool(re.match(r"(?:--- )?!Missed\b", remark))
+        if (re.search(r"(?m)^Pass:\s+regalloc\s*$", remark) and
+                re.search(r"(?m)^Name:\s+SpillReloadCopies\s*$", remark)):
+            for key, value in re.findall(r"(?m)^\s+- (Num\w+):\s+['\"]?(\d+)", remark):
+                if key in totals:
+                    totals[key] += int(value)
+    return dict(zip(("inline", "missed", "spills", "folded_spills", "reloads", "folded_reloads"),
+                    (inline, missed, *(totals.values() if kind == "ELF_ARM" else ["NA"] * 4))))
+
+
+def target_from_flags(flags, supplied):
+    requested = [word.split("=", 1)[1] for word in flags if word.startswith(("--target=", "-target="))]
+    requested.extend(flags[i + 1] for i, word in enumerate(flags[:-1]) if word in ("--target", "-target"))
+    if supplied and requested and any(value != supplied for value in requested):
+        raise ValueError(f"--target {supplied} conflicts with the recorded target: {requested}")
+    if requested and len(set(requested)) != 1:
+        raise ValueError(f"conflicting captured targets: {requested}")
+    return supplied or (requested[0] if requested else None)
+
+
+def run_case(tool, unit, mode, flavor, args, work, results):
+    marker = results / ELF_ROLE_NAME[tool["kind"]]
+    marker.mkdir(exist_ok=True)
+    prefix = marker / f"{unit['id']}-{mode}-{flavor}"
+    obj, opt = work / "current.o", work / "current.opt.yaml"
+    obj.unlink(missing_ok=True)
+    opt.unlink(missing_ok=True)
+    if tool["version_exit"]:
+        return {"status": "COMPILER_UNAVAILABLE", "error": "see CLANG_VERSION_FAILED"}
+    flags = list(unit["flags"])
+    target = unit["target"]
+    if not target_from_flags(flags, None):
+        flags.append("--target=" + target)
+    if flavor == "native-after-ir":
+        flags = [flag for flag in flags if flag not in ("-ffat-lto-objects", "-fembed-bitcode", "-fembed-bitcode-marker")
+                 and not flag.startswith("-fembed-bitcode=")]
+        flags.append("-fno-lto")
+    argv = tool["argv"] + ["--no-default-config", *flags, "-fno-color-diagnostics",
+                           "-fno-crash-diagnostics", "-foptimization-record-file=" + str(opt),
+                           "-foptimization-record-passes=^(inline|regalloc)$", "-o", str(obj)]
+    if args.resource_dir:
+        argv += ["-resource-dir", str(args.resource_dir)]
+    if args.driver_config:
+        argv += ["--config", str(args.driver_config)]
+    for key, choice in zip(ADVISORS, MODES[mode]):
+        argv += ["-mllvm", f"{key}={choice}"]
+    (prefix.with_suffix(".argv.json")).write_text(json.dumps(argv, indent=2))
+    log = prefix.with_suffix(".log")
+    driver = prefix.with_suffix(".driver.log")
+    try:
+        before = log_command([*argv, "-###"], unit["cwd"], driver, tool["env"], 60)
+        driver_text = driver.read_text(errors="replace")
+        jobs = [shlex.split(line) for line in driver_text.splitlines() if re.search(r'\s"-cc1"\s', line)]
+        if before or len(jobs) != 1:
+            return {"status": "DRIVER_REVIEW", "error": last_error(driver)}
+        job = jobs[0]
+        effective_target = job[job.index("-triple") + 1]
+        if not effective_target.startswith(("arm", "thumb")) or effective_target.startswith("arm64"):
+            return {"status": "DRIVER_REVIEW", "error": f"expected a 32-bit ARM target, got {effective_target}"}
+        for option, choice in zip(ADVISORS, MODES[mode]):
+            seen = [flag for flag in job if flag.split("=", 1)[0] == option]
+            if seen != [option + "=" + choice]:
+                return {"status": "DRIVER_REVIEW", "error": f"effective {option}: {seen}"}
+        code = log_command(argv, unit["cwd"], log, tool["env"])
+    except subprocess.TimeoutExpired:
+        return {"status": "TIMEOUT", "error": "see driver and compiler logs"}
+    if code or not obj.is_file():
+        return {"status": "COMPILE_FAILED", "error": last_error(log)}
+    kind = elf_kind(obj)
+    digest = sha(obj)
+    stats = summaries(opt, kind)
+    obj.rename(prefix.with_suffix(".o"))
+    if opt.exists():
+        opt.rename(prefix.with_suffix(".opt.yaml"))
+    fallback = re.search(r"(?mi)^.*(?:could not be created|using default|fall(?:ing)? back).*",
+                         log.read_text(errors="replace"))
+    return {"status": ("ADVISOR_REVIEW" if fallback else "OK") if kind in {"ELF_ARM", "LLVM_IR"} else "OBJECT_REVIEW",
+            "error": (fallback[0][:270] if fallback else ""),
+            "sha256": digest, "kind": kind, "target": effective_target, **stats}
+
+
+ELF_ROLE_NAME = {"ELF_ARM": "armv7l", "ELF_X86_64": "x86_64"}
+
+
+def compare(role, unit, mode, flavor, left, right):
+    states = (left["status"], right["status"])
+    if states != ("OK", "OK"):
+        verdict = "REVIEW_EXECUTION"
+    elif (left["kind"], left["target"]) != (right["kind"], right["target"]):
+        verdict = "REVIEW_FORMAT_OR_TARGET"
+    elif left["sha256"] == right["sha256"]:
+        verdict = "IDENTICAL_AS_EXPECTED" if mode == "d" else "IDENTICAL_EXPECTED_DIFFERENCE"
+    else:
+        verdict = "DIFFERENT_AS_EXPECTED" if mode != "d" else "DIFFERENT_EXPECTED_IDENTITY"
+    cols = ("inline", "missed", "spills", "folded_spills", "reloads", "folded_reloads")
+    def describe(record):
+        fields = [record["status"], record.get("kind", "-"), record.get("target", "-"), record.get("sha256", "-")]
+        stats = "/".join(str(record.get(key, "NA")) for key in cols)
+        return ":".join([*fields, stats])
+    errors = " | ".join(
+        "; ".join(str(record["error"]).splitlines()) for record in (left, right) if record.get("error")
+    )
+    print("CASE", role, unit["name"], mode, flavor, verdict, describe(left), describe(right),
+          errors, flush=True)
+    return {"role": role, "unit": unit["name"], "mode": mode, "flavor": flavor,
+            "verdict": verdict, "official": left, "custom": right}
+
+
+def parse():
+    cli = argparse.ArgumentParser(description=__doc__)
+    paths = cli.add_argument_group("retained kernel build and preflight paths under vd-tree")
+    paths.add_argument("--preflight", type=under_tree, required=True)
+    paths.add_argument("--kernel-source", type=under_tree, required=True)
+    db = paths.add_mutually_exclusive_group(required=True)
+    db.add_argument("--compile-db", type=under_tree)
+    db.add_argument("--kernel-build", type=under_tree, help="retained .cmd build tree")
+    paths.add_argument("--build-root", type=under_tree, help="rebase /home/abuild and /usr paths from chroot argv")
+    paths.add_argument("--resource-dir", type=under_tree, help="fixed production resource-dir when required")
+    paths.add_argument("--driver-config", type=under_tree, help="use the job's retained implicit clang.cfg explicitly")
+    paths.add_argument("--arm-sysroot", type=under_tree, required=True, help="shared retained ARM loader and runtime")
+    paths.add_argument("--host-reference", type=under_tree, required=True,
+                       help="resolved x86_64 Clang ELF that the retained kernel job actually invoked")
+    cli.add_argument("--host-package", default="clang", help="actual package name from the kernel build record")
+    cli.add_argument("--host-package-arch", default="x86_64", choices=("x86_64", "armv7l", "noarch"),
+                     help="RPM metadata architecture of the selected accelerator")
+    cli.add_argument("--host-tool", default="/usr/bin/clang", help="resolved x86_64 ELF path inside the RPMs")
+    cli.add_argument("--arm-companion", action="append", default=[], help="additional RPM name from same Base")
+    cli.add_argument("--host-companion", action="append", default=[], help="additional RPM name from same Base")
+    cli.add_argument("--qemu", default=shutil.which("qemu-arm") or shutil.which("qemu-arm-static"),
+                     help="existing native QEMU ARM user-mode binary")
+    cli.add_argument("--target", help="recorded 32-bit kernel target when implicit in captured compiler argv")
+    cli.add_argument("--tu", action="append", help="kernel-source-relative compiled .c path, two to four")
+    result = cli.parse_args()
+    if not result.qemu:
+        cli.error("provide --qemu pointing to the existing qemu-arm or qemu-arm-static")
+    if len(result.arm_companion) + len(result.host_companion) > 10:
+        cli.error("at most ten additional RPM packages")
+    return result
+
+
+def experiment(args, work, report):
+    units = load_units(args, work)
+    for index, unit in enumerate(units):
+        unit["id"] = index
+        unit["target"] = target_from_flags(unit["flags"], args.target)
+    targets = {unit["target"] for unit in units[:-1]}
+    if None in targets or len(targets) != 1:
+        raise ValueError("use one recorded ARM target across the selected kernel TUs; supply --target if implicit")
+    units[-1]["target"] = targets.pop()
+    if elf_kind(args.host_reference) != "ELF_X86_64":
+        raise ValueError("host-reference must be the kernel job's resolved x86_64 ELF")
+    report["units"] = units
+    tools = stage_tools(args, work)
+    report["compilers"] = {f"{label}-{role}": info for (label, role), info in tools.items()}
+    reference = sha(args.host_reference)
+    matched = [BASES[label] for label in BASES if tools[label, "host"]["sha256"] == reference]
+    report["host_reference"] = {"path": str(args.host_reference), "sha256": reference, "matched": matched}
+    print("KERNEL_HOST_MATCH", args.host_package, args.host_tool, reference, ",".join(matched) or "NONE", flush=True)
+    if not matched:
+        raise ValueError("no selected Base host compiler matches the actual kernel job ELF")
+    print("CASE_COLUMNS role tu mode replay verdict official custom [diagnostic]", flush=True)
+    print("CELL_COLUMNS status:format:triple:object_sha256:inline/missed/spills/folded_spills/reloads/folded_reloads",
+          flush=True)
+    comparisons = report["comparisons"]
+    for role in ("host", "target"):
+        for unit in units:
+            for mode in MODES:
+                for flavor in ("kernel-flags" if unit["name"] != "probe.c" else "probe", "native-after-ir"):
+                    cells = [run_case(tools[label, role], unit, mode, flavor, args, work, work / f"{label}-{role}")
+                             for label in BASES]
+                    comparisons.append(compare(role, unit, mode, flavor, *cells))
+                    if flavor == "native-after-ir" or all(cell.get("kind") != "LLVM_IR" for cell in cells):
+                        break
+            if sha(Path(unit["source"])) != unit["source_sha256"]:
+                raise ValueError(f"fixed input changed during replay: {unit['name']}")
+    review = [row for row in comparisons if row["verdict"].startswith("REVIEW")]
+    unexpected = [row for row in comparisons if "EXPECTED_" in row["verdict"]]
+    print("SUMMARY", "comparisons", len(comparisons), "unexpected", len(unexpected), "execution_review", len(review))
+    return ("REVIEW_EXECUTION" if review else "FINDINGS" if unexpected else "EXPECTED_PATTERN")
+
+
+def main():
+    args = parse()
+    work = Path(tempfile.mkdtemp(prefix="pm0004-mlgo-model-identity.", dir=ROOT / "workspace/temp"))
+    os.environ["TMPDIR"] = str(work)
+    print("WORKDIR", work, flush=True)
+    report = {"comparisons": []}
+    try:
+        status = experiment(args, work, report)
+    except (OSError, ValueError, KeyError, IndexError, StopIteration, ET.ParseError, subprocess.SubprocessError) as exc:
+        status = "BLOCKED"
+        report["error"] = str(exc)
+        print("BLOCKED", " ".join(str(exc).splitlines())[:440], flush=True)
+    report["status"] = status
+    result = work / "result.json"
+    result.write_text(json.dumps(report, indent=2) + "\n")
+    print("REPORT", result, sha(result), flush=True)
+    print("DONE", status, flush=True)
+    return 2 if status in {"BLOCKED", "REVIEW_EXECUTION"} else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
