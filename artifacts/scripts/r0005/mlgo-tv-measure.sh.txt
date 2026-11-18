@@ -1,0 +1,159 @@
+#!/bin/sh
+# Run on KantSU2E. Store compact records only under /root.
+set -eu
+root=/root/llvm-pm/pm0005-mlgo
+kind=${1:-}
+lane=${2:-}
+shift 2
+case "$lane" in official|custom) ;; *) echo 'Expected lane official|custom'; exit 2;; esac
+dir=$root/results/$lane
+mkdir -p "$dir"
+
+numeric() {
+    case "$1" in ''|*[!0-9]*) return 1;; *) return 0;; esac
+}
+boot_id=$(cat /proc/sys/kernel/random/boot_id)
+uptime_s() { awk '{print $1}' /proc/uptime; }
+ticks() {
+    if hz=$(getconf CLK_TCK 2>/dev/null) && numeric "$hz" && [ "$hz" -gt 0 ]; then
+        printf '%s\n' "$hz"
+    else
+        "$root/microbench" --clk-tck
+    fi
+}
+# Split after the final ') ' so names containing spaces or parentheses retain the correct fields.
+pid_stat() {
+    awk '{sub(/^.*\) /, ""); print $12+$13, $20}' "/proc/$1/stat"
+}
+header() {
+    printf 'LANE %s BOOT_ID %s\n' "$lane" "$boot_id"
+    uname -srv
+}
+sensor() {
+    for f in /sys/class/thermal/thermal_zone*/temp; do
+        [ -r "$f" ] || continue
+        printf 'TEMP %s ' "$f"
+        cat "$f"
+    done | head -20
+}
+
+case "$kind" in
+  boot)
+    n=${1:?run number 1 to 5}
+    home=${2:?HomeUI PID identified on the board}
+    case "$n" in 1|2|3|4|5) ;; *) exit 2;; esac
+    numeric "$home"
+    out=$dir/boot-$n.txt
+    if [ -e "$out" ]; then echo "Sample already recorded $out"; exit 2; fi
+    if grep -Fq -- "$boot_id" "$dir"/boot-*.txt 2>/dev/null; then
+        echo 'A boot sample already uses this boot ID'; exit 2
+    fi
+    collected=$(uptime_s)
+    hz=$(ticks)
+    start=$(pid_stat "$home" | awk '{print $2}')
+    numeric "$start"
+    {
+        header
+        printf 'HOME_PID %s COMM ' "$home"
+        cat "/proc/$home/comm"
+        awk -v run="$n" -v start="$start" -v hz="$hz" -v collected="$collected" 'BEGIN {
+            printf "BOOT %s kernel_to_home_process_s %.3f kernel_uptime_at_collection_s %s\n", run, start/hz, collected
+        }'
+    } >"$out.part"
+    mv "$out.part" "$out"
+    cat "$out"
+    ;;
+  micro)
+    cpu=${1:-0}
+    numeric "$cpu"
+    out=$dir/micro.txt
+    [ ! -e "$out" ]
+    {
+        header
+        printf 'CPU %s\n' "$cpu"
+        governor="/sys/devices/system/cpu/cpu$cpu/cpufreq/scaling_governor"
+        [ ! -r "$governor" ] || cat "$governor"
+        sensor
+        "$root/microbench" "$cpu"
+        sensor
+    } >"$out.part" 2>&1 || { tail -25 "$out.part"; exit 2; }
+    mv "$out.part" "$out"
+    cat "$out"
+    ;;
+  playback)
+    n=${1:?run number 1 to 3}
+    seconds=${2:?sample duration in seconds}
+    drop_counter=${3:?use a verified monotonic numeric drop counter path, or NA}
+    shift 3
+    case "$n" in 1|2|3) ;; *) exit 2;; esac
+    numeric "$seconds"
+    [ "$seconds" -ge 10 ] && [ "$seconds" -le 600 ]
+    [ "$#" -ge 1 ] && [ "$#" -le 12 ]
+    seen=' '
+    for pid; do
+        numeric "$pid"
+        case "$seen" in *" $pid "*) echo "Duplicate PID $pid"; exit 2;; esac
+        seen="$seen$pid "
+    done
+    out=$dir/playback-$n.txt
+    [ ! -e "$out" ]
+    pids_snapshot() {
+        for pid; do
+            row=$(pid_stat "$pid") || return
+            [ -n "$row" ] || return 2
+            printf '%s %s\n' "$pid" "$row"
+        done
+    }
+    cpu_snapshot() {
+        awk '/^cpu / { total=0; for(i=2;i<=9;i++) total+=$i; print total, $5+$6; exit }' /proc/stat
+    }
+    drops() {
+        if [ "$drop_counter" = NA ]; then echo NA; return; fi
+        case "$drop_counter" in /sys/*|/proc/*|/run/*|/root/*) ;; *) return 2;; esac
+        count=$(cat "$drop_counter")
+        numeric "$count" || return 2
+        printf '%s\n' "$count"
+    }
+    hz=$(ticks)
+    begin_drops=$(drops)
+    begin_process=$(pids_snapshot "$@")
+    begin_cpu=$(cpu_snapshot)
+    t0=$(uptime_s)
+    sleep "$seconds"
+    t1=$(uptime_s)
+    end_cpu=$(cpu_snapshot)
+    end_process=$(pids_snapshot "$@")
+    end_drops=$(drops)
+    sample=$(awk -v hz="$hz" -v t0="$t0" -v t1="$t1" -v a="$begin_cpu" -v b="$end_cpu" \
+        -v p0="$begin_process" -v p1="$end_process" -v d0="$begin_drops" -v d1="$end_drops" 'BEGIN {
+          split(a, x, " "); split(b, y, " "); all=y[1]-x[1]; idle=y[2]-x[2]
+          elapsed=t1-t0; if (all<=0 || elapsed<=0) exit 2
+          n=split(p0, p, "\n"); if (n!=split(p1, q, "\n")) exit 2
+          for (i=1;i<=n;i++) {
+            split(p[i], r, " "); split(q[i], s, " ")
+            if (r[1]!=s[1] || r[3]!=s[3] || s[2]<r[2]) exit 2
+            cpu+=s[2]-r[2]
+          }
+          dropped="NA"; if (d0!="NA" && d1!="NA") {
+            if (d1+0<d0+0) exit 2
+            dropped=d1-d0
+          }
+          printf "duration_s %.3f system_cpu_pct %.2f process_one_core_pct %.2f dropped_frames %s", elapsed,                    100*(all-idle)/all, 100*cpu/(hz*elapsed), dropped
+        }') || { echo 'INVALID_SAMPLE PID identity, counter reset or timing'; exit 2; }
+    {
+        header
+        printf 'PLAYBACK %s %s\n' "$n" "$sample"
+        printf 'DROP_COUNTER %s START %s END %s\n' "$drop_counter" "$begin_drops" "$end_drops"
+        printf 'PIDS %s\n' "$*"
+        sensor
+    } >"$out.part"
+    mv "$out.part" "$out"
+    cat "$out"
+    ;;
+  summary)
+    for file in "$dir"/*.txt; do
+        [ ! -e "$file" ] || awk '/^(LANE|Linux|BOOT |MICRO |PLAYBACK |DROP_COUNTER )/ {print}' "$file"
+    done
+    ;;
+  *) echo 'Use boot, micro, playback or summary'; exit 2;;
+esac

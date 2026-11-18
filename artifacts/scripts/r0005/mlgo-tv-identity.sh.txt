@@ -1,0 +1,35 @@
+#!/bin/sh
+# Read identity evidence from the designated TV.
+set -eu
+export LC_ALL=C
+echo 'BOARD_IDENTITY_BEGIN'
+uname -srv
+if [ -r /proc/device-tree/model ]; then
+    printf 'MODEL '
+    tr -d '\000' </proc/device-tree/model | cut -c1-200
+    printf '\n'
+fi
+printf 'BOOT_ID '
+cat /proc/sys/kernel/random/boot_id
+for file in /etc/tizen-release /etc/os-release /etc/version; do
+    [ -r "$file" ] || continue
+    printf 'BUILD_FILE %s\n' "$file"
+    head -10 "$file" | cut -c1-220
+done
+rpm -q --qf 'KERNEL_RPM %{NAME} %{EPOCH} %{VERSION} %{RELEASE} %{ARCH} %{SOURCERPM}\n' tztv-kernel-perf
+inventory=$(rpm -qa --qf '%{NAME}\t%{EPOCH}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\n')
+[ -n "$inventory" ]
+printf '%s\n' "$inventory" | awk 'END {print "RPM_COUNT", NR}'
+printf '%s\n' "$inventory" | sort | sha256sum | awk '{print "RPM_INVENTORY_SHA256", $1}'
+for file in /boot/zImage /boot/uImage /boot/Image /boot/vmlinux "/boot/zImage-$(uname -r)" /sys/kernel/notes; do
+    [ -r "$file" ] && [ -s "$file" ] || {
+        [ "$file" = /sys/kernel/notes ] && [ -r "$file" ] || continue
+    }
+    case "$file" in
+        /sys/kernel/notes) label=RUNNING_KERNEL_NOTES_SHA256 ;;
+        *) label=BOOT_FILE_SHA256 ;;
+    esac
+    digest=$(sha256sum "$file")
+    printf '%s %s %s\n' "$label" "${digest%% *}" "$file"
+done
+echo 'BOARD_IDENTITY_END'
