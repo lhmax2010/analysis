@@ -141,3 +141,118 @@ Compare original target, same target plus `-C target-feature=+thumb-mode`, and `
 Rebuild one argot variant with only the verified instruction-mode switch. Keep source revision, Rust and C/C++ toolchains, Tizen target/sysroot, optimization and LTO options, dependencies and input assets fixed. Verify mode and size in the relevant functions and segregate startup/assembly/runtime sections. On the same KantSU2E, alternate control/candidate with fixed image roles and firmware, ten cold app or service starts per lane and five fixed-window media runs per lane. Record argot PSS/USS after settle and under playback, service-ready time, media pipeline CPU and dropped or late frames. Save each measured pair, median/IQR and 95% intervals. Accept only a supported improvement in at least one metric, no material regression under the agreed 2% protocol and no new crash, LMK/OOM, ANR or audio/video underrun signature. An inconclusive result stays pending.
 
 [Draft HQ reply for review](../../hq/HQ_ARM_Mode_Reply_DRAFT_20261117.md)
+
+## C. Script review and execution workflow
+
+Claude reviews the [script commit](https://github.com/lhmax2010/analysis/commit/ea24f17d8d8f7b245c36d040381880839165d1c5) and then forwards the relevant launcher to the operator. Use the pinned, SHA-256-checked launchers here for A and B as well as D–F. These replace the earlier launcher examples. Each command prints at most 300 lines or a zlib+base64 packet. Paste terminal output only. Full outputs and downloaded working copies stay under `/home1/chengkai/vd-tree/workspace/temp/pm0004-*`. Each launcher below runs on the native server. Any later TV-side launcher follows the same review and checksum workflow and the existing `/root` boundary.
+
+The native commands use the default Python 3.10 without Python bytecode files. Tests used Python 3.10.12, local fixtures and mocked intranet tools. The preflight test blocked both Python `lzma` imports and used a real XZ primary metadata fixture. Live OBS, QuickBuild, P4 and the full RPM scan await native execution. The commands use read-only service operations and existing authentication. The two compile probes generate scratch objects inside the task workspace.
+
+### Launchers for A and B
+
+**Kernel gate on native. Usually under two minutes, with light CPU, small P4 reads and retained log I/O.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/kernel-gate.sh.txt' -o "$d/kernel-gate.sh.txt" && printf '%s  %s\n' 'e8d332e397b4ebf22a13734b0f631bb74a06b065d2c262205e596fd610e92606' "$d/kernel-gate.sh.txt" | sha256sum -c - && QB_KERNEL_LOG="${QB_KERNEL_LOG:-}" bash "$d/kernel-gate.sh.txt" | tee "$d/kernel-gate.txt")
+```
+
+Set `QB_KERNEL_LOG` to the exact retained QB 37627297 kernel log when available. The saved shelf excerpts establish source wiring. Inspect actual argv and the kernel job's installed Clang package against the Official Base before attributing the result. Repeat the same source/log check for the Customized job using its retained log. The 37627297 and 1113.1 context filters in this gate are for the Official job. The collector below accepts the candidate identity and its own sources/logs by changing the arguments.
+
+**Per-package compile evidence on native. Seconds to about one minute for cached logs and matched DWARF, with local read I/O and negligible traffic beyond the script.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/collect-compile-evidence.py.txt' -o "$d/collect-compile-evidence.py.txt" && printf '%s  %s\n' 'ff9770a95b7fe598f3d8c2a96675f8688f895ea55a7517dd2418c876f15cd908' "$d/collect-compile-evidence.py.txt" | sha256sum -c - && python3 -B "$d/collect-compile-evidence.py.txt" --qb-id 37627297 --package "${source_package:?set source_package}" --installed-path "${installed_path:?set installed_path}" --log "${qb_package_log:?set qb_package_log}" --source "${pinned_spec_or_build_file:?set pinned_spec_or_build_file}" --match "${source_or_crate:?set source_or_crate}" "${evidence_opts[@]}")
+```
+
+Set the five variables from section B. In Bash, optionally set `evidence_opts` as an array with additional `--log` / `--source` inputs, `--debug` and its matched file, or `--artifact` / `--asset` and the two files to compare. It can be left unset. Check the package log identity and expand effective response files when needed. The collector retains the JSON with the exact candidate excerpts and prints its compressed packet.
+
+**Find argot evidence on native. Usually under one minute, with local metadata reads, one small P4 request and negligible data written.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/find-argot-evidence.sh.txt' -o "$d/find-argot-evidence.sh.txt" && printf '%s  %s\n' '262837d4d173f62b4e116bc023d5eef6cf2eeac9b29fd6ffd8277af3b492c975' "$d/find-argot-evidence.sh.txt" | sha256sum -c - && bash "$d/find-argot-evidence.sh.txt" | tee "$d/argot-evidence.txt")
+```
+
+**Rust Thumb probe on native in argot’s retained build environment. Allow up to three minutes, with one rustc process at a time, small scratch objects and no target downloads.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/rust-thumb-probe.sh.txt' -o "$d/rust-thumb-probe.sh.txt" && printf '%s  %s\n' 'bb3c5e4a0d2a2013987fbab96c8f1497b1ab80d14b9a1a40301ecab85484e27f' "$d/rust-thumb-probe.sh.txt" | sha256sum -c - && RUSTC="${argot_rustc:?set the installed argot rustc}" bash "$d/rust-thumb-probe.sh.txt" "${argot_target:?set the effective rustc target}" "${argot_flags[@]}")
+```
+
+The executable must be the installed toolchain binary, since a rustup shim could attempt a download. Supply fixed extra arguments through the optional Bash array `argot_flags`.
+
+**Optional advisor probe on native inside the retained package build environment. Typically seconds, with three serial small compilations and no service traffic beyond the script.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/probe-effective-advisors.sh.txt' -o "$d/probe-effective-advisors.sh.txt" && printf '%s  %s\n' '9f1be6be8ec14922beaef1e751ac5159f0483b4efcd7d9972f3ece2d4cafe1ac' "$d/probe-effective-advisors.sh.txt" | sha256sum -c - && MLGO_CC="${MLGO_CC:-armv7l-tizen-linux-gnueabi-clang}" MLGO_PROBE_OUT="$d/advisor-probe" bash "$d/probe-effective-advisors.sh.txt" "${mlgo_flags[@]}")
+```
+
+Set the optional Bash array `mlgo_flags` to the effective flags. Run this diagnostic later if needed. The actual kernel command remains the gate for model attribution.
+
+**Read back a numbered report packet on native. Usually seconds, with local checksum/compression CPU, at most 12 MiB of selected text input and negligible network.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/print-terminal-packet.py.txt' -o "$d/print-terminal-packet.py.txt" && printf '%s  %s\n' '2f2d88ae5b97d8a9efa105896a85bbaf58d067690270e4c7ccd93037390825e7' "$d/print-terminal-packet.py.txt" | sha256sum -c - && python3 -B "$d/print-terminal-packet.py.txt" --part "${part:-1}" "${report_files[@]}")
+```
+
+Set `report_files` to a Bash array of absolute paths in the reported work directory. For the preflight use the full diff and CSVs. Keep the same file list and order and advance `part` for more output. For completed scan results, start with `mode-summary.txt` and `results/rpm-status.csv`. Use the T5 or F work directory to retrieve its retained CSV files as needed.
+
+## D. MLGO preflight for the Base-swap QB
+
+**Urgent preflight on native. Allow a few minutes, longer on a slow OBS transfer. Uses XML parsing and decompression, plus published metadata and two Clang RPM reads. Disk is the retained metadata, staged lists and two RPMs.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/preflight-base-qb.py.txt' -o "$d/preflight-base-qb.py.txt" && printf '%s  %s\n' 'd42d138f170c3e5ae7784951d14719b15e1dc2df18fe075191aea7a310ae78c5' "$d/preflight-base-qb.py.txt" | sha256sum -c - && python3 -B -u "$d/preflight-base-qb.py.txt")
+```
+
+The script uses `xz -dc` for XZ metadata. It prints `MLGO_CONFIG` for the Official and Customized build.conf and also checks the Product build.conf. It reports full and non-LLVM delta counts, the first 80 complete non-LLVM CSV rows and the first 40 staged Base-list diff lines. It reports a complete pin only after the published RPM matches the OBS binary for each architecture. An RPM change with a non-LLVM source on either side stays in the non-LLVM ledger.
+
+For tonight's QB, proceed after receiving both `PINNED_LLVM_BINARY` lines and confirming the expected Base-list changes. Use the selected Product, build.conf and shelf inputs from 0003. The kernel gate still determines interpretation.
+
+## E. Full-image ARM-mode scan
+
+The scan has yet to start. The scanner and summary are the byte-identical Downloads inputs. The background wrapper verifies all eight pinned CSV parts, checks 2,342 unique RPM identities, and dispatches eight download workers. It returns the run directory and PID. The summary defaults to the latest launch or accepts an explicit `RPM_SCAN_RUN`. While a run is active, the command returns progress. After exit, it retains the full summary, reports errors and row counts, and prints up to 240 summary lines.
+
+**Start the scan on native. Setup usually under one minute. Budget several hours for the background scan. Uses eight network workers and checksum/decompression CPU, with up to eight concurrent scratch RPMs and a large-member memory peak.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/image_mode_scan.py.txt' -o "$d/image_mode_scan.py.txt" && printf '%s  %s\n' '1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75' "$d/image_mode_scan.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/scan-background.sh.txt' -o "$d/scan-background.sh.txt" && printf '%s  %s\n' '2dad230e17fffa5ca33f9d5ddd8bb002f800358651ed6a7c7e92c13c9e65ec46' "$d/scan-background.sh.txt" | sha256sum -c - && bash "$d/scan-background.sh.txt" "$d/image_mode_scan.py.txt")
+```
+
+Use a heavy-job slot under D-018 and review live native headroom before launch. Aggregate RPM transfer size is unmeasured. Scratch disk peaks at the combined size of concurrently fetched RPMs, plus retained CSV/log output. The scanner can buffer multiple copies of large members (each capped at 1.5 GiB), so keep it away from concurrent heavy builds when memory headroom is limited.
+
+**Show scan status and summary on native. Usually seconds, with local CSV read/write and no RPM traffic.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/mode_summary.py.txt' -o "$d/mode_summary.py.txt" && printf '%s  %s\n' 'a5f518efb014b8a3e184ea27c4578d60d1f48c909d78c055e067fb293fd1eede' "$d/mode_summary.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/print-scan-summary.py.txt' -o "$d/print-scan-summary.py.txt" && printf '%s  %s\n' 'fcc6d6bc75d39b654350df5887285cc9dc623d9652df19d58508ef74ca2b8c6a' "$d/print-scan-summary.py.txt" | sha256sum -c - && python3 -B "$d/print-scan-summary.py.txt" "$d/mode_summary.py.txt" ${RPM_SCAN_RUN:+"$RPM_SCAN_RUN"})
+```
+
+**Counter-position for review.** Adopt this as a candidate roster and keep the proposed HQ count open until binary identity and coverage are established. An RPM checksum proves the downloaded payload matches its plan. The scanner does not emit Build IDs or installed-file hashes, and the payload plan cannot itself prove file identity on the TV. Close that join for the files we cite.
+
+- `map` measures the recorded A32 and Thumb spans. Leading or entirely unmarked regions can be absent, and the total-byte estimate extrapolates over them. Report covered and unknown bytes per file before treating byte shares as exact.
+- The condition field is a heuristic. Padding, embedded data and Thumb word alignment can shift the estimate. Calibrate on the actual image by producer, section and file size. The summary uses a rounded `cond >= 0.475` boundary while the scanner uses a strict Arm majority on unrounded values. Its size gate also uses total executable bytes instead of the number of eligible words. Reconcile those before using the agreement count. Keep `dyn` candidates separate because aliases can double-count symbol bytes.
+- `SCANNED` counts completed workers. The scanner can skip oversized inputs, unsupported or unreadable nested archives and non-regular paths. It discards the extractor's exit status and silently drops bad ZIP containers. Before claiming full coverage, retain extractor status, count skipped entries, report archive coverage explicitly and join file identities to Build IDs or hashes. For per-file causes, use the actual build evidence from B.
+
+## F. T5 and retained round 0002 evidence
+
+**T5 QuickBuild package export on native. Usually a few minutes, with light CPU and at most 32 MiB per REST or selected artifact response.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/qb37627297-export.sh.txt' -o "$d/qb37627297-export.sh.txt" && printf '%s  %s\n' '47c5defd31bb44f5ad769175c357f21e8385820398c96204d48bda6f42095045' "$d/qb37627297-export.sh.txt" | sha256sum -c - && QB_PACKAGE_ARTIFACT="${QB_PACKAGE_ARTIFACT:-}" bash "$d/qb37627297-export.sh.txt")
+```
+
+Uses the existing native netrc or an exported `QB_USER` prompt identity. If the parent API exposes no package rows, set `QB_PACKAGE_ARTIFACT` to the URL-encoded relative path of the actual package result artifact and rerun. Review the printed row count before treating the export as complete.
+
+**PIC matrix and RPM/member results on native. Usually seconds, with local CSV parsing and one retained copy. Network is limited to the script.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/print-pm0002-results.py.txt' -o "$d/print-pm0002-results.py.txt" && printf '%s  %s\n' '1edda3dc81106492ba613165352c5b60b401d5a30ed19824a458a8dba320f841' "$d/print-pm0002-results.py.txt" | sha256sum -c - && python3 -B "$d/print-pm0002-results.py.txt" pic)
+```
+
+**Compiler sample RPM/member results on native. Usually seconds, with local CSV parsing and one retained copy. Network is limited to the script.**
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/print-pm0002-results.py.txt' -o "$d/print-pm0002-results.py.txt" && printf '%s  %s\n' '1edda3dc81106492ba613165352c5b60b401d5a30ed19824a458a8dba320f841' "$d/print-pm0002-results.py.txt" | sha256sum -c - && python3 -B "$d/print-pm0002-results.py.txt" compiler)
+```
+
+
+Both printers read the existing `workspace/temp/pm0002` evidence and report missing files, counts by status and bounded previews. Return the numbered packet for any source CSV needed in full. HQ material remains a draft for PM review.

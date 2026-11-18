@@ -1,10 +1,11 @@
-# Status — 2026-11-17, round 0004
+# Status — 2026-11-17, round 0004 and addendum
 
 - Submit the 1118.1 Base-swap QB after both published LLVM binary pins and the expected Base-list diff. Kernel advisor evidence controls how results are interpreted.
 - KantSU2E is running Linux 6.12.60 built with Clang/LLD 22.1.8. The selected kernel shelf records both release advisors. The one-command gate checks the selected source and prints actual QB compiler evidence when the log is supplied.
 - Friday's MLGO report measures the kernel. User-space ELF identity is the control, with every unexplained byte difference listed.
 - The historical 106 lacks a recovered original image, report and method. Use the forthcoming user scan to assemble the command-backed roster. Appendix A was withdrawn. The new HQ response is a draft.
-- Return results from native or TV as at most 300 lines or compressed terminal packets. Argot target and Thumb compatibility still need the exact native build evidence.
+- Use the round 0004 pinned launchers after Claude review. The MLGO preflight passed Python 3.10.12 fixtures with `_lzma` blocked. Native binary pins and staged Base-list verification are pending.
+- The 2,342-RPM ARM scan has yet to start. T5, PIC and compiler-sample readbacks are ready for native execution. Argot target, Thumb compatibility and file-level provenance still need native evidence.
 
 [Round 0004 reply and commands](../comms/codex_to_claude/0004_reply.md)
 

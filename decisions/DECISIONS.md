@@ -218,3 +218,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Codex position: prefer compact result lines within 300 lines. Encode longer structured outputs as zlib+base64 with SHA-256, using numbered parts when needed. Retain the original native artifacts within vd-tree and give explicit terminal print commands.
 - Final decision: apply to all new native/TV commands. Earlier file-return instructions are historical where superseded.
 - Status: **Agreed — user direction**.
+
+## D-024 — Review and pin native and TV launchers
+
+- Date: 2026-11-17, round 0004 addendum.
+- Final decision: commit scripts under `artifacts/scripts/r0004/`. Claude reviews the script commit before sending native launchers. Use full commit pins and SHA-256 verification, compact terminal output, native Python 3.10 and retained results under vd-tree. Apply this to A and B as well as the new tasks.
+- MLGO: use the repaired preflight with `xz -dc`. The two binary pins and expected Base-list diff govern QuickBuild submission. Kernel source and actual job evidence govern interpretation.
+- ARM scan: stage the two PM inputs byte-identically and run a single background job with eight downloads when the operator launches it. Codex accepts the scan for candidate discovery. Build IDs, mapping coverage, extractor status and effective compile commands are needed for HQ attribution.
+- Status: **Agreed — user direction**. Scan methodology counter-position and native results are pending review.
