@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""Add dynamic function byte coverage to a retained ARMETA01 scan."""
+
+import argparse
+from collections import Counter, defaultdict
+import csv
+import hashlib
+import json
+from pathlib import Path
+import struct
+
+def records(path):
+    with path.open("rb") as source:
+        def take(n):
+            b = source.read(n)
+            if len(b) != n:
+                raise ValueError("truncated ARMETA01 data")
+            return b
+        def word():
+            return struct.unpack("<I", take(4))[0]
+        if take(8) != b"ARMETA01":
+            raise ValueError("unexpected input magic")
+        count = 0
+        while (length := word()):
+            filename = take(length).decode(errors="replace")
+            _size = word()
+            header = take(52)
+            n = struct.unpack_from("<H",header,48)[0]
+            sections = [struct.unpack("<10I",take(40)) for _ in range(n)]
+            tables = []
+            while (index := word()) != 0xFFFFFFFF:
+                size = word()
+                if size != sections[index][5]:
+                    raise ValueError("ARMETA01 section length mismatch")
+                if sections[index][1] == 11:
+                    tables.append(take(size))
+                else:
+                    source.seek(size,1)
+            if word():
+                raise ValueError("unexpected ARMETA01 terminator")
+            yield filename, sections, tables
+            count += 1
+        if word() != count or word() or source.read(1):
+            raise ValueError("unverified ARMETA01 footer")
+
+def sized_intervals(sections, tables):
+    spans = defaultdict(set)
+    for data in tables:
+        for _,value,size,info,_,ndx in struct.iter_unpack("<IIIBBH",data):
+            if info & 15 != 2 or not size or not 0 < ndx < len(sections):
+                continue
+            section = sections[ndx]
+            addr = value & ~1
+            if section[2] & 6 == 6 and section[3] <= addr and addr+size <= section[3]+section[5]:
+                spans[ndx].add((addr,addr+size,value & 1))
+    result = [0,0,0]
+    for ranges in spans.values():
+        events = defaultdict(lambda:[0,0])
+        for start,end,mode in ranges:
+            events[start][mode] += 1
+            events[end][mode] -= 1
+        active = [0,0]
+        previous = 0
+        for position,(a,t) in sorted(events.items()):
+            if any(active):
+                result[2 if all(active) else int(bool(active[1]))] += position-previous
+            active[0] += a
+            active[1] += t
+            previous = position
+    return result
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("metadata",type=Path)
+    parser.add_argument("mapping_tsv",type=Path)
+    parser.add_argument("output",type=Path)
+    args=parser.parse_args()
+    args.output.mkdir()
+    with args.mapping_tsv.open() as stream:
+        retained={r["path"]:r for r in csv.DictReader(stream,delimiter="\t")}
+    rows=[]
+    for path,sections,tables in records(args.metadata):
+        prior=retained.pop(path)
+        arm,thumb,conflict=sized_intervals(sections,tables)
+        exec_bytes=sum(s[5] for s in sections if s[2]&6==6 and s[1]!=8)
+        unknown=exec_bytes-arm-thumb
+        mapped=prior["classification"]
+        if mapped != "UNKNOWN_OR_TIE":
+            tag, evidence = mapped,"MAPPING_SYMBOLS"
+        elif arm > thumb+unknown or thumb > arm+unknown:
+            tag, evidence = ("ARM_DYNSYM_LOWER_BOUND" if arm>thumb+unknown else "THUMB_DYNSYM_LOWER_BOUND"),"DYNSYM_WEIGHTED"
+        else:
+            tag, evidence = "UNKNOWN_OR_TIE", "DYNSYM_PARTIAL" if arm or thumb else "UNCLASSIFIED"
+        rows.append((path,tag,evidence,exec_bytes,arm,thumb,conflict,round((arm+thumb)/exec_bytes*100,3) if exec_bytes else 0))
+    assert not retained
+    cols=("path","assessment","method","executable_bytes","exported_arm_bytes","exported_thumb_bytes","conflicting_bytes","exported_coverage_percent")
+    for start in range(0,len(rows),330):
+        with (args.output/f"mode-coverage-part-{1+start//330:02}.csv").open("w",newline="") as stream:
+            writer=csv.writer(stream,lineterminator="\n")
+            writer.writerow(cols)
+            writer.writerows(rows[start:start+330])
+    with args.metadata.open("rb") as stream:
+        digest=hashlib.file_digest(stream,"sha256").hexdigest()
+    summary={"paths":len(rows),"input_sha256":digest,"assessments":dict(Counter(r[1] for r in rows)),
+             "methods":dict(Counter(r[2] for r in rows)),
+             "rule":"Sized exported functions only. Overlapping aliases are unioned; conflicting ranges remain unknown. Mode requires its lower-bound bytes to exceed opposite plus unknown; never infer full coverage from dynsym.",
+             "scope":"Retained board ARMETA01 data. Build-ID debuginfo and build-tree enrichment pending."}
+    (args.output/"dynsym-summary.txt").write_text(json.dumps(summary,indent=2)+"\n")
+    print(json.dumps(summary))
+
+if __name__=="__main__":
+    main()

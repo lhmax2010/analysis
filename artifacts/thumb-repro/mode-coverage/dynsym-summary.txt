@@ -1,0 +1,19 @@
+{
+  "paths": 5120,
+  "input_sha256": "f87893221f026be6e12fb582ceba3a88c17c437bff2d9f053072f9d771b647f6",
+  "assessments": {
+    "THUMB_DYNSYM_LOWER_BOUND": 1658,
+    "UNKNOWN_OR_TIE": 3018,
+    "ARM_DYNSYM_LOWER_BOUND": 185,
+    "THUMB_PREDOMINANT": 232,
+    "ARM_PREDOMINANT": 27
+  },
+  "methods": {
+    "DYNSYM_WEIGHTED": 1843,
+    "DYNSYM_PARTIAL": 2121,
+    "UNCLASSIFIED": 897,
+    "MAPPING_SYMBOLS": 259
+  },
+  "rule": "Sized exported functions only. Overlapping aliases are unioned; conflicting ranges remain unknown. Mode requires its lower-bound bytes to exceed opposite plus unknown; never infer full coverage from dynsym.",
+  "scope": "Retained board ARMETA01 data. Build-ID debuginfo and build-tree enrichment pending."
+}

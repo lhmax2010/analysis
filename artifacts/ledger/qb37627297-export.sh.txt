@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# QuickBuild read-only export, run on the intranet native server.
+set -euo pipefail
+cd /home1/chengkai/vd-tree
+out=$(mktemp -d "$PWD/workspace/temp/qb37627297-export.XXXXXX")
+export TMPDIR="$out"
+qb=https://vdcosmos-hub.sec.samsung.net
+id=37627297
+auth=(--netrc-optional)
+if [[ -n ${QB_USER:-} ]]; then auth=(--user "$QB_USER"); fi
+get() {
+    local url=$1 dest=$2
+    curl -fsS --connect-timeout 8 --max-time 45 --max-filesize 33554432 "${auth[@]}" "$url" -o "$out/$dest"
+}
+for endpoint in '' /status /steps /repositories /dependencies; do
+    label=${endpoint#/}
+    label=${label:-build}
+    get "$qb/rest/builds/$id$endpoint" "$label.raw" || printf 'UNAVAILABLE %s\n' "$label"
+done
+get "$qb/rest/files?build_id=$id&path=artifacts" artifacts.xml || :
+if [[ -n ${QB_PACKAGE_ARTIFACT:-} ]]; then
+    if [[ "$QB_PACKAGE_ARTIFACT" == /* || "$QB_PACKAGE_ARTIFACT" == *..* || "$QB_PACKAGE_ARTIFACT" == *[?#]* ]]; then
+        echo 'Set QB_PACKAGE_ARTIFACT to the URL-encoded path relative to artifacts/' >&2
+        exit 2
+    fi
+    get "$qb/download/$id/artifacts/$QB_PACKAGE_ARTIFACT" package-result.original
+fi
+python3 -B - "$out" <<'PY'
+from pathlib import Path
+import csv,sys,xml.etree.ElementTree as ET
+root=Path(sys.argv[1])
+def xml(name):
+    try:
+        doc=ET.parse(root/name).getroot()
+        if doc.tag.lower().split('}')[-1]=='html':
+            print('LOGIN_OR_HTML',name)
+            return None
+        return doc
+    except (OSError,ET.ParseError):
+        return None
+def fields(node):
+    return {x.tag.split('}')[-1].lower().replace('_','').replace('-',''): (x.text or '').strip() for x in node}
+def choose(row,*keys):
+    return next((row[k] for k in keys if row.get(k)),'')
+def save(name,header,rows):
+    with (root/name).open('x',newline='') as f:
+        w=csv.writer(f,lineterminator='\n');w.writerow(header);w.writerows(rows)
+def result_rows(source):
+    for row in source:
+        pkg=choose(row,'sourcepackage','packagename','package','srpm')
+        state=choose(row,'status','result','outcome')
+        if pkg and state:
+            yield (pkg,choose(row,'arch','architecture'),state,choose(row,'id','stepid','buildid'),choose(row,'log','logurl','url'))
+
+steps=xml('steps.raw')
+job=list(result_rows(fields(node) for node in steps.iter())) if steps is not None else []
+artifact=root/'package-result.original'
+if artifact.is_file():
+    doc=xml(artifact.name)
+    if doc is not None:
+        package_rows=list(result_rows(fields(node) for node in doc.iter()))
+    else:
+        try:
+            with artifact.open(encoding='utf-8-sig',newline='') as stream:
+                first=stream.readline()
+                stream.seek(0)
+                reader=csv.DictReader(stream,delimiter='\t' if '\t' in first else ',')
+                clean=lambda k: ''.join(c for c in (k or '').lower() if c.isalnum())
+                package_rows=list(result_rows({clean(k):(v or '').strip() for k,v in row.items() if k} for row in reader))
+        except (UnicodeError, csv.Error):
+            package_rows=[]
+    if package_rows:
+        job=package_rows
+        print('PACKAGE_ROWS_SOURCE published-package-artifact')
+    else:
+        print('PUBLISHED_PACKAGE_ARTIFACT_UNRECOGNIZED: retained original for review')
+save('qb-build-results.csv',('source_package','arch','status','step_id','log'),job)
+artifacts=xml('artifacts.xml')
+if artifacts is not None:
+    for node in artifacts:
+        row=fields(node)
+        if row.get('name'):
+            print('PUBLISHED_FILE',row['name'],row.get('directory',''))
+if not job:
+    print('PACKAGE_ROWS_NOT_EXPOSED_BY_STEPS: use the package result export from the build overview or package job.')
+print('PACKAGE_ROWS_EXPORTED',len(job))
+PY
+printf 'T5_EXPORT_DIRECTORY %s\n' "$out"
+printf 'Build overview %s/build/%s\n' "$qb" "$id"

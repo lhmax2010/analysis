@@ -27,3 +27,5 @@ The full build-status table is `build_status.csv` plus parts02–03 (942 labels)
 - [PIC audit](pic-audit/README.md)
 - [Memory attribution](memory-attribution/README.md)
 - [Thumb reproduction](thumb-repro/README.md)
+
+- [MLGO Base preflight](mlgo/README.md)

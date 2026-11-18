@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+"""Compare pinned Base primary inventories and stage isolated QB input copies."""
+
+import bz2
+import csv
+import difflib
+import gzip
+import hashlib
+import lzma
+from pathlib import Path
+import re
+import subprocess
+import tempfile
+from urllib.parse import urljoin, urlsplit
+from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
+import xml.etree.ElementTree as ET
+
+ROOT = Path("/home1/chengkai/vd-tree")
+HOST = "repos.vd.sec.samsung.net"
+PREFIX = f"http://{HOST}/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_"
+OLD = PREFIX + "20261113.1/"
+NEW = PREFIX + "20261118.1/"
+PRODUCT = f"http://{HOST}/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/"
+PIN = "0b38aead137ec42dcd99dee28091acc1"
+PROJECT = "Tizen:10.0:Base:Dev:LLVM"
+OSC = ["osc", "-A", "http://168.219.245.220:80"]
+ARCS = ("armv7l", "x86_64")
+REP = "{http://linux.duke.edu/metadata/repo}"
+COM = "{http://linux.duke.edu/metadata/common}"
+RPM = "{http://linux.duke.edu/metadata/rpm}"
+BASE_FILE = "tizen10.0_base_urls_1114_noprelink.txt"
+SHELF = "tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt"
+CONF = "gbs_vd_llvm_11.16_qb37627297.conf"
+MANIFEST_HASH = {
+    BASE_FILE: "bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3",
+    SHELF: "c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736",
+}
+
+class RepoOnly(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, url):
+        require_repo(url)
+        return super().redirect_request(req, fp, code, msg, headers, url)
+
+def require_repo(url):
+    parsed = urlsplit(url)
+    if parsed.netloc != HOST or parsed.scheme not in ("http", "https"):
+        raise ValueError("unexpected repository URL")
+
+def fetch(url, limit=40*1024**2):
+    require_repo(url)
+    with build_opener(ProxyHandler({}), RepoOnly()).open(url, timeout=25) as stream:
+        data = stream.read(limit+1)
+    if len(data) > limit:
+        raise ValueError("repository metadata exceeds size cap")
+    return data
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+def unpack(data):
+    for magic, decode in [(b"\x1f\x8b", gzip.decompress), (b"BZh", bz2.decompress), (b"\xfd7zXZ", lzma.decompress)]:
+        if data.startswith(magic):
+            return decode(data)
+    if data.startswith(b"\x28\xb5\x2f\xfd"):
+        return subprocess.run(["zstd","-dc"], input=data, capture_output=True, check=True, timeout=45).stdout
+    return data
+
+def inventory(base, arch, stage):
+    repo = f"{base}repos/base/{arch}/packages/"
+    repomd = fetch(repo+"repodata/repomd.xml", 2*1024**2)
+    primary = ET.fromstring(repomd).find(f"{REP}data[@type='primary']")
+    checksum = primary.find(REP+"checksum")
+    compressed = fetch(urljoin(repo, primary.find(REP+"location").attrib["href"]))
+    alg = checksum.attrib["type"]
+    if hashlib.new("sha1" if alg == "sha" else alg, compressed).hexdigest() != checksum.text.strip():
+        raise ValueError("primary checksum mismatch")
+    rows = {}
+    for pkg in ET.fromstring(unpack(compressed)).findall(COM+"package"):
+        name = pkg.findtext(COM+"name")
+        platform = pkg.findtext(COM+"arch")
+        version = pkg.find(COM+"version").attrib
+        key = (name, version.get("epoch","0"), version["ver"], version["rel"], platform)
+        ck = pkg.find(COM+"checksum")
+        if ck.attrib["type"] != "sha256":
+            raise ValueError(f"SHA-256 metadata missing for {key}")
+        url = urljoin(repo, pkg.find(COM+"location").attrib["href"])
+        if not url.startswith(base):
+            raise ValueError(f"payload path leaves published snapshot for {key}")
+        row = (ck.text.strip(), pkg.findtext(f"{COM}format/{RPM}sourcerpm", default=""), url)
+        if key in rows and rows[key] != row:
+            raise ValueError(f"ambiguous NEVRA {key}")
+        rows[key] = row
+    if not rows:
+        raise ValueError(f"empty {repo}")
+    (stage/f"{arch}-repomd.xml").write_bytes(repomd)
+    (stage/f"{arch}-primary.download").write_bytes(compressed)
+    return rows
+
+def table(path, fields, rows):
+    with path.open("x", newline="") as stream:
+        writer = csv.writer(stream, lineterminator="\n")
+        writer.writerow(fields)
+        writer.writerows(rows)
+
+def inspect_conf(url, stage):
+    raw = fetch(url+"builddata/build.xml", 2*1024**2)
+    meta = ET.fromstring(raw)
+    (stage/"build.xml").write_bytes(raw)
+    pin = meta.findtext("buildconf") or ""
+    if not re.fullmatch(r"[0-9a-f]+-build\.conf", pin):
+        raise ValueError("published build.conf pointer absent")
+    data = fetch(url+"builddata/"+pin, 3*1024**2)
+    (stage/"published-build.conf").write_bytes(data)
+    print("BUILDCONF", meta.findtext("id"), meta.findtext("base_repo"), meta.findtext("buildconf_version"), sha(data))
+    for n, line in enumerate(data.decode(errors="replace").splitlines(),1):
+        if re.search(r"enable-ml-inliner|regalloc-enable-advisor|mlgo", line, re.I):
+            print(f"MLGO_CONFIG_L{n}: {line}")
+    return meta
+
+def stage_qb(out, old, new):
+    base = (ROOT/"manifest"/BASE_FILE).read_bytes()
+    shelf = (ROOT/"manifest"/SHELF).read_bytes()
+    for name, data in ((BASE_FILE,base),(SHELF,shelf)):
+        if sha(data) != MANIFEST_HASH[name]:
+            raise ValueError(f"control input drift: {name}")
+    conf = (ROOT/"config"/CONF).read_bytes()
+    if conf.count(OLD.encode()) != 1 or conf.count(PRODUCT.encode()) != 1:
+        raise ValueError("control config does not reference expected Base and Product once")
+    scoped_root = str(out/"gbs-root").encode()
+    staged_conf, count = re.subn(rb"(?m)^(buildroot\s*=\s*)[^\r\n]+", lambda m:m[1]+scoped_root,
+                                conf.replace(OLD.encode(),NEW.encode()))
+    if count != 1:
+        raise ValueError("expected one local GBS buildroot")
+    old_by_url = {v[2]:k for store in old.values() for k,v in store.items()}
+    new_by_key = {}
+    for store in new.values():
+        for k,v in store.items():
+            new_by_key.setdefault(k, set()).add(v[2])
+    rpm_urls = re.compile(re.escape(OLD)+r"[^\s<>\x22\x27]+\.rpm(?=\s|$)", re.M)
+    base_text = base.decode()
+    def replace_rpm(match):
+        url = match[0]
+        key = old_by_url.get(url)
+        if key is None:
+            raise ValueError(f"unresolved old RPM URL: {url}")
+        if key in new_by_key:
+            choices = new_by_key[key]
+        else:
+            choices = {u for k, urls in new_by_key.items()
+                       if (k[0], k[1], k[4]) == (key[0], key[1], key[4]) for u in urls}
+        mirrored = {u for u in choices if u.split("/packages/",1)[0].replace(NEW,OLD) == url.split("/packages/",1)[0]}
+        if mirrored:
+            choices = mirrored
+        if len(choices) != 1:
+            raise ValueError(f"missing or ambiguous new RPM for {url}")
+        return next(iter(choices))
+    changed = rpm_urls.sub(replace_rpm, base_text)
+    for line in changed.splitlines():
+        if OLD in line and line.strip() not in (OLD, OLD.rstrip("/")):
+            raise ValueError("old Base reference needs format-specific reconciliation")
+    changed = changed.replace(OLD, NEW).replace(OLD.rstrip("/"), NEW.rstrip("/"))
+    if changed == base_text and "20261113.1" in base_text:
+        raise ValueError("unresolved snapshot marker")
+    for filename, original, candidate in (
+        ("gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf",conf,staged_conf),
+        ("tizen10.0_base_urls_1118.1_mlgo_noprelink.txt",base,changed.encode()),
+        (SHELF,shelf,shelf)
+    ):
+        (out/filename).write_bytes(candidate)
+        diff = "".join(difflib.unified_diff(original.decode().splitlines(True),candidate.decode().splitlines(True),
+                                           fromfile="control",tofile=filename))
+        (out/(filename+".diff")).write_text(diff)
+        print("STAGED",out/filename,sha(candidate))
+
+def main():
+    out = Path(tempfile.mkdtemp(prefix="pm0003-mlgo-", dir=ROOT/"workspace/temp"))
+    print("WORKDIR",out,flush=True)
+    inventories = {}
+    for label,url in (("official",OLD),("custom",NEW),("product",PRODUCT)):
+        stage = out/label
+        stage.mkdir()
+        try:
+            meta = inspect_conf(url, stage)
+            if label=="product" and (meta.findtext("base_repo")!=OLD or
+                not (meta.findtext("buildconf_version") or "").endswith("@14452507")):
+                raise ValueError("retained Product inputs do not match")
+        except Exception as exc:
+            print("CONFIG_REVIEW",label,exc)
+        if label != "product":
+            inventories[label] = {arch:inventory(url,arch,stage) for arch in ARCS}
+    old,new = inventories["official"],inventories["custom"]
+    fields = ("repo_arch","name","epoch","version","release","arch","sha256","sourcerpm","url")
+    for label,stores in inventories.items():
+        table(out/f"{label}-full-inventory.csv", fields,
+              [(arch,*key,*value) for arch,store in stores.items() for key,value in sorted(store.items())])
+    rows=[]
+    llvm=[]
+    for arch in ARCS:
+        for key in sorted(old[arch].keys() | new[arch].keys()):
+            before = old[arch].get(key, ("","",""))
+            after = new[arch].get(key, ("","",""))
+            if before[:2] != after[:2]:
+                rows.append((arch,*key,"ADDED" if not before[0] else "REMOVED" if not after[0] else "CHANGED",
+                             before[0],after[0],before[1],after[1]))
+            if after[0] and after[1].startswith("llvm-22.1.8-"):
+                llvm.append((arch,*key,*after))
+    diff_fields=(*fields[:6],"delta","official_sha256","custom_sha256","official_srpm","custom_srpm")
+    table(out/"full-delta.csv",diff_fields,rows)
+    table(out/"non-llvm-delta.csv",diff_fields,
+          [row for row in rows if not any(x.startswith("llvm-22.1.8-") for x in row[-2:])])
+    table(out/"custom-llvm-rpms.csv",fields,llvm)
+    stage_qb(out,old,new)
+    source_result = subprocess.run(OSC+["api",f"/source/{PROJECT}/llvm?rev=12"], capture_output=True,timeout=45)
+    if source_result.returncode == 0:
+        (out/"llvm-rev12.xml").write_bytes(source_result.stdout)
+        directory = ET.fromstring(source_result.stdout)
+        print("OBS_REV12", directory.attrib.get("rev"), directory.attrib.get("srcmd5"))
+    for arch in ARCS:
+        matching = [row for row in llvm if row[0]==arch and row[1]=="clang" and row[5]==arch]
+        print("CANDIDATE_CLANG",arch,matching,flush=True)
+        try:
+            if source_result.returncode or directory.attrib.get("rev") != "12" or directory.attrib.get("srcmd5") != PIN:
+                raise ValueError("unable to verify OBS revision 12 with expected srcmd5")
+            if len(matching) != 1:
+                raise ValueError("expected one clang RPM for architecture")
+            api=f"/build/{PROJECT}/standard/{arch}/llvm"
+            # Match the pinned published binary to the build identified by _buildinfo.
+            info=subprocess.check_output(OSC+["api",api+"/_buildinfo"],timeout=45)
+            (out/f"{arch}-llvm-buildinfo.xml").write_bytes(info)
+            info_root=ET.fromstring(info)
+            source=info_root.attrib.get("srcmd5") or info_root.findtext("srcmd5")
+            if source!=PIN:
+                raise ValueError(f"unexpected llvm source hash {source}")
+            rpm_name=matching[0][-1].rsplit("/",1)[-1]
+            rpm_url=api+"/"+rpm_name
+            binary=subprocess.check_output(OSC+["api",rpm_url],timeout=180)
+            if sha(binary)!=matching[0][-3]:
+                raise ValueError("published clang SHA-256 differs from OBS job binary")
+            print("PINNED_LLVM_BINARY",arch,rpm_name,sha(binary),source)
+            (out/f"{arch}-clang.rpm").write_bytes(binary)
+        except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError) as exc:
+            print("LLVM_PROVENANCE_REVIEW",arch,exc)
+    print("REVIEW_BEFORE_SUBMIT: verify effective advisors for both snapshots, actual QB control inputs, and non-llvm-delta.csv.")
+    print("REPORT_DIRECTORY",out)
+
+if __name__=="__main__":
+    main()

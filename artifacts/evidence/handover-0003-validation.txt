@@ -1,0 +1,7 @@
+Original PM request SHA-256: 0acbc21691aaad900cfb7d61384569b4bbddf2a306c2a4b32ba79e6449f034a4
+Original request preserved byte-for-byte.
+Round checker verified 50 unique progress milestones and 5120 unique retained baseline records across 16 mode CSV parts.
+MLGO staging fixture: pinned old RPM remapped to changed new NEVRA. Product and shelf contents preserved. Control manifest checks require exact digest.
+T5 fixture: explicit package FAILED row exported. Parent SUCCESS row excluded.
+Shell scripts parsed successfully. Native repository and QuickBuild endpoints timed out from workstation.
+Actual 1118.1 package inventory, advisor default, binary pin and QB package outcomes require native access.

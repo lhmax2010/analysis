@@ -1,0 +1,20 @@
+# Sized dynamic-symbol byte coverage
+
+The 16 CSV parts cover all 5,120 retained board paths. Each row identifies the best available method, executable extent, observed exported bytes and unresolved overlap. The mapping-symbol result has precedence where conclusive. Inspect the summary before using the expanded counts. [Summary](dynsym-summary.txt)
+
+- [mode-coverage-part-01](mode-coverage-part-01.csv)
+- [mode-coverage-part-02](mode-coverage-part-02.csv)
+- [mode-coverage-part-03](mode-coverage-part-03.csv)
+- [mode-coverage-part-04](mode-coverage-part-04.csv)
+- [mode-coverage-part-05](mode-coverage-part-05.csv)
+- [mode-coverage-part-06](mode-coverage-part-06.csv)
+- [mode-coverage-part-07](mode-coverage-part-07.csv)
+- [mode-coverage-part-08](mode-coverage-part-08.csv)
+- [mode-coverage-part-09](mode-coverage-part-09.csv)
+- [mode-coverage-part-10](mode-coverage-part-10.csv)
+- [mode-coverage-part-11](mode-coverage-part-11.csv)
+- [mode-coverage-part-12](mode-coverage-part-12.csv)
+- [mode-coverage-part-13](mode-coverage-part-13.csv)
+- [mode-coverage-part-14](mode-coverage-part-14.csv)
+- [mode-coverage-part-15](mode-coverage-part-15.csv)
+- [mode-coverage-part-16](mode-coverage-part-16.csv)

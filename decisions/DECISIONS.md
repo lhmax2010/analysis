@@ -114,7 +114,7 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Date: 2026-11-17.
 - Options: infer compiler from dependency metadata or inspect pinned payloads and source package provenance.
 - Claude position: inspect installed NEVRA and ARM ELF, use DWARF when available, and count eligible source packages. Track QB health separately.
-- Codex position: agree. Keep `UNKNOWN` when marker or producer coverage is incomplete. A GCC-only marker can come from CRT. Report denominator completeness and preserve multiple installed SRPM versions.
+- Codex position: agree. Keep `UNKNOWN` when marker or producer coverage is incomplete. A GCC-only marker can come from CRT. Report denominator completeness and preserve multiple installed SRPM versions. Publish the lower bound CLANG / eligible and upper bound (CLANG + UNKNOWN) / eligible with explicit Unknown and the eligible denominator. If package eligibility is also unknown, report counts and the unresolved denominator.
 - Final decision: proposed. Observed 2,342 installed identities with exact repository metadata matches. Payload and compiler coverage are pending.
 - Status: **Proposed**.
 
@@ -124,6 +124,7 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Options: fixed-board repeated scenarios or ad hoc observations.
 - Claude position: fixed conditions and repetitions, case-specific metrics, median/IQR/CI, proposed 2% margin.
 - Codex position: agree, with separate absolute criteria for zero or rare events such as OOM and stalls. Use paired or blocked CIs and mark wide intervals inconclusive. Lack of statistical significance alone provides insufficient evidence for adoption.
+- Absolute event rule agreed in 0003: a new crash, LMK/OOM kill, ANR or audio/video underrun signature in the scenario is a regression independent of CI. Record per-zone free/min watermarks during playback.
 - Final decision: proposed. App list, workloads and margins are reviewed before scored runs.
 - Status: **Proposed**.
 
@@ -133,7 +134,7 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Options: targeted producer packaging flags, global ARM32 PIC, or an additional compiler option.
 - Claude position: targeted packaging rule and a relocation screen validated on the 56 matrix cases, followed by the 92 pinned RPMs.
 - Codex position: agree. The listed relocations are a screening signal. Record their executable target section and the real consumer. A link can fail for other relocations or ABI conditions. Keep allowlisting bound to an intended use.
-- Final decision: proposed. Local ARM assembler fixtures verified the basic classifier. The complete matrix and pinned RPM check run in the native environment before counting affected packages.
+- Final decision: proposed. Local ARM assembler fixtures verified the basic classifier. The complete matrix and pinned RPM check run in the native environment before counting affected packages. Claude schedules T7 review for Thursday, with refresh after T6.
 - Status: **Proposed**.
 
 ## D-015 — TV board use
@@ -187,5 +188,24 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Options: reversible reservation first, then a boot-map limit with proven rollback.
 - Claude position: records the user's physical budget, Method A first and matched A/B comparison.
 - Codex position: agree with ordering. Map the relevant carveouts and verify which pools are needed for the actual 4K path before calculating the target. Start with a bounded reservation pilot. Require a free-memory floor, predictable teardown and a tested root execution path before issuing a large lock.
-- Final decision: capture current memory and reservations first. Method A is a pressure approximation. Method B needs exact address ranges, a saved boot environment and a verified reflash/restore path. Compare three matched runs per method before selecting routine use.
+- Final decision: capture current memory and reservations first. Method A is a pressure approximation. Method B needs exact address ranges, a saved boot environment and a verified reflash/restore path. Compare three matched runs per method before selecting routine use. In the attended session ramp through 16, 64, 256 MiB and the validated target as applicable. Skip increments above the target. Monitor dmesg/LMK, MemAvailable, LowFree/HighFree, per-zone free/min and 4K playback. Release the holder immediately after a system-process LMK kill, watchdog warning or playback failure. Verify the actual lowmem/highmem split rather than inferring it from allocation flags.
 - Status: **Agreed — user direction**.
+
+
+## D-021 — Official versus Customized MLGO this week
+
+- Date: 2026-11-17. Due Friday 20 November.
+- Options: frozen whole-image Base substitution, a same-revision reference/custom attribution pair, and kernel results where qualification permits.
+- Claude position: records user direction to use the running 1113.1 board as Official control and produce a 1118.1 image with matching Product, build.conf, shelves and QB configuration. Verify model selection, advisor activity and RPM differences before submission.
+- Codex position: agree. The source defaults embed custom models. Effective advisors and the published binary pin require the intranet preflight. Use a same-rev12 A/B with reference/custom objects but identical SR runtime to isolate models. A Base delta includes all package changes. Confirm kernel provenance before adding kernel measurements.
+- Final decision: the weekly whole-image lane takes contested native capacity ahead of 10.1 and ledger I/O. User submits QB after reviewing the preflight. Changes to effective advisor flags require a recorded decision if the original configuration uses heuristics. Use the smaller deadline benchmark set and publish run-level evidence.
+- Status: **Agreed — user direction**.
+
+## D-022 — ARM-mode evidence and Thumb transition
+
+- Date: 2026-11-17. Requested HQ follow-up by Wednesday 25 November.
+- Options: mapping-symbol baseline, coverage-weighted dynamic function symbols, matched debuginfo and retained build-tree objects.
+- Claude position: combine methods per file, identify ARM-mode causes, measure paired size results and run Bluetooth and DRM regressions.
+- Codex position: agree. Sized dynamic symbols establish lower bounds. Use a conservative threshold with unknown bytes, union aliases, and verify debuginfo by Build ID and actual section/symbol evidence.
+- Final decision: proposed. 5,120 packaged ELF path results are staged with method labels. Prioritize Bluetooth and Widevine, retain necessary ARM-only files and trace overrides. Archive the HQ appendix as sent after user confirmation.
+- Status: **Proposed**.

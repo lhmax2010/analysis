@@ -25,3 +25,5 @@
 - [Live board and RPM capture summary](board-readonly-20261117.txt)
 - [Board memory map](board-memory-map-20261117.txt)
 - [Round 0002 checks](handover-0002-validation.txt)
+
+- [Round 0003 checks](handover-0003-validation.txt)

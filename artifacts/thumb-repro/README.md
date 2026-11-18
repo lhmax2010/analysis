@@ -7,3 +7,9 @@
 - [Debug review](../evidence/thumb-debug-review.txt) preserves source examples and pending compile commands.
 
 The historical 106 figure has no recoverable input list, image identity, threshold or file scope in the reviewed records. D-019 requires reproducing it before claim reuse. Use this labelled retained baseline and match more debuginfo by Build ID on the current image. Check actual compiler commands and source directives before assigning cause. Estimate gains by paired ARM/Thumb recompiles of the affected objects with other flags fixed. No per-file size gain can be inferred from mapping spans alone.
+
+## Round 0003 mode coverage
+
+The retained `.dynsym` byte scan now covers all 5,120 rows. It yields 185 additional ARM and 1,658 additional Thumb lower-bound classifications, with 3,018 still unresolved. The strict threshold requires known mode bytes to exceed opposite plus all unknown executable bytes. Preserve the earlier mapping-only 27/232 counts as a separate method. Alias intervals are unioned and conflicts remain unknown. [Weighted coverage and per-file CSV](mode-coverage/README.md)
+
+The retained debuginfo summary reports unknown mapping spans. It did not establish that each debug file lacks `.symtab`. Verify the actual retained file with Build ID, section headers and exact mapping symbol names. Then associate debug symbol sections with the runtime virtual addresses before merging. The paired size queue starts with bluetooth-impl-sec-oal and widevine-cdm once their source and ARM-only files are identified. Bluetooth audio and DRM playback are required before accepting changes.
