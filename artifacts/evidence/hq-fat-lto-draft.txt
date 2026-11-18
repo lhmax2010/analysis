@@ -1,6 +1,6 @@
 Thank you for the careful review. Our earlier validation did not sufficiently cover native consumption of fat objects. Following your comments, we analyzed this path and added paired LTO/native tests.
 
-In the Tizen ARM matrix, 38 of 56 cases linked and passed runtime checks; the remaining 18 were rejected at link time for incompatible native relocations. All 90 runtime invocations passed. For both GCC and Clang, the tested non-PIC fat inputs passed through their matched LTO paths, while native consumption of the same inputs for shared-library/PIE probes was rejected. The tested failures therefore stopped the build. This conclusion applies to the verified cases and linker settings, including -z text; it is not a guarantee for every native input or configuration.
+Of the 56 synthetic test fixtures in the Tizen ARM matrix, 38 linked and passed runtime checks; the remaining 18 were rejected at link time for incompatible native relocations. All 90 runtime invocations passed. For both GCC and Clang, the tested non-PIC fat inputs passed through their matched LTO paths, while native consumption of the same inputs for shared-library/PIE probes was rejected. The tested failures therefore stopped the build. This conclusion applies to the verified cases and linker settings, including -z text; it is not a guarantee for every native input or configuration.
 
 Our next validation batch covers 8 RPM entries plus 1 package-internal build-input scenario:
 

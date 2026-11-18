@@ -18,3 +18,5 @@ Native files remain under `/home1/chengkai/vd-tree`, including retained builds, 
 The debug CU paste was structurally reconciled by package/file/BuildID and producer counts, but tabs/trailing whitespace changed. See [validation](../artifacts/evidence/thumb-paste-validation.txt). Exact original hashes reported by the native collector are provenance claims, not byte-verified local TSV hashes.
 
 Split `.txt` source/patch snapshots can be concatenated in numeric order; directory indexes explain scope. CSV chunks repeat headers and are combined by parsed rows. Historical Markdown fragments are for web review, not executable files.
+
+Round 0002 adds the [board inventory](../artifacts/board-inventory.md), [installed ledger](../artifacts/ledger/README.md), [PIC audit](../artifacts/pic-audit/README.md), [memory attribution](../artifacts/memory-attribution/README.md), [Thumb reproduction](../artifacts/thumb-repro/README.md) and [HQ drafts](../hq/README.md).

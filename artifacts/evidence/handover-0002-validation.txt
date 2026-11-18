@@ -1,0 +1,11 @@
+Original PM file SHA-256: 826b4bb1dd923e520f68d742db0e3ec67d02794d477f33c8e59f4f59cbb2ef9e
+Byte comparison against Downloads input: equal
+Board identity, RPM and memory capture: collected over SDB
+SDB initial and restored account: uid 5001
+Installed RPM CSV and exact NEVRA metadata joins: 2342 rows each across 8 numbered parts
+Retained Thumb metadata decode: matches all 5120 retained classifications in aggregate and all 27 ARM paths
+ARM PIC classifier: executable ABS32/MOVW/MOVT reported, debug-only ABS32 ignored, ordinary archive accepted, thin archive flagged for review
+RPM runner: synthetic cpio streaming check passed; live pinned RPM lane pending
+Exact Tizen matrix index: 56 original fixture references, 18 expected native relocation rejects, 92 RPM identities listed
+Method A C pilot: host build with warnings treated as errors and oversize rejection passed; ARM deployment pending
+Repository checks: English readable text, <=400 lines per file, relative links and directory indexes

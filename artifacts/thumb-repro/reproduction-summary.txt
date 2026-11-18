@@ -1,0 +1,15 @@
+{
+  "records": 5120,
+  "counts": {
+    "UNKNOWN_OR_TIE": 4861,
+    "THUMB_PREDOMINANT": 232,
+    "ARM_PREDOMINANT": 27
+  },
+  "breakdown": {
+    "no_a_or_t_span": 4861,
+    "no_static_symbol_table_all_records": 4860
+  },
+  "collector_errors": 0,
+  "original_106_reproduced": false,
+  "known_arm_paths_with_marm": 7
+}

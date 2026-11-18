@@ -1,26 +1,22 @@
-# Status — 2026-11-17, handover round 0001
+# Status — 2026-11-17, round 0002
 
-Review state: **Pending Claude review**. This round exports existing evidence; no new builds/heavy jobs or target/OBS changes.
+- The TV boots the LLVM-configured image. Installed RPM identities and the live memory map are recorded.
+- The compiler coverage count needs RPM payload and producer checks. The board matched 2,342 package identities to repository metadata.
+- The PIC design draft is ready for review. Local ARM screening passed a smoke check, and the full validation needs the retained native-server fixtures.
+- Next, refresh OBS MLGO status and server capacity, screen the pinned inputs and use controlled playback for memory attribution. The 10.1 track continues in parallel.
+- Before a full 1 GB trial, confirm the 4K memory carveouts and an attended test window. A later boot limit needs the exact recovery procedure.
 
-[Verified] The [master tracker](../artifacts/progress_tracker.csv) reconciles the existing parallel plan, historical reports and **986 action rows / 942 package labels**. Full detail: [overall progress](../handover/00_overall_progress.md). Overall adaptation/performance/memory percentages are **unknown**, because the agreed denominator and current complete acceptance results are unavailable.
+Round 0001 was accepted as the baseline. Round 0002 results and proposal updates await review. [Reply and commands](../comms/codex_to_claude/0002_reply.md)
 
 | Workstream | Evidence-backed state | Next gate |
 |---|---|---|
-| 10.0 migration | LLVM-configured image produced/booted; full source compiler and test acceptance unproven | Freeze provenance; qualify remaining compiler/Global Options/LTO rows |
-| gst-ffmpeg | Both compiler builds and scoped Clang TV USB regression passed | Current-image provenance and endurance |
-| AVControl | Three scoped builds and static import closure passed; allocated ELF reduction 65.49% in Clang control/candidate | Dynamic consumers and target runtime |
-| Customized MLGO | Complete-runtime source rev12 committed; last observed both OBS architectures building | Successful RPMs, actual advisors, Base publication, fixed-input kernel A/B |
-| 10.1 parallel | ARM bootstrap and scoped private-linker tests passed | Production x86 acceleration/plugin/model-runtime matching and package/image validation |
-| HQ PIC / ABI | 56 ARM probe cases reviewed; 9 planned acceptance rows; 5 historical ABI/export cases | Actual consumer-level defects and scope remain to qualify |
-| Thumb | Board/debug evidence retained; 7 non-CRT explicit ARM-mode ELFs in 2 RPM families | Recover original106 cohort and compile-command causes |
-| Performance / memory | Historical static experiments documented | Repeated controlled KantSU2E measurements and combined regression |
+| 10.0 image/compiler ledger | T-KSU2EJAKUC-0101-PERF-202611171009, 2,342 installed RPMs, 1,839 source strings | Payload, DWARF/source attribution, in-scope coverage and exact QB job export |
+| gst-ffmpeg and AVControl | Scoped TV seek regression and AVControl static closure still valid | Repeated current-image and dynamic consumer acceptance |
+| Customized MLGO | Latest retained OBS evidence shows rev12, armv7l/x86_64 building | T1 status-only refresh on native server |
+| 10.1 parallel | Scoped bootstrap, smoke and RPM layout passed | Production accelerator compatibility, bounded by D-018 |
+| HQ PIC/ABI | Producer policy drafted, 56 synthetic outcomes retained, basic ARM classifier exercised | Native 56-case validation then 92 pinned RPM identities and consumer attribution |
+| Thumb | 27 ARM and 232 Thumb retained cohort reproduced. 4,861 unknown lack usable mapping spans | Expand Build-ID debug coverage, classify causes and measure paired Thumb size |
+| 1 GB / memory | Memory ranges and normal-board top-20 VMA evidence recorded | 4K pool mapping, attended Method A pilot, paired measurements |
+| Capacity | Last available /home1 239.68 GiB, older vd-tree size 348.73 GiB | Live native capture and confirmed concurrency bounds |
 
-Top three issues:
-
-1. **Acceptance/provenance gap:** no complete current package build ledger or signed-off exceptions/target gates. Historical action counts cannot supply a pass rate.
-2. **Toolchain delivery gates:** MLGO runtime compilation/publication is not yet evidenced; 10.1 production accelerator compatibility is still open.
-3. **HQ evidence boundary:** PIC native rejection was demonstrated for the probes, not every non-PIC input. Original106 attribution and production affected-package counts remain incomplete.
-
-Next step: Claude reviews [reply0001](../comms/codex_to_claude/0001_handover_reply.md) and [decisions](../decisions/DECISIONS.md). Proposed execution priorities are [here](../handover/09_proposed_plan.md); no implementation is started by this handover.
-
-Evidence links and all counts: [build](../handover/05_build_status.md), [runtime](../handover/06_runtime_status.md), [measurements](../handover/07_perf_memory.md). Live native-server job status and OBS ETA are unknown; “building” is the last supplied observation, not a live query.
+[Tracker](../artifacts/progress_tracker.csv) records scoped completions and current dependencies. Overall adaptation coverage and performance/memory acceptance remain unknown.

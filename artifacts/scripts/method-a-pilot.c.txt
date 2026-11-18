@@ -1,0 +1,84 @@
+#define _DEFAULT_SOURCE
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+static unsigned long mem_available(void)
+{
+    FILE *mem = fopen("/proc/meminfo", "r");
+    char line[256];
+    unsigned long kib = 0;
+
+    if (!mem)
+        return 0;
+    while (fgets(line, sizeof(line), mem)) {
+        if (sscanf(line, "MemAvailable: %lu kB", &kib) == 1)
+            break;
+    }
+    fclose(mem);
+    return kib;
+}
+
+static unsigned long bounded(const char *s, unsigned long limit)
+{
+    char *end;
+    unsigned long n;
+
+    if (*s < '0' || *s > '9')
+        return 0;
+    errno = 0;
+    n = strtoul(s, &end, 10);
+    return errno || *end || n > limit ? 0 : n;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 3) {
+        fprintf(stderr, "usage: %s MiB (1–16) seconds (1–60)\n", argv[0]);
+        return 2;
+    }
+    unsigned long mib = bounded(argv[1], 16);
+    unsigned long seconds = bounded(argv[2], 60);
+    unsigned long before = mem_available();
+    long page = sysconf(_SC_PAGESIZE);
+    if (!mib || !seconds || page <= 0 || before < 256 * 1024 + mib * 1024) {
+        fprintf(stderr, "input or memory headroom check failed\n");
+        return 2;
+    }
+    size_t length = mib * 1024 * 1024;
+    volatile unsigned char *region = mmap(NULL, length, PROT_READ | PROT_WRITE,
+                                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (region == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+    if (mlock((void *)region, length)) {
+        perror("mlock");
+        munmap((void *)region, length);
+        return 1;
+    }
+    for (size_t offset = 0; offset < length; offset += (size_t)page)
+        region[offset] = 1;
+
+    /* Change only this disposable process. Refuse partial acceptance. */
+    FILE *oom = fopen("/proc/self/oom_score_adj", "w");
+    if (!oom) {
+        perror("oom_score_adj");
+        munmap((void *)region, length);
+        return 1;
+    }
+    int write_failed = fputs("-1000\n", oom) < 0;
+    if (fclose(oom) || write_failed) {
+        perror("oom_score_adj");
+        munmap((void *)region, length);
+        return 1;
+    }
+    printf("held_bytes=%zu hold_seconds=%lu before_kib=%lu held_kib=%lu\n",
+           length, seconds, before, mem_available());
+    fflush(stdout);
+    sleep((unsigned int)seconds);
+    munmap((void *)region, length);
+    return 0;
+}

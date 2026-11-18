@@ -1,0 +1,6 @@
+area,observed_identity,current_compiler,clang_feasibility,risk,first_effort_estimate,evidence_needed
+kernel,KantSU2E Linux 6.12.60,Unknown,Pending; MLGO study can provide build evidence,High boot and vendor compiler/assembly sensitivity,1-2 engineer days initial source and build review,Kernel manifest and source config; compiler verbose build; actual boot control
+kernel modules,Installed and bundled .ko provenance pending,Unknown,Pending with kernel,High module ABI and signing,1-2 engineer days initial inventory,Module manifests and matched kernel configuration; vermagic and signing
+bootloader,Image component identity pending,Unknown,Pending,High boot recovery and signing,1-2 engineer days documentation before build,Source/board defconfig and exact known-good recovery path
+TEE,trustzone-tee-teelib-3.6.0-1.armv7l,Unknown,Pending per shipped component,High secure-world compatibility and signing,1-2 engineer days inventory,Separate runtime libraries from firmware; compiler logs and licensing/build support
+drivers,trustzone-drivers-perf-3.6.0-1.armv7l plus vendor modules pending,Unknown,Pending per driver,High device functionality and kernel ABI,1-3 engineer days initial mapping,Source ownership and build logs; paired module/firmware qualification

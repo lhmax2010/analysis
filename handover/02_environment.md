@@ -11,7 +11,7 @@
 | TV | `192.168.108.13:26101`, KantSU2E; additions confined to `/root` | [Verified] retained SDB capture; earlier .25 address was corrected |
 | GitHub | `lhmax2010/analysis`, `main`, public | [Verified] repository metadata this round |
 
-Native server OS, cores, RAM, currently free disk and exact shared-user load: **unknown in reviewed current evidence**. Hardware name is not a resource measurement. Sharing policy, heavy-job windows and maximum global concurrency are not established. The retained isolated LLVM bootstrap used six compile jobs and two link jobs; that is not a general server capacity approval.
+[Verified: 14–16 November report] The last retained post-cleanup /home1 available space was **239.68 GiB**. An earlier inventory in that report measured **348.73 GiB** in vd-tree. These are separate dated observations. Current CPU, RAM, free disk and shared load need the T2 capture. [Weekly report](../artifacts/historical-reports/Weekly_Progress_and_Next_Plan_20261114.md) The retained isolated LLVM bootstrap used six compile jobs and two link jobs; that is not a general server capacity approval.
 
 ## Tool versions
 
@@ -36,4 +36,8 @@ GitHub plugin authentication has read-only permission on this repository. Existi
 
 Use `TMPDIR=/home/toolchain/Desktop/temp/analysis-work/tmp` locally and disable Python bytecode with `-B`. Build caches/output must remain in the authorized workspace. The supplied GBS configuration contains an old buildroot outside `vd-tree`; new execution must override it into `vd-tree`.
 
-No server reboot, global compiler replacement, binfmt change, broad cleanup or target package installation is authorized by this information-only handover. Retain builds and evidence. Resource-heavy work should be scheduled after capacity confirmation; avoid concurrent large LLVM builds by assumption.
+The user authorizes the agreed native builds, scans and measurements under D-018. A recorded decision is required before an OBS mutation, shelf/CL submission or formal manifest change.
+
+The local memory directory contains surviving handover notes, historical plans and reports from earlier project sessions, plus subsequent Codex evidence reviews and checkpoints. Individual historical authorship is recorded where known. Claude's current PM session has the shared repository. The earlier account is unavailable. Under D-019, results supported only by that account need reproduction before reuse.
+
+[Assumption/Memory: initial capacity rule] Pending the live capture, plan four tasks at a time. At most one LLVM/QB-scale build and one package build in parallel, with the other slots reserved for light work. Before starting a heavy job use the smaller of the RAM-based and disk-based limits, with a provisional post-reservation floor of 16 GiB available RAM and 50 GiB available disk. Use peak usage from retained comparable jobs before reserving a heavy slot. The prior six-compile/two-link setting is a starting profile, subject to resources. Raise task concurrency toward eight only after measurements show headroom. Give the 10.0 product work precedence for contested heavy slots.

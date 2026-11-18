@@ -6,7 +6,7 @@
 
 [Verified: retained Base/SDK report](../artifacts/historical-reports/base-changes-part-01.md): intentional GCC toolchain components, vendor prebuilts, SDK/cross tools and other-language builds are distinct from source packages accidentally bypassing Clang. GCC-built code is not automatically an ABI defect. Kernel/TEE/driver builds use separate compiler mechanisms. Rust uses its own LLVM-based compiler and Go its own toolchain.
 
-**Final exception register is not signed off.** The historical scope retains glibc, GCC/cross GCC and selected tools. Do not infer user approval to change kernel, bootloader, Fortran or all vendor binaries. The new Customized MLGO kernel study is a separate experimental workstream, not proof of a global kernel compiler transition.
+[Verified: D-016 user direction] The allowed categories are RPMs that require GNU GCC for a documented technical reason and RPMs whose content is outside our Clang/GCC compilation, such as Rust, Go, scripts, data or vendor prebuilts. Record the evidence per package. Track vendor prebuilts separately for memory studies. Assess kernel, modules, bootloader, TEE and drivers individually as in-scope candidates where shipped as RPMs. The MLGO kernel experiment can provide feasibility evidence. [Decision register](../decisions/DECISIONS.md)
 
 | Architecture | Role | Evidence/status |
 |---|---|---|
@@ -15,18 +15,10 @@
 | aarch64 | Model/runtime assets and cross components | [Verified] assets prepared; complete device acceptance unknown |
 | riscv64 | Historical cross-toolchain configuration | [Verified] historical report; no active product acceptance evidence |
 
-## Proposed definition of done
+## Adaptation and optimization acceptance
 
-[Assumption/Memory: Codex proposal, D-008] Agree the exact source package universe and justified exceptions, then require:
+D-012 proposes coverage across eligible installed source C/C++ packages after D-016 exceptions, backed by compiler provenance for shipped code. Keep build and runtime acceptance as separate gates. Adaptation requires a reproducible image, validated package outcomes and boot, compatibility, product suites and stability results.
 
-1. Reproducible Base/Product inputs and an actual compiler/options/LTO ledger for each in-scope package.
-2. Successful package and image builds, provenance-verified boot, ABI/SDK/vendor compatibility and required product tests.
-3. Same-board, same-workload performance and PSS/private-memory measurements with repeated runs, plus long-term stability.
-4. One-change module experiments followed by combined-image regression. Compiler, Thumb, LTO and MLGO effects must be separated.
-5. Approved adoption/hold/rollback decision per candidate, with a recoverable control image and exception register.
-
-[Verified: user direction retained in current checkpoint] All accepted optimizations must run on **KantSU2E** and produce measurements. Static savings and host/emulated tests cannot substitute for target acceptance. Global changes interact across modules; system changes cannot simply be assigned to one module.
-
-Quantified performance/memory/size targets, required endurance duration and final completion date: **unknown/not recovered**. A historical next-week sequence covers Nov 16–20, but is a plan rather than an unconditional delivery promise. The user asked for a dual-path PIC proposal by Friday; Nov 20 is the calendar interpretation for this week, pending confirmation of HQ expectations.
+[Verified: D-017 user direction] Improve performance and memory continuously. Cold boot, app launch, settled idle memory, media playback and smooth 4K playback on KantSU2E under a physical 1 GB budget are the standard scenarios. The 4K condition is a stress benchmark. Accept a candidate after measuring improvement in at least one scenario and meeting agreed regression margins across the others. Test each optimization on KantSU2E and verify combined changes after single-variable evaluations. D-013 proposes the repeat counts and comparison rules.
 
 Relation to `llvm-optimize` or `autofdo_bolt_agent`: **not established by reviewed evidence**. No shared branch, code or results are claimed. Existing LLVM optimization reports belong to this handover; similarly named external projects must be reconciled before reuse.

@@ -21,3 +21,7 @@
 - [thumb-debug-review.txt](thumb-debug-review.txt)
 - [thumb-paste-validation.txt](thumb-paste-validation.txt)
 - [Handover export validation](handover-export-validation.txt)
+
+- [Live board and RPM capture summary](board-readonly-20261117.txt)
+- [Board memory map](board-memory-map-20261117.txt)
+- [Round 0002 checks](handover-0002-validation.txt)

@@ -60,3 +60,5 @@ Latest captured ARM/x86 build states were `building`; no completed customized Ba
 [Verified: user reports and board capture] A new LLVM product image was built/flashed/booted. Exact kickstart, image-generation invocation, image byte size, flash command and immutable board-to-QB mapping are **not recovered**. Do not infer them from a generic `latest` board release label. Quickbuild inputs are published Base list + build.conf + shelf list; source shelve acknowledgement is not a submitted Perforce change or image verification.
 
 New seek shelf CL14466526 replaced the seek candidate for the next image; original CL14396810 was unchanged and workspace restored. Later ltoexp2 selection is the active experimental list. Full accepted-image provenance remains A0, including prelink policy and installed RPM identity.
+
+[Verified, round 0002] The board reports Build ID `T-KSU2EJAKUC-0101-PERF-202611171009`. All 2,342 installed RPM identities matched fixed repository metadata by exact NEVRA with Product precedence. Confirm image-to-QB identity with a job export and correlate payloads by checksum and ELF Build ID. [Installed ledger](../artifacts/ledger/README.md)

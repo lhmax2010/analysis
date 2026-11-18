@@ -1,0 +1,6 @@
+source_package,category,status,evidence,followup
+glibc,GNU GCC-only candidate,REVIEW,Installed glibc-2.40-1.111; historical GNU runtime and CRT dependency,Check this vendor branch build requirements and document package-specific support
+gcc,GNU GCC-only candidate,REVIEW,Historical GCC and GNU runtime producer,Confirm installed SRPM scope and package build compiler requirements
+rust,Rust content candidate,REVIEW,Retained argot debug shows Rust plus assembly and CRT; some RPMs can mix languages,Classify source RPMs by package evidence and check native shims before exception
+go,Go content candidate,REVIEW,Go components recorded historically,Check cgo and source/build evidence per package
+bluetooth-host-impl,Vendor prebuilt content candidate,REVIEW,CL14392070 records one GCC-built vendor shared interface,Record exact prebuilt paths in matched RPM; keep source-built portions in scope

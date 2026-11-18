@@ -1,0 +1,12 @@
+Board SDB endpoint: 192.168.108.13:26101
+Capture: Tue Nov 17 21:41:43 PST 2026
+Kernel: Linux localhost 6.12.60 #1 SMP PREEMPT Mon Nov 16 20:15:36 UTC 2026 armv7l GNU/Linux
+Build ID: T-KSU2EJAKUC-0101-PERF-202611171009
+Raw capture SHA-256: fdd50127af94bf3fccb4177bd033e1d578696d96741ae1d7c37bd57d0d268366
+Installed RPM identities: 2342
+Source RPM strings, excluding missing tags: 1839
+METADATA_MATCH_PENDING_PAYLOAD: 2342
+Root test-file inventory and process rollups were exported. SDB uid restored to 5001.
+Readable process rollups: 121
+Captured process PSS sum: 557373 KiB
+FDT and per-mapping raw capture SHA-256: b24c64147f0f03cb375494d9c092a5ad05c9a06537ac05dcc7eb9575fcd6c040

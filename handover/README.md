@@ -13,3 +13,6 @@
 - [08_issues_risks.md](08_issues_risks.md)
 - [09_proposed_plan.md](09_proposed_plan.md)
 - [10_artifacts_index.md](10_artifacts_index.md)
+
+- [Measurement protocol](11_measurement_protocol.md)
+- [KantSU2E memory map](12_memory_map_kantsu2e.md)

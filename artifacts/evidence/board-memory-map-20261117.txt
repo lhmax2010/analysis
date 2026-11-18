@@ -1,0 +1,56 @@
+MemTotal 1601972 KiB
+MemAvailable 901152 KiB
+MemFree 24220 KiB
+LowTotal 564404 KiB
+LowFree 22460 KiB
+HighTotal 1037568 KiB
+HighFree 1760 KiB
+CmaTotal 311296 KiB
+CmaFree 616 KiB
+Slab 137396 KiB
+Cached 834480 KiB
+SwapTotal 1041012 KiB
+SwapFree 932528 KiB
+04000000-2ef3ffff : System RAM
+80000000-989fffff : System RAM
+a0000000-bfffffff : System RAM
+Boot memory arguments: mem=703744K@64M mem=394M@2048M mem=512M@2560M
+/dev/zram0                              partition	1041012		108484		-2
+/sys/block/zram0/mm_stat 106840064 20403660 25153536        0 45064192      271     2531       15       25        0        0  3165808
+/sys/block/zram0/disksize 1066000384
+FDT byte count and SHA-256
+80168 /sys/firmware/fdt
+2e9ba513dc345998fc68822c4f0614c7488d443b80c331e90bcdd22f7f7fa2e4  /sys/firmware/fdt
+
+Reserved-memory ranges (reusable shared-dma-pool)
+cma_1 0x26400000 4194304 bytes
+cma_10 0x95000000 8388608 bytes
+cma_11 0x95800000 8388608 bytes
+cma_12 0x96000000 8388608 bytes
+cma_13 0x26800000 67108864 bytes
+cma_14 0x2a800000 8388608 bytes
+cma_2 0x96800000 33554432 bytes
+cma_3 0x2b000000 37748736 bytes
+cma_4 0x2d400000 12582912 bytes
+cma_5 0x2e000000 12582912 bytes
+cma_6 0x91c00000 25165824 bytes
+cma_7 0x93400000 8388608 bytes
+cma_8 0x93c00000 16777216 bytes
+cma_9 0x94c00000 4194304 bytes
+default_cma 0x8e000000 62914560 bytes
+
+Zone observations
+Node 0, zone   Normal
+pages free     5620
+managed  141101
+Node 0, zone  HighMem
+pages free     286
+managed  181568
+Node 0, zone  Movable
+pages free     0
+managed  0
+Node 0, zone      CMA
+pages free     172
+managed  77824
+
+FDT binary SHA-256 verified against board capture. Header reservation entries: []

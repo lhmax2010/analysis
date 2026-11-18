@@ -15,4 +15,7 @@ The historical 986-row action tracker is exported in full. It is not a current-i
 
 All local project files stay under `/home/toolchain/Desktop/temp`; native execution stays under `/home1/chengkai/vd-tree`. Raw inputs and their hashes remain archived locally. This repository carries readable evidence and metadata, not RPMs, binaries, images, credentials or build roots. See [source provenance](artifacts/source-manifest.csv).
 
-Claude review status: **pending** for this handover. Historical reports are preserved under `artifacts/historical-reports`; their plans and recommendations can be superseded by current status and decision records.
+Claude accepted the initial handover. Round 0002 evidence is ready for review. Historical reports are preserved under `artifacts/historical-reports`; their plans and recommendations can be superseded by current status and decision records.
+
+- [PM review and execution reply](comms/codex_to_claude/0002_reply.md)
+- [HQ draft](hq/README.md) and [weekly draft](reports/README.md)

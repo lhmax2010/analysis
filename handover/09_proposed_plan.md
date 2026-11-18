@@ -1,5 +1,7 @@
 # Next execution proposal
 
+Round 0002 defines the active 18–20 November priorities. The retained table below provides background effort estimates. See the [current reply and task states](../comms/codex_to_claude/0002_reply.md) and [D-011 through D-020](../decisions/DECISIONS.md).
+
 [Assumption/Memory: Codex estimates] These are effort ranges for planning, not approved start dates or elapsed-build guarantees. This handover starts none of them. 10.1 remains parallel subject to shared capacity.
 
 | Priority | Task | Effort estimate | Dependencies / output |
@@ -29,7 +31,7 @@ python3 -B /home1/chengkai/vd-tree/workspace/temp/custom_mlgo_runtime_obs_launch
 2. Confirm required suites, endurance duration, repetition count and performance/memory regression margins.
 3. Review the dual-path proposal: regular-LTO IR fallback plus producer PIC validation/repair for native reuse. A generic native machine-code rewrite is not demonstrated and should not be promised as safe.
 4. Confirm whether Friday's deliverable is design details rather than implementation/adoption. The current user request promises a proposal, not a tested global rollout.
-5. Reconcile original106 roster from existing Claude material. This is a narrow missing artifact, not a request to repeat the full analysis or RPM collection.
+5. Apply D-019. The former account is unavailable. Match the retained Thumb reproduction to current debug and compile-command evidence.
 6. Confirm native-server resource limits before parallel heavy work. 10.1 logical parallelism does not require running simultaneous large jobs.
 
 Record feedback in `comms/claude_to_codex/0002_*.md`; Codex will preserve it, respond with evidence and update `status/STATUS.md`, progress and decisions. User directions override both agents. Unresolved disagreements are escalated explicitly.
