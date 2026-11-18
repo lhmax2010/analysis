@@ -152,7 +152,8 @@ def compiler(data, name):
         label = "GCC_MARKER_CRT_AMBIGUOUS"
     else:
         label = "UNCLASSIFIED_ARM_ELF"
-    return dict(path=name, member="", sha256=hashlib.sha256(data).hexdigest(), status=label,
+    return dict(path=name, member="", object_class="KERNEL_MODULE" if name.endswith(".ko") else "OTHER_ARM_ELF",
+                sha256=hashlib.sha256(data).hexdigest(), status=label,
                 producer_markers=",".join(k for k,v in [("GCC",gnu),("Clang",clang),("Rust",rust)] if v),
                 build_id=build_id.group(1) if build_id else "")
 
@@ -203,6 +204,8 @@ def run_scan(args):
     args.output.mkdir(exist_ok=False)
     tempfile.tempdir = str(args.output.resolve())
     fields = ("repository", "package", "identity", *pic.FIELDS, "build_id", "allowlist")
+    if args.mode == "compiler":
+        fields += ("object_class",)
     result, scan = writer(args.output/"members.csv", fields)
     log, status = writer(args.output/"rpms.csv", ("repository","package","identity","status","bytes","records","error"))
     with result, log:

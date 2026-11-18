@@ -73,7 +73,11 @@ def status(work):
     rpms = read_csv(work/'results/rpms.csv')
     members = read_csv(work/'results/members.csv')
     print('RPM_ROWS',len(rpms),json.dumps(Counter(r['status'] for r in rpms),sort_keys=True))
-    print('ELF_ROWS',len(members),json.dumps(Counter(r['status'] for r in members),sort_keys=True))
+    print('ELF_ROWS',len(members))
+    for object_class in ('KERNEL_MODULE', 'OTHER_ARM_ELF'):
+        group = [row for row in members if (row.get('object_class') or
+                 ('KERNEL_MODULE' if row['path'].endswith('.ko') else 'OTHER_ARM_ELF')) == object_class]
+        print('ELF_CLASS',object_class,len(group),json.dumps(Counter(r['status'] for r in group),sort_keys=True))
     for row in [r for r in rpms if r['status']!='SCANNED'][:30]:
         print('INCOMPLETE',json.dumps(row,ensure_ascii=True)[:700])
     return int(code.read_text().strip()!='0' or len(rpms)!=2342)

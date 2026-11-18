@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""Trace committed Argot artifacts to available producer configuration and history."""
+import hashlib
+import io
+import marshal
+from pathlib import Path, PurePosixPath
+import re
+import subprocess
+import tempfile
+
+ROOT = Path("/home1/chengkai/vd-tree")
+DEPOT = "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/AGENTIC_PLATFORM/AgenticPlatform/Agentic/argo-tizen"
+BASE, SHELF = "14296233", "14386323"
+P4 = ("p4", "-c", "DEV-IPTV-VC_TOOLCHAIN")
+TEXT_LIMIT = 256 * 1024
+TREE_PRINT_LIMIT = 36
+RELEVANT = re.compile(
+    r"cargo[-_]tizen|tizen/artifacts|--target|--config|CARGO_BUILD_TARGET|"
+    r"CARGO_ENCODED_RUSTFLAGS|RUSTFLAGS|RUSTC_WRAPPER|CARGO_TARGET|"
+    r"\b(?:rustflags|linker|llvm-target|llvm-floatabi|target-feature|thumb-mode|gnueabi\w*)\b|"
+    r"^\s*(?:target|features|cpu|owners?|maintainers?)\s*[:=]",
+    re.I,
+)
+SECRET = re.compile(r"pass(?:word|wd|phrase)|token|secret|credential|authorization|private[_-]?key|https?://[^\s/]+@", re.I)
+OWNER_NAMES = {"codeowners", "owners", "maintainers", "ownership", "maintainers.md"}
+
+
+class Trace:
+    def __init__(self, work):
+        self.work = work
+        self.counter = 0
+        self.lines = 0
+
+    def emit(self, *items):
+        if self.lines < 235:
+            print(" ".join(str(item) for item in items)[:640], flush=True)
+        elif self.lines == 235:
+            print("PREVIEW_TRUNCATED inspect retained files in WORKDIR", flush=True)
+        self.lines += 1
+
+    def run(self, label, *args, tagged=False):
+        self.counter += 1
+        stem = self.work / f"{self.counter:03}-{label}"
+        with stem.with_suffix(".out").open("wb") as out, stem.with_suffix(".err").open("wb") as err:
+            result = subprocess.run([*P4, *(["-G"] if tagged else []), *args], cwd=ROOT,
+                                    stdout=out, stderr=err, timeout=45)
+        output = stem.with_suffix(".out")
+        if output.stat().st_size > 8 * 1024 * 1024:
+            raise ValueError(f"bounded output exceeded for {label}")
+        raw = output.read_bytes()
+        if not tagged:
+            if result.returncode:
+                err = stem.with_suffix(".err").read_bytes()[:2000]
+                raise ValueError(f"{label} failed: {one_line(err or raw)}")
+            return raw
+        rows = []
+        stream = io.BytesIO(raw)
+        while stream.tell() < len(raw):
+            record = marshal.load(stream)
+            record = {key.decode(): value.decode(errors="replace") if isinstance(value, bytes) else str(value)
+                      for key, value in record.items()}
+            if record.get("code") == "error":
+                if record.get("generic") == "17" and label == "tree":
+                    continue
+                raise ValueError(f"{label} failed: {one_line(record.get('data', '').encode())}")
+            if record.get("code") == "stat":
+                rows.append(record)
+        if result.returncode:
+            raise ValueError(f"{label} exited {result.returncode}")
+        return rows
+
+
+def one_line(value):
+    message = " ".join(value.decode(errors="replace").split())
+    return "<redacted>" if SECRET.search(message) else message[:320]
+
+
+def text_priority(relative):
+    path = PurePosixPath(relative.lower())
+    name = path.name
+    dirs = set(path.parts[:-1])
+    if name in OWNER_NAMES:
+        return 0
+    if name in {"cargo.lock"} or dirs & {"vendor", "third_party", "target", "node_modules"}:
+        return None
+    if name.startswith("cargo-tizen") or ".cargo" in dirs:
+        return 1
+    if dirs & {"ci", ".ci", "workflows", "scripts", "build", ".github", ".gitlab", ".gitea"}:
+        if name.endswith((".sh", ".py", ".yml", ".yaml", ".toml", ".json", ".ps1", ".mk")) or name in {"makefile", "jenkinsfile"}:
+            return 2
+    if name in {"makefile", "justfile", "jenkinsfile", ".gitlab-ci.yml", "cargo.toml"} or name.startswith(("readme", "build")):
+        return 3
+    if name.endswith(".spec") and any(token in name for token in ("argot", "client", "tizen")):
+        return 3
+    if "tizen" in dirs and name.endswith((".sh", ".py", ".yml", ".yaml", ".toml", ".md", ".json")):
+        return 4
+    return None
+
+
+def run(trace):
+    trace.run("login", "login", "-s")
+    files = trace.run("tree", "files", f"{DEPOT}/...@{BASE}", tagged=True)
+    overlay = trace.run("shelf", "describe", "-S", "-s", SHELF, tagged=True)
+    trace.emit("PIN", BASE, SHELF, "TREE_RECORDS", len(files))
+    if not files or not overlay:
+        raise ValueError("pinned source tree or overlay could not be read")
+    records = {}
+    for row in files:
+        path = row.get("depotFile", "")
+        if path.startswith(DEPOT + "/") and row.get("action") not in {"delete", "move/delete", "purge"}:
+            records[path] = (f"{path}#{row['rev']}", row.get("type", ""))
+    for change in overlay:
+        for key, path in change.items():
+            if not re.fullmatch(r"depotFile\d+", key) or not path.startswith(DEPOT + "/"):
+                continue
+            suffix = key.removeprefix("depotFile")
+            if change.get("action" + suffix) in {"delete", "move/delete", "purge"}:
+                records.pop(path, None)
+            else:
+                records[path] = (f"{path}@={SHELF}", change.get("type" + suffix, ""))
+                trace.emit("SHELF_AUTHOR_NOT_OWNER", change.get("user", "?"), path.removeprefix(DEPOT + "/"))
+
+    candidates, artifacts = [], []
+    for path, (revision, file_type) in records.items():
+        relative = path.removeprefix(DEPOT + "/")
+        if relative.startswith("tizen/artifacts/") and (
+            ("-client-" in relative and relative.endswith(".rpm")) or relative.endswith(".tpk")
+        ) and re.search(r"armv7|armhf", relative, re.I):
+            artifacts.append((relative, revision))
+        priority = text_priority(relative)
+        if priority is not None and file_type.split("+", 1)[0] in {"text", "unicode", "utf8", "utf16"}:
+            candidates.append((priority, relative, revision))
+
+    counts = (len(candidates), min(TREE_PRINT_LIMIT, len(candidates)), len(artifacts), min(12, len(artifacts)))
+    trace.emit("CANDIDATES_TOTAL_SELECTED_AND_ARTIFACTS_TOTAL_SELECTED", *counts)
+    if counts[0] != counts[1] or counts[2] != counts[3]:
+        trace.emit("DISCOVERY_LIMIT inspect retained tree for additional candidates")
+    for relative, revision in sorted(artifacts)[:12]:
+        trace.emit("ARTIFACT", relative, revision.rsplit("/", 1)[-1])
+        if "@=" in revision:
+            trace.emit("ARTIFACT_HISTORY_PENDING_SHELF", revision)
+            continue
+        history = trace.run("history", "filelog", "-m", "3", revision, tagged=True)
+        for event in history:
+            for i in range(3):
+                if f"change{i}" in event:
+                    trace.emit("ARTIFACT_SUBMITTER_NOT_OWNER", event.get(f"change{i}"),
+                               event.get(f"user{i}", "?"), event.get(f"action{i}", "?"))
+    for priority, relative, revision in sorted(candidates)[:TREE_PRINT_LIMIT]:
+        raw = trace.run("source", "print", "-q", revision)
+        if len(raw) > TEXT_LIMIT or b"\x00" in raw:
+            trace.emit("SOURCE_UNINSPECTED", relative, "SIZE_OR_ENCODING", len(raw))
+            continue
+        trace.emit("SOURCE", relative, revision.rsplit("/", 1)[-1], hashlib.sha256(raw).hexdigest())
+        matches = [(i, line) for i, line in enumerate(raw.decode(errors="replace").splitlines(), 1)
+                   if (priority == 0 or RELEVANT.search(line)) and line.strip()]
+        for number, line in matches[:12]:
+            if not SECRET.search(line):
+                trace.emit("EXCERPT", f"{relative}:{number}", line.strip())
+    trace.emit("STATUS REVIEW_PRODUCER_CONFIG_OWNER_AND_EFFECTIVE_RUSTC_COMMAND")
+
+
+def main():
+    work = Path(tempfile.mkdtemp(prefix="pm0005-argot-producer.", dir=ROOT / "workspace/temp"))
+    print("WORKDIR", work, flush=True)
+    trace = Trace(work)
+    try:
+        run(trace)
+    except (OSError, ValueError, EOFError, KeyError, subprocess.SubprocessError) as error:
+        print("BLOCKED", one_line(str(error).encode()), flush=True)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

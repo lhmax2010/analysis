@@ -1,0 +1,229 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/obs-provenance.py.txt' -o "$d/obs-provenance.py.txt" && printf '%s  %s\n' 'bfb617a6cdb738a675e6d6f2636dea9d55d1bfbae445e23658e33a492b6bcbc5' "$d/obs-provenance.py.txt" | sha256sum -c - && python3 -B -u "$d/obs-provenance.py.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.kU8l5W/obs-provenance.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-mlgo-pins.usfelpht
+OBS_API http://168.219.245.220:80 TRANSPORT osc.core.http_GET direct
+OBS_REV12 12 0b38aead137ec42dcd99dee28091acc1
+PINNED_LLVM_BINARY armv7l clang-22.1.8-11.1.armv7l.rpm 6e692d5fb4f372c9e8d8f969b5171ce73275a7f613ae1f9694797758cf66b1a9 0b38aead137ec42dcd99dee28091acc1
+PINNED_LLVM_BINARY x86_64 clang-22.1.8-11.1.x86_64.rpm ed6db88c182662fb81007ffe4589c49792970e14d110b95ebf6744de2949a3d2 0b38aead137ec42dcd99dee28091acc1
+BINARY_PIN_STATUS COMPLETE
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/base-delta.py.txt' -o "$d/base-delta.py.txt" && printf '%s  %s\n' 'deb067f904d1bdd512a4a4c2ee0a9413e3b3e2ae9974a1ade228062ccef87adb' "$d/base-delta.py.txt" | sha256sum -c - && python3 -B -u "$d/base-delta.py.txt" "${DELTA_ARGS[@]}")
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.7btjtK/base-delta.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-base-delta.7ql_0q9p
+DELTA_INPUT 2952 390a935ed81dcdf3fd9a2de3f607b7d6e5cc4e0b4ea607b3913df3e870e96bb0
+CATEGORY AMBIGUOUS_MULTI_VERSION repo_events 52 unique_name_arch 26 board_name_arch 2 board_exact_official_nevra 2
+CATEGORY RELEASE_ONLY repo_events 1363 unique_name_arch 1354 board_name_arch 175 board_exact_official_nevra 174
+CATEGORY SAME_NEVRA_PAYLOAD repo_events 18 unique_name_arch 9 board_name_arch 1 board_exact_official_nevra 1
+BOARD_DELTA_UNIQUE_NAME_ARCH 177 of 2342
+PAIR_STATUS {"AMBIGUOUS_MULTI_VERSION": 52, "RELEASE_ONLY": 1363, "SAME_NEVRA_PAYLOAD": 18}
+VERSION_PAGE 1 of 1 rows 0
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/6487c9185dda7fc1206f34af9317e68b25f1358b/artifacts/scripts/r0005/kernel-gate.sh.txt' -o "$d/kernel-gate.sh.txt" && printf '%s  %s\n' 'caeecf457675b8e411bf2787d96c6f27a781c4302ea68cf472b9b01a730acc4d' "$d/kernel-gate.sh.txt" | sha256sum -c - && QB_KERNEL_LOG="${QB_KERNEL_LOG:-}" bash "$d/kernel-gate.sh.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.HCzeoG/kernel-gate.sh.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-kernel-gate.XJhhSl
+manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt: OK
+388://TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/...@14427407
+SOURCE packaging/tztv-kernel.spec@=14427407
+33:%if "%{?_toolchain}" == "clang"
+34:# Clang toolchain (build.conf _toolchain clang): the Linux kernel is built with LLVM (KERNEL_TOOLCHAIN_ENV in the build section), so
+36:BuildRequires: clang
+37:BuildRequires: llvm
+145:export SYSTEM64=%{_vd_cfg_system64}         # need by BUILD.sh
+146:export PRODUCT_TYPE=%{_vd_cfg_product_type} # need by BUILD.sh
+147:export CHIP_VENDOR=%{_vd_cfg_chip_vendor}   # need by seret's BUILD.sh
+148:export LINUX_SOURCE_PATH="linux-"%{LIN_VER} # need by seret's BUILD.sh
+149:export ARCH_ENV=%{_arch}                    # need by BUILD.sh and seret's BUILD.sh
+152:# Toolchain of the Linux kernel build (./BUILD.sh below gets it in its environment). GCC: empty, nothing changes.
+SOURCE linux-6.12/Makefile@=14427407
+1065:# MLGO (CONFIG_MLGO): release models embedded in clang; KBUILD_CFLAGS so that the image and all modules get them
+1066:ifdef CONFIG_MLGO_INLINER
+1067:KBUILD_CFLAGS   += -mllvm -enable-ml-inliner=release
+1069:ifdef CONFIG_MLGO_REGALLOC
+1070:KBUILD_CFLAGS   += -mllvm -regalloc-enable-advisor=release
+373:# CROSS_COMPILE specify the prefix used for all executables used
+375:# are prefixed with $(CROSS_COMPILE).
+376:# CROSS_COMPILE can be set on the command line
+377:# make CROSS_COMPILE=aarch64-linux-gnu-
+378:# Alternatively CROSS_COMPILE can be set in the environment.
+379:# Default value for CROSS_COMPILE is not to prefix executables
+380:# Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
+487:CC          = $(CROSS_COMPILE)gcc
+488:LD          = $(CROSS_COMPILE)ld
+489:AR          = $(CROSS_COMPILE)ar
+SOURCE linux-6.12/init/Kconfig@=14427407
+182:    bool "Apply MLGO Optimization: Build kernel with Clang and modules with GCC"
+186:      Enables MLGO-based register allocation and inlining optimizations
+190:      Useful for performance-critical kernels with MLGO models trained
+193:config MLGO
+194:        bool "MLGO: ML-guided inlining and register eviction (Clang)"
+198:          Use the release MLGO models embedded in the platform clang (-mllvm -enable-ml-inliner=release,
+199:          -mllvm -regalloc-enable-advisor=release). Applies to the kernel image and to every module built
+202:config MLGO_INLINER
+203:        bool "MLGO: ML inliner (size model)"
+204:        depends on MLGO
+207:config MLGO_REGALLOC
+208:        bool "MLGO: ML register eviction advisor"
+209:        depends on MLGO
+SOURCE linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig@=14427407
+33:CONFIG_MLGO=y
+SOURCE BUILD.sh@=14427407
+3:# BUILD.sh - VDKernel Build Script
+6:#   Interactive:  ./BUILD.sh
+7:#   Command-line: ./BUILD.sh <MODEL_TARGET> <RELEASE_MODE> <SIGN_TYPE> [VERIFIER] [SANITIZER]
+10:#   ./BUILD.sh OSCARP perf CHIP_OSCARP
+24:readonly CROSS_COMPILE_ARM="armv7l-tizen-linux-gnueabi-"
+25:readonly CROSS_COMPILE_ARM64="aarch64-tizen-linux-gnu-"
+26:readonly CROSS_COMPILE_RISCV="riscv64-tizen-linux-gnu-"
+50:CROSS_COMPILE="${CROSS_COMPILE:-}"    # spec: set by build system
+357:    # Determine ARCH and CROSS_COMPILE based on ARCH_ENV
+361:    # VBS build : ARCH_ENV is empty (ARCH/CROSS_COMPILE set by environment)
+Effective argv and resolved compiler still require the actual QB package log/install record.
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/6487c9185dda7fc1206f34af9317e68b25f1358b/artifacts/scripts/r0005/argot-cargo-config.py.txt' -o "$d/argot-cargo-config.py.txt" && printf '%s  %s\n' '79fa72c9a22a00c7c5e9f25ee3d365714fa2f39d282dc20aa7c457e5d332cb5c' "$d/argot-cargo-config.py.txt" | sha256sum -c - && python3 -B -u "$d/argot-cargo-config.py.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.PQquxS/argot-cargo-config.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-argot-cargo.t2or_vnf
+MANIFEST tizen10.0_base_urls_1114_noprelink.txt 14296233 bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3
+MANIFEST tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt 14386323 c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736
+SPEC_SOURCE //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/AGENTIC_PLATFORM/AgenticPlatform/Agentic/argo-tizen/packaging/argot.spec@=14386323 08d846de3a4d225e7ba58a5583c8ae340a6e3c0879c83873fe62f945e49085dc
+SPEC_BUILD_CONTEXT 181-235 section 155-245
+SPEC 155: %build
+SPEC 181:
+SPEC 182: %if %{is_tv_product}
+SPEC 183: rm -rf build-argot-platform
+SPEC 184: meson setup \
+SPEC 185:     --prefix=%{_prefix} \
+SPEC 186:     --libdir=%{_lib} \
+SPEC 187:     --buildtype=release \
+SPEC 188:     -Db_lto=false \
+SPEC 189:     -Dproviders=system \
+SPEC 190:     build-argot-platform libraries/argot-platform
+SPEC 191: ninja -C build-argot-platform %{?_smp_mflags}
+SPEC 192: %endif
+SPEC 193:
+SPEC 194: unrpm tizen/artifacts/rpm/%{name}-dashboard-%{version}-%{release}.%{_target_cpu}.rpm
+SPEC 195:
+SPEC 196: # The client RPM's payload is already usr/bin/argot (its host spec renames the
+SPEC 197: # bin target). Extracted in its own root so only that payload reaches the image.
+SPEC 198: mkdir -p clientroot
+SPEC 199: ( cd clientroot && unrpm ../tizen/artifacts/rpm/%{name}-client-%{version}-%{release}.%{_target_cpu}.rpm )
+SPEC 200:
+SPEC 201: # Work on a copy so the committed cargo-tizen artifact stays untouched.
+SPEC 202: rm -rf tpk-work
+SPEC 203: mkdir -p tpk-work
+SPEC 204: tpk_path=tpk-work/%{tpk_pkgid}-%{version}-%{_target_cpu}.tpk
+SPEC 205: cp tizen/artifacts/tpk/%{tpk_pkgid}-%{version}-%{_target_cpu}.tpk "$tpk_path"
+SPEC 206:
+SPEC 207: # Product-specific staging. An unmapped product falls back to the neutral
+SPEC 208: # default rather than another product's signing chain.
+SPEC 209: argot_hook=packaging/product/%{argot_product}.sh
+SPEC 210: [ -f "$argot_hook" ] || argot_hook=packaging/product/common.sh
+SPEC 211: # Every hook leaves the stripped release TPK at $tpk_path and the unstripped
+SPEC 212: # debug TPK here (see packaging/product/lib.sh).
+SPEC 213: export ARGOT_DEBUG_TPK="tpk-work/debug/%{tpk_pkgid}-%{version}-%{_target_cpu}.tpk"
+SPEC 214: # Diagnostics for the unstamped-manifest report: the build id as rpm expanded
+SPEC 215: # it at parse time next to whatever reached this shell's environment, so a
+SPEC 216: # missing stamp can be traced to the macro or to the build host. Unconditional
+SPEC 217: # on purpose, so a product mis-selection shows up here too.
+SPEC 218: echo "build-info debug: argot_product='%{argot_product}' is_tv_product='%{is_tv_product}'" >&2
+SPEC 219: echo "build-info debug: macro COSMOS_BUILD_ID='%{?COSMOS_BUILD_ID}' BUILD_ID='%{?BUILD_ID}'" >&2
+SPEC 220: echo "build-info debug: env COSMOS_BUILD_ID='${COSMOS_BUILD_ID:-}' BUILD_ID='${BUILD_ID:-}'" >&2
+SPEC 221: env | grep -i 'build_id' >&2 || echo "build-info debug: no *BUILD_ID* in the environment" >&2
+SPEC 222: %if %{is_tv_product}
+SPEC 223: # COSMOS injects its build id as a macro; the TV hook stamps it into the
+SPEC 224: # packaged tizen-manifest.xml as <build-info> before signing, the way a native
+SPEC 225: # app's spec stamps its source manifest before `tizen build-native`. A build
+SPEC 226: # outside COSMOS passes an empty id and ships the manifest unstamped.
+SPEC 227: export ARGOT_BUILD_ID="%{?COSMOS_BUILD_ID}"
+SPEC 228: export ARGOT_SET_BUILD_INFO="%{TZ_SYS_BIN}/set_build_info.py"
+SPEC 229: %endif
+SPEC 230: sh "$argot_hook" "$tpk_path" %{tpk_pkgid} %{_prefix}
+SPEC 231: test -f "$ARGOT_DEBUG_TPK"
+SPEC 232:
+SPEC 233: # Match the platform-signed preload; its duplicate debug TPK is not shipped.
+SPEC 234: telemetry_tpk=tpk-work/telemetry/%{tpk_pkgid}-%{version}-%{_target_cpu}.tpk
+SPEC 235: mkdir -p tpk-work/telemetry
+SOURCE SPEC_BUILD argot.spec %build 89654a78f4526d72bb6ce5ef455eb4b2bac0d7f0237142e5aa72f9ed7ce952bb matching_lines 6
+CANDIDATES 0 inspection_limit 18
+SOURCE_TARGET_HYPOTHESIS armv7-unknown-linux-gnueabi UNRESOLVED []
+EFFECTIVE_STATUS REVIEW_WRAPPER_BRANCH_CONFIG_AND_ACTUAL_RUSTC_ARGV
+REPORT /home1/chengkai/vd-tree/workspace/temp/pm0005-argot-cargo.t2or_vnf/report.json c3947e05130716363d175ec369c5bfa28a13a2ea6b08006937ede97ee091fddf
+DONE COLLECTED
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/pic-readback.py.txt' -o "$d/pic-readback.py.txt" && printf '%s  %s\n' '868738f99c577138b4627d478fc9d50e9d6f41dc3229c5b5efad75efd778ee83' "$d/pic-readback.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/native-audit.py.txt' -o "$d/native-audit.py.txt" && printf '%s  %s\n' '1cce17777fb452b534a463077544c677c359636e08d45f74dd8124924007d854' "$d/native-audit.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/arm-pic-audit.py.txt' -o "$d/arm-pic-audit.py.txt" && printf '%s  %s\n' '546aaaa67ab5baebd8d3344c2057f19a9f19e9fc098d9eaeb4919dbb3951bfbf' "$d/arm-pic-audit.py.txt" | sha256sum -c - && python3 -B -u "$d/pic-readback.py.txt" pic "$d/native-audit.py.txt" "${PIC_ARGS[@]}")
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.yEsVUi/pic-readback.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.yEsVUi/native-audit.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.yEsVUi/arm-pic-audit.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-pic-readback.juen_933
+RPM_STATUS {"INCOMPLETE": 14, "SCANNED": 78}
+MEMBER_STATUS {"EMPTY_ARCHIVE": 20, "MISSING_PAYLOAD_PATH": 1, "NON_REGULAR_CANDIDATE": 3, "NO_LISTED_RELOCATION": 28100, "REVIEW_INPUT_ERROR": 2, "REVIEW_RELOCATIONS": 1910, "UNCLASSIFIED_MEMBER": 17891}
+INCOMPLETE ["llvm-base", "cross-aarch64-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "", {"UNCLASSIFIED_MEMBER": 6633}]
+INCOMPLETE ["llvm-base", "cross-aarch64-gcc-x86-arm", "14.2.0-6.1.armv7l", "", {"UNCLASSIFIED_MEMBER": 7005}]
+INCOMPLETE ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "", {"UNCLASSIFIED_MEMBER": 848}]
+INCOMPLETE ["llvm-base", "golang-bin", "1.21.4-1.2.armv7l", "", {"UNCLASSIFIED_MEMBER": 575}]
+INCOMPLETE ["llvm-base", "golang-tests", "1.21.4-1.2.noarch", "", {"UNCLASSIFIED_MEMBER": 35, "REVIEW_INPUT_ERROR": 1}]
+INCOMPLETE ["llvm-base", "golang-tests", "1.21.4-1.5.noarch", "", {"UNCLASSIFIED_MEMBER": 35, "REVIEW_INPUT_ERROR": 1}]
+INCOMPLETE ["llvm-base", "jdk", "1.4.2-3.2.armv7l", "", {"UNCLASSIFIED_MEMBER": 8}]
+INCOMPLETE ["llvm-base", "libunwind-devel", "1.6.2-1.17.armv7l", "", {"NON_REGULAR_CANDIDATE": 1}]
+INCOMPLETE ["llvm-base", "libxcrypt-devel-static", "4.4.36-1.209.armv7l", "", {"NON_REGULAR_CANDIDATE": 2}]
+INCOMPLETE ["llvm-base", "python3-devel", "3.13.1-2.21.armv7l", "", {"UNCLASSIFIED_MEMBER": 1}]
+INCOMPLETE ["llvm-product", "dotnet-build-tools", "8.0.404-1.armv7l", "", {"UNCLASSIFIED_MEMBER": 21}]
+INCOMPLETE ["llvm-product", "mic-bootstrap-x86-arm", "10.0-001.armv7l", "", {"UNCLASSIFIED_MEMBER": 2729}]
+INCOMPLETE ["llvm-product", "sys-tools", "0-0.armv7l", "", {"UNCLASSIFIED_MEMBER": 1}]
+INCOMPLETE ["llvm-product", "vd_memps", "0.3.5-1.armv7l", "", {"MISSING_PAYLOAD_PATH": 1}]
+INCOMPLETE_ROWS 14
+INTENDED_USE CRT_STARTUP {"lto:NO_LTO_SECTION_RECORDED": 7, "members": 7, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 7, "producer:GCC_MARKER": 7, "reloc:R_ARM_ABS32": 3, "reloc:R_ARM_MOVT_ABS": 38, "reloc:R_ARM_MOVW_ABS_NC": 38, "reloc:R_ARM_THM_MOVT_ABS": 19, "reloc:R_ARM_THM_MOVW_ABS_NC": 19}
+FLAGGED ["CRT_STARTUP", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/usr/lib/crt1.o"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_ABS32": 3}]
+FLAGGED ["CRT_STARTUP", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/lib/gcc/armv7l-tizen-linux-gnueabi/9.2.0/crtbegin.o"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_MOVW_ABS_NC": 7, "reloc:R_ARM_MOVT_ABS": 7}]
+FLAGGED ["CRT_STARTUP", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/lib/gcc/armv7l-tizen-linux-gnueabi/9.2.0/crtbeginT.o"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_MOVW_ABS_NC": 12, "reloc:R_ARM_MOVT_ABS": 12}]
+FLAGGED ["CRT_STARTUP", ["llvm-base", "gcc", "14.2.0-1.77.armv7l", "/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtbegin.o"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_THM_MOVW_ABS_NC": 7, "reloc:R_ARM_THM_MOVT_ABS": 7}]
+FLAGGED ["CRT_STARTUP", ["llvm-base", "gcc", "14.2.0-1.77.armv7l", "/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtbeginT.o"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_THM_MOVW_ABS_NC": 12, "reloc:R_ARM_THM_MOVT_ABS": 12}]
+FLAGGED ["CRT_STARTUP", ["llvm-base", "sdk-core", "6.5.0-4.10.armv7l", "/usr/tizen-studio/tools/arm-linux-gnueabi-gcc-14.2/lib/gcc/arm-tizen-linux-gnueabi/14.2.0/crtbegin.o"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_MOVW_ABS_NC": 7, "reloc:R_ARM_MOVT_ABS": 7}]
+FLAGGED ["CRT_STARTUP", ["llvm-base", "sdk-core", "6.5.0-4.10.armv7l", "/usr/tizen-studio/tools/arm-linux-gnueabi-gcc-14.2/lib/gcc/arm-tizen-linux-gnueabi/14.2.0/crtbeginT.o"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_MOVW_ABS_NC": 12, "reloc:R_ARM_MOVT_ABS": 12}]
+FLAGGED_ARCHIVES CRT_STARTUP 7 preview 7
+INTENDED_USE CROSS_GCC {"lto:NO_LTO_SECTION_RECORDED": 1504, "members": 1504, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1497, "producer+lto:NO_MARKER/NO_LTO_SECTION_RECORDED": 7, "producer:GCC_MARKER": 1497, "producer:NO_MARKER": 7, "reloc:R_ARM_ABS32": 11078, "reloc:R_ARM_MOVT_ABS": 16751, "reloc:R_ARM_MOVW_ABS_NC": 16753, "reloc:R_ARM_TLS_LE32": 47}
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/usr/lib/libc.a"], {"members": 593, "producer:GCC_MARKER": 588, "lto:NO_LTO_SECTION_RECORDED": 593, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 588, "reloc:R_ARM_MOVW_ABS_NC": 5791, "reloc:R_ARM_MOVT_ABS": 5789, "reloc:R_ARM_ABS32": 4482, "producer:NO_MARKER": 5, "producer+lto:NO_MARKER/NO_LTO_SECTION_RECORDED": 5, "reloc:R_ARM_TLS_LE32": 13}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/lib/libgfortran.a"], {"members": 260, "producer:GCC_MARKER": 260, "lto:NO_LTO_SECTION_RECORDED": 260, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 260, "reloc:R_ARM_MOVW_ABS_NC": 3657, "reloc:R_ARM_MOVT_ABS": 3657, "reloc:R_ARM_ABS32": 2409, "reloc:R_ARM_TLS_LE32": 1}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/lib/libgfortran.a"], {"members": 260, "producer:GCC_MARKER": 260, "lto:NO_LTO_SECTION_RECORDED": 260, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 260, "reloc:R_ARM_MOVW_ABS_NC": 3657, "reloc:R_ARM_MOVT_ABS": 3657, "reloc:R_ARM_ABS32": 2409, "reloc:R_ARM_TLS_LE32": 1}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/usr/lib/libm.a"], {"members": 86, "producer:GCC_MARKER": 86, "lto:NO_LTO_SECTION_RECORDED": 86, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 86, "reloc:R_ARM_MOVW_ABS_NC": 615, "reloc:R_ARM_MOVT_ABS": 615, "reloc:R_ARM_ABS32": 306}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/usr/lib/libpthread.a"], {"members": 57, "producer:GCC_MARKER": 57, "lto:NO_LTO_SECTION_RECORDED": 57, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 57, "reloc:R_ARM_MOVW_ABS_NC": 327, "reloc:R_ARM_MOVT_ABS": 327, "reloc:R_ARM_ABS32": 303}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/lib/libatomic.a"], {"members": 50, "producer:GCC_MARKER": 50, "lto:NO_LTO_SECTION_RECORDED": 50, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 50, "reloc:R_ARM_ABS32": 45, "reloc:R_ARM_MOVW_ABS_NC": 233, "reloc:R_ARM_MOVT_ABS": 233}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/lib/libatomic.a"], {"members": 50, "producer:GCC_MARKER": 50, "lto:NO_LTO_SECTION_RECORDED": 50, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 50, "reloc:R_ARM_ABS32": 45, "reloc:R_ARM_MOVW_ABS_NC": 233, "reloc:R_ARM_MOVT_ABS": 233}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/lib/libgomp.a"], {"members": 31, "producer:GCC_MARKER": 31, "lto:NO_LTO_SECTION_RECORDED": 31, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 31, "reloc:R_ARM_MOVW_ABS_NC": 637, "reloc:R_ARM_MOVT_ABS": 637, "reloc:R_ARM_ABS32": 309, "reloc:R_ARM_TLS_LE32": 16}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/lib/libgomp.a"], {"members": 31, "producer:GCC_MARKER": 31, "lto:NO_LTO_SECTION_RECORDED": 31, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 31, "reloc:R_ARM_MOVW_ABS_NC": 637, "reloc:R_ARM_MOVT_ABS": 637, "reloc:R_ARM_ABS32": 309, "reloc:R_ARM_TLS_LE32": 16}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/lib/libitm.a"], {"members": 19, "producer:GCC_MARKER": 18, "lto:NO_LTO_SECTION_RECORDED": 19, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 18, "reloc:R_ARM_MOVW_ABS_NC": 237, "reloc:R_ARM_MOVT_ABS": 237, "reloc:R_ARM_ABS32": 15, "producer:NO_MARKER": 1, "producer+lto:NO_MARKER/NO_LTO_SECTION_RECORDED": 1}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/lib/libitm.a"], {"members": 19, "producer:GCC_MARKER": 18, "lto:NO_LTO_SECTION_RECORDED": 19, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 18, "reloc:R_ARM_MOVW_ABS_NC": 237, "reloc:R_ARM_MOVT_ABS": 237, "reloc:R_ARM_ABS32": 15, "producer:NO_MARKER": 1, "producer+lto:NO_MARKER/NO_LTO_SECTION_RECORDED": 1}]
+FLAGGED ["CROSS_GCC", ["llvm-base", "cross-arm-gcc-9-2-x86-arm", "9.2.0-1.1.armv7l", "/emul/opt/cross/armv7l-tizen-linux-gnueabi/libc/usr/lib/librt.a"], {"members": 13, "producer:GCC_MARKER": 13, "lto:NO_LTO_SECTION_RECORDED": 13, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 13, "reloc:R_ARM_MOVW_ABS_NC": 111, "reloc:R_ARM_MOVT_ABS": 111, "reloc:R_ARM_ABS32": 5}]
+FLAGGED_ARCHIVES CROSS_GCC 21 preview 12
+INTENDED_USE GO {"lto:NO_LTO_SECTION_RECORDED": 4, "members": 4, "producer+lto:CLANG_MARKER/NO_LTO_SECTION_RECORDED": 2, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 2, "producer:CLANG_MARKER": 2, "producer:GCC_MARKER": 2, "reloc:R_ARM_ABS32": 2, "reloc:R_ARM_MOVT_ABS": 2, "reloc:R_ARM_MOVW_ABS_NC": 2}
+FLAGGED ["GO", ["llvm-base", "golang-tests", "1.21.4-1.2.noarch", "/usr/lib/golang/src/debug/elf/testdata/go-relocation-test-clang-arm.obj"], {"members": 1, "producer:CLANG_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:CLANG_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_ABS32": 1}]
+FLAGGED ["GO", ["llvm-base", "golang-tests", "1.21.4-1.2.noarch", "/usr/lib/golang/src/debug/elf/testdata/go-relocation-test-gcc492-arm.obj"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_MOVW_ABS_NC": 1, "reloc:R_ARM_MOVT_ABS": 1}]
+FLAGGED ["GO", ["llvm-base", "golang-tests", "1.21.4-1.5.noarch", "/usr/lib/golang/src/debug/elf/testdata/go-relocation-test-clang-arm.obj"], {"members": 1, "producer:CLANG_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:CLANG_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_ABS32": 1}]
+FLAGGED ["GO", ["llvm-base", "golang-tests", "1.21.4-1.5.noarch", "/usr/lib/golang/src/debug/elf/testdata/go-relocation-test-gcc492-arm.obj"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_MOVW_ABS_NC": 1, "reloc:R_ARM_MOVT_ABS": 1}]
+FLAGGED_ARCHIVES GO 4 preview 4
+INTENDED_USE JDK {}
+FLAGGED_ARCHIVES JDK 0 preview 0
+INTENDED_USE OTHER {"lto:LLVM_LTO_PLUS_NATIVE_RELOCATION": 1, "lto:NO_LTO_SECTION_RECORDED": 394, "members": 395, "producer+lto:CLANG_MARKER/LLVM_LTO_PLUS_NATIVE_RELOCATION": 1, "producer+lto:CLANG_MARKER/NO_LTO_SECTION_RECORDED": 8, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 381, "producer+lto:NO_MARKER/NO_LTO_SECTION_RECORDED": 5, "producer:CLANG_MARKER": 9, "producer:GCC_MARKER": 381, "producer:NO_MARKER": 5, "reloc:R_ARM_ABS32": 1246, "reloc:R_ARM_MOVT_ABS": 16, "reloc:R_ARM_MOVW_ABS_NC": 16, "reloc:R_ARM_THM_MOVT_ABS": 5514, "reloc:R_ARM_THM_MOVW_ABS_NC": 5514, "reloc:R_ARM_TLS_LE32": 522}
+FLAGGED ["OTHER", ["llvm-base", "gcc-fortran", "14.2.0-1.77.armv7l", "/usr/lib/libgfortran.a"], {"members": 261, "producer:GCC_MARKER": 261, "lto:NO_LTO_SECTION_RECORDED": 261, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 261, "reloc:R_ARM_THM_MOVW_ABS_NC": 3861, "reloc:R_ARM_THM_MOVT_ABS": 3861, "reloc:R_ARM_ABS32": 770, "reloc:R_ARM_TLS_LE32": 1, "reloc:R_ARM_MOVW_ABS_NC": 15, "reloc:R_ARM_MOVT_ABS": 15}]
+FLAGGED ["OTHER", ["llvm-base", "gcc-devel-static", "14.2.0-1.77.armv7l", "/usr/lib/libatomic.a"], {"members": 49, "producer:GCC_MARKER": 49, "lto:NO_LTO_SECTION_RECORDED": 49, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 49, "reloc:R_ARM_THM_MOVW_ABS_NC": 233, "reloc:R_ARM_THM_MOVT_ABS": 233}]
+FLAGGED ["OTHER", ["llvm-base", "gcc-devel-static", "14.2.0-1.77.armv7l", "/usr/lib/libgomp.a"], {"members": 44, "producer:GCC_MARKER": 44, "lto:NO_LTO_SECTION_RECORDED": 44, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 44, "reloc:R_ARM_THM_MOVW_ABS_NC": 1097, "reloc:R_ARM_THM_MOVT_ABS": 1097, "reloc:R_ARM_TLS_LE32": 210, "reloc:R_ARM_ABS32": 389, "reloc:R_ARM_MOVW_ABS_NC": 1, "reloc:R_ARM_MOVT_ABS": 1}]
+FLAGGED ["OTHER", ["llvm-base", "gcc-devel-static", "14.2.0-1.77.armv7l", "/usr/lib/libitm.a"], {"members": 20, "producer:GCC_MARKER": 19, "lto:NO_LTO_SECTION_RECORDED": 20, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 19, "reloc:R_ARM_THM_MOVW_ABS_NC": 185, "reloc:R_ARM_THM_MOVT_ABS": 185, "reloc:R_ARM_TLS_LE32": 260, "reloc:R_ARM_ABS32": 23, "producer:NO_MARKER": 1, "producer+lto:NO_MARKER/NO_LTO_SECTION_RECORDED": 1}]
+FLAGGED ["OTHER", ["llvm-base", "glibc-devel-static", "2.40-1.111.armv7l", "/usr/lib/libc.a"], {"members": 5, "producer:GCC_MARKER": 3, "lto:NO_LTO_SECTION_RECORDED": 5, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 3, "reloc:R_ARM_TLS_LE32": 12, "producer:NO_MARKER": 2, "producer+lto:NO_MARKER/NO_LTO_SECTION_RECORDED": 2, "reloc:R_ARM_ABS32": 2}]
+FLAGGED ["OTHER", ["llvm-base", "glibc-profile", "2.40-1.111.armv7l", "/usr/lib/libc_p.a"], {"members": 5, "producer:GCC_MARKER": 3, "lto:NO_LTO_SECTION_RECORDED": 5, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 3, "reloc:R_ARM_TLS_LE32": 12, "producer:NO_MARKER": 2, "producer+lto:NO_MARKER/NO_LTO_SECTION_RECORDED": 2, "reloc:R_ARM_ABS32": 2}]
+FLAGGED ["OTHER", ["llvm-base", "libdw-devel", "0.189-2.54.armv7l", "/usr/lib/libdw.a"], {"members": 3, "producer:CLANG_MARKER": 3, "lto:NO_LTO_SECTION_RECORDED": 3, "producer+lto:CLANG_MARKER/NO_LTO_SECTION_RECORDED": 3, "reloc:R_ARM_TLS_LE32": 9}]
+FLAGGED ["OTHER", ["llvm-base", "gcc-devel-static", "14.2.0-1.77.armv7l", "/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/libcaf_single.a"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_THM_MOVW_ABS_NC": 69, "reloc:R_ARM_THM_MOVT_ABS": 69, "reloc:R_ARM_ABS32": 30}]
+FLAGGED ["OTHER", ["llvm-base", "gcc-fortran", "14.2.0-1.77.armv7l", "/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/libcaf_single.a"], {"members": 1, "producer:GCC_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:GCC_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_THM_MOVW_ABS_NC": 69, "reloc:R_ARM_THM_MOVT_ABS": 69, "reloc:R_ARM_ABS32": 30}]
+FLAGGED ["OTHER", ["llvm-base", "libasm-devel", "0.189-2.54.armv7l", "/usr/lib/libasm.a"], {"members": 1, "producer:CLANG_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:CLANG_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_TLS_LE32": 3}]
+FLAGGED ["OTHER", ["llvm-base", "libelf-devel", "0.189-2.54.armv7l", "/usr/lib/libelf.a"], {"members": 1, "producer:CLANG_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:CLANG_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_TLS_LE32": 3}]
+FLAGGED ["OTHER", ["llvm-base", "libunwind-devel", "1.6.2-1.17.armv7l", "/usr/lib/libunwind-arm.a"], {"members": 1, "producer:CLANG_MARKER": 1, "lto:NO_LTO_SECTION_RECORDED": 1, "producer+lto:CLANG_MARKER/NO_LTO_SECTION_RECORDED": 1, "reloc:R_ARM_TLS_LE32": 4}]
+FLAGGED_ARCHIVES OTHER 15 preview 12
+UNCLASSIFIED 17891 format requires SHA-matched member bytes
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/pic-readback.py.txt' -o "$d/pic-readback.py.txt" && printf '%s  %s\n' '868738f99c577138b4627d478fc9d50e9d6f41dc3229c5b5efad75efd778ee83' "$d/pic-readback.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/native-audit.py.txt' -o "$d/native-audit.py.txt" && printf '%s  %s\n' '1cce17777fb452b534a463077544c677c359636e08d45f74dd8124924007d854' "$d/native-audit.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/arm-pic-audit.py.txt' -o "$d/arm-pic-audit.py.txt" && printf '%s  %s\n' '546aaaa67ab5baebd8d3344c2057f19a9f19e9fc098d9eaeb4919dbb3951bfbf' "$d/arm-pic-audit.py.txt" | sha256sum -c - && python3 -B -u "$d/pic-readback.py.txt" compiler "$d/native-audit.py.txt" "${COMPILER_SAMPLE_ARGS[@]}")
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.WWwg5y/pic-readback.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.WWwg5y/native-audit.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.WWwg5y/arm-pic-audit.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-compiler-readback.jr3oengx
+COMPILER_SAMPLE 81 {"CLANG_MARKER": 80, "UNCLASSIFIED_ARM_ELF": 1}
+UNCLASSIFIED_ARM_ELF {"repository": "llvm-product", "package": "EngineeringMode-driver-perf", "identity": "1.0-1.armv7l", "path": "/lib/modules/linux/kernel/drivers/misc/tzdev/perf/emdev.ko", "sha256": "75195fd85f5a445f434d11a09eeb619dce18ac4629781a7bd7d7acd849978046", "build_id": "c5a2d882fb247d381cdaa5060bba435e1b120380", "producer_markers": ""}
+REASON no recognized GCC/Clang/Rust strings in sampled readelf output; .comment presence requires bytes
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 90 'https://raw.githubusercontent.com/lhmax2010/analysis/883702685e2dbfb82b29fe190e45b01b44c57732/artifacts/scripts/r0004/mlgo-kernel-replay.py.txt' -o "$d/mlgo-kernel-replay.py.txt" && printf '%s  %s\n' '573f59467d9596e2a1ae942f3148fbcff8767c4e8f25ad2a07db5db290b6cdbc' "$d/mlgo-kernel-replay.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 90 'https://raw.githubusercontent.com/lhmax2010/analysis/8d8fa62a06219d536d54ffc61c8a27bae123268f/artifacts/scripts/r0004/mlgo-model-identity.py.txt' -o "$d/mlgo-model-identity.py.txt" && printf '%s  %s\n' 'f5e48b4e9fc6d4934c510ddda00af38cc032fc6e9558534ee40a2d819dda19f4' "$d/mlgo-model-identity.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 90 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/preflight-base-qb.py.txt' -o "$d/preflight-base-qb.py.txt" && printf '%s  %s\n' 'd42d138f170c3e5ae7784951d14719b15e1dc2df18fe075191aea7a310ae78c5' "$d/preflight-base-qb.py.txt" | sha256sum -c - && mkdir -p "$PWD/workspace/temp/pm0004-native-lock" && flock -n "$PWD/workspace/temp/pm0004-native-lock/heavy.lock" python3 -B -u "$d/mlgo-kernel-replay.py.txt" "$d/mlgo-model-identity.py.txt" "$d/preflight-base-qb.py.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.4p5TBV/mlgo-kernel-replay.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.4p5TBV/mlgo-model-identity.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.4p5TBV/preflight-base-qb.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0004-kernel-src.gzu4jw62
+
