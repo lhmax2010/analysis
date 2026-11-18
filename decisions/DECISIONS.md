@@ -257,3 +257,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Record the passed MLGO source gate on pending shelf 14427407. With the QB log unavailable, use the changed kernel payload and the user-space ELF comparison against the item 2 Base delta for Base-swap attribution. Retain the limits on effective compiler and model-only evidence.
 - Trace cargo-tizen from the actual selected argot build sources. Preserve the resolved target, ABI and linker. Prefer the same-target Thumb feature if the baseline emits A32 and the candidate preserves the ABI. Use a supported same-ABI Thumb target only after isolating the instruction-mode difference.
 - Status: **Agreed — user direction**. Config resolution, image comparison and native results are pending.
+
+## D-029 — KantSU2E board-day gates
+
+- Date 2026-11-18, round 0005 section I addendum.
+- The operator supplied the full USB flash sequence for KantSU2E. Confirm the artifact and USB hashes, exact running image identity and recovery access. Review the captured output before proceeding from each step or trial.
+- Preserve Official results on the native host before changing the image. Reuse the benchmark binary and verified media clip across lanes. Report frame drops as unavailable until the active stream counter is proven.
+- Interpret the 1113.1/1118.1 Base swap with the source gate, exact artifacts, workload dependencies and the observed confounder ledger. A controlled model-only build pair is a separate experiment.
+- Claude review and live execution are pending. [Board-day checklist](../reports/KantSU2E_MLGO_Board_Day_0005.md)

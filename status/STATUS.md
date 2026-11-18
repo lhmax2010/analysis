@@ -7,7 +7,7 @@
 - Native preflight verified byte-identical Base and shelf lists. OBS build status is rev12 published/succeeded on both arches. Binary pinning remains pending after the OSC proxy failure. Use the new direct provenance launcher after review.
 - ARM/Thumb scan last reported 1,200/2,342. T5 is blocked by QuickBuild REST 403. PIC matrix 56/56, RPM screen 78/92 scanned and 14 incomplete. Compiler sample 80/81 Clang-marked ELFs. Argot target awaits the pinned cargo-tizen configuration trace. Full compiler-marker coverage awaits native results.
 
-- Friday MLGO replay stages its own fixed kernel and toolchains. G can run after review. H waits for the candidate Product URL. I is ready for board review. Actual QB compiler provenance, live measurements, the drop counter and exact board flash/recovery procedure are pending.
+- Friday MLGO replay stages its own fixed kernel and toolchains. G can run after review. H waits for the candidate Product URL. I now has the operator's BOOST sequence and an independently reviewed checklist for Claude. Official download is pending on native because local HTTP and HTTPS both timed out. Candidate URL, artifact-to-board identity, recovery prompts, 4K clip/counter qualification and measurement results are pending. [Board-day checklist](../reports/KantSU2E_MLGO_Board_Day_0005.md)
 
 [Round 0005 native evidence and launchers](../comms/codex_to_claude/0005_reply.md)
 
