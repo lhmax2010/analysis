@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Screen ARM32 relocatable ELF files and ordinary archives without extracting paths."""
+
+import argparse
+import csv
+import hashlib
+import struct
+import sys
+from pathlib import Path
+
+SUSPECT = {
+    2: "R_ARM_ABS32", 43: "R_ARM_MOVW_ABS_NC", 44: "R_ARM_MOVT_ABS",
+    47: "R_ARM_THM_MOVW_ABS_NC", 48: "R_ARM_THM_MOVT_ABS",
+    108: "R_ARM_TLS_LE32",
+}
+
+
+def slice_checked(data, offset, size):
+    if offset < 0 or size < 0 or offset + size > len(data):
+        raise ValueError("file range outside input")
+    return data[offset:offset + size]
+
+
+def c_string(data, offset):
+    if offset >= len(data) or (end := data.find(b"\0", offset)) < 0:
+        raise ValueError("invalid ELF string offset")
+    return data[offset:end].decode(errors="replace")
+
+
+def classify(data):
+    if data[:5] != b"\x7fELF\x01":
+        return None
+    endian = {1: "<", 2: ">"}.get(data[5])
+    if endian is None:
+        raise ValueError("unknown ELF byte order")
+    e_type, machine = struct.unpack_from(endian + "HH", data, 16)
+    if (e_type, machine) != (1, 40):
+        return None
+    offset, = struct.unpack_from(endian + "I", data, 32)
+    entsize, count, shstr = struct.unpack_from(endian + "HHH", data, 46)
+    if entsize != 40:
+        raise ValueError("unexpected ARM32 section header size")
+    section = struct.Struct(endian + "10I")
+    first = section.unpack_from(data, offset)
+    count = count or first[5]
+    shstr = first[6] if shstr == 0xFFFF else shstr
+    headers = list(section.iter_unpack(slice_checked(data, offset, count * entsize)))
+    strings = slice_checked(data, headers[shstr][4], headers[shstr][5])
+    names = [c_string(strings, row[0]) for row in headers]
+    evidence = []
+    for row, section_name in zip(headers, names):
+        _, kind, _, _, start, size, _, target, _, stride = row
+        if kind not in (4, 9):
+            continue
+        if target >= len(headers):
+            raise ValueError("invalid relocation target")
+        if not headers[target][2] & 4:
+            continue
+        expected = 12 if kind == 4 else 8
+        if stride != expected or size % stride:
+            raise ValueError("invalid relocation entry size")
+        table = slice_checked(data, start, size)
+        for item in range(0, size, stride):
+            where, info = struct.unpack_from(endian + "II", table, item)
+            if (reloc := info & 255) in SUSPECT:
+                evidence.append(f"{section_name}->{names[target]}+0x{where:x}:{SUSPECT[reloc]}")
+    comments = [
+        slice_checked(data, row[4], row[5]).decode(errors="replace").strip("\0").replace("\0", " | ")
+        for row, name in zip(headers, names) if name == ".comment"
+    ]
+    return {
+        "status": "REVIEW_RELOCATIONS" if evidence else "NO_LISTED_RELOCATION",
+        "llvm_lto": ".llvm.lto" in names,
+        "gnu_lto": any(n.startswith(".gnu.lto_") or n.startswith(".gnu.lto.") for n in names),
+        "producer_markers": " | ".join(comments),
+        "relocations": "; ".join(evidence),
+    }
+
+
+def members(data):
+    if data.startswith(b"!<thin>\n"):
+        raise ValueError("thin archive requires external members")
+    if not data.startswith(b"!<arch>\n"):
+        yield "", data
+        return
+    offset, names = 8, b""
+    ordinal = 0
+    while offset < len(data):
+        header = slice_checked(data, offset, 60)
+        if header[58:] != b"`\n":
+            raise ValueError("invalid archive member header")
+        size = int(header[48:58])
+        start = offset + 60
+        payload = slice_checked(data, start, size)
+        offset = start + size + size % 2
+        name = header[:16].rstrip()
+        if name == b"//":
+            names = payload
+            continue
+        if name in (b"/", b"/SYM64/"):
+            continue
+        if name.startswith(b"#1/"):
+            length = int(name[3:])
+            name, payload = slice_checked(payload, 0, length).rstrip(b"\0"), payload[length:]
+        elif name.startswith(b"/"):
+            start = int(name[1:])
+            end = names.find(b"/\n", start)
+            if end < 0:
+                raise ValueError("invalid GNU archive long name")
+            name = names[start:end]
+        if name.startswith(b"__.SYMDEF"):
+            continue
+        ordinal += 1
+        yield f"{ordinal}:{name.rstrip(b'/').decode(errors='replace')}", payload
+
+
+def scan(data, path):
+    rows = []
+    try:
+        for member, payload in members(data):
+            row = classify(payload)
+            if row is None:
+                row = {"status": "UNCLASSIFIED_MEMBER"}
+            rows.append(dict(path=path, member=member, sha256=hashlib.sha256(payload).hexdigest(), **row))
+    except (ValueError, IndexError, struct.error) as exc:
+        rows.append(dict(path=path, member="", status="REVIEW_INPUT_ERROR", relocations=str(exc)))
+    return rows or [dict(path=path, member="", status="EMPTY_ARCHIVE")]
+
+
+FIELDS = ("path", "member", "sha256", "status", "llvm_lto", "gnu_lto", "producer_markers", "relocations")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("files", nargs="+", type=Path)
+    args = parser.parse_args()
+    writer = csv.DictWriter(sys.stdout, fieldnames=FIELDS)
+    writer.writeheader()
+    for path in args.files:
+        writer.writerows(scan(path.read_bytes(), str(path)))
+
+
+if __name__ == "__main__":
+    main()

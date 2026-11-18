@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""Reconcile NEVRA delta rows into before/after package deltas and join the TV roster."""
+import argparse
+from collections import Counter, defaultdict
+import csv
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import tempfile
+
+NATIVE = Path('/home1/chengkai/vd-tree/workspace/temp')
+RETAINED = NATIVE / 'pm0004-mlgo-xllvtyr9' / 'non-llvm-delta.csv'
+RAW = 'https://raw.githubusercontent.com/lhmax2010/analysis/ac0657e1347b7a3876e7cc28cd51a7831cb15f48/artifacts/ledger/'
+HASHES = (
+    'dce77d3ecb2b5fad13d785a37abd1746f661ff5bc5c657c6bf7f938059d40024',
+    '90c6f1eb5306ec248d72349535eed5e210daf012054b0677214fa5db5590f10d',
+    'e65ee62c116b50a0ff3deb17d912c3a1d8236112330982be1a6a74cfa695da4a',
+    'f63a45ffc834db6a2428d07da28c9dfd164226caa615135ec46bbe6ee9bbe491',
+    '5703fa176c4c7a3684b9ee56ea1de679fed8aa9f3efb98518397e2952ea5b2b2',
+    '126f042a2be1aba6ce336bd88a8ba044b375c51dc5350f0861b4630e143957bc',
+    '14c5acb9f2881993d56d54e45151a67ad38b0661c5f57868f6639aaf98ec3c32',
+    '6a8df2e294565113b2ae3f6cff294397c8bad2952d2213f14a8deb2969cddde2',
+)
+
+
+def read_csv(path):
+    with path.open(newline='') as stream:
+        return list(csv.DictReader(stream))
+
+
+def roster(work):
+    rows = []
+    for index, pin in enumerate(HASHES, 1):
+        name = 'installed-rpms-20261117' + ('' if index == 1 else f'-part-{index:02}') + '.csv'
+        path = work / name
+        subprocess.run(['curl','-fsS','--connect-timeout','8','--max-time','45',RAW+name,'-o',str(path)], check=True)
+        if hashlib.sha256(path.read_bytes()).hexdigest() != pin:
+            raise ValueError(f'installed ledger digest mismatch: {name}')
+        rows.extend(read_csv(path))
+    identities = {(r['name'], r['arch']): r for r in rows}
+    if len(rows) != 2342 or len(identities) != 2342:
+        raise ValueError('expected the 2342 identity board roster')
+    return identities
+
+
+def entry(r, side):
+    return {k: r[k] for k in ('epoch','version','release')} | {
+        'sha256': r[f'{side}_sha256'], 'sourcerpm': r[f'{side}_srpm']}
+
+
+def pair_rows(rows, installed):
+    groups = defaultdict(list)
+    for row in rows:
+        groups[row['name'], row['arch'], row['repo_arch']].append(row)
+    comparisons = []
+    for (name, arch, repo), items in sorted(groups.items()):
+        paired = []
+        before, after = [], []
+        for row in items:
+            left = entry(row, 'official') if row['official_sha256'] else None
+            right = entry(row, 'custom') if row['custom_sha256'] else None
+            if left and right:
+                paired.append(('SAME_NEVRA_PAYLOAD', [left], [right]))
+            elif left:
+                before.append(left)
+            elif right:
+                after.append(right)
+            else:
+                raise ValueError(f'{name}: delta row has no payload')
+        revisions = lambda side: Counter((r['epoch'],r['version']) for r in side)
+        old_versions, new_versions = revisions(before), revisions(after)
+        unique_release_pairs = {v for v, count in old_versions.items() if count == new_versions[v] == 1}
+        if unique_release_pairs:
+            for version in sorted(unique_release_pairs):
+                left = [r for r in before if (r['epoch'],r['version']) == version]
+                right = [r for r in after if (r['epoch'],r['version']) == version]
+                paired.append(('RELEASE_ONLY', left, right))
+            before = [r for r in before if (r['epoch'],r['version']) not in unique_release_pairs]
+            after = [r for r in after if (r['epoch'],r['version']) not in unique_release_pairs]
+        if len(before) == len(after) == 1:
+            prior, result = before[0], after[0]
+            kind = 'RELEASE_ONLY' if (prior['epoch'], prior['version']) == (result['epoch'], result['version']) else 'VERSION_OR_EPOCH'
+            paired.append((kind, before, after))
+        elif before and after:
+            paired.append(('AMBIGUOUS_MULTI_VERSION', before, after))
+        else:
+            paired.extend(('ONLY_OFFICIAL', [r], []) for r in before)
+            paired.extend(('ONLY_CUSTOM', [], [r]) for r in after)
+        board = installed.get((name, arch))
+        for kind, left, right in paired:
+            board_epoch = (board['epoch'] or '0').replace('(none)', '0') if board else ''
+            match = bool(board and any(board['version-release'] == r['version']+'-'+r['release']
+                                      and board_epoch == r['epoch'] for r in left))
+            comparisons.append({'name':name,'arch':arch,'repo_arch':repo,'classification':kind,
+                'official':left,'custom':right,'installed': 'EXACT_OFFICIAL' if match else 'NAME_ARCH' if board else 'ABSENT',
+                'version_set_changed': bool(left and right and (
+                    {(r['epoch'],r['version']) for r in left} != {(r['epoch'],r['version']) for r in right}))})
+    return comparisons
+
+
+def read_version_page(changed, page):
+    if page < 1:
+        raise ValueError('page starts at 1')
+    print('VERSION_PAGE', page, 'of', max(1, (len(changed)+159)//160), 'rows', len(changed))
+    for row in changed[(page-1)*160:page*160]:
+        print('VERSION', json.dumps(row, ensure_ascii=True, separators=(',',':')))
+
+
+def main():
+    cli = argparse.ArgumentParser(description=__doc__)
+    cli.add_argument('--readback', type=Path)
+    cli.add_argument('--page', type=int, default=1)
+    args = cli.parse_args()
+    if args.readback:
+        run = args.readback.resolve(strict=True)
+        if run.parent != NATIVE.resolve() or not run.name.startswith('pm0005-base-delta.'):
+            cli.error('use a retained pm0005-base-delta run')
+        read_version_page(json.loads((run/'version-changes.json').read_text()), args.page)
+        return
+    work = Path(tempfile.mkdtemp(prefix='pm0005-base-delta.', dir=NATIVE))
+    print('WORKDIR', work, flush=True)
+    rows = read_csv(RETAINED)
+    installed = roster(work)
+    source_sha = hashlib.sha256(RETAINED.read_bytes()).hexdigest()
+    result = pair_rows(rows, installed)
+    changed = [r for r in result if r['version_set_changed']]
+    (work/'classified.json').write_text(json.dumps({'input_sha256': source_sha, 'comparisons':result}, indent=2))
+    (work/'version-changes.json').write_text(json.dumps(changed, indent=2))
+    print('DELTA_INPUT', len(rows), source_sha)
+    for kind in sorted({r['classification'] for r in result}):
+        pool = [r for r in result if r['classification'] == kind]
+        keys = lambda states: {(r['name'], r['arch']) for r in pool if r['installed'] in states}
+        print('CATEGORY',kind,'repo_events',len(pool),
+              'unique_name_arch',len(keys({'NAME_ARCH','EXACT_OFFICIAL','ABSENT'})),
+              'board_name_arch',len(keys({'NAME_ARCH','EXACT_OFFICIAL'})),
+              'board_exact_official_nevra',len(keys({'EXACT_OFFICIAL'})))
+    summary = Counter(r['classification'] for r in result)
+    eligible = {(r['name'],r['arch']) for r in result if r['installed'] != 'ABSENT'}
+    print('BOARD_DELTA_UNIQUE_NAME_ARCH',len(eligible),'of',len(installed))
+    print('PAIR_STATUS',json.dumps(summary,sort_keys=True))
+    read_version_page(changed, 1)
+
+
+if __name__ == '__main__':
+    main()

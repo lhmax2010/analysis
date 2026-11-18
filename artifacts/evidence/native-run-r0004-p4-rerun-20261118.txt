@@ -1,0 +1,102 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/kernel-gate.sh.txt' -o "$d/kernel-gate.sh.txt" && printf '%s  %s\n' 'e8d332e397b4ebf22a13734b0f631bb74a06b065d2c262205e596fd610e92606' "$d/kernel-gate.sh.txt" | sha256sum -c - && QB_KERNEL_LOG="${QB_KERNEL_LOG:-}" bash "$d/kernel-gate.sh.txt" | tee "$d/kernel-gate.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.8PlIKP/kernel-gate.sh.txt: OK
+manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt: OK
+388://TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/...@14427407
+
+SOURCE packaging/tztv-kernel.spec@=14427407
+33:%if "%{?_toolchain}" == "clang"
+34:# Clang toolchain (build.conf _toolchain clang): the Linux kernel is built with LLVM (KERNEL_TOOLCHAIN_ENV in the build section), so
+36:BuildRequires: clang
+37:BuildRequires: llvm
+145:export SYSTEM64=%{_vd_cfg_system64}         # need by BUILD.sh
+146:export PRODUCT_TYPE=%{_vd_cfg_product_type} # need by BUILD.sh
+147:export CHIP_VENDOR=%{_vd_cfg_chip_vendor}   # need by seret's BUILD.sh
+148:export LINUX_SOURCE_PATH="linux-"%{LIN_VER} # need by seret's BUILD.sh
+149:export ARCH_ENV=%{_arch}                    # need by BUILD.sh and seret's BUILD.sh
+152:# Toolchain of the Linux kernel build (./BUILD.sh below gets it in its environment). GCC: empty, nothing changes.
+154:%if "%{?_toolchain}" == "clang"
+155:# Clang: kbuild LLVM=1 (CC=clang, LD=ld.lld, AR/NM/OBJCOPY/OBJDUMP/READELF/STRIP=llvm-*) and the integrated assembler (LLVM_IAS=1).
+157:KERNEL_TOOLCHAIN_ENV="LLVM=1 LLVM_IAS=1"
+264:%if "%{?_toolchain}" == "clang"
+268:    # defaults LLVM=1 LLVM_IAS=1 for those builds ("?=": a module can still pass LLVM=0); clang and llvm are in every Clang
+301:    env $KERNEL_TOOLCHAIN_ENV ./BUILD.sh "$PROJECT" "$RELEASE_MODE" "$SIGN_CHIP" "$VERIFIER" "$SANITIZER"
+312:    # And it leads a linking error. So disable it because it's not used in our environment.
+333:    ./BUILD.sh "--target=$TARGET --clean $DO_SIGN"
+334:    ./BUILD.sh "--target=$TARGET --update-dir=$UPDATE_DIR --debug $DO_SIGN"
+335:    ./BUILD.sh "--target=$TARGET --release $DO_SIGN"
+517:# Put a dummy sign.bin for detecting an update error.
+
+SOURCE linux-6.12/Makefile@=14427407
+15:$(error GNU Make >= 4.0 is required. Your Make version is $(MAKE_VERSION))
+19:     $(error targets prefixed with '__' are only for internal use))
+138:    $(error building multiple external modules is not supported))
+141:    $(error module directory path cannot contain '$x')))
+189:$(if $(abs_objtree),,$(error failed to create output directory "$(KBUILD_OUTPUT)"))
+193:$(error source directory cannot contain spaces or colons)
+261:# To make sure we do not include .config for any of the *config targets
+267:# of make so .config is not included in this case either (for *config).
+373:# CROSS_COMPILE specify the prefix used for all executables used
+375:# are prefixed with $(CROSS_COMPILE).
+376:# CROSS_COMPILE can be set on the command line
+377:# make CROSS_COMPILE=aarch64-linux-gnu-
+378:# Alternatively CROSS_COMPILE can be set in the environment.
+379:# Default value for CROSS_COMPILE is not to prefix executables
+380:# Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
+487:CC          = $(CROSS_COMPILE)gcc
+488:LD          = $(CROSS_COMPILE)ld
+489:AR          = $(CROSS_COMPILE)ar
+490:NM          = $(CROSS_COMPILE)nm
+491:OBJCOPY             = $(CROSS_COMPILE)objcopy
+492:OBJDUMP             = $(CROSS_COMPILE)objdump
+493:READELF             = $(CROSS_COMPILE)readelf
+
+SOURCE linux-6.12/init/Kconfig@=14427407
+121:    def_bool $(success,echo '__attribute__((no_profile_instrument_function)) int x();' | $(CC) -x c - -c -o /dev/null -Werror)
+126:    def_bool $(success,echo 'struct flex { int count; int array[] __attribute__((__counted_by__(count))); };' | $(CC) $(CLANG_FLAGS) -x c - -c -o /dev/null -Werror)
+182:    bool "Apply MLGO Optimization: Build kernel with Clang and modules with GCC"
+186:      Enables MLGO-based register allocation and inlining optimizations
+190:      Useful for performance-critical kernels with MLGO models trained
+193:config MLGO
+194:        bool "MLGO: ML-guided inlining and register eviction (Clang)"
+198:          Use the release MLGO models embedded in the platform clang (-mllvm -enable-ml-inliner=release,
+199:          -mllvm -regalloc-enable-advisor=release). Applies to the kernel image and to every module built
+202:config MLGO_INLINER
+203:        bool "MLGO: ML inliner (size model)"
+204:        depends on MLGO
+207:config MLGO_REGALLOC
+208:        bool "MLGO: ML register eviction advisor"
+209:        depends on MLGO
+251:    bool "Compile the kernel with warnings as errors"
+255:      enables the '-Werror' (for C) and '-Dwarnings' (for Rust) flags
+257:      such as the linker may be upgraded to errors with this option as
+1603:   depends on $(ld-option,--orphan-handling=error)
+1608:        default "error" if WERROR
+1739:     option for embedded systems with no facilities for reporting errors.
+
+SOURCE linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig@=14427407
+33:CONFIG_MLGO=y
+
+SOURCE BUILD.sh@=14427407
+3:# BUILD.sh - VDKernel Build Script
+6:#   Interactive:  ./BUILD.sh
+7:#   Command-line: ./BUILD.sh <MODEL_TARGET> <RELEASE_MODE> <SIGN_TYPE> [VERIFIER] [SANITIZER]
+10:#   ./BUILD.sh OSCARP perf CHIP_OSCARP
+24:readonly CROSS_COMPILE_ARM="armv7l-tizen-linux-gnueabi-"
+25:readonly CROSS_COMPILE_ARM64="aarch64-tizen-linux-gnu-"
+26:readonly CROSS_COMPILE_RISCV="riscv64-tizen-linux-gnu-"
+50:CROSS_COMPILE="${CROSS_COMPILE:-}"    # spec: set by build system
+122:# Print an error message and exit
+357:    # Determine ARCH and CROSS_COMPILE based on ARCH_ENV
+361:    # VBS build : ARCH_ENV is empty (ARCH/CROSS_COMPILE set by environment)
+395:                            CROSS_COMPILE="$CROSS_COMPILE_ARM"
+399:                    CROSS_COMPILE="$CROSS_COMPILE_ARM64"
+403:                            CROSS_COMPILE="$CROSS_COMPILE_RISCV"
+408:    export CROSS_COMPILE
+416:            "${CROSS_COMPILE}gcc" --version
+
+No QB_KERNEL_LOG supplied. This output can establish pinned source wiring. Effective argv and resolved Base clang are verified using the actual QB package log/install record.
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/find-argot-evidence.sh.txt' -o "$d/find-argot-evidence.sh.txt" && printf '%s  %s\n' '262837d4d173f62b4e116bc023d5eef6cf2eeac9b29fd6ffd8277af3b492c975' "$d/find-argot-evidence.sh.txt" | sha256sum -c - && bash "$d/find-argot-evidence.sh.txt" | tee "$d/argot-evidence.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.3JFxkM/find-argot-evidence.sh.txt: OK
+201:# Work on a copy so the committed cargo-tizen artifact stays untouched.
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
+

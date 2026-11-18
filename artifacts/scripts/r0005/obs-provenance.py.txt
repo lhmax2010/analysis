@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Resume the accepted preflight using the successful MLGO OBS Python transport."""
+import configparser
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import socket
+import tempfile
+from urllib.parse import urlsplit
+import xml.etree.ElementTree as ET
+
+ROOT = Path('/home1/chengkai/vd-tree')
+NATIVE = ROOT / 'workspace/temp'
+RETAINED = NATIVE / 'pm0004-mlgo-xllvtyr9'
+HOST = '168.219.245.220'
+PROJECT = 'Tizen:10.0:Base:Dev:LLVM'
+SOURCE_PIN = '0b38aead137ec42dcd99dee28091acc1'
+ARCHES = ('armv7l', 'x86_64')
+BUILD = 'clang-22.1.8-11.1'
+PUBLISHED = {
+    'armv7l': '6e692d5fb4f372c9e8d8f969b5171ce73275a7f613ae1f9694797758cf66b1a9',
+    'x86_64': 'ed6db88c182662fb81007ffe4589c49792970e14d110b95ebf6744de2949a3d2',
+}
+PREFIX = ('http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/'
+          'standard/tizen-10.0-base-dev-llvm-standard_20261118.1/')
+
+
+# Config selection transcribed from obs-submit-engine.py (d5697be7...).
+def select_config():
+    explicit=os.environ.get('OSC_CONFIG')
+    choices=[Path(explicit).expanduser()] if explicit else [
+        Path(os.environ.get('XDG_CONFIG_HOME',str(Path.home()/'.config')))/'osc/oscrc',
+        Path.home()/'.oscrc',ROOT/'src/codex_temp/obs_llvm_probe/oscrc.private']
+    for path in choices:
+        if not path.is_file():continue
+        config=configparser.RawConfigParser(strict=False);config.read(path)
+        matches=[]
+        for section in config.sections():
+            try:
+                url=urlsplit(section)
+                if url.hostname==HOST and url.scheme in ('http','https') and (url.port or (443 if url.scheme=='https' else 80)) in (80,443) and not url.username and not url.password:
+                    matches.append(section)
+            except ValueError:continue
+        default=config.get('general','apiurl',fallback='').strip()
+        chosen=[x for x in matches if x==default or default in config.get(x,'aliases',fallback='').replace(',',' ').split()]
+        if len(chosen)==1:return config,chosen[0]
+        if len(matches)==1:return config,matches[0]
+        if 'http://168.219.245.220:80' in matches:return config,'http://168.219.245.220:80'
+    raise RuntimeError('No existing configuration for the VD OBS endpoint; do not paste credentials')
+
+
+class ObsGet:
+    def __init__(self, job):
+        config, self.apiurl = select_config()
+        if not config.has_section('general'):
+            config.add_section('general')
+        config.set('general', 'cookiejar', str(job / 'cookies.private'))
+        for key in ('http_debug', 'http_full_debug', 'debug', 'traceback'):
+            config.set('general', key, '0')
+        private = job / 'oscrc.private'
+        with private.open('x') as stream:
+            config.write(stream)
+        private.chmod(0o600)
+        for key in ('http_proxy', 'https_proxy', 'all_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY'):
+            os.environ.pop(key, None)
+        os.environ.update(no_proxy=HOST, NO_PROXY=HOST)
+        socket.setdefaulttimeout(75)
+        from osc import conf, core
+        conf.get_config(override_conffile=str(private), override_apiurl=self.apiurl)
+        conf.get_apiurl_usr(self.apiurl)
+        self.core = core
+
+    def open(self, parts, query=None):
+        return self.core.http_GET(self.core.makeurl(self.apiurl, parts, query=query or {}))
+
+    def xml(self, parts, output, query=None):
+        with self.open(parts, query) as response:
+            raw = response.read(8 * 1024**2 + 1)
+        if len(raw) > 8 * 1024**2:
+            raise ValueError('OBS XML exceeds the capture bound')
+        output.write_bytes(raw)
+        return ET.fromstring(raw)
+
+
+def candidates(path):
+    with path.open(newline='') as stream:
+        rows = list(csv.DictReader(stream))
+    result = {}
+    for arch in ARCHES:
+        name = f'{BUILD}.{arch}.rpm'
+        matches = [r for r in rows if (r['repo_arch'], r['name'], r['arch']) == (arch, 'clang', arch)]
+        if len(matches) != 1:
+            raise ValueError(f'{arch}: retained clang candidate count {len(matches)}')
+        row = matches[0]
+        if (not row['url'].startswith(PREFIX) or row['url'].rsplit('/', 1)[-1] != name
+                or row['sourcerpm'] != 'llvm-22.1.8-11.1.src.rpm'
+                or row['sha256'] != PUBLISHED[arch]):
+            raise ValueError(f'{arch}: retained candidate identity drift')
+        result[arch] = (name, row['sha256'])
+    return result
+
+
+def scrub(value):
+    value = re.sub(r'(?i)(https?://)[^\s/@]+@', r'\1<redacted>@', str(value))
+    value = re.sub(r'(?i)(\b(?:authorization|cookie|password|passwd|token|secret)\b\s*[:=])[^\r\n]*',
+                   r'\1<redacted>', value)
+    return ' '.join(value.splitlines())[:1800]
+
+
+def error_text(exc):
+    result = f'{type(exc).__name__}: {scrub(exc)}'
+    if getattr(exc, 'code', None) and getattr(exc, 'fp', None):
+        try:
+            body = exc.read(4096).decode(errors='replace')
+            node = ET.fromstring(body)
+            message = node.findtext('summary') or node.findtext('details')
+            if message:
+                result += f' | OBS: {scrub(message)}'
+        except (OSError, ET.ParseError, ValueError):
+            pass
+    return result
+
+
+def check(job):
+    retained = RETAINED.resolve(strict=True)
+    if retained.parent != NATIVE.resolve():
+        raise ValueError('retained preflight directory leaves workspace/temp')
+    expected = candidates(retained / 'custom-llvm-rpms.csv')
+    obs = ObsGet(job)
+    print('OBS_API', obs.apiurl, 'TRANSPORT osc.core.http_GET direct', flush=True)
+    source = obs.xml(['source', PROJECT, 'llvm'], job / 'llvm-rev12.xml', {'rev': '12'})
+    print('OBS_REV12', source.get('rev'), source.get('srcmd5'), flush=True)
+    if (source.get('rev'), source.get('srcmd5')) != ('12', SOURCE_PIN):
+        raise ValueError('OBS source does not match the rev12 srcmd5 pin')
+    outcomes = {}
+    for arch, (name, digest) in expected.items():
+        path = ['build', PROJECT, 'standard', arch, 'llvm']
+        try:
+            info = obs.xml(path + ['_buildinfo'], job / f'{arch}-llvm-buildinfo.xml')
+            if (info.get('srcmd5') or info.findtext('srcmd5')) != SOURCE_PIN:
+                raise ValueError(f'{arch}: buildinfo has a different srcmd5')
+            rpm = job / f'{arch}-clang.rpm.part'
+            actual = hashlib.sha256()
+            with obs.open(path + [name]) as response, rpm.open('xb') as output:
+                size = 0
+                for block in iter(lambda: response.read(1024**2), b''):
+                    size += len(block)
+                    if size > 1024**3:
+                        raise ValueError('OBS RPM exceeds 1 GiB capture bound')
+                    actual.update(block)
+                    output.write(block)
+            if actual.hexdigest() != digest:
+                raise ValueError(f'OBS binary hash {actual.hexdigest()} differs from published SHA-256 {digest}')
+            rpm.rename(job / f'{arch}-clang.rpm')
+            outcomes[arch] = {'name': name, 'sha256': digest, 'srcmd5': SOURCE_PIN}
+            print('PINNED_LLVM_BINARY', arch, name, digest, SOURCE_PIN, flush=True)
+        except Exception as exc:
+            outcomes[arch] = {'error': error_text(exc)}
+            print('LLVM_PROVENANCE_REVIEW', arch, outcomes[arch]['error'], flush=True)
+    return outcomes
+
+
+def main():
+    os.umask(0o077)
+    job = Path(tempfile.mkdtemp(prefix='pm0005-mlgo-pins.', dir=NATIVE))
+    print('WORKDIR', job, flush=True)
+    for key in ('TMPDIR', 'TMP', 'TEMP', 'XDG_CACHE_HOME', 'XDG_STATE_HOME'):
+        os.environ[key] = str(job)
+    tempfile.tempdir = str(job)
+    outcomes = {}
+    try:
+        outcomes = check(job)
+    except Exception as exc:
+        outcomes['obs_error'] = error_text(exc)
+        print('LLVM_PROVENANCE_REVIEW', outcomes['obs_error'], flush=True)
+    finally:
+        for name in ('oscrc.private', 'cookies.private'):
+            (job / name).unlink(missing_ok=True)
+    complete = all('sha256' in outcomes.get(arch, {}) for arch in ARCHES)
+    (job / 'result.json').write_text(json.dumps({'status': 'COMPLETE' if complete else 'INCOMPLETE',
+                                               'retained': str(RETAINED), 'outcomes': outcomes}, indent=2) + '\n')
+    print('BINARY_PIN_STATUS', 'COMPLETE' if complete else 'INCOMPLETE', flush=True)
+    return int(not complete)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

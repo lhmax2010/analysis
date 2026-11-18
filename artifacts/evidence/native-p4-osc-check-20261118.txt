@@ -1,0 +1,90 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ cd /home1/chengkai/vd-tree
+p4 -c DEV-IPTV-VC_TOOLCHAIN login -s; p4 -c DEV-IPTV-VC_TOOLCHAIN info | head -8
+p4 -c DEV-IPTV-VC_TOOLCHAIN describe -S -s 14427407 | head -15
+osc -A http://168.219.245.220:80 api "/source/Tizen:10.0:Base:Dev:LLVM/llvm?rev=12" | head -5
+Perforce password (P4PASSWD) invalid or unset.
+User name: hao.lin
+Client name: DEV-IPTV-VC_TOOLCHAIN
+Client host: risc-v-Alienware-Aurora-R16
+Client root: /home1/chengkai/vd-tree
+Current directory: /home1/chengkai/vd-tree
+Peer address: 10.40.78.190:41494
+Client address: 109.123.95.172
+Server date: 2026/11/18 17:23:54 +0900 KST
+Perforce password (P4PASSWD) invalid or unset.
+Traceback (most recent call last):
+  File "/home1/chengkai/.local/bin/osc", line 6, in <module>
+    sys.exit(main())
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/babysitter.py", line 256, in main
+    sys.exit(run(commandline.OscMainCommand()))
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/babysitter.py", line 54, in run
+    prg.main(argv)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/commandline.py", line 293, in main
+    exit_code = cmd.run(args)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/commandline_common.py", line 223, in run
+    return cmd.run(args)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/commandline.py", line 226, in run
+    return self.func(args.command, args)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/commandline.py", line 9736, in do_api
+    r = http_request(opts.method,
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/connection.py", line 169, in new_func
+    return func(method, url, headers, data, file)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/connection.py", line 441, in http_request
+    response = pool.urlopen(method, urlopen_url, body=data, headers=headers, preload_content=False)
+  File "/home1/chengkai/.pyenv/versions/3.10.12/lib/python3.10/site-packages/urllib3/connectionpool.py", line 719, in urlopen
+    raise HostChangedError(self, url, retries)
+urllib3.exceptions.HostChangedError: HTTPConnectionPool(host='109.123.97.12', port=9090): Tried to open a foreign host with url: http://168.219.245.220:80/source/Tizen:10.0:Base:Dev:LLVM/llvm?rev=12
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ p4 login
+Enter password:
+User hao.lin logged in.
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ cd /home1/chengkai/vd-tree
+p4 -c DEV-IPTV-VC_TOOLCHAIN login -s; p4 -c DEV-IPTV-VC_TOOLCHAIN info | head -8
+p4 -c DEV-IPTV-VC_TOOLCHAIN describe -S -s 14427407 | head -15
+osc -A http://168.219.245.220:80 api "/source/Tizen:10.0:Base:Dev:LLVM/llvm?rev=12" | head -5
+User hao.lin ticket expires in 11 hours 59 minutes.
+User name: hao.lin
+Client name: DEV-IPTV-VC_TOOLCHAIN
+Client host: risc-v-Alienware-Aurora-R16
+Client root: /home1/chengkai/vd-tree
+Current directory: /home1/chengkai/vd-tree
+Peer address: 10.40.78.190:43796
+Client address: 109.123.95.172
+Server address: swvdsescm03-vip:1881
+Change 14427407 by hao.lin@DEV-Toolchain-LLVM_FIX on 2026/11/05 11:26:51 *pending*
+
+        [Clang][MLGO] vdlinux: enable MLGO (ML inliner and register allocation advisors) for the Clang toolchain
+
+        1. MLGO for the Clang toolchain (GCC builds unchanged)
+        - init/Kconfig: new CONFIG_MLGO (depends on CC_IS_CLANG) with CONFIG_MLGO_INLINER and CONFIG_MLGO_REGALLOC (default y under CONFIG_MLGO).
+        - Makefile: -mllvm -enable-ml-inliner=release and -mllvm -regalloc-enable-advisor=release in KBUILD_CFLAGS, so the image and every module (in-tree and external) use the release models embedded in the platform clang.
+        - KANTSU2E debug/perf/release defconfigs: CONFIG_MLGO=y. With GCC the option does not exist (depends on CC_IS_CLANG); the tinykernel build is not affected.
+        - Stack frames: the ML inliner inlines a few static functions that the default inliner keeps out of line, and the caller goes over CONFIG_FRAME_WARN (1024, -Werror). They are marked noinline_for_stack with a comment giving the measured frames. ipc/kdbus/connection.c: kdbus_conn_wait_reply (664-byte frame; kdbus_cmd_send 1472 bytes with it inlined); kdbus_priority_logging (224-byte frame, CONFIG_KDBUS_DEBUG; kdbus_cmd_send 1056 bytes with it inlined). fs/minimal_core.c: elf_minimal_core_dump (960-byte frame; do_minimal_core 1224 bytes with it inlined). PLEASE CHECK
+        - Size, local gbs build with the LLVM Base, against Clang without MLGO: KANTSU2E release zImage -10.0%, uImage -10.6%, modules -5.2%; perf zImage -10.0%, modules -5.0%; debug zImage -8.1%, modules -4.4%.
+        - Verified with a local gbs build of tztv-kernel under the Quickbuild conditions (build.conf of Quickbuild 14368686, LLVM Base snapshot 20261029.1): debug, perf, release and tinykernel build, no frame-size warnings. Performance test on the board is in progress.
+
+        2. This CL also carries the changes of shelve CL 14351457 (hao.lin, "[Clang] tztv-kernel: build the Linux kernel with LLVM under the Clang toolchain"), unchanged, on vdlinux@14293732, the base revision of the fix5h list, so that the package has one shelve.
+
+Shelved files ...
+Traceback (most recent call last):
+  File "/home1/chengkai/.local/bin/osc", line 6, in <module>
+    sys.exit(main())
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/babysitter.py", line 256, in main
+    sys.exit(run(commandline.OscMainCommand()))
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/babysitter.py", line 54, in run
+    prg.main(argv)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/commandline.py", line 293, in main
+    exit_code = cmd.run(args)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/commandline_common.py", line 223, in run
+    return cmd.run(args)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/commandline.py", line 226, in run
+    return self.func(args.command, args)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/commandline.py", line 9736, in do_api
+    r = http_request(opts.method,
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/connection.py", line 169, in new_func
+    return func(method, url, headers, data, file)
+  File "/home1/chengkai/.local/lib/python3.10/site-packages/osc/connection.py", line 441, in http_request
+    response = pool.urlopen(method, urlopen_url, body=data, headers=headers, preload_content=False)
+  File "/home1/chengkai/.pyenv/versions/3.10.12/lib/python3.10/site-packages/urllib3/connectionpool.py", line 719, in urlopen
+    raise HostChangedError(self, url, retries)
+urllib3.exceptions.HostChangedError: HTTPConnectionPool(host='109.123.97.12', port=9090): Tried to open a foreign host with url: http://168.219.245.220:80/source/Tizen:10.0:Base:Dev:LLVM/llvm?rev=12
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$

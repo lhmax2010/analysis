@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -eu
+cd /home1/chengkai/vd-tree
+d=$(mktemp -d "$PWD/workspace/temp/pm0005-argot.XXXXXX")
+export TMPDIR="$d"
+printf 'WORKDIR %s\n' "$d"
+p4cmd=(p4 -c DEV-IPTV-VC_TOOLCHAIN)
+if ! timeout 20 "${p4cmd[@]}" login -s >"$d/login.log" 2>&1; then
+    printf '%s\n' 'P4_TICKET_INVALID_OR_UNAVAILABLE: renew the native P4 session and rerun'
+    head -16 "$d/login.log" | cut -c1-480
+    exit 2
+fi
+depot='//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/AGENTIC_PLATFORM/AgenticPlatform/Agentic/argo-tizen'
+if timeout 25 "${p4cmd[@]}" print -q "$depot/packaging/argot.spec@=14386323" >"$d/argot.spec" 2>"$d/p4.stderr"; then
+    head -8 "$d/p4.stderr" | cut -c1-480
+    awk '/rustc|cargo|CARGO_BUILD_TARGET|RUSTFLAGS|--target/ && n++<35 {print NR ":" substr($0,1,350)}' "$d/argot.spec"
+else
+    code=$?
+    printf 'P4_ARGOT_READ_EXIT %s\n' "$code"
+    head -16 "$d/p4.stderr" | cut -c1-480
+    head -10 "$d/argot.spec" | cut -c1-480
+    if [ ! -s "$d/p4.stderr" ] && [ ! -s "$d/argot.spec" ]; then
+        printf '%s\n' 'P4 returned no diagnostic; exit 124 indicates timeout'
+    fi
+    exit "$code"
+fi
+find workspace/temp -maxdepth 7 -type f \( -iname '*argot*.log*' -o -ipath '*argot*/build.log*' \) \
+    >"$d/log-paths.txt" 2>"$d/find.stderr"
+printf 'ARGOT_LOG_CANDIDATES %s\n' "$(wc -l < "$d/log-paths.txt")"
+head -35 "$d/log-paths.txt"

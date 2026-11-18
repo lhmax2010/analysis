@@ -1,0 +1,82 @@
+chengkai@risc-v-Alienware-Aurora-R16:~$ W=/home1/chengkai/vd-tree/workspace/temp/pm0002
+mkdir -p "$W/tmp" && cd "$W" || exit
+export TMPDIR="$W/tmp" PYTHONDONTWRITEBYTECODE=1
+[ -d repo ] || git clone -q https://github.com/lhmax2010/analysis.git repo
+git -C repo fetch -q origin main && git -C repo checkout -q 3327a657aa2256dfb0c977ea7b92ac83b5992fde
+rm -rf pic-audit ledger && cp -r repo/artifacts/pic-audit repo/artifacts/ledger .
+ls pic-audit; ls ledger | grep -c rpm-payload-plan
+arm-pic-audit.py.txt  local-classifier-smoke.csv  native-audit.py.txt  README.md  rpm-identities.csv  tizen-arm-fixture-index.csv
+8
+chengkai@risc-v-Alienware-Aurora-R16:pm0002$ cd /home1/chengkai/vd-tree/workspace/temp/pm0002 || exit
+export TMPDIR="$PWD/tmp" PYTHONDONTWRITEBYTECODE=1
+{ date -Is; hostname; uname -srmo; nproc; free -g; df -h /home1; uptime
+  (cd /home1/chengkai/vd-tree && python3 -B workspace/temp/custom_mlgo_runtime_obs_launcher_aheozjvy/submit-runtime-obs100.py --status-only)
+} 2>&1 | tee "t1t2-status-$(date +%Y%m%d-%H%M).txt"
+2026-11-18T14:29:21+08:00
+risc-v-Alienware-Aurora-R16
+Linux 6.17.0-35-generic x86_64 GNU/Linux
+32
+               total        used        free      shared  buff/cache   available
+Mem:              94          25          21           0          47          68
+Swap:              7           7           0
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p1  1.8T  1.6T  202G  89% /home1
+ 14:29:21 up 27 days,  2:43, 35 users,  load average: 2.15, 2.13, 2.22
+WORKDIR: /home1/chengkai/vd-tree/workspace/temp/custom_mlgo_runtime_obs100_n35t2xx1
+CUSTOM_MLGO_RUNTIME_OBS100_SHA256: fa600d70546d0b23fc58bc663fe1d02fbc4180d61f0329ed7d988bade28a71d6
+CUSTOM_MLGO_RUNTIME_OBS100_BASE64_BEGIN
+eNrFVUtz2zYQ/iscnh0ZAPFUT4mTg6dOnIntXDIeDh4LmQ0fKkiqcTz+712IciI3nWkO7fQkarHY79sHvn0ox8lO81iuyw83767P376pL19d1VfXL69vruqz
+l++vbz68eV2/u6zf3qDt/PJdeVJu0/Ab+AnvXDdfoV9TsiLrV3aE9WvYrS8uPr7NTtZ/thtAp7bddWjohgBtPUKLV5uhL9cPZdO3TQ8Jfc7mcRo6jBbQM8HG
+tu3gn9sf8WDup6aD4yDl1Yf66v3F+TXec0ghB6wT7JpxOQYNjBAbGJfEsEBdCCJ6ai1UWgQt8do4zMlD7Yeua6YaaffDHy2EDWKuo21H+OaCCUw2E88prcYt
++PynCwKBSPQRBNFBe+FARx6UghClUALt1mSgO8uERF9lRZBBa8MErRivKs5kJQ1VQjtOaRUFqYQNWoCQVgZLebRATfQSuIuE5lzvJ8CuMa4Fw8rsIDXx/kXX
+boYXTb+dp3G1vf9OzjgFRlAaqNRgLZeVRXTJrRLeq0CPyblotQwcLAQWhPLKUekYGBbBSGNoBVZSZE8rhb+GVFo6bjmhKpAgKHwnpyivkFsmVT+1zqZup9rV
+ZNNq8/WIILEqMBIdRuUqV5DFwDF7RhkxhB8TjI5FXjltKhYU+ovKa11xPNU8SsYY58ax4Gh0GhRExyV1xnrgKlJsylH1mKSUM/oDSZv8neQ/sERiSgsSDGUs
+EhUNdUqTKBxzVWXI8zKaCqjkyIhEyVUViffEWC4okZkR2oABIdhXxYWmHiMJx3mw4K0i7hlLHA3O/sryi5b135AkjjEfibPaCB81qyCC18xWhBPBpTsmWUki
+JbaY2SA1c0pYV3HgVFKuLFHMYC9CYAIwccMtkZxyj8MarCRYZ31MUnMiRfWILNsGHxLaPpVnd7bfwFgMfXtfTHfNWMCXZpyaflNkmSiWd1UctKKwfSgS/D7D
+OI0FClMfbArFMjKnS7qFm5s2jCtEvmzDsyi5ac0OxpPi4+vCD/2Uhhbd+9Bm215+itjs/4SEjun0/fkZYk/+Dilm7IOw5cux2czJZo3BuICsJovKEjLu2V4o
+9hdGvBrmNucThqIfphxiB8U4ew/jGOcWY3Xbpt1HOimsn2bbFjagPg0JiwF+Xk6yfBbb2bWNX1Dx+FdIPXLeQopD6mzvIcNfNBlgn/LpQjSnE6cCq4t0/GcI
+hQO8AcUiab8gscLOqKMY2RdYldZhwTNCgm2LD6ODfiqGWMx9AqSKAQ4lhYCNXJW3J6XdNnNqcWTupmm7Pj1FIVkxalaMixVjZK1JnoU97JH8PpS97Y52AJ7g
+H8rwc3f43j+a5J9mt9IWbMBXDThnwQdjAgDTxFDrPc1LwM8pId//GOWg+N0yHXk5bFuYcPWketHXcj2lGVfDfh7rvEXzM/j0gOjbYWymIaH+lk9DjPB5PNGy
+THOmk6+gYd/08W6/+ZZlfAj0wwb1OMI5Zh4uCHkl3j6e/CPg8m7+NcDbQ8pNH4dc+kM++PXz9X3aVz/t/q0Nh94v3VlagM06pPg/cnh8/BPR7PKM
+CUSTOM_MLGO_RUNTIME_OBS100_BASE64_END
+
+REPORT: /home1/chengkai/vd-tree/workspace/temp/custom_mlgo_runtime_obs100_n35t2xx1/result.json
+DONE: RUNTIME_OBS_STATUS_CAPTURED_NO_MUTATION
+chengkai@risc-v-Alienware-Aurora-R16:pm0002$ cd /home1/chengkai/vd-tree/workspace/temp/pm0002 || exit
+export TMPDIR="$PWD/tmp" PYTHONDONTWRITEBYTECODE=1
+scratch=/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/BUILD-ROOTS/scratch.armv7l.0
+nohup sh -c "python3 -B pic-audit/native-audit.py.txt matrix pic-audit/tizen-arm-fixture-index.csv '$scratch/tmp/arm_pic_fat_matrix_4wzsv8nf' '$PWD/pic-matrix-results.csv' && python3 -B pic-audit/native-audit.py.txt scan pic '$PWD/pic-results' pic-audit/rpm-identities.csv --matrix-results '$PWD/pic-matrix-results.csv'" > pic-run.log 2>&1 &
+echo "PIC job PID: $!"
+[1] 3599767
+PIC job PID: 3599767
+chengkai@risc-v-Alienware-Aurora-R16:pm0002$ cd /home1/chengkai/vd-tree/workspace/temp/pm0002 || exit
+export TMPDIR="$PWD/tmp" PYTHONDONTWRITEBYTECODE=1
+head -n 31 ledger/rpm-payload-plan.csv > compiler-input-sample.csv
+nohup python3 -B pic-audit/native-audit.py.txt scan compiler "$PWD/compiler-sample" "$PWD/compiler-input-sample.csv" > compiler-sample.log 2>&1 &
+echo "Compiler sample PID: $!"
+[2] 3599918
+Compiler sample PID: 3599918
+chengkai@risc-v-Alienware-Aurora-R16:pm0002$ cd /home1/chengkai/vd-tree/workspace/temp/pm0002 || exit
+pgrep -af native-audit || echo "no audit job running"
+tail -n 5 pic-run.log compiler-sample.log
+tar czf "pm0002-results-$(date +%Y%m%d-%H%M).tgz" t1t2-status-*.txt pic-matrix-results.csv pic-results compiler-sample pic-run.log compiler-sample.log 2>/dev/null
+ls -lh pm0002-results-*.tgz
+3599767 sh -c python3 -B pic-audit/native-audit.py.txt matrix pic-audit/tizen-arm-fixture-index.csv '/home1/chengkai/vd-tree/workspace/temp/llvm22_bootstrap101_er28cfgj/gbs_root/local/BUILD-ROOTS/scratch.armv7l.0/tmp/arm_pic_fat_matrix_4wzsv8nf' '/home1/chengkai/vd-tree/workspace/temp/pm0002/pic-matrix-results.csv' && python3 -B pic-audit/native-audit.py.txt scan pic '/home1/chengkai/vd-tree/workspace/temp/pm0002/pic-results' pic-audit/rpm-identities.csv --matrix-results '/home1/chengkai/vd-tree/workspace/temp/pm0002/pic-matrix-results.csv'
+3599821 /home1/chengkai/.pyenv/versions/3.10.12/bin/python3 -B pic-audit/native-audit.py.txt scan pic /home1/chengkai/vd-tree/workspace/temp/pm0002/pic-results pic-audit/rpm-identities.csv --matrix-results /home1/chengkai/vd-tree/workspace/temp/pm0002/pic-matrix-results.csv
+3599918 /home1/chengkai/.pyenv/versions/3.10.12/bin/python3 -B pic-audit/native-audit.py.txt scan compiler /home1/chengkai/vd-tree/workspace/temp/pm0002/compiler-sample /home1/chengkai/vd-tree/workspace/temp/pm0002/compiler-input-sample.csv
+==> pic-run.log <==
+nohup: ignoring input
+Counter({'PASS': 56})
+binutils-devel 2.43-3.49.armv7l SCANNED 188
+bison 3.0.5-1.95.armv7l SCANNED 2
+compiler-rt 22.1.8-9.1.armv7l SCANNED 947
+
+==> compiler-sample.log <==
+Multicontrol-Menuitem-Settings 25.09.2026-1.armv7l SCANNED 3
+OpenCvSharpExtern 0-1.armv7l SCANNED 1
+PvodTestTool 0.1.4-1.armv7l SCANNED 0
+QSymphonyGadget 2.0.15-1.armv7l SCANNED 0
+ReporterTA 26.08.26.0-1.armv7l SCANNED 1
+[2]+  Done                    nohup python3 -B pic-audit/native-audit.py.txt scan compiler "$PWD/compiler-sample" "$PWD/compiler-input-sample.csv" > compiler-sample.log 2>&1
+-rw-rw-r-- 1 chengkai chengkai 99M Nov 18 14:29 pm0002-results-20261118-1429.tgz
+chengkai@risc-v-Alienware-Aurora-R16:pm0002$

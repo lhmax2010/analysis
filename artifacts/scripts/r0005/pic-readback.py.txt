@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+"""Summarize the retained PIC and compiler records; refetch unresolved bytes when requested."""
+import argparse
+from collections import Counter, defaultdict
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import shutil
+import struct
+import subprocess
+import tempfile
+from types import SimpleNamespace
+
+NATIVE = Path('/home1/chengkai/vd-tree/workspace/temp')
+OLD = NATIVE / 'pm0002'
+REV = 'ac0657e1347b7a3876e7cc28cd51a7831cb15f48'
+RAW = f'https://raw.githubusercontent.com/lhmax2010/analysis/{REV}/artifacts/'
+PIC_PIN = '3d76b6ca5eb57936fe14bcbf18797b3fc459e3ec7b2cb7b5e423302ef00aed94'
+COMPILER_PIN = 'b9fcb512a340d946722f5042b36646da9b576ef7e6a449d82ed7c63294c20796'
+
+
+def read(path):
+    with path.open(newline='') as stream:
+        return list(csv.DictReader(stream))
+
+
+def key(row):
+    return row['repository'], row['package'], row['identity']
+
+
+def fetch_list(work, file, pin):
+    staging = work / Path(file).name
+    subprocess.run(['curl','-fsS','--connect-timeout','8','--max-time','60',RAW+file,'-o',str(staging)],
+                   check=True)
+    if hashlib.sha256(staging.read_bytes()).hexdigest() != pin:
+        raise ValueError(f'input checksum mismatch: {file}')
+    return read(staging)
+
+
+def intended(row):
+    path = row['path'].lower()
+    member = row['member'].split(':',1)[-1].lower()
+    package = row['package'].lower()
+    if re.search(r'(?:^|/)(?:(?:[gsmr]|scrt)?crt)[\w-]*\.o$', path) or re.match(r'^(?:[gsmr]|scrt)?crt[\w-]*\.o$', member):
+        return 'CRT_STARTUP'
+    if re.search(r'(?:^|/)cross-[^/]*gcc', package+'/'+path) or re.search(r'(?:^|/)gcc-cross',package):
+        return 'CROSS_GCC'
+    if re.search(r'(?:^|/)(?:go(?:lang)?|libgo)(?:[-/0-9]|$)', package+'/'+path+'/'):
+        return 'GO'
+    if re.search(r'openjdk|(?:^|[/.-])(?:jdk|jre)(?:[0-9./-]|$)', package+'/'+path+'/'):
+        return 'JDK'
+    return 'OTHER'
+
+
+def producer(marker):
+    gcc = 'GCC:' in marker
+    clang = 'clang version' in marker.lower()
+    if gcc and clang:
+        return 'MIXED_GCC_CLANG'
+    if gcc:
+        return 'GCC_MARKER'
+    if clang:
+        return 'CLANG_MARKER'
+    return 'OTHER_MARKER' if marker.strip() else 'NO_MARKER'
+
+
+def tag(row):
+    llvm = row['llvm_lto'].lower() in ('true','1')
+    gnu = row['gnu_lto'].lower() in ('true','1')
+    if llvm and gnu:
+        return 'LLVM_LTO_PLUS_NATIVE_RELOCATION_AND_GCC_LTO_MARKER'
+    return 'LLVM_LTO_PLUS_NATIVE_RELOCATION' if llvm else 'GCC_LTO_MARKER' if gnu else 'NO_LTO_SECTION_RECORDED'
+
+
+def reason(data):
+    if data.startswith((b'BC\xc0\xde', b'\xde\xc0\x17\x0b')):
+        return 'LLVM_BITCODE_ONLY'
+    if data[:4] != b'\x7fELF':
+        if data.startswith((b'go object ', b'\x00go')):
+            return 'GO_OBJECT_HEADER'
+        if data.startswith((b'!<arch>\n', b'!<thin>\n')):
+            return 'NESTED_ARCHIVE'
+        return 'EMPTY_MEMBER' if not data else 'NON_ELF_UNKNOWN_FORMAT'
+    if len(data) < 20 or data[5] not in (1,2) or data[4] not in (1,2):
+        return 'MALFORMED_ELF_HEADER'
+    endian = '<' if data[5] == 1 else '>'
+    kind, machine = struct.unpack_from(endian+'HH', data, 16)
+    class_ = 32 if data[4] == 1 else 64
+    if machine != 40 or class_ != 32:
+        return f'ELF{class_}_MACHINE_{machine}'
+    if kind != 1:
+        return f'ARM32_NON_REL_TYPE_{kind}'
+    return 'ARM32_REL_REVIEW'
+
+
+def group_pic(work, members, rpms):
+    status = Counter(r['status'] for r in members)
+    print('RPM_STATUS',json.dumps(Counter(r['status'] for r in rpms),sort_keys=True))
+    print('MEMBER_STATUS',json.dumps(status,sort_keys=True))
+    package_status = defaultdict(Counter)
+    flagged = []
+    for row in members:
+        package_status[key(row)][row['status']] += 1
+    incomplete = []
+    for row in rpms:
+        if row['status'] == 'INCOMPLETE':
+            missing = {k:v for k,v in package_status[key(row)].items()
+                       if k in ('REVIEW_INPUT_ERROR','MISSING_PAYLOAD_PATH','NON_REGULAR_CANDIDATE','UNCLASSIFIED_MEMBER')}
+            incomplete.append([*key(row), row['error'], missing])
+    (work/'incomplete.json').write_text(json.dumps(incomplete,indent=2))
+    for row in incomplete[:25]:
+        print('INCOMPLETE',json.dumps(row,ensure_ascii=True)[:550])
+    print('INCOMPLETE_ROWS',len(incomplete))
+    archives = defaultdict(Counter)
+    buckets = defaultdict(Counter)
+    for row in members:
+        if row['status'] != 'REVIEW_RELOCATIONS':
+            continue
+        lane = intended(row)
+        arch = (*key(row), row['path'])
+        marker = producer(row['producer_markers'])
+        lto = tag(row)
+        flagged.append({**row, 'intended_use_candidate':lane, 'producer_evidence':marker, 'lto_evidence':lto})
+        archives[lane,arch]['members'] += 1
+        buckets[lane]['members'] += 1
+        for stats in (archives[lane,arch], buckets[lane]):
+            stats['producer:'+marker] += 1
+            stats['lto:'+lto] += 1
+            stats['producer+lto:'+marker+'/'+lto] += 1
+            for number in re.findall(r':(R_ARM_\w+)',row['relocations']):
+                stats['reloc:'+number] += 1
+    results = sorted([(lane, archived, dict(values)) for (lane, archived),values in archives.items()],
+                     key=lambda row:(row[0],-row[2]['members'],row[1]))
+    (work/'flagged-by-archive.json').write_text(json.dumps(results,indent=2))
+    if flagged:
+        with (work/'flagged-members.csv').open('w',newline='') as out:
+            writer = csv.DictWriter(out,fieldnames=list(flagged[0]))
+            writer.writeheader()
+            writer.writerows(flagged)
+    for lane in ('CRT_STARTUP','CROSS_GCC','GO','JDK','OTHER'):
+        print('INTENDED_USE',lane,json.dumps(buckets[lane],sort_keys=True))
+        subset = [row for row in results if row[0] == lane]
+        for row in subset[:12]:
+            print('FLAGGED',json.dumps(row,ensure_ascii=True)[:900])
+        print('FLAGGED_ARCHIVES',lane,len(subset),'preview',min(12,len(subset)))
+    print('UNCLASSIFIED',status['UNCLASSIFIED_MEMBER'],'format requires SHA-matched member bytes')
+
+
+def sample_rows(work, rows):
+    unknown = [r for r in rows if r['status'] == 'UNCLASSIFIED_ARM_ELF']
+    (work/'unknown-compiler.json').write_text(json.dumps(unknown,indent=2))
+    print('COMPILER_SAMPLE',len(rows),json.dumps(Counter(r['status'] for r in rows),sort_keys=True))
+    for row in unknown[:20]:
+        identity = {field:row[field] for field in ('repository','package','identity','path','sha256','build_id','producer_markers')}
+        print('UNCLASSIFIED_ARM_ELF',json.dumps(identity,ensure_ascii=True))
+    print('REASON no recognized GCC/Clang/Rust strings in sampled readelf output; .comment presence requires bytes')
+    return unknown
+
+
+def payload_members(audit, rpm, paths, diagnostic):
+    with diagnostic.open('ab') as log, subprocess.Popen(['rpm2cpio',str(rpm)],stdout=subprocess.PIPE,stderr=log) as child:
+        stream = child.stdout
+        try:
+            for path, regular, size in audit.cpio(stream):
+                if path in paths and regular:
+                    yield path, audit.exact(stream,size)
+                else:
+                    for offset in range(0,size,1024**2):
+                        audit.exact(stream,min(size-offset,1024**2))
+            while stream.read(1024**2):
+                pass
+            if child.wait(timeout=30):
+                raise ValueError('rpm2cpio failed')
+        finally:
+            if child.poll() is None:
+                child.kill()
+            stream.close()
+
+
+def qualify(work, mode, matches, libraries):
+    audit = SimpleNamespace(**runpy.run_path(libraries))
+    plan = (fetch_list(work,'pic-audit/rpm-identities.csv',PIC_PIN) if mode == 'pic'
+            else fetch_list(work,'ledger/rpm-payload-plan.csv',COMPILER_PIN))
+    inventory = {}
+    for row in plan:
+        verrel = row.get('version-release') or row['version']+'-'+row['release']
+        inventory[row['repository'],row['package'],verrel+'.'+row['arch']] = row
+    requests = defaultdict(lambda: defaultdict(dict))
+    for row in matches:
+        requests[key(row)][row['path']][row['member']] = row['sha256']
+    results = []
+    with (work/'qualification.jsonl').open('w') as out:
+        for group, paths in requests.items():
+            found = set()
+            try:
+                if group not in inventory:
+                    raise ValueError('RPM missing from fixed payload plan')
+                rpm = work/'payload.rpm'
+                audit.fetch(inventory[group],rpm)
+                for path, data in payload_members(audit,rpm,paths,work/'rpm2cpio.log'):
+                    iterator = audit.pic.members(data) if mode=='pic' else (('',data),)
+                    for name, member in iterator:
+                        if name not in paths[path]:
+                            continue
+                        digest = hashlib.sha256(member).hexdigest()
+                        if digest != paths[path][name]:
+                            raise ValueError(f'original member hash mismatch: {path} {name}')
+                        found.add((path,name))
+                        value = reason(member)
+                        if mode == 'compiler':
+                            binary = work/'sample.elf'
+                            binary.write_bytes(member)
+                            cmd = subprocess.run(['readelf','-SW','-p','.comment',str(binary)],
+                                                 capture_output=True,text=True,timeout=35,check=True)
+                            text = cmd.stdout + cmd.stderr
+                            (work/'sample-readelf.txt').write_text(text)
+                            value = ('COMMENT_PRESENT_WITHOUT_KNOWN_MARKER' if re.search(r'\]\s+\.comment\s',text)
+                                     else 'NO_COMMENT_SECTION')
+                        item = dict(group=group,path=path,member=name,digest=digest,reason=value)
+                        out.write(json.dumps(item,ensure_ascii=True)+'\n')
+                        results.append(item)
+            except (OSError,ValueError,IndexError,struct.error,subprocess.SubprocessError) as exc:
+                print('QUALIFY_ERROR',group, ' '.join(str(exc).splitlines())[:380],flush=True)
+            finally:
+                (work/'payload.rpm').unlink(missing_ok=True)
+            for path, names in paths.items():
+                for name in names:
+                    if (path,name) not in found:
+                        item = dict(group=group,path=path,member=name,reason='UNVERIFIED')
+                        out.write(json.dumps(item,ensure_ascii=True)+'\n')
+                        results.append(item)
+    print('QUALIFICATION_TOTAL',len(results),json.dumps(Counter(x['reason'] for x in results),sort_keys=True))
+    if mode == 'compiler':
+        for item in results[:20]:
+            print('COMPILER_FORMAT_EVIDENCE',json.dumps(item,ensure_ascii=True))
+
+
+def page(run, page):
+    run = run.resolve(strict=True)
+    if run.parent != NATIVE.resolve() or not run.name.startswith('pm0005-pic-'):
+        raise ValueError('select a retained pm0005 PIC summary directory')
+    rows = json.loads((run/'flagged-by-archive.json').read_text())
+    if page < 1:
+        raise ValueError('page starts at 1')
+    print('FLAGGED_PAGE',page,'of',max(1,(len(rows)+99)//100))
+    for row in rows[(page-1)*100:page*100]:
+        print('FLAGGED',json.dumps(row,ensure_ascii=True))
+
+
+def main():
+    cli = argparse.ArgumentParser(description=__doc__)
+    cli.add_argument('mode',choices=('pic','compiler'))
+    cli.add_argument('audit',type=Path)
+    cli.add_argument('--qualify',action='store_true')
+    cli.add_argument('--readback',type=Path)
+    cli.add_argument('--page',type=int,default=1)
+    args = cli.parse_args()
+    if args.readback:
+        page(args.readback,args.page)
+        return
+    work = Path(tempfile.mkdtemp(prefix=f'pm0005-{args.mode}-readback.',dir=NATIVE))
+    print('WORKDIR',work,flush=True)
+    path = OLD / ('pic-results' if args.mode=='pic' else 'compiler-sample')
+    rows = read(path/'members.csv')
+    if args.mode=='pic':
+        group_pic(work,rows,read(path/'rpms.csv'))
+        match = [r for r in rows if r['status']=='UNCLASSIFIED_MEMBER']
+    else:
+        match = sample_rows(work,rows)
+    if args.qualify:
+        qualify(work,args.mode,match,args.audit)
+
+
+if __name__ == '__main__':
+    main()

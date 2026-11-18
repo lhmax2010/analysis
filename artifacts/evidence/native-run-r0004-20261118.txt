@@ -1,0 +1,379 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/preflight-base-qb.py.txt' -o "$d/preflight-base-qb.py.txt" && printf '%s  %s\n' 'd42d138f170c3e5ae7784951d14719b15e1dc2df18fe075191aea7a310ae78c5' "$d/preflight-base-qb.py.txt" | sha256sum -c - && python3 -B -u "$d/preflight-base-qb.py.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.THjohw/preflight-base-qb.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9
+BUILDCONF official tizen-10.0-base-dev-llvm-standard_20261113.1 None None b5e6d8e1e00833d2f89c91639d21fa31f675d7c1fe8e2c4e28a0aceb04333284
+MLGO_CONFIG official NO_MATCH
+BUILDCONF custom tizen-10.0-base-dev-llvm-standard_20261118.1 None None b5e6d8e1e00833d2f89c91639d21fa31f675d7c1fe8e2c4e28a0aceb04333284
+MLGO_CONFIG custom NO_MATCH
+BUILDCONF product TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2 http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/ //SHARED/[TizenBuild_Prj]/[INT]/buildconf/tizen/TEST/migration/10.0/TV/TIZEN_KantSU2E_Clang_build.conf@14452507 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03
+MLGO_CONFIG product NO_MATCH
+FULL_DELTA_ROWS 3000 NON_LLVM_DELTA_ROWS 2952
+NON_LLVM_DELTA_PREVIEW 80
+repo_arch,name,epoch,version,release,arch,delta,official_sha256,custom_sha256,official_srpm,custom_srpm
+armv7l,abseil-cpp,0,20240722.0,1.15,armv7l,REMOVED,cca167d7f8cdbfeb05e6fb6ad3105a0fffbb12181a6a098691cd1b35f76f2f3f,,abseil-cpp-20240722.0-1.15.src.rpm,
+armv7l,abseil-cpp,0,20240722.0,1.16,armv7l,ADDED,,b17463d6ca7fb56a4018a58f0ce0e23c7c4579a9009d569bf0c5d5947c7251d0,,abseil-cpp-20240722.0-1.16.src.rpm
+armv7l,abseil-cpp-devel,0,20240722.0,1.15,armv7l,REMOVED,a37eee46034a3ab1c7e91598f033893b8debd9849c79b424a44824eb4819b331,,abseil-cpp-20240722.0-1.15.src.rpm,
+armv7l,abseil-cpp-devel,0,20240722.0,1.16,armv7l,ADDED,,1e04027c4dc74ef2efa5ee8ef1c1af860b5fef8632e3e8050a7d8b2c56515f77,,abseil-cpp-20240722.0-1.16.src.rpm
+armv7l,acl,0,2.3.2,1.185,armv7l,REMOVED,fbfc08335c52cd364fe9dd413a47e71a12c7aefb2b2463328ffe07cf266bfdfa,,acl-2.3.2-1.185.src.rpm,
+armv7l,acl,0,2.3.2,1.196,armv7l,ADDED,,21edfbe940a59a5dfaec435b1fbb9ff747a825c64e26fa59e4f25946f41827ec,,acl-2.3.2-1.196.src.rpm
+armv7l,alsa-utils,0,1.2.12,2.16,armv7l,REMOVED,74ea3ece304b931c245fc440c016009e0576c5735ed86b7c269607838b0e784b,,alsa-utils-1.2.12-2.16.src.rpm,
+armv7l,alsa-utils,0,1.2.12,2.17,armv7l,ADDED,,44917b59f3509a2dc192e0d51254e5baf195cdb85a8a2c0872bc569b7cb92b7c,,alsa-utils-1.2.12-2.17.src.rpm
+armv7l,attr,0,2.5.1,1.191,armv7l,REMOVED,5877adc3981b73a74c19a4dc0c2d76c29e2316e7a561e305c28c6278cdd13f54,,attr-2.5.1-1.191.src.rpm,
+armv7l,attr,0,2.5.1,1.204,armv7l,ADDED,,8f861cd6ee16a5b97f0070e8546e82669b4160397176a473c395a9142b424d04,,attr-2.5.1-1.204.src.rpm
+armv7l,autoconf,0,2.71,1.218,noarch,REMOVED,a8f21c17ebec8ef8c5c1753889118ea6b3cf68f091e6d261f0d248c365b481f5,,autoconf-2.71-1.218.src.rpm,
+armv7l,autoconf,0,2.71,1.223,noarch,ADDED,,a637f2d8f954795fa2304be77c0bb52143f9442c94656c2b3ed0df70627cc2ca,,autoconf-2.71-1.223.src.rpm
+armv7l,autoconf,0,2.71,1.234,noarch,REMOVED,9b0ea116157a840c69396cac05f4edd7cdd775899f6a4e785b3de137cc8bc4aa,,autoconf-2.71-1.234.src.rpm,
+armv7l,autoconf,0,2.71,1.251,noarch,ADDED,,8bb9217c814349c3a459d2ce44cff290cb6be842d4116963b4e648d123c998cd,,autoconf-2.71-1.251.src.rpm
+armv7l,automake,0,1.16.5,1.148,noarch,REMOVED,6bb13b9f5e7f01c4241db5400b206c2672040f204b2ac6d89f628b7cf64a35ed,,automake-1.16.5-1.148.src.rpm,
+armv7l,automake,0,1.16.5,1.149,noarch,REMOVED,fdc81007715775a9751809569faae8f9f466e290ea0b56ec7187de42d4c51ff0,,automake-1.16.5-1.149.src.rpm,
+armv7l,automake,0,1.16.5,1.153,noarch,ADDED,,05ea0e237a6977fd690845ad3b9b3c3b9d164d7e322ff424ca46f0054e7a77e0,,automake-1.16.5-1.153.src.rpm
+armv7l,automake,0,1.16.5,1.154,noarch,ADDED,,fe33c28b262b40ecab005e1b3a41ceb04df8b4e99011238a6f4568c15778928f,,automake-1.16.5-1.154.src.rpm
+armv7l,bash,0,3.2.57,1.17,armv7l,REMOVED,877146b8038b4ba90dc384f2613377fba0110c662d5f6abfe3ec73bcfd0af7ec,,bash-3.2.57-1.17.src.rpm,
+armv7l,bash,0,3.2.57,1.18,armv7l,ADDED,,c5ae7397c9911f68a0b81c59591656566336d203f53acaeb3c7fe8e6bbf54f4e,,bash-3.2.57-1.18.src.rpm
+armv7l,bc,0,1.06,1.17,armv7l,REMOVED,4e9166429f5f372f1121252ae5fd9c1e2b07d9e6c5b8619360a86251b3f0720d,,bc-1.06-1.17.src.rpm,
+armv7l,bc,0,1.06,1.18,armv7l,ADDED,,5c0ab41f397272de4594404ea3f1f765a15d75934be6cbc4eaea37563001efd9,,bc-1.06-1.18.src.rpm
+armv7l,binutils,0,2.43,3.49,armv7l,REMOVED,cb7d488667f705019474031276916595d284e200f7f9e58358c30ccb88ae1396,,binutils-2.43-3.49.src.rpm,
+armv7l,binutils,0,2.43,3.55,armv7l,ADDED,,7e78b3c893aa40e81216df0e1a657b586b5e56c3746b4f056b9b60f4e80576e4,,binutils-2.43-3.55.src.rpm
+armv7l,binutils-aarch64,0,2.43,3.6,armv7l,REMOVED,54bbbe1954eb59c3faaa7a42600a1822ccc620a034b3f7cf2a08a6ca9fb6b3a7,,binutils-aarch64-2.43-3.6.src.rpm,
+armv7l,binutils-aarch64,0,2.43,3.7,armv7l,ADDED,,de046cbea4c1e4a22bf5fd76b75147153d3fff38176dace64d183535e91f30e5,,binutils-aarch64-2.43-3.7.src.rpm
+armv7l,binutils-armv7hl,0,2.43,3.6,armv7l,REMOVED,c52b8d9f5a27655e9c22f1063fc3697b3ac064473661a60737a9dc1c45a55431,,binutils-armv7hl-2.43-3.6.src.rpm,
+armv7l,binutils-armv7hl,0,2.43,3.7,armv7l,ADDED,,3a8798c474a1ebbc4d11e20aa3af0ed21df200912df62db16804e2a72eb6d730,,binutils-armv7hl-2.43-3.7.src.rpm
+armv7l,binutils-devel,0,2.43,3.49,armv7l,REMOVED,ec45a145b298387fe47dd890d0f1841ada1f699a281756d418d08fcc554b5cd8,,binutils-2.43-3.49.src.rpm,
+armv7l,binutils-devel,0,2.43,3.55,armv7l,ADDED,,e481f3e51b2e0ae7fa674bde9f2b0ccef473b0388b0e86223cc2d223266864a1,,binutils-2.43-3.55.src.rpm
+armv7l,binutils-gold,0,2.43,3.49,armv7l,REMOVED,f52d2db931a54ea28b85c4db141fd18517b1a73171d0e9c52fb03d7093894d64,,binutils-2.43-3.49.src.rpm,
+armv7l,binutils-gold,0,2.43,3.55,armv7l,ADDED,,4cb4a869fb71ed8275539820d3c675ebd26172bd8190b66f171e9c3976872905,,binutils-2.43-3.55.src.rpm
+armv7l,binutils-libs,0,2.43,3.49,armv7l,REMOVED,18312e73f5e089ed586c2e75f656b29b1e95c69282100e64c900d27fbabd7adb,,binutils-2.43-3.49.src.rpm,
+armv7l,binutils-libs,0,2.43,3.55,armv7l,ADDED,,78f66a61354d079ea0b06fe997a066e8c9fc2b528ba8af3b91b3a1dbf9e90c0a,,binutils-2.43-3.55.src.rpm
+armv7l,binutils-riscv64,0,2.43,3.6,armv7l,REMOVED,87e771fd04316872c64aeea1ec1fe9b292479643cd34832a4f096a4b55c71063,,binutils-riscv64-2.43-3.6.src.rpm,
+armv7l,binutils-riscv64,0,2.43,3.7,armv7l,ADDED,,e7066d33795a6230490d114eedff924a336bb97d02e956e72a349e1e0fbb1bd0,,binutils-riscv64-2.43-3.7.src.rpm
+armv7l,bison,0,3.0.5,1.101,armv7l,ADDED,,8a6d5e9dfd0e5b8dba20c37f0ebfa07273195e7fec0b101605f050f6e20d0325,,bison-3.0.5-1.101.src.rpm
+armv7l,bison,0,3.0.5,1.95,armv7l,REMOVED,ca149068fc5bc79c113dcb1a5a286dc29f66e49dc84c28568894b0a233df913d,,bison-3.0.5-1.95.src.rpm,
+armv7l,boost,0,1.83.0,1.22,armv7l,REMOVED,553240c6f2896c899e1db34235ea6dbcaf6b0933e060508391d0366d7e24728e,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost,0,1.83.0,1.23,armv7l,ADDED,,1a2af0a36ffa08d130421b4de20b03f147e8b8b85e13e328123d28154cd89aa2,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-atomic,0,1.83.0,1.22,armv7l,REMOVED,d33320b0f7802237aa77f2a7cc62acf083d0cb808814709f2d38ab4983a59a9e,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-atomic,0,1.83.0,1.23,armv7l,ADDED,,c1e6868f3fbbbdad82297665f386539af1a9ae9d8c3de24de8d69a00334a6a4f,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-chrono,0,1.83.0,1.22,armv7l,REMOVED,33f8d9ff21c47630384c819fbaac0477557a135e3a636e6f1eec4f1a87271370,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-chrono,0,1.83.0,1.23,armv7l,ADDED,,b3b08fde4af97a6a2f1bba1be229e525fc8862d4ee781efb58c67dc763d56ca9,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-container,0,1.83.0,1.22,armv7l,REMOVED,1fa20072667b0c74775d8a54bd06c439ad6bbc289f2c5917ad1758f1aa3f2380,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-container,0,1.83.0,1.23,armv7l,ADDED,,e22ca8a185b6bcdd15cd6502a6b10a660756d6e47032d0a847b7c1dae43ca728,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-context,0,1.83.0,1.22,armv7l,REMOVED,eaf32e2815dedfc575296412bdca48ffe272eef6c80dae02d74f70ed2d7bcf6b,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-context,0,1.83.0,1.23,armv7l,ADDED,,fe7535c242b670e4076dabe2849e29d4ed46f61be09b2d11d60d33271e0d64ba,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-contract,0,1.83.0,1.22,armv7l,REMOVED,0e5f30789d763df0451025fee42ef3bffb56b3b695a894c862245b84f7ce8ca5,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-contract,0,1.83.0,1.23,armv7l,ADDED,,d28ab78cddb7995aa3145235f9c8d1e89f89feebfb95fb819aaffe8e2c2b28cb,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-coroutine,0,1.83.0,1.22,armv7l,REMOVED,89b2e2e8a025a84f76dd6464162ff4aba2b50a7a2fa39588c48549cae5d3d44f,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-coroutine,0,1.83.0,1.23,armv7l,ADDED,,bbad1b90b0613c18bef4c4982d6883e10766276e7e9fb6144acaf4f60e643b45,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-date-time,0,1.83.0,1.22,armv7l,REMOVED,2231524e5ae75c36cb5729681e2de01b10b0c01d299eea979ff6075fd37f5c78,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-date-time,0,1.83.0,1.23,armv7l,ADDED,,70d74669f598b7180fc565ce765ef867e4ecf54e45b7b3cd4f6f7919e8c487b0,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-devel,0,1.83.0,1.22,armv7l,REMOVED,27986dfa9314920bd92b8a9528cc4e10c8ed6ea5540b7c5507d1f4db61bbb770,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-devel,0,1.83.0,1.23,armv7l,ADDED,,67540250f23d0fc0c3a5e0fe15e7fff911212cb0b4f562a0501ad6818efcf081,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-doc-html,0,1.83.0,1.22,noarch,REMOVED,5b78b7b71639aba5960280c7d6bf3d51e6d3dec904895028b7987d9edbe603f0,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-doc-html,0,1.83.0,1.23,noarch,ADDED,,435e2765f65cc7b5a8274dfcf7edfc7245af3d413e28a3046fa851d3b3bfb1a0,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-doc-html,0,1.83.0,1.43,noarch,REMOVED,999baa5f9e9783fbc9ed8feeea4091e11847851be864a173ae44586f5f7ae160,,boost-1.83.0-1.43.src.rpm,
+armv7l,boost-doc-html,0,1.83.0,1.46,noarch,ADDED,,d83095205cde9c2e2bbb3a879b4b042bb8028b444ec7f0f442a29e65be34741a,,boost-1.83.0-1.46.src.rpm
+armv7l,boost-fiber,0,1.83.0,1.22,armv7l,REMOVED,acf59894980c2b1cd7b758d3e31a98128fd6b3032a291ba8a7fe8334c5ccada3,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-fiber,0,1.83.0,1.23,armv7l,ADDED,,a294e69319412b5566b59cadfc0b82ee7e34d8d9fc2046abb4d7b2471098ca5e,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-filesystem,0,1.83.0,1.22,armv7l,REMOVED,456c75da0a0a1358e2259e2e183ea8336bec8e40401a638e8dd7e211856c09de,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-filesystem,0,1.83.0,1.23,armv7l,ADDED,,4adf76c3c5effb424d32e6d93e3185652af6a9f4dadc2159fb6e60736a01bcd2,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-graph,0,1.83.0,1.22,armv7l,REMOVED,96a849fdd466ade0beac6c295ed0bbb3d51ca6798eafa5a14892d8e0485181b0,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-graph,0,1.83.0,1.23,armv7l,ADDED,,7158bcc80ac21fec3aecd83e2a63bcab29f7a6188cf0abc6da12295cfd9f7cef,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-iostreams,0,1.83.0,1.22,armv7l,REMOVED,005465c125c20913d82789ec3f446fc2c6b1675b094680a81ba375a7f0cb3d44,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-iostreams,0,1.83.0,1.23,armv7l,ADDED,,755728b65d0dad95b7bdce781efeae2cc81077781f71f8c7e27ea9cbb6307924,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-jam,0,201104,1.17,armv7l,REMOVED,fac4823cd681e8a0253b6e1bca668a5329c3618918b22b7ea1afd72bf6fcde88,,boost-jam-201104-1.17.src.rpm,
+armv7l,boost-jam,0,201104,1.18,armv7l,ADDED,,fa5dc8dfa1d4d995ef852c491eda44d52905cf36ee2bc8a0c47d34c0bc9d815f,,boost-jam-201104-1.18.src.rpm
+armv7l,boost-json,0,1.83.0,1.22,armv7l,REMOVED,1b1149b07053d1aedebbfc195548bdb25f86a5b183cba7724b2d8ec5aeaae9ab,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-json,0,1.83.0,1.23,armv7l,ADDED,,c2e0c158b77c1fae5c14ad98bb976c21d1ccc65baa8008f6d36455b2e8764bfc,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-license,0,1.83.0,1.22,noarch,REMOVED,a6693c87ba23ad18aa43f26ec54c71c61609eb9e3a9cc5a8ebe517e083886d9a,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-license,0,1.83.0,1.23,noarch,ADDED,,dcdc60602b7baa90ef2d90cb5863bd2c157865447d7d85d5781aed44c841c26e,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-license,0,1.83.0,1.43,noarch,REMOVED,0b1d1bc1b97aae5b788e626d705898e4d8dd22276935a5d015f6f046d171b208,,boost-1.83.0-1.43.src.rpm,
+armv7l,boost-license,0,1.83.0,1.46,noarch,ADDED,,ce06487f30395dbc2bc9dbb9c475a371d79f86b09a860b75a4b918495bfbcec2,,boost-1.83.0-1.46.src.rpm
+armv7l,boost-locale,0,1.83.0,1.22,armv7l,REMOVED,5a28db68f5bae86172fb4ae84985968e2c521a3dff0d45408a94de020fbc5ae1,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-locale,0,1.83.0,1.23,armv7l,ADDED,,eb2d3aed389360bada4c0da7917c496cd9b13b30431cc0b1bb305b514b7c5729,,boost-1.83.0-1.23.src.rpm
+armv7l,boost-log,0,1.83.0,1.22,armv7l,REMOVED,13ecc78b5ecb9448c945baad5eb6b9a131d69776dea49bbf8ae96222db5c3421,,boost-1.83.0-1.22.src.rpm,
+armv7l,boost-log,0,1.83.0,1.23,armv7l,ADDED,,22f56382e1909b2c1fc4207edf1e382653e3ae0c5aec13cf04464154892507f6,,boost-1.83.0-1.23.src.rpm
+STAGED /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf 72a982165c14e8a1da251aebf509ac37bb817e08e8c911ed7dd7dabe64f7e322
+STAGED_DELTA gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf CHANGED DIFF_LINES 16
+STAGED /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/tizen10.0_base_urls_1118.1_mlgo_noprelink.txt bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3
+STAGED_DELTA tizen10.0_base_urls_1118.1_mlgo_noprelink.txt IDENTICAL DIFF_LINES 0
+BASE_LIST_DIFF_PREVIEW 0
+STAGED /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736
+STAGED_DELTA tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt IDENTICAL DIFF_LINES 0
+CANDIDATE_CLANG_COUNT armv7l 1
+CANDIDATE_CLANG armv7l clang 0 22.1.8 11.1 armv7l 6e692d5fb4f372c9e8d8f969b5171ce73275a7f613ae1f9694797758cf66b1a9 llvm-22.1.8-11.1.src.rpm http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261118.1/repos/base/armv7l/packages/armv7l/clang-22.1.8-11.1.armv7l.rpm
+LLVM_PROVENANCE_REVIEW armv7l unable to verify OBS revision 12 with expected srcmd5
+CANDIDATE_CLANG_COUNT x86_64 1
+CANDIDATE_CLANG x86_64 clang 0 22.1.8 11.1 x86_64 ed6db88c182662fb81007ffe4589c49792970e14d110b95ebf6744de2949a3d2 llvm-22.1.8-11.1.src.rpm http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261118.1/repos/base/x86_64/packages/x86_64/clang-22.1.8-11.1.x86_64.rpm
+LLVM_PROVENANCE_REVIEW x86_64 unable to verify OBS revision 12 with expected srcmd5
+REVIEW_BEFORE_SUBMIT: verify both PINNED_LLVM_BINARY lines and the expected Base-list diff.
+INTERPRETATION: confirm kernel advisor flags and resolved Base clang separately; capture all non-LLVM deltas.
+REPORT_DIRECTORY /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9
+BINARY_PIN_STATUS INCOMPLETE
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/image_mode_scan.py.txt' -o "$d/image_mode_scan.py.txt" && printf '%s  %s\n' '1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75' "$d/image_mode_scan.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/scan-background.sh.txt' -o "$d/scan-background.sh.txt" && printf '%s  %s\n' '2dad230e17fffa5ca33f9d5ddd8bb002f800358651ed6a7c7e92c13c9e65ec46' "$d/scan-background.sh.txt" | sha256sum -c - && bash "$d/scan-background.sh.txt" "$d/image_mode_scan.py.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.iFhhqJ/image_mode_scan.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.iFhhqJ/scan-background.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/rpm-payload-plan.csv: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/rpm-payload-plan-part-02.csv: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/rpm-payload-plan-part-03.csv: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/rpm-payload-plan-part-04.csv: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/rpm-payload-plan-part-05.csv: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/rpm-payload-plan-part-06.csv: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/rpm-payload-plan-part-07.csv: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/rpm-payload-plan-part-08.csv: OK
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p1  1.8T  1.6T  202G  89% /home1
+MemAvailable:   72077428 kB
+RUN_DIR /home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie
+SCAN_PID 3652675
+JOBS 8
+PLANNED_RPMS 2342
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/kernel-gate.sh.txt' -o "$d/kernel-gate.sh.txt" && printf '%s  %s\n' 'e8d332e397b4ebf22a13734b0f631bb74a06b065d2c262205e596fd610e92606' "$d/kernel-gate.sh.txt" | sha256sum -c - && QB_KERNEL_LOG="${QB_KERNEL_LOG:-}" bash "$d/kernel-gate.sh.txt" | tee "$d/kernel-gate.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.4PGZZk/kernel-gate.sh.txt: OK
+manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt: OK
+388://TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/...@14427407
+
+SOURCE packaging/tztv-kernel.spec@=14427407
+SHELF_FILE_READ_EXIT 1; verify unchanged files at the pinned depot revision
+
+SOURCE linux-6.12/Makefile@=14427407
+SHELF_FILE_READ_EXIT 1; verify unchanged files at the pinned depot revision
+
+SOURCE linux-6.12/init/Kconfig@=14427407
+SHELF_FILE_READ_EXIT 1; verify unchanged files at the pinned depot revision
+
+SOURCE linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig@=14427407
+SHELF_FILE_READ_EXIT 1; verify unchanged files at the pinned depot revision
+
+SOURCE BUILD.sh@=14427407
+SHELF_FILE_READ_EXIT 1; verify unchanged files at the pinned depot revision
+
+No QB_KERNEL_LOG supplied. This output can establish pinned source wiring. Effective argv and resolved Base clang are verified using the actual QB package log/install record.
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/find-argot-evidence.sh.txt' -o "$d/find-argot-evidence.sh.txt" && printf '%s  %s\n' '262837d4d173f62b4e116bc023d5eef6cf2eeac9b29fd6ffd8277af3b492c975' "$d/find-argot-evidence.sh.txt" | sha256sum -c - && bash "$d/find-argot-evidence.sh.txt" | tee "$d/argot-evidence.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.Sw2ob3/find-argot-evidence.sh.txt: OK
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/qb37627297-export.sh.txt' -o "$d/qb37627297-export.sh.txt" && printf '%s  %s\n' '47c5defd31bb44f5ad769175c357f21e8385820398c96204d48bda6f42095045' "$d/qb37627297-export.sh.txt" | sha256sum -c - && QB_PACKAGE_ARTIFACT="${QB_PACKAGE_ARTIFACT:-}" bash "$d/qb37627297-export.sh.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.JOKrif/qb37627297-export.sh.txt: OK
+curl: (22) The requested URL returned error: 403
+UNAVAILABLE build
+curl: (22) The requested URL returned error: 403
+UNAVAILABLE status
+curl: (22) The requested URL returned error: 403
+UNAVAILABLE steps
+curl: (22) The requested URL returned error: 403
+UNAVAILABLE repositories
+curl: (22) The requested URL returned error: 403
+UNAVAILABLE dependencies
+curl: (22) The requested URL returned error: 403
+PACKAGE_ROWS_NOT_EXPOSED_BY_STEPS: use the package result export from the build overview or package job.
+PACKAGE_ROWS_EXPORTED 0
+T5_EXPORT_DIRECTORY /home1/chengkai/vd-tree/workspace/temp/pm0004-t5.h7NT87
+Build overview https://vdcosmos-hub.sec.samsung.net/build/37627297
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/print-pm0002-results.py.txt' -o "$d/print-pm0002-results.py.txt" && printf '%s  %s\n' '1edda3dc81106492ba613165352c5b60b401d5a30ed19824a458a8dba320f841' "$d/print-pm0002-results.py.txt" | sha256sum -c - && python3 -B "$d/print-pm0002-results.py.txt" pic && python3 -B "$d/print-pm0002-results.py.txt" compiler)
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.Wp1p29/print-pm0002-results.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0004-pic-readback.ikn4xw67
+FILE /home1/chengkai/vd-tree/workspace/temp/pm0002/pic-matrix-results.csv SHA256 6c1b7109989f80737c3502b986fd91bbfc1dc22b19f38ace5c8527aa1c92c9a8
+ROWS 56 STATUS_COUNTS {"PASS": 56}
+{"case":"case-001","input":"gcc-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-002","input":"gcc-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-003","input":"gcc-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-004","input":"gcc-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-005","input":"gcc-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-006","input":"gcc-pic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-007","input":"gcc-pic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-008","input":"gcc-pic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-009","input":"gcc-pic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-010","input":"gcc-pic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-011","input":"gcc-pic-defined-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-012","input":"gcc-pic-defined-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-013","input":"gcc-pic-defined-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-014","input":"gcc-pic-external-clean.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-015","input":"gcc-nonpic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-016","input":"gcc-nonpic-external-fat.o","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-017","input":"gcc-nonpic-external-fat.o","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-018","input":"gcc-nonpic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-019","input":"gcc-nonpic-external-fat.o","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-020","input":"gcc-nonpic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-021","input":"gcc-nonpic-external-fat.a","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-022","input":"gcc-nonpic-external-fat.a","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-023","input":"gcc-nonpic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-024","input":"gcc-nonpic-external-fat.a","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-025","input":"gcc-nonpic-defined-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS"}
+{"case":"case-026","input":"gcc-nonpic-defined-fat.o","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS"}
+{"case":"case-027","input":"gcc-nonpic-defined-fat.o","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS"}
+{"case":"case-028","input":"gcc-nonpic-external-clean.o","expected":"LINK_REJECTED_RELOCATION","status":"PASS","flags":".rel.text->.text+0x0:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x4:R_ARM_MOVT_ABS; .rel.text->.text+0x10:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x14:R_ARM_MOVT_ABS; .rel.text->.text+0x1c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x20:R_ARM_MOVT_ABS; .rel.text->.text+0x2c:R_ARM_MOVW_ABS_NC; .rel.text->.text+0x30:R_ARM_MOVT_ABS"}
+{"case":"case-029","input":"clang-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-030","input":"clang-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-031","input":"clang-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-032","input":"clang-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-033","input":"clang-pic-external-fat.o","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-034","input":"clang-pic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-035","input":"clang-pic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+{"case":"case-036","input":"clang-pic-external-fat.a","expected":"LINKED_RUNTIME_PASSED","status":"PASS","flags":""}
+ROWS_OMITTED 20
+FILE /home1/chengkai/vd-tree/workspace/temp/pm0002/pic-results/rpms.csv SHA256 154c5bde2bd73c523a2744a4996d925e017a0e62fe82f7c3ef1777e13cfe395c
+ROWS 92 STATUS_COUNTS {"INCOMPLETE": 14, "SCANNED": 78}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","status":"SCANNED","bytes":"1817056","records":"188","error":""}
+{"repository":"llvm-base","package":"bison","identity":"3.0.5-1.95.armv7l","status":"SCANNED","bytes":"478075","records":"2","error":""}
+{"repository":"llvm-base","package":"compiler-rt","identity":"22.1.8-9.1.armv7l","status":"SCANNED","bytes":"4983996","records":"947","error":""}
+{"repository":"llvm-base","package":"cross-aarch64-gcc-9-2-x86-arm","identity":"9.2.0-1.1.armv7l","status":"INCOMPLETE","bytes":"106883659","records":"6633","error":""}
+{"repository":"llvm-base","package":"cross-aarch64-gcc-x86-arm","identity":"14.2.0-6.1.armv7l","status":"INCOMPLETE","bytes":"159114460","records":"7015","error":""}
+{"repository":"llvm-base","package":"cross-arm-gcc-9-2-x86-arm","identity":"9.2.0-1.1.armv7l","status":"INCOMPLETE","bytes":"116076040","records":"8079","error":""}
+{"repository":"llvm-base","package":"flex","identity":"2.6.4-1.78.armv7l","status":"SCANNED","bytes":"135422","records":"2","error":""}
+{"repository":"llvm-base","package":"gcc","identity":"14.2.0-1.77.armv7l","status":"SCANNED","bytes":"27961508","records":"8","error":""}
+{"repository":"llvm-base","package":"gcc-devel-static","identity":"14.2.0-1.77.armv7l","status":"SCANNED","bytes":"1559976","records":"467","error":""}
+{"repository":"llvm-base","package":"gcc-fortran","identity":"14.2.0-1.77.armv7l","status":"SCANNED","bytes":"14216424","records":"805","error":""}
+{"repository":"llvm-base","package":"glibc-devel","identity":"2.40-1.111.armv7l","status":"SCANNED","bytes":"724880","records":"16","error":""}
+{"repository":"llvm-base","package":"glibc-devel-static","identity":"2.40-1.111.armv7l","status":"SCANNED","bytes":"1357838","records":"2413","error":""}
+{"repository":"llvm-base","package":"glibc-profile","identity":"2.40-1.111.armv7l","status":"SCANNED","bytes":"1387377","records":"2414","error":""}
+{"repository":"llvm-base","package":"gmp-devel","identity":"4.2.1-1.16.armv7l","status":"SCANNED","bytes":"328513","records":"367","error":""}
+{"repository":"llvm-base","package":"golang-bin","identity":"1.21.4-1.2.armv7l","status":"INCOMPLETE","bytes":"65323903","records":"600","error":""}
+{"repository":"llvm-base","package":"golang-tests","identity":"1.21.4-1.2.noarch","status":"INCOMPLETE","bytes":"10171990","records":"38","error":""}
+{"repository":"llvm-base","package":"golang-tests","identity":"1.21.4-1.5.noarch","status":"INCOMPLETE","bytes":"10171978","records":"38","error":""}
+{"repository":"llvm-base","package":"iproute2-devel","identity":"5.5.0-1.17.armv7l","status":"SCANNED","bytes":"291920","records":"2","error":""}
+{"repository":"llvm-base","package":"jdk","identity":"1.4.2-3.2.armv7l","status":"INCOMPLETE","bytes":"45852121","records":"8","error":""}
+{"repository":"llvm-base","package":"libasm-devel","identity":"0.189-2.54.armv7l","status":"SCANNED","bytes":"25995","records":"31","error":""}
+{"repository":"llvm-base","package":"libdw-devel","identity":"0.189-2.54.armv7l","status":"SCANNED","bytes":"366485","records":"368","error":""}
+{"repository":"llvm-base","package":"libelf-devel","identity":"0.189-2.54.armv7l","status":"SCANNED","bytes":"70932","records":"116","error":""}
+{"repository":"llvm-base","package":"libelf0-devel","identity":"0.8.13-1.16.armv7l","status":"SCANNED","bytes":"54330","records":"54","error":""}
+{"repository":"llvm-base","package":"libffi-devel-static","identity":"3.4.7-1.72.armv7l","status":"SCANNED","bytes":"23311","records":"8","error":""}
+{"repository":"llvm-base","package":"libgcc","identity":"14.2.0-1.77.armv7l","status":"SCANNED","bytes":"187291","records":"1793","error":""}
+{"repository":"llvm-base","package":"libicecream-devel","identity":"0.9.7-1.17.armv7l","status":"SCANNED","bytes":"70825","records":"7","error":""}
+{"repository":"llvm-base","package":"liblzma-static","identity":"5.8.1-1.65.armv7l","status":"SCANNED","bytes":"98534","records":"79","error":""}
+{"repository":"llvm-base","package":"libsolv-devel","identity":"0.7.27-1.13.armv7l","status":"SCANNED","bytes":"465651","records":"60","error":""}
+{"repository":"llvm-base","package":"libstdc++-devel","identity":"14.2.0-1.77.armv7l","status":"SCANNED","bytes":"4035103","records":"282","error":""}
+{"repository":"llvm-base","package":"libtool","identity":"2.4.7-1.149.armv7l","status":"SCANNED","bytes":"581238","records":"8","error":""}
+{"repository":"llvm-base","package":"libunistring-devel-static","identity":"1.1-1.16.armv7l","status":"SCANNED","bytes":"718393","records":"552","error":""}
+{"repository":"llvm-base","package":"libunwind-devel","identity":"1.6.2-1.17.armv7l","status":"INCOMPLETE","bytes":"95431","records":"130","error":""}
+{"repository":"llvm-base","package":"libxcrypt-devel-static","identity":"4.4.36-1.209.armv7l","status":"INCOMPLETE","bytes":"99292","records":"35","error":""}
+{"repository":"llvm-base","package":"libzio-devel","identity":"1.09-1.15.armv7l","status":"SCANNED","bytes":"26797","records":"2","error":""}
+{"repository":"llvm-base","package":"libzstd-devel","identity":"1.5.6-1.148.armv7l","status":"SCANNED","bytes":"450199","records":"36","error":""}
+{"repository":"llvm-base","package":"llvm-static-devel","identity":"22.1.8-9.1.armv7l","status":"SCANNED","bytes":"108216076","records":"3690","error":""}
+ROWS_OMITTED 56
+FILE /home1/chengkai/vd-tree/workspace/temp/pm0002/pic-results/members.csv SHA256 6e759b3c31cef74136575670ffcafcb957828ceea4d7f8cad589bbabe0be17a2
+ROWS 47927 STATUS_COUNTS {"EMPTY_ARCHIVE": 20, "MISSING_PAYLOAD_PATH": 1, "NON_REGULAR_CANDIDATE": 3, "NO_LISTED_RELOCATION": 28100, "REVIEW_INPUT_ERROR": 2, "REVIEW_RELOCATIONS": 1910, "UNCLASSIFIED_MEMBER": 17891}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"1:archive.o","sha256":"f90ac7169380ddc797504d3f8adf89d4c2e19f1010115d82b9f5bed562ab52d6","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"2:archures.o","sha256":"9bf04af666e7b73984001892a36ee7ee2d88cb127fc1fd64e9a64db4ef6295c0","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"3:bfd.o","sha256":"315afde2945810db70474a49291216bd999854a1b9abda0f4902ffb022633be3","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"4:bfdio.o","sha256":"3718660ac834bcf74ef9345a52b8b093222c2dc9d8c16d7dd4ffa134dea93dfa","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"5:cache.o","sha256":"f4ac93c4716c5727e96e92578dada8e9dd3b84cd3cebff3f9f23fc233fc2b95f","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"6:coff-bfd.o","sha256":"13a42c73ea8833efbc5cad567dd2a1ed73c20b1fc30fc616ac7625bdc6f8eb08","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"7:compress.o","sha256":"bd322996acae9f90ba65128e937e046135bd3e329c3b9466a19823748232ec7e","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"8:corefile.o","sha256":"ba44beab40e74f5ae24afaa5cacfc493b92190b78f5155b3de6f235ad14e7e52","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"9:elf-properties.o","sha256":"86ef736c2761a1a5e44108e83aa43704036ed01a72e835799907b875bdc6dab1","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"10:format.o","sha256":"f18c0db90b6b710fd636331510dbe275d17ebbbf7a1689d366731a8535214a7d","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"11:hash.o","sha256":"0ba6d001d820883779b2bddb936b81d5af513d210985f31d52692a91492a7c61","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"12:libbfd.o","sha256":"b83c97f55248614eca1cd6925de75fb7419fd2540f4108c1504af5f6653d8841","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"13:linker.o","sha256":"b420b4ecf3092282e48b16c94fc911a8bb6d79286d5c1edead56376e61af3cb3","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"14:merge.o","sha256":"2b1806e7fdfb59147bfe9174bce2130afdb17ea412188f2343cb93d5e57f864b","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"15:opncls.o","sha256":"7c6d3f560e09b4b8d604f1760298332830cd1f93a1891a412730e619aeda20f4","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"16:reloc.o","sha256":"33eaa214f5e9c0f62d9f4c9f3ca8b2bb60903ccca6d11ea4ec099fcae62ac1a6","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"17:section.o","sha256":"8510230725f857015a1fae197120d52a13ffc8ade5f153c3e8fa09498b21904c","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"18:simple.o","sha256":"76689b4ad7c750f76575ae1924a6e2198856515c5478bec28d43fbc29d95ce54","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"19:stab-syms.o","sha256":"eace135f54fed2667fdf7a9dd17851aa842f95acb63147b2e7855006616b1758","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"20:stabs.o","sha256":"87afb16ba116f79c4bea30541053b1cc3e4795ddf3f1620d36b10342d1dcf5ef","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"21:syms.o","sha256":"df3e4dbf76ed3fe0f296a4f07431c76430b5f02abd1165cc20437b6ebe8227d2","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"22:targets.o","sha256":"34dd1b6613cb010e2eb8efca44116f966fab66697f5dc84fe54c06c86e3ba437","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"23:binary.o","sha256":"e3eaea8b02f93850e70550f2f7a4f78bd4c0b994b5930068dc4aec30879af399","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"24:ihex.o","sha256":"9b8618b08ea3cd68905cdfde87ac59a4bb89d5c762a20581e33fec2e2d3d0557","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"25:srec.o","sha256":"7bc656468e5e0ee47b05820e7c5012cd7abc95a34ce6e90ef570efcc1f5cf3a6","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"26:tekhex.o","sha256":"5c6d7e4e4b4ca30f436fc649e8c79bc945853d462c933e2de63f7b730422b4f2","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"27:verilog.o","sha256":"e4322960aeacea7ad4eec5504ee7fa0e60759a40ec05c7fecd5d0a6588d0b6a2","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"28:elf32-arm.o","sha256":"68f05ce7bf5c7cf908dc65c107aab19b418bbe9fdc2ad9e0985cdd172decccf4","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"29:elf32.o","sha256":"d0f1d53308a366e31bf88eb138a152781f82989400ca531c65023632936d67e0","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"30:elf-nacl.o","sha256":"7dd985b789d1ac16ea1d7edd12a9c08e3f3c3f8252b0d6c4e57adcff226c3840","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"31:elf-vxworks.o","sha256":"fa67c90d97e3dbd4f200cd298f6d380f5768d3c325198157f94164949d581ff8","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"32:elf.o","sha256":"8c71710aa7d7af6e0d1a37721c5c333235adf947a766cd1132508ee8b019751e","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"33:elflink.o","sha256":"64cdb620c69f458372466a7fcc2dc3fac4549fca87658ad5dda8e98e1e410ce8","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"34:elf-attrs.o","sha256":"36022b29f374236325d07dfdf73b1ebd452b8249ff6c1d839cc71ac894585e9c","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"35:elf-strtab.o","sha256":"50e69f443507120d17d344b1dae17f8b80690562a09901b2bc98a4d174ae1707","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-base","package":"binutils-devel","identity":"2.43-3.49.armv7l","path":"/usr/lib/libbfd.a","member":"36:elf-eh-frame.o","sha256":"f1c627e4b09b3e06b252a3e5e50e7b2509007396d8adf2abc561204ee8111e38","status":"NO_LISTED_RELOCATION","llvm_lto":"False","gnu_lto":"False","producer_markers":"GCC: (Tizen GCC 14.2.0 20240801 1.46) 14.2.0","relocations":"","build_id":"","allowlist":"REVIEW_BY_INTENDED_USE"}
+ROWS_OMITTED 47891
+RETAINED_INPUT_STATUS COMPLETE
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0004-compiler-readback.u9cjq5s9
+FILE /home1/chengkai/vd-tree/workspace/temp/pm0002/compiler-sample/rpms.csv SHA256 1de9a81dfee98e1d07dcd7bd479d3780971ab3de454f2380b2af8f03e4b5b4d2
+ROWS 30 STATUS_COUNTS {"SCANNED": 30}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","status":"SCANNED","bytes":"2618896","records":"14","error":""}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","status":"SCANNED","bytes":"5048747","records":"14","error":""}
+{"repository":"llvm-product","package":"AboutTVGadget","identity":"2.0.7-1.armv7l","status":"SCANNED","bytes":"1275616","records":"0","error":""}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","status":"SCANNED","bytes":"1989721","records":"18","error":""}
+{"repository":"llvm-product","package":"Bixby-menu-util","identity":"1-1.armv7l","status":"SCANNED","bytes":"169705","records":"1","error":""}
+{"repository":"llvm-product","package":"BluetoothGadget","identity":"27.00.01-1.armv7l","status":"SCANNED","bytes":"1377201","records":"0","error":""}
+{"repository":"llvm-product","package":"BroadcastingmenuViews","identity":"0.0.1-1.armv7l","status":"SCANNED","bytes":"712495","records":"0","error":""}
+{"repository":"llvm-product","package":"ChannelList","identity":"1.0.0-1.armv7l","status":"SCANNED","bytes":"2104522","records":"0","error":""}
+{"repository":"llvm-product","package":"ChannelList-theme-resource","identity":"1.0.0-1.armv7l","status":"SCANNED","bytes":"445631","records":"0","error":""}
+{"repository":"llvm-product","package":"Cifsd-perf","identity":"1.1.0-1.armv7l","status":"SCANNED","bytes":"6222","records":"0","error":""}
+{"repository":"llvm-product","package":"Cifsd_tools-DTV","identity":"1.1.0-1.armv7l","status":"SCANNED","bytes":"61081","records":"1","error":""}
+{"repository":"llvm-product","package":"Com.Samsung.TV.Wizard.BTActivity","identity":"0.0.1-1.armv7l","status":"SCANNED","bytes":"731302","records":"0","error":""}
+{"repository":"llvm-base","package":"CommonResource","identity":"1.0.0-1.1.armv7l","status":"SCANNED","bytes":"8031","records":"0","error":""}
+{"repository":"llvm-base","package":"CommonResourceFlux","identity":"1.0.0-1.1.armv7l","status":"SCANNED","bytes":"7117","records":"0","error":""}
+{"repository":"llvm-product","package":"DeviceDataProvider","identity":"0.1.0-1.armv7l","status":"SCANNED","bytes":"367804","records":"3","error":""}
+{"repository":"llvm-product","package":"EngineeringMode","identity":"1.0-1.armv7l","status":"SCANNED","bytes":"188596","records":"3","error":""}
+{"repository":"llvm-product","package":"EngineeringMode-PPI","identity":"0.1.0-1.armv7l","status":"SCANNED","bytes":"12075","records":"1","error":""}
+{"repository":"llvm-product","package":"EngineeringMode-PPI_Impl","identity":"0.0.1-1.armv7l","status":"SCANNED","bytes":"11764","records":"1","error":""}
+{"repository":"llvm-product","package":"EngineeringMode-driver-perf","identity":"1.0-1.armv7l","status":"SCANNED","bytes":"11204","records":"1","error":""}
+{"repository":"llvm-product","package":"GraphicsMagick","identity":"1.3.45-2.armv7l","status":"SCANNED","bytes":"751684","records":"14","error":""}
+{"repository":"llvm-product","package":"HTLogTracker","identity":"0.1.0-1.armv7l","status":"SCANNED","bytes":"90010","records":"1","error":""}
+{"repository":"llvm-product","package":"HbbTVMenuGadget","identity":"0.0.1-1.armv7l","status":"SCANNED","bytes":"187745","records":"0","error":""}
+{"repository":"llvm-product","package":"InfoMeter","identity":"0.35-1.armv7l","status":"SCANNED","bytes":"40004","records":"1","error":""}
+{"repository":"llvm-product","package":"KnoxVault","identity":"26.09.28.0-1.armv7l","status":"SCANNED","bytes":"994585","records":"2","error":""}
+{"repository":"llvm-product","package":"Multicontrol-Menuitem-Settings","identity":"25.09.2026-1.armv7l","status":"SCANNED","bytes":"122158","records":"3","error":""}
+{"repository":"llvm-product","package":"OpenCvSharpExtern","identity":"0-1.armv7l","status":"SCANNED","bytes":"244118","records":"1","error":""}
+{"repository":"llvm-product","package":"PvodTestTool","identity":"0.1.4-1.armv7l","status":"SCANNED","bytes":"6282","records":"0","error":""}
+{"repository":"llvm-product","package":"QSymphonyGadget","identity":"2.0.15-1.armv7l","status":"SCANNED","bytes":"5382309","records":"0","error":""}
+{"repository":"llvm-product","package":"ReporterTA","identity":"26.08.26.0-1.armv7l","status":"SCANNED","bytes":"249111","records":"1","error":""}
+{"repository":"llvm-product","package":"SDL2","identity":"2.0.14-2.armv7l","status":"SCANNED","bytes":"433724","records":"1","error":""}
+FILE /home1/chengkai/vd-tree/workspace/temp/pm0002/compiler-sample/members.csv SHA256 bf3cec6cc8b2462e8ece7088840d52a1172c4ec99d11db39ccf565f6315a393b
+ROWS 81 STATUS_COUNTS {"CLANG_MARKER": 80, "UNCLASSIFIED_ARM_ELF": 1}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/acm-test-app/bin/acm-test-app","member":"","sha256":"ff99fe6d9d7771c2edf679a8a11ea195eea492f04286ac7792e47bb34dfe7f2d","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"02257ceb137d5d8617ed416f2114bf5cc010efc5","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/adagent-native-test-app/bin/adagent-native-test-app","member":"","sha256":"a860a9e8fd9514f305a4a1a9ae557ca64f74c2a41f380063c0ccd7a58685da79","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"c0083f0c88d14dfe6b7fb98ced66e05f69570301","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/audio-settings-test-app/bin/audio-settings-test-app","member":"","sha256":"cbf5a41fb6db2090a7fbe991e5841f7a748e872bb9556e9d14e640c6a9b5528f","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"0b6afb14afa54e7bbcca5b2cf776d5ec9a0a2175","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/hbbtv-test-app/bin/hbbtv-test-app","member":"","sha256":"6ec3e4370bad1014a5e838bc8f23c2d99b5dd007d8545254e0b294ca27fb1fb0","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"d81b0431177c7549f8881e124fcb7fb40437c049","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/karaoke-test-app/bin/karaoke-test-app","member":"","sha256":"171df05c323095be26e3ec988eb3f35289913425f747c7a18c7ddd3cf8a96d72","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"786a4e2d806dd1b1fb24987519e35073b597ca72","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/network-test-app/bin/network-test-app","member":"","sha256":"fe3550929f260bf75a529f47c1d0baffaadd7a93686382c2df23906dcd27a50b","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"f306245a085cf4ef71fd4973fdc4c21945f18507","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/nuigadget-qsymphony-test-app/bin/nuigadget-qsymphony-test-app","member":"","sha256":"5526f2dc04ec255c295ce8539f4e8b49fb1da4b4e3eb38d704593a777af9d0a7","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"c1d89e3891a79023d28bca8f145614fc28c1007d","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/photo-player-type-a-test-app/bin/photo-player-type-a-test-app","member":"","sha256":"87c532a4ea422eebe5534f48d58105d2dd5cebe2d5f780eecb1d3c4c9c6bb013","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"d0c4d8e55cb97593a41b53c1e4e33dc6864695e8","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/platform-monitor-service/bin/platform-monitor-service","member":"","sha256":"ffce0adb0e8b298ac9df672f3d78842b42f1e85d46e85ebcd65ecf843532097d","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"134ad133776808bebca0853f299c18769048dde8","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/ssc-test-app/bin/ssc-test-app","member":"","sha256":"2ed3cbff09d7d0d24fa6c748acf0e8e1a0cc521aba69a3f1168e5efa3149e06f","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"a79e196a467e950ed7f43d386554cab0917c0ed9","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/tv-settings-app/bin/tv-settings-app","member":"","sha256":"bd88dfd9b0a9c20d27c8f85c45c52bd96135a36a5980b94ea37f4334e05c426b","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"55aa3ff870b25a3fe86db766a232fec501f8df8c","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/tvkey-test-app/bin/tvkey-test-app","member":"","sha256":"58bfb83a664825836a78914475f893380d5751ec91dad5514bd1c200e2e41168","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"73ef4b02bdef0d5bea276421329b37f0bcd79367","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/opt/usr/apps/video-player-test-app/bin/video-player-test-app","member":"","sha256":"9993a3aeaec8b75d0fb4ede5d22ba442cd916d52dd3ce2303ecf7f02140a5a91","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"9cfaaa7732a4aa2ed80df98dbd58531d0b860061","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"ABC-test-apps","identity":"26.0.1-1.armv7l","path":"/usr/bin/wifi_test_app","member":"","sha256":"4b6fd2c802af25b30fadef781f5a133cc4d6c98161028855e231443e25036e1d","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"d85b5f88ebcb0d9f0915ae50cb458109da891fdc","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/bin/issue_report_agent","member":"","sha256":"a8386a2b8edb7929f3de4198f5c030ebb6866f4823ce51c43f62e1bcca7e8d8a","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"35c91bb70ccbd51b498ad84944f99eadd2c11ba7","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/apps/AT-HUB/bin/emergency-log-transmitter","member":"","sha256":"2000793aea41248a00af16ea9cfb1501201979f1b8979b82b81589ad2746efd8","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"8938346b3ed75521a2549c6813b7c5c4bda3a31b","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/bin/ArtifactManager","member":"","sha256":"81f8ebc54b936fa3b268b2ae16a43c04e43c789371a9847a8d6d4a0c7c49974b","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"fa68eb95ee9296858a7cfcb5447a60887925e078","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/bin/HSMClient","member":"","sha256":"716d4dc09f7cbb19d4a8a0c9e0984315d757ed46527a39d0dffe317e4b12fad8","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"8228a737d1621d93e4e8bb5bace6f3edb1419796","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/bin/PinScenario","member":"","sha256":"6f7f12987f94efb216749b06628b2bd5252125baf2c7a173d19224709a70a103","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"756f41e84c550ca078532c33bca3e1b4c95547f9","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/bin/PolicyManager","member":"","sha256":"5823ed7327d2c90aef913a0901ea99c82ecbca1e16239c5a0b6516c1279c57ca","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"6f3763c9ed9e5bab39694b0a3297d396d8e97438","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/bin/TagDebug","member":"","sha256":"78aec8a727f8c094f362624b99603965ccce7dbbe47c5df6aef4e8554a782cf8","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"ca9667e9605ec2de08a4b15aa837b283402d3320","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/bin/emergencyLogTransmitterRun","member":"","sha256":"111cd74ee3a50663888567409b7e23a18f5a3b18af5d9604863e09bda0c2bee7","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"d5a7447f80909688458fd18332052cf24a527f3d","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/bin/hsm-event-send","member":"","sha256":"0a7c7baa3b297e31306d5adbeed6b0c4a7c4c78027e337417fbb8ca6592da905","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"e9a96310e95ef3030f043ccba6bea7f4d814de68","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/lib/libAT-HUB.so","member":"","sha256":"d34a05fede59dff5b495702bfd99c4040dbe5140c4bdab93e2d4a37ef13a9da9","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"455e1d706f29dcc9decf171e6eece0abf944cf2b","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/lib/libAUB.so","member":"","sha256":"62ed0b1996e869b62be1f347e1351151b063310728f891a40379b90a762bb3ff","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"5d460b59ade933d49d57dbf4326abc934d171730","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/lib/libQSysLink.so","member":"","sha256":"aa6729930ab42c6e99a61e4482201205715d5b24bd12cc1699a8bda023e117a5","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"ae08926a8243e2d03f42b8df3c2e3380cbbe122a","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/lib/libemergencylogtransmitter-debugmenu.so","member":"","sha256":"2c55d22cdc0617a60d5c1eac37ee072e013b73c79220f8b9ae312b8acf7b52d0","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"aa5e5ec99acce8799fb8de339c4486b525e1321c","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"AT-HUB-perf","identity":"1.8-0.armv7l","path":"/usr/lib/libsp-kpi.so","member":"","sha256":"f5ba800936717bd133a1adae9774f5dff3115f018203fce77f5dd3bed0d10029","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"f8e07554183c120098138cdd591069ab8287d5d5","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","path":"/usr/lib/BM/EW/lib/libew-cli.so","member":"","sha256":"2dfaa218557f2ec91490f7cd5c75f3e75e3219cb5ff7d06a4b4adfd4375a2e72","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"b07d39522b416eb4920b6d28e561447e38318e17","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","path":"/usr/lib/BM/EW/lib/libew-config.so","member":"","sha256":"d6b754c0e411ee8c1465f52cd4eb3938ddb983e404183c6bbad58394a6e6cc91","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"8a954992ee5fb6fd5c5e5eed309db6757474ed94","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","path":"/usr/lib/BM/EW/lib/libew-gen.so","member":"","sha256":"46ee3408a85c94b496324347b2663102b45f2047aae0360ea003d2a72e2d5415","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"536e2c2176edd89e33c3f4fafb9c4c4e95f3332c","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","path":"/usr/lib/BM/EW/lib/libew-ipc.so","member":"","sha256":"093f7afd493c60406071312e735afc7c0b39a07c3c4291ca9d170fe24e0c5d4d","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"8217f2524baf577d5413dcb4b6beef3a57fded8c","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","path":"/usr/lib/BM/EW/lib/libew-log-control.so","member":"","sha256":"731bc487f5003ad6b29b0a52768afa9b334d1f4bb3f72c2e4d65f9460edb7a2a","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"b171597ae4b189bb12589ee9217607b717427a91","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","path":"/usr/lib/BM/EW/lib/libew-porting.so","member":"","sha256":"3c03b361de24bd3776aee05f3373afdeba57bbf9b938a5d8741048d0cddb1bdf","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"b3eae8e63dca429d40a027c9a5d0af2fcf0c1249","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","path":"/usr/lib/BM/EW/lib/libew-rpc.so","member":"","sha256":"71ea156530a4221836ed6bfee542798c588b3aee00281d6d0229bcb8106d6c30","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"1f9852b64f9d7d103828450ef3b34a706fb3a819","allowlist":"REVIEW_BY_INTENDED_USE"}
+{"repository":"llvm-product","package":"BM_HWTest-release","identity":"3.0-1.armv7l","path":"/usr/lib/BM/EW/lib/libew-scenario.so","member":"","sha256":"8596f72f1d31b757a50a8f2c87599cda63ab58f0e734a158ed3cb6e48c66a990","status":"CLANG_MARKER","llvm_lto":"","gnu_lto":"","producer_markers":"GCC,Clang","relocations":"","build_id":"1c25f689243b07f297968fb5274f2a4acbba0f7f","allowlist":"REVIEW_BY_INTENDED_USE"}
+ROWS_OMITTED 45
+RETAINED_INPUT_STATUS COMPLETE
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/mode_summary.py.txt' -o "$d/mode_summary.py.txt" && printf '%s  %s\n' 'a5f518efb014b8a3e184ea27c4578d60d1f48c909d78c055e067fb293fd1eede' "$d/mode_summary.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/print-scan-summary.py.txt' -o "$d/print-scan-summary.py.txt" && printf '%s  %s\n' 'fcc6d6bc75d39b654350df5887285cc9dc623d9652df19d58508ef74ca2b8c6a' "$d/print-scan-summary.py.txt" | sha256sum -c - && python3 -B "$d/print-scan-summary.py.txt" "$d/mode_summary.py.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.CaaZyZ/mode_summary.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.CaaZyZ/print-scan-summary.py.txt: OK
+RUN_DIR /home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie
+SCAN_EXIT_PENDING
+progress 100/2342
+progress 200/2342
+progress 300/2342
+progress 400/2342
+progress 500/2342
+progress 600/2342
+progress 700/2342
+progress 800/2342
+progress 900/2342
+progress 1000/2342
+progress 1100/2342
+progress 1200/2342
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$

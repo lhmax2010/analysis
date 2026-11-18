@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""Read fixed VD snapshot metadata and hash-verify streamed RPM downloads."""
+import bz2
+import gzip
+import hashlib
+from pathlib import Path
+import re
+import subprocess
+from urllib.parse import urljoin, urlsplit
+from urllib.request import build_opener, ProxyHandler, HTTPRedirectHandler
+import xml.etree.ElementTree as ET
+
+import shutil
+HOST = "repos.vd.sec.samsung.net"
+PREFIX = f"http://{HOST}/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_"
+REP = "{http://linux.duke.edu/metadata/repo}"
+COM = "{http://linux.duke.edu/metadata/common}"
+RPM = "{http://linux.duke.edu/metadata/rpm}"
+
+class RepoOnly(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, url):
+        require_repo(url)
+        return super().redirect_request(req, fp, code, msg, headers, url)
+
+def require_repo(url):
+    parsed = urlsplit(url)
+    if parsed.netloc != HOST or parsed.scheme not in ("http", "https"):
+        raise ValueError("unexpected repository URL")
+
+def fetch(url, limit=40*1024**2):
+    require_repo(url)
+    with build_opener(ProxyHandler({}), RepoOnly()).open(url, timeout=25) as stream:
+        data = stream.read(limit+1)
+    if len(data) > limit:
+        raise ValueError("repository metadata exceeds size cap")
+    return data
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+def unpack(data):
+    for magic, decode in [(b"\x1f\x8b", gzip.decompress), (b"BZh", bz2.decompress)]:
+        if data.startswith(magic):
+            return decode(data)
+    if data.startswith(b"\xfd7zXZ\x00"):
+        return subprocess.run(["xz", "-dc"], input=data, capture_output=True, check=True, timeout=45).stdout
+    if data.startswith(b"\x28\xb5\x2f\xfd"):
+        return subprocess.run(["zstd","-dc"], input=data, capture_output=True, check=True, timeout=45).stdout
+    return data
+
+def inventory(base, arch, stage):
+    repo = f"{base}repos/base/{arch}/packages/"
+    repomd = fetch(repo+"repodata/repomd.xml", 2*1024**2)
+    primary = ET.fromstring(repomd).find(f"{REP}data[@type='primary']")
+    checksum = primary.find(REP+"checksum")
+    compressed = fetch(urljoin(repo, primary.find(REP+"location").attrib["href"]))
+    alg = checksum.attrib["type"]
+    if hashlib.new("sha1" if alg == "sha" else alg, compressed).hexdigest() != checksum.text.strip():
+        raise ValueError("primary checksum mismatch")
+    rows = {}
+    for pkg in ET.fromstring(unpack(compressed)).findall(COM+"package"):
+        name = pkg.findtext(COM+"name")
+        platform = pkg.findtext(COM+"arch")
+        version = pkg.find(COM+"version").attrib
+        key = (name, version.get("epoch","0"), version["ver"], version["rel"], platform)
+        ck = pkg.find(COM+"checksum")
+        if ck.attrib["type"] != "sha256":
+            raise ValueError(f"SHA-256 metadata missing for {key}")
+        url = urljoin(repo, pkg.find(COM+"location").attrib["href"])
+        if not url.startswith(base):
+            raise ValueError(f"payload path leaves published snapshot for {key}")
+        row = (ck.text.strip(), pkg.findtext(f"{COM}format/{RPM}sourcerpm", default=""), url)
+        if key in rows and rows[key] != row:
+            raise ValueError(f"ambiguous NEVRA {key}")
+        rows[key] = row
+    if not rows:
+        raise ValueError(f"empty {repo}")
+    (stage/f"{arch}-repomd.xml").write_bytes(repomd)
+    (stage/f"{arch}-primary.download").write_bytes(compressed)
+    return rows
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, url):
+        raise ValueError(f"unexpected RPM redirect from {req.host}: HTTP {code}")
+
+
+def file_sha(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024**2), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+def cached_rpm(pair, work, preflight_cache=None):
+    url, digest = pair
+    dest = work / (digest[:16] + "-" + Path(urlsplit(url).path).name)
+    if dest.is_file():
+        if file_sha(dest) != digest:
+            raise ValueError(f"cached RPM hash mismatch: {dest.name}")
+        return dest
+    if preflight_cache is not None:
+        if not preflight_cache.is_file() or file_sha(preflight_cache) != digest:
+            raise ValueError(f"retained PINNED_LLVM_BINARY mismatch: {preflight_cache}")
+        shutil.copyfile(preflight_cache, dest)
+    else:
+        with build_opener(ProxyHandler({}), NoRedirect()).open(url, timeout=45) as src, dest.open("xb") as out:
+            shutil.copyfileobj(src, out, 1024**2)
+    if file_sha(dest) != digest:
+        raise ValueError(f"snapshot RPM hash mismatch: {dest.name}")
+    return dest

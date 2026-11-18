@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Read the selected shelf and optionally inspect a retained kernel build log.
+set -eu
+cd /home1/chengkai/vd-tree
+d=$(mktemp -d "$PWD/workspace/temp/pm0005-kernel-gate.XXXXXX")
+export TMPDIR="$d"
+printf 'WORKDIR %s\n' "$d"
+p4cmd=(p4 -c DEV-IPTV-VC_TOOLCHAIN)
+if ! timeout 20 "${p4cmd[@]}" login -s >"$d/login.log" 2>&1; then
+    printf '%s\n' 'P4_TICKET_INVALID_OR_UNAVAILABLE: renew the native P4 session and rerun'
+    head -16 "$d/login.log" | cut -c1-480
+    exit 2
+fi
+m=manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt
+pin=c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736
+depot='//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux'
+printf '%s  %s\n' "$pin" "$m" | sha256sum -c -
+grep -nFx "$depot/...@14427407" "$m"
+i=0
+for f in packaging/tztv-kernel.spec linux-6.12/Makefile linux-6.12/init/Kconfig \
+    linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig BUILD.sh; do
+    i=$((i+1))
+    out="$d/file-$i"
+    printf 'SOURCE %s@=14427407\n' "$f"
+    if timeout 25 "${p4cmd[@]}" print -q "$depot/$f@=14427407" >"$out.stdout" 2>"$out.stderr"; then
+        awk '
+            /MLGO|enable-ml-inliner|regalloc-enable-advisor/ {
+                if (advisor++ < 22) print NR ":" substr($0,1,370)
+                next
+            }
+            /BuildRequires.*clang|BuildRequires.*llvm|LLVM(_IAS)?[[:space:]]*=|_toolchain|CROSS_COMPILE|BUILD\.sh/ && ctx++<10 {
+                print NR ":" substr($0,1,370)
+            }' "$out.stdout"
+        head -5 "$out.stderr" | cut -c1-470
+    else
+        code=$?
+        printf 'SHELF_FILE_READ_EXIT %s %s\n' "$code" "$f"
+        head -10 "$out.stderr" | cut -c1-480
+        head -5 "$out.stdout" | cut -c1-480
+        if [ ! -s "$out.stderr" ] && [ ! -s "$out.stdout" ]; then
+            printf '%s\n' 'P4 returned no diagnostic; exit 124 indicates timeout'
+        fi
+    fi
+done
+if [ -n "${QB_KERNEL_LOG:-}" ]; then
+    log=$(realpath -e -- "$QB_KERNEL_LOG")
+    case "$log" in "$PWD/"*) ;; *) echo 'Use a retained log under vd-tree'; exit 2;; esac
+    sha256sum "$log"
+    case "$log" in *.gz) reader=(gzip -cd --);; *.xz) reader=(xz -dc --);; *) reader=(cat --);; esac
+    set -o pipefail
+    "${reader[@]}" "$log" | awk '
+        /37627297|20261113\.1|tztv-kernel|clang-22|clang-accel|KANTSU2E_perf|CONFIG_CC_IS_CLANG|CONFIG_MLGO|LLVM=1/ && a++<18 {
+            print "CONTEXT " NR ":" substr($0,1,430)
+        }
+        /enable-ml-inliner/ && b++<12 {
+            at=match($0,/enable-ml-inliner/); print "INLINER " NR ":" substr($0,1,150) " | " substr($0,(at>65?at-65:1),330)
+        }
+        /regalloc-enable-advisor/ && c++<12 {
+            at=match($0,/regalloc-enable-advisor/); print "REGALLOC " NR ":" substr($0,1,150) " | " substr($0,(at>65?at-65:1),330)
+        }'
+else
+    printf '%s\n' 'Effective argv and resolved compiler still require the actual QB package log/install record.'
+fi

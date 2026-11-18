@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Start or read back the 2,342-RPM serial compiler-marker scan."""
+import argparse
+from collections import Counter
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+NATIVE = Path('/home1/chengkai/vd-tree/workspace/temp')
+REV = 'ac0657e1347b7a3876e7cc28cd51a7831cb15f48'
+URL = f'https://raw.githubusercontent.com/lhmax2010/analysis/{REV}/artifacts/ledger/'
+PINS = (
+    'b9fcb512a340d946722f5042b36646da9b576ef7e6a449d82ed7c63294c20796',
+    'f10ba9f1c55104e66c2cb5a2e0a1a32d287b361866e114d0dbf3b3072856850e',
+    '2027a10934997cd7351a53bcf0652eb328311a47e19e12c0543afd38be6f77f1',
+    '2e14bc2653742925f92f29eae9fe1e54bad590be05d7733ce54464eb06783ca2',
+    '00946953d979e69eea590e9d9bea3b3ed6fb1f79333cf2e201efc6fa4f3c778c',
+    'd0a0936d428a014cb5444cbb8a410fdb890e0e030271515a8e5c5de86e04f03f',
+    '667de6ecebc4ca95a6de18a684715d82727dfe17fd8441ed845e39d2420d3bb2',
+    'b02525395fbdffc9c3d137b8b50c8d9ec20e458fa8e7f58a1476b8a61709f3f8',
+)
+
+
+def read_csv(path):
+    with path.open(newline='') as stream:
+        return list(csv.DictReader(stream))
+
+
+def start(audit, work):
+    inputs = []
+    identities = set()
+    for i, expected in enumerate(PINS, 1):
+        name = 'rpm-payload-plan' + ('' if i == 1 else f'-part-{i:02}') + '.csv'
+        path = work / name
+        subprocess.run(['curl','-fsS','--connect-timeout','8','--max-time','60',URL+name,'-o',str(path)],check=True)
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError(f'payload plan SHA-256 mismatch: {name}')
+        for row in read_csv(path):
+            key = row['package'],row['version-release'],row['arch']
+            if key in identities or row['status']!='METADATA_MATCH_PENDING_PAYLOAD':
+                raise ValueError(f'duplicate or unqualified planned package: {key}')
+            identities.add(key)
+        inputs.append(path)
+    if len(identities) != 2342:
+        raise ValueError(f'expected 2342 exact payload inputs; found {len(identities)}')
+    with (work/'scan.log').open('wb') as log:
+        worker = subprocess.Popen(['bash','-c',
+            'run=$1; shift; "$@"; s=$?; printf "%s\\n" "$s" >"$run/exit.part"; mv "$run/exit.part" "$run/exit"; exit "$s"',
+            'worker',str(work),sys.executable,'-B','-u',str(audit),'scan','compiler',
+            str(work/'results'),*map(str,inputs)], stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+            env=dict(os.environ,TMPDIR=str(work)),start_new_session=True)
+    print('SCAN_PID',worker.pid,'PLANNED_RPMS',len(identities),'WORKERS',1)
+
+
+def status(work):
+    work = work.resolve(strict=True)
+    if work.parent != NATIVE.resolve() or not work.name.startswith('pm0005-compiler-full.'):
+        raise ValueError('use an existing pm0005 compiler scan directory')
+    code = work/'exit'
+    if not code.exists():
+        print('SCAN_EXIT_PENDING')
+        with (work/'scan.log').open('rb') as log:
+            log.seek(max(0,(work/'scan.log').stat().st_size-8192))
+            for line in log.read().decode(errors='replace').splitlines()[-15:]:
+                print(line[:450])
+        return 0
+    print('SCAN_EXIT',code.read_text().strip())
+    rpms = read_csv(work/'results/rpms.csv')
+    members = read_csv(work/'results/members.csv')
+    print('RPM_ROWS',len(rpms),json.dumps(Counter(r['status'] for r in rpms),sort_keys=True))
+    print('ELF_ROWS',len(members),json.dumps(Counter(r['status'] for r in members),sort_keys=True))
+    for row in [r for r in rpms if r['status']!='SCANNED'][:30]:
+        print('INCOMPLETE',json.dumps(row,ensure_ascii=True)[:700])
+    return int(code.read_text().strip()!='0' or len(rpms)!=2342)
+
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('native_audit',type=Path)
+    p.add_argument('--status',type=Path)
+    a=p.parse_args()
+    if a.status:
+        return status(a.status)
+    work = Path(tempfile.mkdtemp(prefix='pm0005-compiler-full.',dir=NATIVE))
+    print('WORKDIR',work,flush=True)
+    start(a.native_audit,work)
+    return 0
+
+
+if __name__=='__main__':
+    raise SystemExit(main())
