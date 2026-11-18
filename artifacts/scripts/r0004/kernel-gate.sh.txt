@@ -1,0 +1,43 @@
+# Native server. Normally under two minutes. Uses the existing P4 login.
+(
+cd /home1/chengkai/vd-tree || exit
+m=manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt
+pin=c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736
+depot='//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux'
+printf '%s  %s\n' "$pin" "$m" | sha256sum -c || exit
+grep -nFx "$depot/...@14427407" "$m" | cut -c1-240
+grep -Fxq "$depot/...@14427407" "$m" || exit
+for f in packaging/tztv-kernel.spec linux-6.12/Makefile linux-6.12/init/Kconfig \
+         linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig BUILD.sh; do
+  printf '\nSOURCE %s@=14427407\n' "$f"
+  timeout 20 p4 -c DEV-IPTV-VC_TOOLCHAIN print -q "$depot/$f@=14427407" 2>&1 |
+    awk '/(MLGO|enable-ml-inliner|regalloc-enable-advisor|BuildRequires.*clang|BuildRequires.*llvm|LLVM(_IAS)?[[:space:]]*=|_toolchain|CROSS_COMPILE|BUILD\.sh|Permission|[Ee]rror|not in|no such|timed out)/ && n++<22 {print NR ":" substr($0,1,360)}'
+  codes=("${PIPESTATUS[@]}")
+  if [ "${codes[0]}" -ne 0 ]; then
+    printf 'SHELF_FILE_READ_EXIT %s; verify unchanged files at the pinned depot revision\n' "${codes[0]}"
+  fi
+done
+if [ -n "${QB_KERNEL_LOG:-}" ]; then
+  case "$QB_KERNEL_LOG" in
+    "$PWD/"*) ;;
+    *) printf '%s\n' 'Set QB_KERNEL_LOG to the absolute retained QB 37627297 kernel log path under vd-tree'; exit 2;;
+  esac
+  resolved=$(realpath -e -- "$QB_KERNEL_LOG") || exit
+  case "$resolved" in "$PWD/"*) ;; *) exit 2;; esac
+  printf '\nKERNEL_LOG %s\n' "$resolved"
+  sha256sum "$resolved"
+  case "$resolved" in *.gz) reader=(gzip -cd --);; *) reader=(cat --);; esac
+  "${reader[@]}" "$resolved" 2>/dev/null | awk '
+    /37627297|20261113\.1|tztv-kernel|clang-22|clang-accel|KANTSU2E_perf|CONFIG_CC_IS_CLANG|CONFIG_MLGO|LLVM=1/ && a++<20 {print "CONTEXT " NR ":" substr($0,1,460)}
+    /enable-ml-inliner/ && b++<12 {
+      at=match($0,/enable-ml-inliner/);
+      print "INLINER " NR ":" substr($0,1,180) " | " substr($0,(at>70?at-70:1),330)
+    }
+    /regalloc-enable-advisor/ && c++<12 {
+      at=match($0,/regalloc-enable-advisor/);
+      print "REGALLOC " NR ":" substr($0,1,180) " | " substr($0,(at>70?at-70:1),330)
+    }'
+else
+  printf '\n%s\n' 'No QB_KERNEL_LOG supplied. This output can establish pinned source wiring. Effective argv and resolved Base clang are verified using the actual QB package log/install record.'
+fi
+)

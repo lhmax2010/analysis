@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Native server, in the exact argot Rust build environment.
+set -eu
+cd /home1/chengkai/vd-tree
+base=${1:?Supply effective --target from the retained argot build or its pinned target JSON}
+shift
+base_root=$PWD
+case "$base" in
+  *.json)
+    base=$(realpath -e -- "$base")
+    case "$base" in "$base_root/"*) ;; *) exit 2;; esac ;;
+esac
+scratch=$(mktemp -d "$PWD/workspace/temp/pm0004-argot-thumb.XXXXXX")
+export TMPDIR="$scratch"
+# Do not pass a rustup shim that would download missing targets.
+rustc_bin=${RUSTC:-rustc}
+cat > "$scratch/mode.rs" <<'RS'
+#[no_mangle]
+pub extern "C" fn probe_round4_float(x: f32, y: f32) -> f32 { x * y + 0.5 }
+#[no_mangle]
+pub extern "C" fn probe_round4_integer(x: u32, y: u32) -> u32 { x.rotate_left(5) ^ y }
+RS
+timeout 15 "$rustc_bin" --version -v 2>&1 | head -12
+printf 'Observed build target supplied: %s\n' "$base"
+for mode in control same-target-thumb thumb-triple; do
+    target=$base
+    options=()
+    if [ "$mode" = same-target-thumb ]; then options=(-C target-feature=+thumb-mode); fi
+    if [ "$mode" = thumb-triple ]; then target=thumbv7neon-unknown-linux-gnueabihf; fi
+    printf '\nPROBE %s %s\n' "$mode" "$target"
+    # Extra args are identical target-cpu/sysroot/codegen options. Omit any old
+    # --target, input/output, crate name and target-feature=+/-thumb-mode.
+    if timeout 60 "$rustc_bin" --edition=2021 --crate-type lib -C opt-level=2 \
+       --target "$target" "$@" "${options[@]}" --emit="obj=$scratch/$mode.o,asm=$scratch/$mode.s" \
+       "$scratch/mode.rs" >"$scratch/$mode.log" 2>&1; then
+       printf 'EMIT_OK\n'
+       readelf -h -A -sW "$scratch/$mode.o" | awk '
+         /Machine:|Flags:|Tag_(ABI_VFP_args|CPU_arch|THUMB_ISA_use)|probe_round4/ && n++<20 {print}'
+       grep -nE '\.(thumb|arm|thumb_func)|probe_round4_(float|integer):' "$scratch/$mode.s" | head -15 || :
+    else
+       printf 'EMIT_FAILED\n'
+    fi
+    head -10 "$scratch/$mode.log" | cut -c1-300
+done
+printf '\nSCOPE: object/assembly mode probe. Verify actual ABI and full package link/runtime before adopting.\n'

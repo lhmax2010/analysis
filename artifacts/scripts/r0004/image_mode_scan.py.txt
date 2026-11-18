@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""Instruction-mode (A32 vs Thumb-2) scan of every ARM ELF in the installed image RPMs.
+
+Input : rpm-payload-plan*.csv (columns: package, version-release, arch, algorithm, checksum, url)
+Output: <out>/elf-modes.csv, <out>/rpm-status.csv, and a compact summary on stdout.
+Method per ELF (executable PROGBITS sections; .plt/.init/.fini excluded from the ratio):
+  map  : exact $a/$t byte spans from .symtab mapping symbols (unstripped files)
+  cond : share of 32-bit words whose top nibble is 0xE (A32 'always' condition);
+         validated: A32 0.80-0.90, Thumb-2 0.03-0.11 on Clang -Os/-O2 code
+  dyn  : exported STT_FUNC symbols, bit0 = Thumb (only when the file is too small for cond)
+"""
+import csv, hashlib, io, os, struct, subprocess, sys, tempfile, threading, urllib.request, zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+CAP = 1536 * 1024 ** 2
+ARM_REF, THUMB_REF = 0.88, 0.07
+
+
+def secs_of(d):
+    if len(d) < 52 or d[:4] != b"\x7fELF" or d[4] != 1 or d[5] != 1:
+        return None
+    if struct.unpack_from("<H", d, 18)[0] != 40:
+        return None
+    shoff, = struct.unpack_from("<I", d, 32)
+    shentsize, shnum, shstrndx = struct.unpack_from("<HHH", d, 46)
+    secs = []
+    for i in range(shnum):
+        o = shoff + i * shentsize
+        if o + 40 > len(d):
+            return None
+        secs.append(struct.unpack_from("<IIIIIIIIII", d, o))
+    def name(s):
+        if shstrndx >= len(secs):
+            return ""
+        a = secs[shstrndx][4] + s[0]
+        return d[a:d.find(b"\0", a)].decode(errors="replace")
+    return [(name(s), s) for s in secs]
+
+
+def classify(d):
+    secs = secs_of(d)
+    if secs is None:
+        return None
+    etype = struct.unpack_from("<H", d, 16)[0]
+    ex_idx = {i for i, (n, s) in enumerate(secs) if s[1] == 1 and s[2] & 4 and s[5] > 0}
+    exec_bytes = sum(secs[i][1][5] for i in ex_idx)
+    words = e = 0
+    for i in ex_idx:
+        n, s = secs[i]
+        if n in (".plt", ".init", ".fini") or s[4] + s[5] > len(d):
+            continue
+        blob = d[s[4]:s[4] + s[5] // 4 * 4]
+        for (w,) in struct.iter_unpack("<I", blob):
+            words += 1
+            e += (w >> 28) == 0xE
+    cond = e / words if words else 0.0
+    a = t = 0
+    symtabs = [s for n, s in secs if s[1] == 2]
+    if symtabs:
+        st = symtabs[0]
+        strtab = secs[st[6]][1] if st[6] < len(secs) else None
+        spans = {}
+        for k in range(st[5] // 16):
+            off = st[4] + k * 16
+            if strtab is None or off + 16 > len(d):
+                break
+            nmo, val, size, info, other, shndx = struct.unpack_from("<IIIBBH", d, off)
+            if shndx in ex_idx:
+                p = strtab[4] + nmo
+                nm = d[p:d.find(b"\0", p)]
+                if nm[:2] in (b"$a", b"$t", b"$d") and (len(nm) == 2 or nm[2:3] == b"."):
+                    spans.setdefault(shndx, []).append((val, nm[1:2]))
+        for shndx, lst in spans.items():
+            s = secs[shndx][1]
+            lst.sort()
+            end = (s[3] + s[5]) if etype != 1 else s[5]
+            for j, (v, k) in enumerate(lst):
+                nxt = lst[j + 1][0] if j + 1 < len(lst) else end
+                if k == b"a":
+                    a += max(0, nxt - v)
+                elif k == b"t":
+                    t += max(0, nxt - v)
+    da = dt = 0
+    for n, s in secs:
+        if s[1] == 11:
+            for k in range(s[5] // 16):
+                off = s[4] + k * 16
+                if off + 16 > len(d):
+                    break
+                nmo, val, size, info, other, shndx = struct.unpack_from("<IIIBBH", d, off)
+                if info & 0xF == 2 and shndx and val:
+                    if val & 1:
+                        dt += size
+                    else:
+                        da += size
+    if a + t:
+        basis, share = "map", a / (a + t)
+    elif words >= 256:
+        basis, share = "cond", min(1.0, max(0.0, (cond - THUMB_REF) / (ARM_REF - THUMB_REF)))
+    elif da + dt:
+        basis, share = "dyn", da / (da + dt)
+    else:
+        basis, share = "none", None
+    if share is None:
+        mode = "TOO_SMALL"
+    else:
+        mode = "ARM" if share > 0.5 else "THUMB"
+        if 0.2 <= share <= 0.8 and basis == "cond":
+            mode = "MIXED_" + mode
+    comment = b""
+    for n, s in secs:
+        if n == ".comment":
+            comment = d[s[4]:s[4] + s[5]]
+    marks = [k for k, v in (("GCC", b"GCC:"), ("Clang", b"clang version"), ("Rust", b"rustc version")) if v in comment]
+    kind = {1: "REL", 2: "EXEC", 3: "DYN"}.get(etype, str(etype))
+    return dict(kind=kind, mode=mode, basis=basis, arm_share=("" if share is None else round(share, 3)),
+                exec_bytes=exec_bytes, arm_bytes_est=(0 if share is None else int(exec_bytes * share)),
+                cond=round(cond, 3), symtab=int(bool(symtabs)), markers="+".join(marks) or "none")
+
+
+def cpio_entries(stream):
+    def exact(n):
+        b = stream.read(n)
+        if len(b) != n:
+            raise ValueError("truncated cpio")
+        return b
+    while True:
+        h = exact(110)
+        if h[:6] not in (b"070701", b"070702"):
+            raise ValueError("unsupported cpio")
+        mode, size, nsz = (int(h[i:i + 8], 16) for i in (14, 54, 94))
+        name = exact(nsz)[:-1].decode(errors="replace")
+        exact(-(110 + nsz) % 4)
+        if name == "TRAILER!!!":
+            return
+        path = "/" + (name[2:] if name.startswith("./") else name.lstrip("/"))
+        regular = (mode & 0o170000) == 0o100000
+        head = b""
+        if regular and size and size <= CAP:
+            head = exact(min(size, 4))
+            want = head == b"\x7fELF" or path.endswith((".tpk", ".wgt", ".zip"))
+            rest = exact(size - len(head)) if want else None
+            if rest is None:
+                left = size - len(head)
+                while left:
+                    left -= len(exact(min(left, 1 << 20)))
+                exact(-size % 4)
+                continue
+            yield path, head + rest
+        else:
+            left = size
+            while left:
+                left -= len(exact(min(left, 1 << 20)))
+        exact(-size % 4)
+
+
+def elf_items(path, data):
+    if data[:4] == b"\x7fELF":
+        yield path, data
+    elif path.endswith((".tpk", ".wgt", ".zip")):
+        try:
+            z = zipfile.ZipFile(io.BytesIO(data))
+            for zi in z.infolist():
+                if zi.file_size and zi.file_size <= CAP:
+                    with z.open(zi) as f:
+                        if f.read(4) == b"\x7fELF":
+                            yield path + "!" + zi.filename, z.read(zi)
+        except zipfile.BadZipFile:
+            return
+
+
+def scan_rpm(row, tmpdir):
+    url = row["url"]
+    h = hashlib.new(row["algorithm"])
+    with tempfile.NamedTemporaryFile(dir=tmpdir, suffix=".rpm") as f:
+        with urllib.request.urlopen(url, timeout=60) as r:
+            for b in iter(lambda: r.read(1 << 20), b""):
+                h.update(b)
+                f.write(b)
+        f.flush()
+        if h.hexdigest() != row["checksum"]:
+            raise ValueError("checksum mismatch")
+        p = subprocess.Popen(["rpm2cpio", f.name], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        out = []
+        try:
+            for path, data in cpio_entries(p.stdout):
+                if path.startswith("/usr/lib/debug/"):
+                    continue
+                for ipath, idata in elf_items(path, data):
+                    c = classify(idata)
+                    if c:
+                        out.append(dict(package=row["package"], identity=row["version-release"] + "." + row["arch"],
+                                        path=ipath, **c))
+            while p.stdout.read(1 << 20):
+                pass
+        finally:
+            if p.poll() is None:
+                p.kill()
+            p.wait()
+        return out
+
+
+def main():
+    outdir, inputs = sys.argv[1], sys.argv[2:]
+    os.makedirs(outdir, exist_ok=False)
+    rows = [r for path in inputs for r in csv.DictReader(open(path, newline=""))]
+    tmpdir = os.path.join(outdir, "tmp")
+    os.makedirs(tmpdir)
+    fields = ["package", "identity", "path", "kind", "mode", "basis", "arm_share", "exec_bytes",
+              "arm_bytes_est", "cond", "symtab", "markers"]
+    ef = open(os.path.join(outdir, "elf-modes.csv"), "w", newline="")
+    rf = open(os.path.join(outdir, "rpm-status.csv"), "w", newline="")
+    ew, rw = csv.DictWriter(ef, fields), csv.DictWriter(rf, ["package", "identity", "status", "elfs", "error"])
+    ew.writeheader(); rw.writeheader()
+    lock = threading.Lock()
+    done = 0
+    with ThreadPoolExecutor(max_workers=int(os.environ.get("JOBS", "8"))) as pool:
+        futs = {pool.submit(scan_rpm, r, tmpdir): r for r in rows}
+        for fu in as_completed(futs):
+            r = futs[fu]
+            ident = r["version-release"] + "." + r["arch"]
+            try:
+                items = fu.result()
+                st, err = "SCANNED", ""
+            except Exception as exc:
+                items, st, err = [], "ERROR", str(exc)[:200]
+            with lock:
+                ew.writerows(items)
+                rw.writerow(dict(package=r["package"], identity=ident, status=st, elfs=len(items), error=err))
+                done += 1
+                if done % 100 == 0:
+                    print(f"progress {done}/{len(rows)}", flush=True)
+                    ef.flush(); rf.flush()
+    ef.close(); rf.close()
+    print("DONE", len(rows), "RPMs")
+
+
+if __name__ == "__main__":
+    main()

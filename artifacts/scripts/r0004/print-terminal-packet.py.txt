@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Export selected native report text as numbered terminal packet parts."""
+import argparse
+import base64
+import hashlib
+import json
+from pathlib import Path
+import zlib
+
+ROOT=Path("/home1/chengkai/vd-tree")
+MAX_BYTES=12*1024**2
+WIDTH=120
+PART_LINES=160
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("files",nargs="+",type=Path)
+    parser.add_argument("--part",type=int,default=1)
+    args=parser.parse_args()
+    total=0
+    identities=set()
+    documents=[]
+    for supplied in args.files:
+        p=supplied.resolve(strict=True)
+        if not p.is_file() or ROOT not in p.parents:
+            parser.error("use existing report text files under vd-tree")
+        total+=p.stat().st_size
+        if p.name in identities or total>MAX_BYTES:
+            parser.error("duplicate basename or input above 12 MiB")
+        identities.add(p.name)
+        raw=p.read_bytes()
+        text=raw.decode("utf-8")
+        if "\x00" in text:
+            parser.error("packet accepts text only")
+        documents.append({"name":p.name,"sha256":hashlib.sha256(raw).hexdigest(),"text":text})
+    raw=json.dumps({"version":1,"files":documents},ensure_ascii=True,separators=(",",":")).encode()
+    encoded=base64.b64encode(zlib.compress(raw,9)).decode()
+    width=WIDTH*PART_LINES
+    count=(len(encoded)+width-1)//width
+    if not 1<=args.part<=count:
+        parser.error(f"part outside 1..{count}")
+    chunk=encoded[(args.part-1)*width:args.part*width]
+    print("TERMINAL_PACKET_SHA256:",hashlib.sha256(raw).hexdigest())
+    print(f"TERMINAL_PACKET_PART: {args.part}/{count}")
+    print("TERMINAL_PACKET_BASE64_BEGIN")
+    for i in range(0,len(chunk),WIDTH):
+        print(chunk[i:i+WIDTH])
+    print("TERMINAL_PACKET_BASE64_END")
+
+if __name__=="__main__":
+    main()

@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Compact, paste-friendly summary of image_mode_scan.py output."""
+import csv, sys
+from collections import Counter, defaultdict
+
+out = sys.argv[1]
+rpms = list(csv.DictReader(open(out + "/rpm-status.csv")))
+elfs = list(csv.DictReader(open(out + "/elf-modes.csv")))
+print("== RPMs:", dict(Counter(r["status"] for r in rpms)))
+for r in [r for r in rpms if r["status"] != "SCANNED"][:30]:
+    print("  ERR", r["package"], r["identity"], r["error"][:90])
+print("== ELFs by kind/mode:")
+for k, v in sorted(Counter((e["kind"], e["mode"]) for e in elfs).items()):
+    print("  ", k[0], k[1], v)
+# validation of the cond signal against exact mapping symbols
+agree = dis = 0
+bad = []
+for e in elfs:
+    if e["basis"] == "map" and int(e["exec_bytes"]) >= 1024:
+        c = float(e["cond"]); m = float(e["arm_share"])
+        cm, mm = c >= 0.475, m > 0.5
+        if cm == mm:
+            agree += 1
+        else:
+            dis += 1; bad.append(e)
+print(f"== cond-vs-map validation (files with symtab, >=1 KiB code): agree={agree} disagree={dis}")
+for e in bad[:10]:
+    print("   DIS", e["package"], e["path"], "map_arm_share", e["arm_share"], "cond", e["cond"])
+loaded = [e for e in elfs if e["kind"] in ("EXEC", "DYN")]
+arm = [e for e in loaded if e["mode"] in ("ARM", "MIXED_ARM")]
+mixt = [e for e in loaded if e["mode"] == "MIXED_THUMB"]
+tot = sum(int(e["exec_bytes"]) for e in loaded)
+armb = sum(int(e["arm_bytes_est"] or 0) for e in loaded)
+print(f"== Loadable ELFs: {len(loaded)}  code {tot/2**20:.1f} MiB  A32 code (est) {armb/2**20:.1f} MiB")
+print(f"== ARM-predominant ELFs: {len(arm)}   (Thumb-predominant with 20-50% A32: {len(mixt)})")
+byk = defaultdict(lambda: [0, 0])
+for e in arm:
+    byk[e["markers"]][0] += 1; byk[e["markers"]][1] += int(e["arm_bytes_est"])
+for k, v in sorted(byk.items(), key=lambda kv: -kv[1][1]):
+    print(f"   markers={k:12s} files={v[0]:4d} A32={v[1]/2**20:7.2f} MiB")
+print("== ARM-predominant list: package | path | code KiB | A32 share | basis | markers")
+for e in sorted(arm, key=lambda e: -int(e["arm_bytes_est"])):
+    print(f"  {e['package']} | {e['path']} | {int(e['exec_bytes'])//1024} | {e['arm_share']} | {e['basis']} | {e['markers']}")
+print("== Thumb-predominant with 20-50% A32 (top 40 by A32 bytes):")
+for e in sorted(mixt, key=lambda e: -int(e["arm_bytes_est"]))[:40]:
+    print(f"  {e['package']} | {e['path']} | {int(e['exec_bytes'])//1024} | {e['arm_share']} | {e['basis']} | {e['markers']}")
+rel = [e for e in elfs if e["kind"] == "REL"]
+print("== Relocatable objects (.ko/.o):", dict(Counter(e["mode"] for e in rel)),
+      f"A32 est {sum(int(e['arm_bytes_est'] or 0) for e in rel)/2**20:.1f} MiB")
+print("== argot rows:")
+for e in elfs:
+    if "argot" in e["package"]:
+        print("  ", e["package"], e["path"], e["kind"], e["mode"], e["basis"], e["arm_share"], e["exec_bytes"], e["markers"])

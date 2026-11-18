@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+(
+cd /home1/chengkai/vd-tree || exit
+argot_depot='//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/AGENTIC_PLATFORM/AgenticPlatform/Agentic/argo-tizen'
+timeout 20 p4 -c DEV-IPTV-VC_TOOLCHAIN print -q "$argot_depot/packaging/argot.spec@=14386323" 2>&1 |
+  awk '/rustc|cargo|CARGO_BUILD_TARGET|RUSTFLAGS|--target|[Ee]rror|no such/ && n++<35 {print NR ":" substr($0,1,340)}'
+find workspace/temp -maxdepth 7 -type f \( -iname '*argot*.log*' -o -ipath '*argot*/build.log*' \) 2>/dev/null | head -35
+)

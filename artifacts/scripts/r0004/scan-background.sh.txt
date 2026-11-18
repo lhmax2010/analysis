@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home1/chengkai/vd-tree
+scanner=$(realpath -e -- "${1:?Pass the verified scanner script}")
+case "$scanner" in "$PWD/workspace/temp/pm0004-"*) ;; *) exit 2;; esac
+command -v rpm2cpio >/dev/null
+run=$(mktemp -d "$PWD/workspace/temp/pm0004-image-mode.XXXXXX")
+export TMPDIR="$run" JOBS=8
+data_url=https://raw.githubusercontent.com/lhmax2010/analysis/ac0657e1347b7a3876e7cc28cd51a7831cb15f48/artifacts/ledger
+plans=()
+while read -r digest name; do
+    curl -fsS --connect-timeout 8 --max-time 60 "$data_url/$name" -o "$run/$name"
+    printf '%s  %s\n' "$digest" "$run/$name" | sha256sum -c -
+    plans+=("$run/$name")
+done <<'PLAN'
+b9fcb512a340d946722f5042b36646da9b576ef7e6a449d82ed7c63294c20796  rpm-payload-plan.csv
+f10ba9f1c55104e66c2cb5a2e0a1a32d287b361866e114d0dbf3b3072856850e  rpm-payload-plan-part-02.csv
+2027a10934997cd7351a53bcf0652eb328311a47e19e12c0543afd38be6f77f1  rpm-payload-plan-part-03.csv
+2e14bc2653742925f92f29eae9fe1e54bad590be05d7733ce54464eb06783ca2  rpm-payload-plan-part-04.csv
+00946953d979e69eea590e9d9bea3b3ed6fb1f79333cf2e201efc6fa4f3c778c  rpm-payload-plan-part-05.csv
+d0a0936d428a014cb5444cbb8a410fdb890e0e030271515a8e5c5de86e04f03f  rpm-payload-plan-part-06.csv
+667de6ecebc4ca95a6de18a684715d82727dfe17fd8441ed845e39d2420d3bb2  rpm-payload-plan-part-07.csv
+b02525395fbdffc9c3d137b8b50c8d9ec20e458fa8e7f58a1476b8a61709f3f8  rpm-payload-plan-part-08.csv
+PLAN
+python3 -B - "${plans[@]}" <<'PY'
+import csv
+import sys
+keys = set()
+for filename in sys.argv[1:]:
+    with open(filename, newline="") as stream:
+        for row in csv.DictReader(stream):
+            key = tuple(row[name] for name in ("package", "version-release", "arch"))
+            if key in keys or row["status"] != "METADATA_MATCH_PENDING_PAYLOAD":
+                raise SystemExit(f"Unexpected plan row {key}")
+            keys.add(key)
+if len(keys) != 2342:
+    raise SystemExit(f"Expected 2342 installed RPM identities, got {len(keys)}")
+PY
+df -h "$run"
+awk '/^MemAvailable:/{print}' /proc/meminfo
+printf '%s\n' "$run" > "$run/scan.launch"
+nohup bash -c '
+    run=$1
+    scanner=$2
+    shift 2
+    python3 -B -u "$scanner" "$run/results" "$@"
+    result=$?
+    printf "%s\n" "$result" > "$run/scan.exit.new"
+    mv -- "$run/scan.exit.new" "$run/scan.exit"
+    exit "$result"
+' bash "$run" "$scanner" "${plans[@]}" </dev/null >"$run/scan.log" 2>&1 &
+pid=$!
+printf '%s\n' "$pid" > "$run/scan.pid"
+printf 'RUN_DIR %s\nSCAN_PID %s\nJOBS %s\nPLANNED_RPMS 2342\n' "$run" "$pid" "$JOBS"

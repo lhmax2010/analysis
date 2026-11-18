@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Print a bounded preview of the retained ARM-mode scan."""
+import csv
+from pathlib import Path
+import subprocess
+import sys
+
+ROOT = Path("/home1/chengkai/vd-tree/workspace/temp")
+EXPECTED = 2342
+PREVIEW = 240
+
+def main():
+    summary = Path(sys.argv[1]).resolve(strict=True)
+    if ROOT not in summary.parents:
+        raise SystemExit("Use the verified mode summary under workspace/temp")
+    if len(sys.argv) > 2:
+        run = Path(sys.argv[2]).resolve(strict=True)
+    else:
+        runs = [p for p in ROOT.glob("pm0004-image-mode.*") if (p / "scan.launch").is_file()]
+        if not runs:
+            raise SystemExit("No scan has been started")
+        run = max(runs, key=lambda p: (p / "scan.launch").stat().st_mtime_ns).resolve(strict=True)
+    if run.parent != ROOT or not run.name.startswith("pm0004-image-mode.") or not (run / "scan.launch").is_file():
+        raise SystemExit("Use an existing pm0004-image-mode run")
+    print("RUN_DIR", run, flush=True)
+    if not (run / "scan.exit").is_file():
+        print("SCAN_EXIT_PENDING")
+        log = run / "scan.log"
+        if log.is_file():
+            with log.open("rb") as stream:
+                stream.seek(max(0, log.stat().st_size - 8192))
+                for line in stream.read().decode(errors="replace").splitlines()[-20:]:
+                    print(line[:300])
+        return 0
+    exit_code = int((run / "scan.exit").read_text().strip())
+    print("SCAN_EXIT", exit_code, flush=True)
+    if exit_code:
+        print("SCAN_LOG", run / "scan.log")
+        return exit_code
+    results = run / "results"
+    with (results / "rpm-status.csv").open(newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    keys = {(row["package"], row["identity"]) for row in rows}
+    errors = sum(row["status"] != "SCANNED" for row in rows)
+    print("RPM_STATUS_ROWS", len(rows), "UNIQUE_IDENTITIES", len(keys), "REPORTED_ERRORS", errors, flush=True)
+    full = run / "mode-summary.txt"
+    with full.open("w") as stream:
+        process = subprocess.run([sys.executable, "-B", str(summary), str(results)],
+                                 stdout=stream, stderr=subprocess.STDOUT, timeout=120)
+    print("FULL_SUMMARY", full)
+    with full.open(errors="replace") as stream:
+        for index, line in enumerate(stream):
+            if index == PREVIEW:
+                print("SUMMARY_PREVIEW_TRUNCATED", PREVIEW)
+                break
+            print(line.rstrip()[:750])
+    complete = len(rows) == EXPECTED == len(keys)
+    print("SCAN_ROSTER", "COMPLETE" if complete else "INCOMPLETE")
+    return process.returncode or int(not complete)
+
+if __name__ == "__main__":
+    raise SystemExit(main())

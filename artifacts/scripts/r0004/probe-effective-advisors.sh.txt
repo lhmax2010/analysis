@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Run inside an existing isolated package build shell for the selected Base.
+set -eu
+: "${MLGO_PROBE_OUT:?Set MLGO_PROBE_OUT to a new directory in the task workspace}"
+case "$MLGO_PROBE_OUT" in
+ /home1/chengkai/vd-tree/*|/home/toolchain/Desktop/temp/*) ;;
+ *) echo 'Output must be under the task workspace' >&2; exit 2 ;;
+esac
+mkdir "$MLGO_PROBE_OUT"
+export TMPDIR="$MLGO_PROBE_OUT"
+probe="$MLGO_PROBE_OUT/advisor-probe.c"
+cat > "$probe" <<'C'
+static int blend(int x, int y) { return (x * 31) ^ (y + 3); }
+extern void take(int, int, int, int, int, int, int, int, int, int);
+int test_advisor(int a, int b, int c, int d, int e, int f) {
+    int p = blend(a,b), q = blend(c,d), r = blend(e,f);
+    take(p,q,r,a,b,c,d,e,f,p+q+r);
+    return blend(p,q) + blend(r,e);
+}
+C
+cc="${MLGO_CC:-armv7l-tizen-linux-gnueabi-clang}"
+# Supply effective flags as separate arguments, omitting the original sources/output.
+# Allow the original driver config and wrappers to apply in every lane.
+"$cc" "$@" -### -c "$probe" -o "$MLGO_PROBE_OUT/ambient.o" > "$MLGO_PROBE_OUT/ambient-driver.txt" 2>&1
+"$cc" --version > "$MLGO_PROBE_OUT/compiler-version.txt"
+for lane in ambient release default; do
+    extra=()
+    if [ "$lane" != ambient ]; then
+        extra=(-mllvm "-enable-ml-inliner=$lane" -mllvm "-regalloc-enable-advisor=$lane")
+    fi
+    set +e
+    "$cc" "$@" "${extra[@]}" -Rpass=inline -Rpass-missed=inline -c "$probe" -o "$MLGO_PROBE_OUT/$lane.o" > "$MLGO_PROBE_OUT/$lane.log" 2>&1
+    code=$?
+    set -e
+    printf '%s exit=%s\n' "$lane" "$code"
+    if [ "$code" -eq 0 ]; then sha256sum "$MLGO_PROBE_OUT/$lane.o"; fi
+done
+grep -E -- 'enable-ml-inliner|regalloc-enable-advisor|Configuration file' "$MLGO_PROBE_OUT/ambient-driver.txt" || :
