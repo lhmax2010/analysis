@@ -259,6 +259,8 @@ Both printers read the existing `workspace/temp/pm0002` evidence and report miss
 
 ## G. Standalone MLGO model-identity replay for Friday
 
+**Superseded.** Use the [Round 0005 GBS-only kernel comparison](0005_reply.md#gbs-kernel-and-t7-replacement). The host-side commands below are retained for evidence.
+
 The Customized QuickBuild is already running with Base 20261118.1 and otherwise the QB 37627297 inputs, per the operator on 18 November. The job ID and candidate Product URL are pending. The standalone replay can start independently after Claude reviews the [script commit](https://github.com/lhmax2010/analysis/commit/883702685e2dbfb82b29fe190e45b01b44c57732).
 
 **Native server. No retained kernel build or path arguments.** Allow 45–150 minutes as a planning estimate, with P4 transfer and ARM QEMU determining the elapsed time. The source, four extracted Clang lanes, RPMs and logs may take several GiB. Use one heavy job at a time. The launcher holds a lock shared with H, uses one worker, and exits if the lock is already held. It needs the existing P4 login, QEMU ARM, GNU make and the native Kbuild build dependencies on PATH.

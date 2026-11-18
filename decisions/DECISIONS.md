@@ -275,3 +275,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Supersede D-028's platform-build assumption for the argot client and TPK. Classify their ARM-mode cause as PREBUILT. Change instruction mode in the artifact owner's cargo-tizen build after verifying the exact Rust target, build job and ownership. The Meson `argot-platform` library remains a separate build lane.
 - Track the Clang FatLTO/native relocation hit and the four TLS-local-exec static archives in T7 with their final-link consumers. Classify kernel modules separately in T4 and keep the marker evidence within that class.
 - Kernel replay is running at the P4 print stage. [Native evidence](../artifacts/evidence/native-run-r0005-20261118.txt)
+
+
+## D-031 — Run build and link validation in GBS roots
+
+- The user requires compiler and linker execution inside GBS. The host replay is superseded. Its unpublished accelerator patch remains outside the published branch.
+- Reproduce the pinned VD kernel package in two serial, isolated GBS roots with the same QB 37627297 Product configuration and source shelf. Capture effective local Kbuild argv, root compiler binary and RPM identities and derived artifact sizes. Preserve the distinction between local GBS evidence and the unavailable production QB log.
+- T7 links the byte-identified CAPI member and the four other TLS archives inside a GBS probe package. Compare native GNU ld, Gold/LLVMgold and the CAPI runtime thread checks. Consumer link maps and actual outputs determine impact.
+- Argot ownership is the CODEOWNERS team `@AGENTIC/argo-tizen-maintainers`. The retained submitter is `youngb.shin`. Run the pinned CI/config readback before declaring the ARM triple or Thumb setting. [Native input](../artifacts/evidence/native-run-r0005-pic-accel-argot-20261118.txt)

@@ -138,15 +138,15 @@ Claude review is pending. The image discovery and download tests passed on Pytho
 
 The 229-line attachment matches SHA-256 `077173e1a61a62481538f8aca3eddcbba6c2dbf02a39caf75e05f2733d86bed7` and is archived unchanged. [Exact input](../../artifacts/evidence/native-run-r0005-20261118.txt)
 
-- **MLGO.** Published armv7l and x86_64 Clang RPM pins are complete at OBS rev12. The Base delta has a deduplicated name/arch overlap of 177 of 2,342. The kernel Makefile directly confirms the two conditional release flags. Effective QB argv, actual image comparison and runtime metrics remain open. The standalone replay has started in `pm0004-kernel-src.gzu4jw62` and the operator reports P4 print in progress. [Friday report](../../reports/MLGO_Official_vs_Custom_20261120.md)
-- **T7.** Page 1 establishes one shipped Clang FatLTO member with a screened native relocation. The archive/member identity awaits page 2. The TLS-local-exec Clang archives require checking the exact static link and final ELF type. No production shared/PIE incompatibility is established by the summary. [Consumer analysis](../../hq/PIC_FatLTO_Dual_Path_Design.md#consumer-follow-up-from-the-native-rpm-screen)
+- **MLGO.** Published armv7l and x86_64 Clang RPM pins are complete at OBS rev12. The Base delta has a deduplicated name/arch overlap of 177 of 2,342. The kernel Makefile directly confirms the two conditional release flags. Effective QB argv, actual image comparison and runtime metrics remain open. The first standalone run finished source staging and then stopped at the host accelerator launch. The latest addendum replaces it with GBS. [Friday report](../../reports/MLGO_Official_vs_Custom_20261120.md)
+- **T7.** Page 1 establishes one shipped Clang FatLTO member with a screened native relocation. The follow-up identifies the member as `libcapi-base-common.a:tizen_error.c.o`, with three `R_ARM_TLS_LE32` hits. The TLS-local-exec Clang archives require checking the exact static link and final ELF type. No production shared/PIE incompatibility is established by the summary. [Consumer analysis](../../hq/PIC_FatLTO_Dual_Path_Design.md#consumer-follow-up-from-the-native-rpm-screen)
 - **T4.** The unclassified sample was `EngineeringMode-driver-perf` `emdev.ko`, Build ID `c5a2d882fb247d381cdaa5060bba435e1b120380`. The archived scan found no recognized marker. Its compiler remains unassigned pending a matched module build record. Report ordinary ARM ELF and kernel module marker buckets independently. [Native marker evidence](../../artifacts/evidence/native-run-r0005-20261118.txt#L221)
 
 ### Argot producer trace and revised experiment
 
 The pinned `argo-tizen` spec lines 182–191 build the Meson `argot-platform` library. Lines 194–205 extract the dashboard and client RPMs and copy the committed cargo-tizen TPK before the Product hook. The installed client `/usr/bin/argot` is **PREBUILT** for platform ARM-mode attribution. A change to the platform compiler flags cannot change those Rust instructions. Supersedes the assumption in Addendum B that the platform build selects the Cargo target. [Pinned spec excerpt](../../artifacts/evidence/native-run-r0005-20261118.txt#L78)
 
-The retained source path identifies the Agentic Platform integration tree. The shelf author is the platform integration author. Current evidence does not identify the producer CI owner or prove a Rust target triple. The new collector enumerates the entire pinned Perforce tree at 14296233 plus shelf 14386323, inspects likely Cargo, CI and ownership files, and reads history for the exact checked-in ARM client RPMs and TPKs. A file submitter is a provenance lead. Confirm ownership from a path-specific owner mapping or the producer job record. If the spec points to an external producer, use the resulting submit CL and release instructions to locate its CI and actual verbose `rustc` command. The soft-float ELF remains evidence of ABI, while `armv7-unknown-linux-gnueabi` remains a target hypothesis.
+The follow-up confirms producer CI and CODEOWNERS. Use the exact config/workflow readback below to confirm the ARM target and Thumb flag. The new collector enumerates the entire pinned Perforce tree at 14296233 plus shelf 14386323, inspects likely Cargo, CI and ownership files, and reads history for the exact checked-in ARM client RPMs and TPKs. A file submitter is a provenance lead. Confirm ownership from a path-specific owner mapping or the producer job record. If the spec points to an external producer, use the resulting submit CL and release instructions to locate its CI and actual verbose `rustc` command. The soft-float ELF remains evidence of ABI, while `armv7-unknown-linux-gnueabi` remains a target hypothesis.
 
 **Native only, after Claude reviews the script commit.** Read-only Perforce discovery. Typically one to several minutes, with small text reads and metadata, low CPU, and no build or binary payload download. Use the exact Cargo config and history lines printed in the compact terminal output.
 
@@ -165,3 +165,65 @@ Have the argot owner rebuild the client RPM and any TPK-native payload in the ac
 ```
 
 Python 3.10.12 fixtures validated the producer evidence path, overlay selection, redaction and T4's CSV and summary split. Actual producer details and the full T4 result await native execution. [Script commit](https://github.com/lhmax2010/analysis/commit/b552b9dc555615478f6683103299a1866a02b668)
+
+## GBS kernel and T7 replacement
+
+Both transcripts were verified and archived unchanged. The accelerator exists under `official-host/root/emul/usr/bin/clang-22` and is 170,432 bytes. The local-only host replay patch `9b8d55e` is superseded and excluded from the published branch. All new compiler executions and link tests run through GBS. [Native verification](../../artifacts/evidence/native-run-r0005-pic-accel-argot-20261118.txt)
+
+### Exact kernel build commands
+
+The pinned launcher stages vdlinux at `14293732` and overlays shelf `14427407`. It stages the full package once because the old work directory only contained the Linux subtree. It uses original Official GBS inputs and the verified staged Custom config. Both builds use the same pinned QB Product build.conf `14452507` via `-D`. It verifies the two GBS configs differ only in Base URL and the assigned root. Source and instrumentation are identical between runs. The trace only enables verbose Kbuild and prints in-root tool data. The command below is exactly the shape printed by the launcher for each lane. [GBS build options](https://github.com/Samsung/tizen-docs/blob/master/docs/platform/reference/gbs/gbs-build.md)
+
+```bash
+cd "$work/vdlinux"
+taskset -c "$cpu" gbs -c "$work/official/gbs.conf" build -A armv7l -B "$work/official/GBS-ROOT" -D "$qb_build_conf" --threads 1 --spec tztv-kernel.spec
+taskset -c "$cpu" gbs -c "$work/custom/gbs.conf" build -A armv7l -B "$work/custom/GBS-ROOT" -D "$qb_build_conf" --threads 1 --spec tztv-kernel.spec
+```
+
+**Native, after Claude review.** Estimate 30–120 minutes for staging and 45–150 minutes per kernel lane, subject to P4/QEMU and signing inputs. Allow about 20–25 GiB per GBS root plus the source/cache. The launcher reserves 55 GiB at start for both roots and rechecks 25 GiB before lane two. Each check retains the D-018 50 GiB disk and 16 GiB RAM headroom floors. It reserves a further 16 GiB available RAM for the kernel job. It uses one GBS package worker with CPU affinity limited to up to six CPUs and holds both heavy-job locks. Use the same launcher for `MODE=pic` after the heavy slot is free. The PIC estimate is 10–45 minutes and up to 12 GiB plus the headroom floor. Keep regular sudo/GBS authorization in the terminal. Compiler execution remains inside the build.
+
+```bash
+MODE=kernel
+# For T7 use MODE=pic. Retained package source and GBS log trees can be narrowed explicitly.
+CONSUMER_ARGS=()
+```
+
+```bash
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  rev=cd7f97e9cf75fd9bb70e0abe85ca626a073c64be
+  get() {
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/artifacts/scripts/r0005/$1" -o "$d/$1"
+    printf '%s  %s\n' "$2" "$d/$1" | sha256sum -c -
+  }
+  get gbs-mlgo-t7.py.txt 119aefdcc39d6f121c560f464963ee3f42fe232594611598180b48617a038ed3
+  args=( "${MODE:?set kernel or pic}" )
+  if [[ "$MODE" == pic ]]; then
+    get gbs-t7-link.sh.txt c36498246c21dbd6de23567cbf7e3320f80cef7a0c61a499acee0a74feb01c77
+    args+=( --probe "$d/gbs-t7-link.sh.txt" "${CONSUMER_ARGS[@]}" )
+  fi
+  mkdir -p "$PWD/workspace/temp"/pm000{4,5}-native-lock
+  flock -n "$PWD/workspace/temp/pm0004-native-lock/heavy.lock" \
+    flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" \
+    python3 -B -u "$d/gbs-mlgo-t7.py.txt" "${args[@]}"
+)
+```
+
+Kernel acceptance needs the two successful GBS exits, output image/module inventories, sections from a uniquely identified vmlinux and real compiler commands showing both release advisors. The launcher retains the full command lines and prints examples, tool paths and ELF SHA-256, owner package and RPM NEVRA. Cached RPM file hashes are reported when available; compare these and the executable hash independently. Installed accelerator presence alone leaves effective dispatch open. This evidence proves the corresponding local GBS commands. The optional four-mode in-root TU replay is deferred until the package pair establishes its actual commands and completeness.
+
+For T7, the default search reads build log, link map and source metadata under `vd-tree/workspace/temp` with a file/byte cap. Use `CONSUMER_ARGS=(--consumer-dir "$retained_gbs_root" --consumer-dir "$retained_source_root")` to focus on real consumer evidence. A scanned `-l` line alone leaves link mode unresolved. The GBS probe uses the same Official inputs and `gbs … build -A armv7l -B "$work/official/GBS-ROOT" -D "$qb_build_conf" --threads 1 --spec pm-t7-probe.spec --fallback-to-native`. Inspect `T7_RESULT`, `T7_RUNTIME` and `CONSUMER_CANDIDATE`. A TLS-local-exec link that succeeds requires runtime or actual consumer qualification. The CAPI case includes a thread isolation check against any linked DSO and matched driver PIE routes. [T7 consumer matrix](../../hq/PIC_FatLTO_Dual_Path_Design.md#consumer-follow-up-from-the-native-rpm-screen)
+
+### Argot owner and uncapped config readback
+
+Workflow `.github/workflows/tizen-build.yml` pins `ci-cargo-tizen-v0.6.7` from the private cargo-tizen producer repository. CODEOWNERS is **@AGENTIC/argo-tizen-maintainers**. `youngb.shin` submitted the retained artifacts. Exact armv7l Rust target and Thumb mode await the config and workflow below. A target used to build the host cargo-tizen tool itself is irrelevant to the Arm artifacts.
+
+**Native, after Claude review.** Usually under a minute. Read-only Perforce, two text files, small disk and network. Prints the full config and every matching workflow line, using a compressed text packet if it exceeds 290 lines.
+
+```bash
+(set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX"); export TMPDIR="$d"; f="$d/argot-ci-target.py.txt"; curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/cd7f97e9cf75fd9bb70e0abe85ca626a073c64be/artifacts/scripts/r0005/argot-ci-target.py.txt' -o "$f"; printf '%s  %s\n' '58782c19c75a22753709609f0c21a6b65eb857f3ebb275a2799c51f7bb106693' "$f" | sha256sum -c -; python3 -B -u "$f")
+```
+
+Local Python 3.10.12 fixtures passed config staging, seven-row member selection, RPM spec parsing and explicit archive/search-path classification. Bash syntax passed. The fixed internal repositories and native workspace are inaccessible here, so neither GBS build nor the exact Argot config read has run. [Scripts commit](https://github.com/lhmax2010/analysis/commit/cd7f97e9cf75fd9bb70e0abe85ca626a073c64be)
