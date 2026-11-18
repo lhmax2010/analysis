@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Native server. Use the connected KantSU2E's explicitly selected SDB serial.
+set -euo pipefail
+tools=$(realpath -e -- "${1:?verified script directory}")
+serial=${2:?KantSU2E SDB serial}
+case "$tools" in /home1/chengkai/vd-tree/workspace/temp/pm0004-*) ;; *) exit 2;; esac
+board=/root/llvm-pm/pm0004-mlgo
+export TMPDIR="$tools"
+compiler=
+for name in armv7l-tizen-linux-gnueabi-gcc arm-linux-gnueabi-gcc arm-linux-gnueabihf-gcc; do
+    if command -v "$name" >/dev/null; then
+        compiler=$name
+        break
+    fi
+done
+if [ -z "$compiler" ]; then
+    echo 'BLOCKED no installed ARM Linux cross GCC on PATH'
+    exit 2
+fi
+if ! "$compiler" -O2 -static -std=c11 -Wall -Wextra -Werror -x c "$tools/mlgo-tv-microbench.c.txt" \
+        -o "$tools/microbench" >"$tools/microbench-build.log" 2>&1; then
+    tail -25 "$tools/microbench-build.log"
+    exit 2
+fi
+cp -- "$tools/mlgo-tv-measure.sh.txt" "$tools/measure.sh"
+sdb -s "$serial" shell "mkdir -p $board"
+for name in measure.sh microbench; do
+    sdb -s "$serial" push "$tools/$name" "$board/$name" >"$tools/sdb-push-$name.log" 2>&1 || {
+        tail -25 "$tools/sdb-push-$name.log"
+        exit 2
+    }
+    expected=$(sha256sum "$tools/$name")
+    actual=$(sdb -s "$serial" shell "sha256sum $board/$name" | tr -d '\r')
+    if [ "${actual%% *}" != "${expected%% *}" ]; then
+        echo "BOARD_HASH_MISMATCH $name"
+        exit 2
+    fi
+    printf 'BOARD_SHA256 %s %s\n' "$name" "${expected%% *}"
+done
+sdb -s "$serial" shell "chmod 700 $board/measure.sh $board/microbench"
+printf 'BOARD_STAGED %s %s\n' "$serial" "$board"

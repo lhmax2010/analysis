@@ -1,0 +1,288 @@
+#!/usr/bin/env python3
+"""Obtain the fixed kernel and Base compilers, then run a serial four-mode replay."""
+import argparse
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import runpy
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+from types import SimpleNamespace
+import xml.etree.ElementTree as ET
+
+ROOT = Path("/home1/chengkai/vd-tree")
+FIXED_TUS = ("kernel/sched/core.c", "mm/page_alloc.c", "kernel/fork.c")
+ACCEL = "clang-accel-x86_64-armv7l"
+CROSS = "arm-linux-gnueabi-"
+
+
+def api(path):
+    return SimpleNamespace(**runpy.run_path(path))
+
+
+def checked(model, argv, cwd, out, env=None, timeout=1200):
+    if model.log_command(argv, cwd, out, env, timeout):
+        raise ValueError(f"{out.name}: {model.last_error(out)}")
+
+
+def fetch_kernel(model, work):
+    source = work / "linux-6.12"
+    source.mkdir()
+    desc = work / "shelf-describe.log"
+    checked(model, model.P4 + ["describe", "-S", "-s", model.SHELF], work, desc)
+    text = desc.read_text(errors="replace")
+    if not re.search(r"(?m)^Change\s+" + model.SHELF + r"\b", text):
+        raise ValueError("shelf description did not identify CL 14427407")
+    affected = re.findall(r"(?m)^\.\.\. (//[^\n]+?)#\d+\s+(\S+)", text)
+    selected = [(depot, action) for depot, action in affected if depot.startswith(model.DEPOT)]
+    if not selected:
+        raise ValueError("shelf has no Linux source entries")
+    checked(model, model.P4 + ["print", "-q", "-o", str(source / "..."),
+                             model.DEPOT + "...@" + model.SHELF_BASE],
+            work, work / "base-print.log", timeout=7200)
+    for depot, action in selected:
+        relative = PurePosixPath(depot.removeprefix(model.DEPOT))
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"unexpected shelf file {relative}")
+        dest = source.joinpath(relative)
+        if source not in dest.parent.resolve().parents and dest.parent.resolve() != source:
+            raise ValueError(f"shelf path escapes source tree: {relative}")
+        if action in ("delete", "move/delete"):
+            dest.unlink(missing_ok=True)
+            continue
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.unlink(missing_ok=True)
+        checked(model, model.P4 + ["print", "-q", "-o", str(dest), depot + "@=" + model.SHELF],
+                work, work / "shelf-print.log")
+    config = source / "arch/arm/configs/KANTSU2E_perf_defconfig"
+    if not config.is_file() or not (source / "Makefile").is_file():
+        raise ValueError("kernel snapshot did not contain the perf defconfig and Makefile")
+    print("SOURCE", model.SHELF_BASE, model.SHELF, "overlaid_files", len(selected),
+          "defconfig_sha256", model.sha(config), flush=True)
+    return source
+
+
+def rpm_row(preflight, work, label, base):
+    rows, provides = [], {}
+    for arch in ("armv7l", "x86_64"):
+        store = preflight["inventory"](base, arch, work / label)
+        for ident, (digest, source, url) in store.items():
+            rows.append(dict(zip(("name", "epoch", "version", "release", "arch"), ident),
+                             sha256=digest, url=url, source=source))
+        primary = preflight["unpack"]((work / label / f"{arch}-primary.download").read_bytes())
+        for pkg in ET.fromstring(primary).findall(preflight["COM"] + "package"):
+            name = pkg.findtext(preflight["COM"] + "name")
+            pkg_arch = pkg.findtext(preflight["COM"] + "arch")
+            expr = f"{preflight['COM']}format/{preflight['RPM']}provides/{preflight['RPM']}entry"
+            for item in pkg.findall(expr):
+                provides.setdefault((pkg_arch, item.attrib["name"].split("(", 1)[0]), set()).add(name)
+    return rows, provides
+
+
+def check_pin(model, lane, arch, pair):
+    candidates = sorted((ROOT / "workspace/temp").glob("pm0004-mlgo-*/" + arch + "-clang.rpm"),
+                        key=lambda path: path.stat().st_mtime, reverse=True)
+    for existing in candidates:
+        try:
+            info = ET.parse(existing.with_name(arch + "-llvm-buildinfo.xml")).getroot()
+            source = info.get("srcmd5") or info.findtext("srcmd5")
+            if source == model.OBS_PIN and model.sha(existing) == pair[1]:
+                return existing, "MATCH_PINNED_LLVM_BINARY"
+        except (OSError, ET.ParseError):
+            continue
+    return None, "SNAPSHOT_SHA256_ONLY"
+
+
+def stage(model, work, label, rows, provides, arch, qemu, build_tools):
+    lane = work / f"{label}-{'host' if arch == 'x86_64' else 'target'}"
+    lane.mkdir()
+    root = lane / "root"
+    seen = set()
+
+    def add(name, package_arch=arch):
+        if (name, package_arch) in seen:
+            return
+        pair = model.select_rpm(rows, name, package_arch)
+        cache, pin = (check_pin(model, lane, arch, pair) if name == "clang" and label == "custom"
+                      else (None, "SNAPSHOT_SHA256"))
+        rpm = model.cached_rpm(pair, lane, cache)
+        model.extract(rpm, root, lane / f"extract-{name}.log")
+        seen.add((name, package_arch))
+        print("RPM", label, arch, name, pair[1], pin, flush=True)
+
+    add("clang")
+    initial = model.sha(model.resolve_rpm_path(root, "/usr/bin/clang"))
+    known = {(row["name"], row["arch"]) for row in rows}
+    if ("libllvm", arch) in known:
+        add("libllvm")
+    if arch == "armv7l":
+        add("glibc")
+    if build_tools:
+        for name in ("llvm", "lld"):
+            if (name, arch) in known:
+                add(name)
+    selected = "/usr/bin/clang"
+    accel_choices = {(ACCEL, row["arch"]) for row in rows if row["name"] == ACCEL}
+    if arch == "x86_64" and len(accel_choices) == 1:
+        _, accel_arch = next(iter(accel_choices))
+        aux = lane / "accel-payload"
+        rpm = model.cached_rpm(model.select_rpm(rows, ACCEL, accel_arch), lane)
+        model.extract(rpm, aux, lane / "accel-extract.log")
+        candidates = {}
+        for path in aux.rglob("*clang*"):
+            if path.is_file() and not path.is_symlink() and model.elf_kind(path) == "ELF_X86_64":
+                if re.fullmatch(r"(?:.*-)?clang(?:-[\d.]+)?", path.name):
+                    candidates[model.sha(path)] = path
+        if len(candidates) == 1:
+            add(ACCEL, accel_arch)
+            selected = "/" + next(iter(candidates.values())).relative_to(aux).as_posix()
+        else:
+            print("ACCEL_REVIEW", label, accel_arch, "unique_resolved_ELFs", len(candidates), flush=True)
+    if model.sha(model.resolve_rpm_path(root, "/usr/bin/clang")) != initial:
+        raise ValueError("companion payload overwrote canonical clang")
+    tool_args = SimpleNamespace(qemu=qemu, arm_sysroot=root)
+    for path in dict.fromkeys(("/usr/bin/clang", selected)):
+        info = model.compiler(root, path, arch, tool_args, work)
+        log = lane / ("canonical-version.log" if path == "/usr/bin/clang" else "accel-version.log")
+        for _ in range(14):
+            code = model.log_command(info["argv"] + ["--version"], lane, log, info["env"], 90)
+            if not code:
+                break
+            missing = re.search(r"error while loading shared libraries:\s*([^:\s]+)", log.read_text(errors="replace"))
+            packages = provides.get((arch, missing[1]), set()) if missing else set()
+            if len(packages) != 1 or (next(iter(packages)), arch) in seen:
+                break
+            add(next(iter(packages)))
+            info = model.compiler(root, path, arch, tool_args, work)
+        info.update(version_exit=code, variant=("canonical" if path == "/usr/bin/clang" else ACCEL),
+                    version=" | ".join(log.read_text(errors="replace").splitlines()[:3]), root=str(root))
+        print("CLANG", label, arch, path, info["sha256"], "exit", code, info["version"][:300], flush=True)
+    return info
+
+
+def kbuild(model, work, source, compiler):
+    build = work / "prepare"
+    build.mkdir()
+    root = Path(compiler["root"])
+    wrapper = work / "kbuild-clang"
+    wrapper.write_text("""#!/usr/bin/env bash
+args=()
+while (($#)); do
+    case "$1" in
+        -mllvm)
+            args+=("$1")
+            shift
+            case "${1:-}" in
+                -enable-ml-inliner=*|-regalloc-enable-advisor=*) args+=("${1%%=*}=default");;
+                *) args+=("${1:?missing LLVM option}");;
+            esac
+            ;;
+        -mllvm=-enable-ml-inliner=*|-mllvm=-regalloc-enable-advisor=*) args+=("${1%=*}=default");;
+        *) args+=("$1");;
+    esac
+    shift
+done
+exec """ + shlex.join(compiler["argv"]) + ' "${args[@]}"\n')
+    wrapper.chmod(0o700)
+    env = dict(compiler["env"], KBUILD_BUILD_TIMESTAMP="Thu Jan  1 00:00:01 UTC 1970",
+               KBUILD_BUILD_USER="mlgo", KBUILD_BUILD_HOST="replay")
+    llvm_bin = work / "llvm-bin"
+    llvm_bin.mkdir()
+    for utility in ("ld.lld", "llvm-ar", "llvm-nm", "llvm-strip", "llvm-objcopy", "llvm-objdump", "llvm-readelf"):
+        found = root / "usr/bin" / utility
+        if found.is_file():
+            command = shlex.quote(str(found))
+            script = llvm_bin / utility
+            script.write_text(f'#!/bin/sh\nexec {command} "$@"\n')
+            script.chmod(0o700)
+    env["PATH"] = str(llvm_bin) + ":" + env.get("PATH", "")
+    common = ["make", "-j1", "-C", str(source), f"O={build}", "ARCH=arm", "LLVM=1",
+              f"CROSS_COMPILE={CROSS}", f"CC={wrapper}", f"HOSTCC={wrapper}"]
+    checked(model, common + ["KANTSU2E_perf_defconfig"], work, work / "defconfig.log", env)
+    config = build / ".config"
+    release = [line for line in config.read_text().splitlines()
+               if line.startswith(("CONFIG_MLGO", "CONFIG_LTO", "CONFIG_CC_IS_CLANG"))]
+    print("CONFIG", model.sha(config), " ".join(release), flush=True)
+    checked(model, common + ["prepare"], work, work / "prepare.log", env)
+    objects = [path.removesuffix(".c") + ".o" for path in FIXED_TUS]
+    checked(model, common + ["V=1", *objects], work, work / "seed-tus.log", env)
+    db = work / "compile_commands.json"
+    checked(model, [sys.executable, "-B", str(source / "scripts/clang-tools/gen_compile_commands.py"),
+                    "-d", str(build), "-o", str(db)], work, work / "compile-db.log")
+    return db
+
+
+def replay(model, work, source, tools, db, report):
+    args = SimpleNamespace(compile_db=db, kernel_source=source, build_root=None, tu=list(FIXED_TUS),
+                           resource_dir=None, driver_config=None)
+    units = model.load_units(args, work)
+    targets = {model.target_from_flags(unit["flags"], None) for unit in units[:-1]}
+    if None in targets or len(targets) != 1:
+        raise ValueError("expected one explicit ARM target in the generated Kbuild commands")
+    target = targets.pop()
+    for i, unit in enumerate(units):
+        unit["id"] = i
+        unit["target"] = target
+    report["units"] = units
+    print("CASE_COLUMNS role TU mode replay verdict official custom", flush=True)
+    print("CELL_COLUMNS status:format:triple:sha256:inline/missed/spills/folded_spills/reloads/folded_reloads")
+    for role in ("host", "target"):
+        for unit in units:
+            for mode in model.MODES:
+                flavor = "probe" if unit["name"] == "probe.c" else "kernel-flags"
+                for phase in (flavor, "native-after-ir"):
+                    cells = [model.run_case(tools[label, role], unit, mode, phase, args, work, work / f"{label}-{role}")
+                             for label in model.BASES]
+                    report["comparisons"].append(model.compare(role, unit, mode, phase, *cells))
+                    if all(cell.get("kind") != "LLVM_IR" for cell in cells):
+                        break
+            if model.sha(Path(unit["source"])) != unit["source_sha256"]:
+                raise ValueError(f"fixed source changed during replay: {unit['name']}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("model_library", type=Path)
+    parser.add_argument("preflight_library", type=Path)
+    args = parser.parse_args()
+    model, pre = api(args.model_library), runpy.run_path(args.preflight_library)
+    work = Path(tempfile.mkdtemp(prefix="pm0004-kernel-src.", dir=ROOT / "workspace/temp"))
+    os.environ["TMPDIR"] = str(work)
+    print("WORKDIR", work, flush=True)
+    report = {"comparisons": []}
+    try:
+        qemu = shutil.which("qemu-arm") or shutil.which("qemu-arm-static")
+        if not qemu:
+            raise ValueError("existing qemu-arm or qemu-arm-static required for ARM clang")
+        source = fetch_kernel(model, work)
+        tools = {}
+        for label, base_name in model.BASES.items():
+            (work / label).mkdir()
+            rows, provides = rpm_row(pre, work, label, pre["PREFIX"] + base_name + "/")
+            for arch, role in (("x86_64", "host"), ("armv7l", "target")):
+                tools[label, role] = stage(model, work, label, rows, provides, arch, qemu, role == "host" and label == "official")
+        report["compiler"] = {f"{label}-{role}": tool for (label, role), tool in tools.items()}
+        print("HOST_SELECTION", tools["official", "host"]["variant"], tools["custom", "host"]["variant"],
+              "QB_EFFECTIVE_COMPILER_UNVERIFIED", flush=True)
+        db = kbuild(model, work, source, tools["official", "host"])
+        replay(model, work, source, tools, db, report)
+        mismatches = sum("EXPECTED_" in item["verdict"] for item in report["comparisons"])
+        reviews = sum(item["verdict"].startswith("REVIEW") for item in report["comparisons"])
+        print("SUMMARY", "cases", len(report["comparisons"]), "unexpected", mismatches, "execution_review", reviews)
+        report["status"] = "REVIEW_EXECUTION" if reviews else "FINDINGS" if mismatches else "EXPECTED_PATTERN"
+    except (OSError, ValueError, KeyError, IndexError, StopIteration, ET.ParseError, subprocess.SubprocessError) as exc:
+        report.update(status="BLOCKED", error=str(exc))
+        print("BLOCKED", " ".join(str(exc).splitlines())[:400], flush=True)
+    result = work / "result.json"
+    result.write_text(json.dumps(report, indent=2) + "\n")
+    print("REPORT", result, model.sha(result))
+    print("DONE", report["status"])
+    return int(report["status"] in ("BLOCKED", "REVIEW_EXECUTION"))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
