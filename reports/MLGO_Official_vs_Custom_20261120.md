@@ -9,7 +9,7 @@ The 11 November image report recorded release MLGO in the Linux kernel and byte-
 | Official | Base 20261113.1, current KantSU2E image, QB 37627297 control configuration, kernel image checksum, package and compiler identity |
 | Customized | Base 20261118.1, pinned LLVM rev12 on armv7l/x86_64, matching Product/build.conf/shelves, candidate QB ID, package and compiler identity |
 
-The operator submits the candidate after the preflight verifies the two PINNED_LLVM_BINARY results and the intended Base-list diff. The kernel gate determines the label and conclusions. The wider same-rev12 reference/custom rebuild and global advisor options are deferred.
+The operator already started the candidate QuickBuild with Base 20261118.1 and the other QB 37627297 inputs. Its job ID, completion and Product URL are pending. The kernel gate determines the label and conclusions. The wider same-rev12 reference/custom rebuild and global advisor options are deferred.
 
 | Metric | Procedure | Result |
 |---|---|---|
@@ -23,4 +23,6 @@ Keep each run and both exact artifacts. Preserve rollback before flashing. Repor
 
 ## Model identity before reporting
 
-Compare both Base compilers in the four advisor modes using the selected pinned kernel translation units and the probe. Record the actual kernel job host compiler match, both Customized snapshot RPM pins, per-mode object hashes and optimization remarks. Keep differing default artifacts or identical release artifacts as measured findings. Native results are pending. [Round 0004 model identity launcher](../comms/codex_to_claude/0004_reply.md#g-mlgo-model-identity-replay-for-friday)
+Independently prepare vdlinux baseline 14293732 with shelf 14427407 and the KantSU2E perf defconfig. Compare both Base compilers in four advisor modes using three fixed kernel translation units and the probe. Keep differing default artifacts or identical release artifacts as findings. Confirm the effective QuickBuild compiler separately when its job evidence arrives. [Standalone model identity launcher](../comms/codex_to_claude/0004_reply.md#g-standalone-mlgo-model-identity-replay-for-friday)
+
+The 2,342-RPM image comparison is staged for the candidate Product URL. Board measurement tools and the attended flash/rollback checklist are ready for review. Exact approved flash/recovery instructions and a verified playback drop counter are still needed for live runs. [Image and board procedures](../comms/codex_to_claude/0004_reply.md#h-official-versus-customized-product-payloads)

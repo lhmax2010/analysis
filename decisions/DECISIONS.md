@@ -233,3 +233,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Final decision: compare both fixed Base compiler payloads on selected pinned kernel TUs and the shared probe. Use release/release, release/default, default/release and default/default. Report every unexpected outcome, along with compiler and object hashes and optimization-record counts.
 - Verify Customized clang RPMs against the preflight pins and identify the actual kernel job's x86_64 executable by hash. Keep the ARM compiler under QEMU as a separate role. Preserve LTO IR evidence and identify separate native codegen replays.
 - Status: **Agreed — user direction**. Native launchers use GitHub downloads only. Friday results and Claude review are pending.
+
+## D-026 — Standalone replay, Product comparison and attended board runs
+
+- Date: 2026-11-18, round 0004 replacement for G discovery.
+- Final decision: stage vdlinux 14293732 with shelf 14427407 using read-only Perforce. Use pinned Base RPM payloads and a fresh perf defconfig plus Kbuild prepare. Replay fixed kernel TUs and the probe in all four modes. Run native heavy work serially.
+- The candidate QuickBuild has started using 20261118.1 and the other QB 37627297 inputs per the operator. Capture its ID and candidate Product URL once available. Compare the 2,342 baseline-installed package identities, preserving all changed ELF paths and confounders.
+- Prepare reviewable KantSU2E boot, microbench and 4K collectors. Follow the attended flash and rollback checklist after verifying the approved board-specific procedure and known-good bundle. Keep measurements pending until collected.
+- Status: **Agreed — user direction**. Native GitHub access is download-only.
