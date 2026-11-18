@@ -265,3 +265,13 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Preserve Official results on the native host before changing the image. Reuse the benchmark binary and verified media clip across lanes. Report frame drops as unavailable until the active stream counter is proven.
 - Interpret the 1113.1/1118.1 Base swap with the source gate, exact artifacts, workload dependencies and the observed confounder ledger. A controlled model-only build pair is a separate experiment.
 - Claude review and live execution are pending. [Board-day checklist](../reports/KantSU2E_MLGO_Board_Day_0005.md)
+
+
+## D-030 — Verified Base pins and native consumer classification
+
+- Date 2026-11-18, Round 0005 results.
+- Accept the published 1118.1 Clang RPM byte pins on armv7l and x86_64 at OBS rev12. Source lines 1065–1070 confirm both conditional release-advisor assignments in `KBUILD_CFLAGS`. Actual QB compiler/argv and image-level attribution remain open.
+- Use the 177-of-2,342 installed name/arch overlap to prioritize the image check. Keep ambiguous pairs and same-NEVRA payload changes visible. The classifier found zero resolved version or epoch changes.
+- Supersede D-028's platform-build assumption for the argot client and TPK. Classify their ARM-mode cause as PREBUILT. Change instruction mode in the artifact owner's cargo-tizen build after verifying the exact Rust target, build job and ownership. The Meson `argot-platform` library remains a separate build lane.
+- Track the Clang FatLTO/native relocation hit and the four TLS-local-exec static archives in T7 with their final-link consumers. Classify kernel modules separately in T4 and keep the marker evidence within that class.
+- Kernel replay is running at the P4 print stage. [Native evidence](../artifacts/evidence/native-run-r0005-20261118.txt)

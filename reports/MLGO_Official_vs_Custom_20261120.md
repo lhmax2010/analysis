@@ -25,16 +25,31 @@ Keep each run and both exact artifacts. Preserve rollback before flashing. Repor
 
 Independently prepare vdlinux baseline 14293732 with shelf 14427407 and the KantSU2E perf defconfig. Compare both Base compilers in four advisor modes using three fixed kernel translation units and the probe. Keep differing default artifacts or identical release artifacts as findings. Retain the effective QuickBuild compiler as unverified until its package build evidence arrives. [Standalone model identity launcher](../comms/codex_to_claude/0004_reply.md#g-standalone-mlgo-model-identity-replay-for-friday)
 
+The standalone replay started in `pm0004-kernel-src.gzu4jw62`. The operator reports it is at the Perforce print stage. No compiler or comparison results have returned. [Native run](../artifacts/evidence/native-run-r0005-20261118.txt#L224)
+
 The 2,342-RPM image comparison is staged for the candidate Product URL. The KantSU2E checklist records the operator's BOOST sequence, separate menu and write gates, Official rollback verification and the three measurement protocols. The Official download awaits a native run. The candidate bundle, image fingerprint mapping, flash completion prompts and playback drop source remain pending. [Board-day procedure](KantSU2E_MLGO_Board_Day_0005.md)
 
 ## Round 0005 preflight and confounders
 
-Native preflight shows identical Base and shelf lists and 3,000 delta rows, 2,952 outside LLVM. The previous successful OBS status packet records rev12 published/succeeded on both arches. The read-only direct Python transport will verify actual RPM bytes after the initial OSC proxy error. The image comparison uses the same retained non-LLVM input as the installed-overlap and release/version classification. Candidate job ID and Product URL, installed overlap, and observed image and TV results remain pending. [Round 0005](../comms/codex_to_claude/0005_reply.md)
+Native preflight verified identical Base and shelf lists and counted 3,000 delta rows, 2,952 outside LLVM. The direct OBS replay proved the following published Base 20261118.1 Clang RPM bytes correspond to OBS revision 12, source digest `0b38aead137ec42dcd99dee28091acc1`. The hashes identify the published RPMs. The kernel compile command and resolved executable remain open. [Native binary pin](../artifacts/evidence/native-run-r0005-20261118.txt#L3)
 
+| Architecture | Published Clang RPM | SHA-256 |
+|---|---|---|
+| armv7l | `clang-22.1.8-11.1.armv7l.rpm` | `6e692d5fb4f372c9e8d8f969b5171ce73275a7f613ae1f9694797758cf66b1a9` |
+| x86_64 | `clang-22.1.8-11.1.x86_64.rpm` | `ed6db88c182662fb81007ffe4589c49792970e14d110b95ebf6744de2949a3d2` |
+
+| Non-LLVM category | Classified events | Unique name/arch | Board name/arch | Board exact Official NEVRA |
+|---|---:|---:|---:|---:|
+| Release only | 1,363 | 1,354 | 175 | 174 |
+| Ambiguous multi-version | 52 | 26 | 2 | 2 |
+| Same NEVRA with payload difference | 18 | 9 | 1 | 1 |
+| Version or epoch change | 0 | 0 | 0 | 0 |
+
+The deduplicated name/arch overlap is **177 of 2,342**. Category counts overlap. Zero version changes describes the resolved version/epoch pairs. The 52 ambiguous events still require reconciliation. This is a repository-to-installed-inventory join. Compare actual image payloads, including the same-NEVRA case and workload-relevant release bumps, before attributing observed differences. Candidate job ID, Product URL and image/TV results remain pending. [Native Base delta](../artifacts/evidence/native-run-r0005-20261118.txt#L11)
 
 ## Source gate and image attribution
 
-**Source-level gate passed.** The pending vdlinux shelf 14427407 selects Base Clang and LLVM under `_toolchain clang`, sets `LLVM=1 LLVM_IAS=1`, and enables `CONFIG_MLGO=y` in the KantSU2E perf defconfig. The Kconfig and shelf description identify both release advisors. Read the corrected Makefile excerpt for direct line-level corroboration. The QuickBuild kernel log remains unavailable after REST HTTP 403. Effective argv and the exact executing compiler remain unverified. [Round 0005 addendum](../comms/codex_to_claude/0005_reply.md#addendum-a--kernel-source-gate-passed)
+**Source-level gate passed.** The pending vdlinux shelf 14427407 selects Base Clang and LLVM under `_toolchain clang`, sets `LLVM=1 LLVM_IAS=1`, and enables `CONFIG_MLGO=y` in the KantSU2E perf defconfig. Makefile lines 1065–1070 add `-mllvm -enable-ml-inliner=release` and `-mllvm -regalloc-enable-advisor=release` to `KBUILD_CFLAGS` under `CONFIG_MLGO_INLINER` and `CONFIG_MLGO_REGALLOC`, respectively. The QuickBuild kernel log remains unavailable after REST HTTP 403. Effective argv and the exact executing compiler remain unverified. [Native source gate](../artifacts/evidence/native-run-r0005-20261118.txt#L22)
 
 **Image attribution is pending.** If `tztv-kernel-perf` differs between the two images and every covered user-space ELF outside the item 2 Base-delta packages is byte-identical, report the observed difference as a kernel-focused Base-swap result supported by the source gate and the image comparison. List all user-space differences within the Base delta, flag affected benchmark dependencies, and record any unresolved or unexplained ELF as a confounder. This scope supports a Base-swap association. Production advisor execution and model-only effects require their own evidence.
 
