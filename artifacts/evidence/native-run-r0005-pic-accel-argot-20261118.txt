@@ -1,0 +1,126 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ grep ',REVIEW_RELOCATIONS,True,' /home1/chengkai/vd-tree/workspace/temp/pm0002/pic-results/members.csv | cut -c1-700
+llvm-product,capi-base-common-devel-static,0.4.82-1.armv7l,/usr/lib/libcapi-base-common.a,1:tizen_error.c.o,6924cf7bfc22065a8cb0dc267c8f6398ef2713fd6a9837ee137bdb1016653d6c,REVIEW_RELOCATIONS,True,False,clang version 22.1.8,.rel.text->.text+0xc:R_ARM_TLS_LE32; .rel.text->.text+0x1c:R_ARM_TLS_LE32; .rel.text->.text+0xe8:R_ARM_TLS_LE32,,REVIEW_BY_INTENDED_USE
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ W=/home1/chengkai/vd-tree/workspace/temp/pm0004-kernel-src.gzu4jw62
+for r in $(find "$W" -maxdepth 4 -name 'clang-accel*.rpm'); do echo "== $r"; sha256sum "$r"; (rpm -qlp "$r" 2>/dev/null || rpm2cpio "$r" | cpio -t 2>/dev/null) | grep -E '/bin/|clang' | head -60; done
+ls -la "$W/official-host/root/emul/usr/bin" 2>/dev/null | head -40
+total 93412
+drwxr-xr-x 2 chengkai chengkai     4096 Nov 18 21:05 .
+drwxr-xr-x 4 chengkai chengkai     4096 Nov 18 21:05 ..
+lrwxrwxrwx 1 chengkai chengkai        5 Nov 12 22:51 armv7l-tizen-linux-gnueabi-clang -> clang
+lrwxrwxrwx 1 chengkai chengkai        7 Nov 12 22:51 armv7l-tizen-linux-gnueabi-clang++ -> clang++
+lrwxrwxrwx 1 chengkai chengkai        8 Nov 12 22:51 clang -> clang-22
+lrwxrwxrwx 1 chengkai chengkai        8 Nov 12 22:51 clang++ -> clang-22
+-rwxr-xr-x 1 chengkai chengkai   170432 Nov 12 22:51 clang-22
+-rwxr-xr-x 1 chengkai chengkai   146448 Nov 12 22:51 clang-apply-replacements
+-rwxr-xr-x 1 chengkai chengkai   369936 Nov 12 22:51 clang-change-namespace
+-rwxr-xr-x 1 chengkai chengkai    73944 Nov 12 22:51 clang-check
+lrwxrwxrwx 1 chengkai chengkai        8 Nov 12 22:51 clang-cl -> clang-22
+lrwxrwxrwx 1 chengkai chengkai        8 Nov 12 22:51 clang-cpp -> clang-22
+-rwxr-xr-x 1 chengkai chengkai  1492144 Nov 12 22:51 clang-doc
+-rwxr-xr-x 1 chengkai chengkai    63320 Nov 12 22:51 clang-extdef-mapping
+-rwxr-xr-x 1 chengkai chengkai   131440 Nov 12 22:51 clang-format
+-rwxr-xr-x 1 chengkai chengkai   589776 Nov 12 22:51 clang-include-cleaner
+-rwxr-xr-x 1 chengkai chengkai   246976 Nov 12 22:51 clang-include-fixer
+-rwxr-xr-x 1 chengkai chengkai   239248 Nov 12 22:51 clang-installapi
+-rwxr-xr-x 1 chengkai chengkai   225432 Nov 12 22:51 clang-linker-wrapper
+-rwxr-xr-x 1 chengkai chengkai   297160 Nov 12 22:51 clang-move
+-rwxr-xr-x 1 chengkai chengkai   136536 Nov 12 22:51 clang-nvlink-wrapper
+-rwxr-xr-x 1 chengkai chengkai    85216 Nov 12 22:51 clang-offload-bundler
+-rwxr-xr-x 2 chengkai chengkai    66912 Nov 12 22:51 clang-offload-packager
+-rwxr-xr-x 1 chengkai chengkai   233808 Nov 12 22:51 clang-query
+-rwxr-xr-x 1 chengkai chengkai   133280 Nov 12 22:51 clang-refactor
+-rwxr-xr-x 1 chengkai chengkai   187800 Nov 12 22:51 clang-reorder-fields
+-rwxr-xr-x 1 chengkai chengkai    87952 Nov 12 22:51 clang-repl
+-rwxr-xr-x 1 chengkai chengkai   255800 Nov 12 22:51 clang-scan-deps
+-rwxr-xr-x 1 chengkai chengkai    97920 Nov 12 22:51 clang-sycl-linker
+-rwxr-xr-x 1 chengkai chengkai 16579824 Nov 12 22:51 clang-tidy
+-rwxr-xr-x 1 chengkai chengkai   258920 Nov 12 22:51 llc
+-rwxr-xr-x 1 chengkai chengkai   258688 Nov 12 22:51 lli
+-rwxr-xr-x 2 chengkai chengkai   134696 Nov 12 22:51 llvm-addr2line
+-rwxr-xr-x 4 chengkai chengkai   104520 Nov 12 22:51 llvm-ar
+-rwxr-xr-x 1 chengkai chengkai    47584 Nov 12 22:51 llvm-as
+-rwxr-xr-x 1 chengkai chengkai    36784 Nov 12 22:51 llvm-bcanalyzer
+-rwxr-xr-x 4 chengkai chengkai   244600 Nov 12 22:51 llvm-bitcode-strip
+-rwxr-xr-x 1 chengkai chengkai    54784 Nov 12 22:51 llvm-cas
+-rwxr-xr-x 1 chengkai chengkai    40552 Nov 12 22:51 llvm-cat
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX"); export TMPDIR="$d"; f="$d/argot-producer.py.txt"; curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/b552b9dc555615478f6683103299a1866a02b668/artifacts/scripts/r0005/argot-producer.py.txt' -o "$f"; printf '%s  %s\n' '1c684f84a7b8297b98d5f30736c2b0d52be8d1320fa306d706e20f5ccef46ace' "$f" | sha256sum -c -; python3 -B -u "$f")
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.XbYdFA/argot-producer.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-argot-producer.97uvd81k
+PIN 14296233 14386323 TREE_RECORDS 3372
+SHELF_AUTHOR_NOT_OWNER hao.lin packaging/argot.spec
+CANDIDATES_TOTAL_SELECTED_AND_ARTIFACTS_TOTAL_SELECTED 126 36 5 5
+DISCOVERY_LIMIT inspect retained tree for additional candidates
+ARTIFACT tizen/artifacts/com.samsung.tizen.argot-0.5.31-armv7l.tpk com.samsung.tizen.argot-0.5.31-armv7l.tpk#1
+ARTIFACT_SUBMITTER_NOT_OWNER 14270663 youngb.shin branch
+ARTIFACT tizen/artifacts/rpm/argot-client-0.6.1-1.armv7l.rpm argot-client-0.6.1-1.armv7l.rpm#1
+ARTIFACT_SUBMITTER_NOT_OWNER 14296233 youngb.shin branch
+ARTIFACT tizen/artifacts/tpk/com.samsung.tizen.argot-0.6.1-armv7l.tpk com.samsung.tizen.argot-0.6.1-armv7l.tpk#1
+ARTIFACT_SUBMITTER_NOT_OWNER 14296233 youngb.shin branch
+ARTIFACT tizen/artifacts/tpk/com.samsung.tizen.argot-telemetry-0.6.1-armv7l.tpk com.samsung.tizen.argot-telemetry-0.6.1-armv7l.tpk#1
+ARTIFACT_SUBMITTER_NOT_OWNER 14296233 youngb.shin branch
+ARTIFACT tizen/artifacts/tpk/com.samsung.tizen.argot-tizen-action-0.6.1-armv7l.tpk com.samsung.tizen.argot-tizen-action-0.6.1-armv7l.tpk#1
+ARTIFACT_SUBMITTER_NOT_OWNER 14296233 youngb.shin branch
+SOURCE .github/CODEOWNERS CODEOWNERS#1 889adbbeefdbe79cfebf10e6a91347a4c26f667f608c8bfe10cb672a4b611483
+EXCERPT .github/CODEOWNERS:1 # All changes require review from the maintainer team (enforced via require_code_owner_reviews).
+EXCERPT .github/CODEOWNERS:2 * @AGENTIC/argo-tizen-maintainers
+SOURCE .github/ISSUE_TEMPLATE/bug_report.yml bug_report.yml#1 7e2647bb373aea8b40fd8d6a15efd5638368cac11637c5d154ff0c386b640230
+SOURCE .github/ISSUE_TEMPLATE/config.yml config.yml#1 95341a15c70c706f549fc02704b6eb166b8075749e75bf50f6555517ab87a442
+SOURCE .github/ISSUE_TEMPLATE/feature_request.yml feature_request.yml#1 55dff1a981cbbc172c82b2215b6f8806241a4ab8ec2eac8a07a97e6d23570d86
+SOURCE .github/actions/setup-rust/action.yml action.yml#1 2ed20a8f31f50ef3e0ea71255188143edfe8d0fa0207cc01c63851646d9a8176
+SOURCE .github/workflows/code-review.yml code-review.yml#1 0e897ccf55cc4352c941b3b24def31905675ec17854c2ebd647cdf9aafa21181
+SOURCE .github/workflows/e2e-real-model.yml e2e-real-model.yml#1 8bcb383b0dd2b0be62837a9e6d46372b5fab1282df8a83dd08ac3b46f969c3b0
+SOURCE .github/workflows/e2e.yml e2e.yml#2 c7e9c7e62890f12a420a1cc7079d3d8ee432ce12ebb34beb1c471cc314b7f98b
+SOURCE .github/workflows/nightly-full.yml nightly-full.yml#2 c43123aecb1a383a25fdc94a78c742454199cfbd6bf502a6a9578d9d7ce4b31e
+SOURCE .github/workflows/preflight.yml preflight.yml#3 838942856f25a1fe291046a705c0b08cdf42dc7bafc2bb528fef1cded61c69d0
+EXCERPT .github/workflows/preflight.yml:82 # via RUSTC_WRAPPER). A fleet-constant path — like /root/.cargo — so
+EXCERPT .github/workflows/preflight.yml:84 # target/ itself is not cached (see the rust-cache step). RUSTC_WRAPPER is left
+EXCERPT .github/workflows/preflight.yml:170 features=false
+EXCERPT .github/workflows/preflight.yml:172 features=true
+EXCERPT .github/workflows/preflight.yml:238 # PATH and drives it (sets RUSTC_WRAPPER + reports stats); we only supply
+EXCERPT .github/workflows/preflight.yml:542 run: RUSTFLAGS='--cfg tizen' cargo build --locked -p argot
+SOURCE .github/workflows/tini-sync.yml tini-sync.yml#1 403fe9d522c95fec61c0b9751332fe2823bd217d1d51b0dc2d437c77aec598aa
+SOURCE .github/workflows/tizen-build.yml tizen-build.yml#3 72d75301cfccac3d952412dc1f3825346925e2167c4883b6b27a4f209a08477c
+EXCERPT .github/workflows/tizen-build.yml:16 #   - cargo-tizen: a prebuilt static-musl binary attached to this repo's
+EXCERPT .github/workflows/tizen-build.yml:17 #     `ci-cargo-tizen-v*` release (tag pinned below), fetched through the
+EXCERPT .github/workflows/tizen-build.yml:20 #     keys are disabled org-wide on the private Tizen-AIOS/cargo-tizen
+EXCERPT .github/workflows/tizen-build.yml:21 #     repo. To publish a newer tool: from a cargo-tizen checkout run
+EXCERPT .github/workflows/tizen-build.yml:22 #     `cargo build --release --target x86_64-unknown-linux-musl`, create
+EXCERPT .github/workflows/tizen-build.yml:23 #     release `ci-cargo-tizen-v<X>` on this repo with the binary as its
+EXCERPT .github/workflows/tizen-build.yml:30 #     cargo-tizen only needs an SDK-shaped directory tree; full Tizen
+EXCERPT .github/workflows/tizen-build.yml:41 # Note: cargo-tizen does not pass --locked to cargo. Lockfile honesty is
+EXCERPT .github/workflows/tizen-build.yml:49 - ".cargo-tizen.toml"
+EXCERPT .github/workflows/tizen-build.yml:79 TOOL_TAG: ci-cargo-tizen-v0.6.7
+EXCERPT .github/workflows/tizen-build.yml:103 path: ~/.cargo/bin/cargo-tizen
+EXCERPT .github/workflows/tizen-build.yml:104 key: cargo-tizen-${{ env.TOOL_TAG }}-x86_64-linux-musl
+SOURCE crates/argot-e2e/fixtures/skills/run-slow-tool/scripts/run.sh run.sh#1 58fae97e31ebfc14b61c0df2f28142fb602c1f8d120688ad10b4ae8d06386adb
+SOURCE project/scripts/argot_dump.sh argot_dump.sh#1 d1fd089bb1c5fe959df5ee1804d37bd1d7b22b8acc28f0ac03c6ff31bbef5cda
+SOURCE project/scripts/build-libargot-examples.sh build-libargot-examples.sh#2 8f9179c5bd5d0a462f2f54e08f08b895572468706203c8f76ef828af9f43736e
+SOURCE project/scripts/check-libargot-install.sh check-libargot-install.sh#2 8d96dc029d0bd159b0d0a123e1f5899ca94256bba1e3f2139c3556c7e69494b5
+EXCERPT project/scripts/check-libargot-install.sh:233 fail "argot.pc exposes protobuf/gRPC-specific linker flags"
+SOURCE project/scripts/dhat-memprofile/baseline-hotspots.json baseline-hotspots.json#1 06f973f9148a7a03e552f9b0080211c9acfbabd255cc08d5f714f86594600fc6
+SOURCE project/scripts/dhat-memprofile/baseline.json baseline.json#1 2aa79e7028bc11313bd727563ae86f3efee6cef6d3dd048d93aec9b99f172929
+SOURCE project/scripts/dhat-memprofile/profile.py profile.py#1 533f66ebcd80f807d0f1faee0d974bcbb40847a110d8fbbe121204cbc7bce253
+EXCERPT project/scripts/dhat-memprofile/profile.py:413 owner = (h["owner"] or "(third-party/std)").split(": ", 1)[-1][:70]
+EXCERPT project/scripts/dhat-memprofile/profile.py:506 owner = (h.get("owner") or "(third-party/std)").split(": ", 1)[-1][:60]
+SOURCE project/scripts/docs-book-build.sh docs-book-build.sh#2 29bf1831ff91cdf0d6cfe17c1f0295418121d2fbfa6931dfb126519696322c3a
+SOURCE project/scripts/docs-book-publish.sh docs-book-publish.sh#3 f331a906186c911b9b258718354c0917d920db07c195ce3ff65dde1285f656b5
+SOURCE project/scripts/docs-book-report.sh docs-book-report.sh#1 70363a63876b41500a44ce7a2b8b1c4fb2851186f9869f91258c0b6448ec68e0
+EXCERPT project/scripts/docs-book-report.sh:59 target="../../../reference/memory-report/index.html"
+SOURCE project/scripts/docs-book-serve.sh docs-book-serve.sh#2 22095bc6d50f5386677126a9a2f58c7e01bd5474cfbfddfe15d95311964bcebe
+SOURCE project/scripts/docs-book-stamp.sh docs-book-stamp.sh#1 5318a3be23357879deb3d8aeea1b6423b28d3aec9d696cc2dab951f9b20f09c1
+SOURCE project/scripts/e2e.sh e2e.sh#2 bfc91ffd1ea6402bd6cba2d0573990465213cd9e499975ac5eec6633253c5b2d
+SOURCE project/scripts/fmt.sh fmt.sh#3 fce9e97c9abc2a61df91defecfca0f1d883f42b4a46c2b18889ad4802b530c7d
+SOURCE project/scripts/install-argot-chat-host.sh install-argot-chat-host.sh#2 49eac1e8865699896acd5c08a95ced49f0aef86ab8491b44bbbcbbcd6a88a357
+SOURCE project/scripts/install-libargot-host.sh install-libargot-host.sh#2 37310215ea351973e5f7f30c5dde4881725acce5201ad834babb7672ec98f0d8
+SOURCE project/scripts/lib/format-native.sh format-native.sh#1 94245ab6362b1eebe1562770082f1e3a1a451a294e460ee26e8e8cd24b35a9e7
+SOURCE project/scripts/lib/lint-native.sh lint-native.sh#2 7962255d46fcb08e8668bcf2396fd7667a345ba80c2f187a9bd958575ad32343
+EXCERPT project/scripts/lib/lint-native.sh:95 --config-file="$config_file" \
+SOURCE project/scripts/lib/native-quality.sh native-quality.sh#2 38d2d033f9582f7c569e7123e161412fca2cc675b1177edf150ba28214e86a9a
+SOURCE project/scripts/lib/preflight-argot-platform.sh preflight-argot-platform.sh#1 10b0121d182b3677a15d3dc6a9aae3df30fa8b0ca10554a0013d9c23527194b2
+SOURCE project/scripts/lib/preflight-libargot.sh preflight-libargot.sh#1 1321a694c511af52599c968109911231bcf2960f10447ffac42804ead8da5b9d
+SOURCE project/scripts/lib/test-argot-platform-rust.sh test-argot-platform-rust.sh#1 ce4532993d26e2711c9f33b089c1ea36e375281f43806bb26029ff870e5c02fe
+SOURCE project/scripts/live-signal-predicate.sh live-signal-predicate.sh#1 dd0965737b422d492a9b6e1a5536832de5f5257eda8bec2074b66e4dfc0a10e4
+SOURCE project/scripts/memory-profiling/check_history.py check_history.py#1 2833a759eb77d9d756ba4424c2ace8c3fec615294a8779a0bc0bd8006d97e52a
+STATUS REVIEW_PRODUCER_CONFIG_OWNER_AND_EFFECTIVE_RUSTC_COMMAND
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
+
