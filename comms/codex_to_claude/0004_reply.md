@@ -256,3 +256,30 @@ Uses the existing native netrc or an exported `QB_USER` prompt identity. If the 
 
 
 Both printers read the existing `workspace/temp/pm0002` evidence and report missing files, counts by status and bounded previews. Return the numbered packet for any source CSV needed in full. HQ material remains a draft for PM review.
+
+## G. MLGO model-identity replay for Friday
+
+**Native server.** Review the [script commit](https://github.com/lhmax2010/analysis/commit/8d8fa62a06219d536d54ffc61c8a27bae123268f) before forwarding the launcher. Budget 15–60 minutes for the default three kernel TUs plus the probe. ARM QEMU and additional no-LTO replays can take longer. One compiler or extractor runs at a time. Allow several GiB of scratch space for the LLVM RPMs and extracted payloads. Network traffic is GitHub script download, read-only P4, and fixed Base RPM downloads. Compatible RPMs already retained by preflight are reused. No package installation, native Git writes, or uploads.
+
+Set the Bash array `MLGO_ARGS` with these inputs from the retained kernel job. Paths must be under `/home1/chengkai/vd-tree`.
+
+| Argument | Evidence to use |
+|---|---|
+| `--preflight` | The `REPORT_DIRECTORY` from D with both successful `PINNED_LLVM_BINARY` lines. |
+| `--kernel-source` | Retained, already-prepared `linux-6.12` source directory for the selected device/kernel build. |
+| `--compile-db` or `--kernel-build` | The job's `compile_commands.json`, or the retained Kbuild output directory containing its `.cmd` files. The latter invokes the kernel's compile database generator with output in scratch. |
+| `--host-reference` | The resolved x86_64 Clang ELF invoked by that job. Use the executable identified after any accelerator wrapper or symlink. |
+| `--host-package` and `--host-tool` | Defaults are `clang` and `/usr/bin/clang`. For acceleration use the actual package name and the resolved executable's RPM payload path. Set `--host-package-arch` if the accelerator RPM is labelled `armv7l` or `noarch` even though its compiler ELF is x86_64. |
+| `--arm-sysroot` | Existing ARM loader and runtime directory for QEMU. Use `--qemu` if `qemu-arm` or `qemu-arm-static` is outside PATH. |
+
+Add `--build-root` for captured chroot-relative absolute paths, `--target` for an implicit driver target, and `--driver-config` / `--resource-dir` if the recorded job relied on them. The replay disables implicit driver config lookup so the same explicit inputs apply to both Bases. `--arm-companion` and `--host-companion` can select additional RPM names from their corresponding Base if a runtime dependency is missing. If the default selected sources were absent from the configured build, specify two to four compiled relative paths with repeated `--tu`.
+
+```bash
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/8d8fa62a06219d536d54ffc61c8a27bae123268f/artifacts/scripts/r0004/mlgo-model-identity.py.txt' -o "$d/mlgo-model-identity.py.txt" && printf '%s  %s\n' 'f5e48b4e9fc6d4934c510ddda00af38cc032fc6e9558534ee40a2d819dda19f4' "$d/mlgo-model-identity.py.txt" | sha256sum -c - && python3 -B -u "$d/mlgo-model-identity.py.txt" "${MLGO_ARGS[@]}")
+```
+
+The script checks the selected kernel source bytes against shelf 14427407 or its recorded vdlinux base revision 14293732. It reports separate pairs for the actual x86_64 compiler and the ARM compiler under QEMU, both targeting the recorded 32-bit ARM triple. Candidate `clang` RPMs must match the preflight bytes and rev12 build evidence. Official RPMs and accelerator companions are checked against their respective Base inventory hashes. The x86_64 replay then requires a byte match to the selected kernel job's retained executable in at least one Base. If both match, retain that as evidence. Each compiler's version and ELF hash appear alongside the relevant RPM hash.
+
+Compare raw object SHA-256 for **(a)** release/release, **(b)** release/default, **(c)** default/release and **(d)** default/default. Preserve identical (a)–(c) and differing (d) results as findings. Review any failure, target/format difference or reported advisor fallback separately. Inline counts are emitted inliner remarks. Spill/reload totals are from function-level greedy allocator remarks so loop totals are counted only once. Raw LTO IR has no compile-time spill count. Its separately labelled `native-after-ir` replay changes only LTO-related flags to expose machine-code register allocation. Whole-kernel LTO backend behavior still depends on the actual link. [Clang optimization records](https://clang.llvm.org/docs/UsersManual.html#options-to-emit-optimization-reports) [LLVM greedy allocator statistics](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/lib/CodeGen/RegAllocGreedy.cpp)
+
+Return the compact terminal output. The full driver argv, remarks, logs, objects and report remain under `pm0004-mlgo-model-identity.*`. Python 3.10.12 fixtures passed with real cpio extraction and mocked P4/Clang, including an x86_64 accelerator in an ARM-labelled RPM. Live native results are pending.

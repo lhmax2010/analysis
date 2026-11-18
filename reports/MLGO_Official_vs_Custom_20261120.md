@@ -20,3 +20,7 @@ The operator submits the candidate after the preflight verifies the two PINNED_L
 | User-space identity | SHA-256 by installed path and package owner on identical scope; list added, removed and byte-different ELF, with Build IDs for triage. Correlate with non-LLVM inventory delta and rebuilt package records. Treat every unexplained difference as a confounder. | Pending |
 
 Keep each run and both exact artifacts. Preserve rollback before flashing. Report median, IQR, interval and all absolute regression events. Capture compiler/version, model evidence and any kernel source/config/link-mode difference alongside the result. User-space identity concerns file bytes. It does not imply equal runtime behavior after a kernel change.
+
+## Model identity before reporting
+
+Compare both Base compilers in the four advisor modes using the selected pinned kernel translation units and the probe. Record the actual kernel job host compiler match, both Customized snapshot RPM pins, per-mode object hashes and optimization remarks. Keep differing default artifacts or identical release artifacts as measured findings. Native results are pending. [Round 0004 model identity launcher](../comms/codex_to_claude/0004_reply.md#g-mlgo-model-identity-replay-for-friday)

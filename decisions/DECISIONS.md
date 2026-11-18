@@ -226,3 +226,10 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - MLGO: use the repaired preflight with `xz -dc`. The two binary pins and expected Base-list diff govern QuickBuild submission. Kernel source and actual job evidence govern interpretation.
 - ARM scan: stage the two PM inputs byte-identically and run a single background job with eight downloads when the operator launches it. Codex accepts the scan for candidate discovery. Build IDs, mapping coverage, extractor status and effective compile commands are needed for HQ attribution.
 - Status: **Agreed — user direction**. Scan methodology counter-position and native results are pending review.
+
+## D-025 — Friday kernel MLGO model identity replay
+
+- Date: 2026-11-17, round 0004 model-identity addendum.
+- Final decision: compare both fixed Base compiler payloads on selected pinned kernel TUs and the shared probe. Use release/release, release/default, default/release and default/default. Report every unexpected outcome, along with compiler and object hashes and optimization-record counts.
+- Verify Customized clang RPMs against the preflight pins and identify the actual kernel job's x86_64 executable by hash. Keep the ARM compiler under QEMU as a separate role. Preserve LTO IR evidence and identify separate native codegen replays.
+- Status: **Agreed — user direction**. Native launchers use GitHub downloads only. Friday results and Claude review are pending.

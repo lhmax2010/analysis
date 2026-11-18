@@ -7,6 +7,8 @@
 - Use the round 0004 pinned launchers after Claude review. The MLGO preflight passed Python 3.10.12 fixtures with `_lzma` blocked. Native binary pins and staged Base-list verification are pending.
 - The 2,342-RPM ARM scan has yet to start. T5, PIC and compiler-sample readbacks are ready for native execution. Argot target, Thumb compatibility and file-level provenance still need native evidence.
 
+- Friday MLGO model-identity replay is staged. Native execution must match the actual host compiler and verify both Customized RPM pins. Object hashes and inlining/spill comparisons are pending.
+
 [Round 0004 reply and commands](../comms/codex_to_claude/0004_reply.md)
 
 | Workstream | Evidence-backed state | Next gate |
