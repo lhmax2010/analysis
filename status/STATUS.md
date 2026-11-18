@@ -1,11 +1,11 @@
 # Status — 2026-11-18, round 0005
 
 - The operator started the 1118.1 Base-swap QB on 18 November with the other QB 37627297 inputs. Its ID and candidate Product URL are pending. Kernel advisor evidence controls how results are interpreted.
-- KantSU2E is running Linux 6.12.60 built with Clang/LLD 22.1.8. The selected kernel shelf records both release advisors. The one-command gate checks the selected source and prints actual QB compiler evidence when the log is supplied.
+- KantSU2E is running Linux 6.12.60 built with Clang/LLD 22.1.8. The pending kernel shelf passed the source gate with both release advisors and the perf defconfig. The QB kernel log remains unavailable under REST 403. Image attribution and effective compiler identity are pending.
 - Friday's MLGO report measures the kernel. User-space ELF identity is the control, with every unexplained byte difference listed.
 - The historical 106 lacks a recovered original image, report and method. Use the forthcoming user scan to assemble the command-backed roster. Appendix A was withdrawn. The new HQ response is a draft.
 - Native preflight verified byte-identical Base and shelf lists. OBS build status is rev12 published/succeeded on both arches. Binary pinning remains pending after the OSC proxy failure. Use the new direct provenance launcher after review.
-- ARM/Thumb scan last reported 1,200/2,342. T5 is blocked by QuickBuild REST 403. PIC matrix 56/56, RPM screen 78/92 scanned and 14 incomplete. Compiler sample 80/81 Clang-marked ELFs. Argot actual target and full marker coverage await evidence.
+- ARM/Thumb scan last reported 1,200/2,342. T5 is blocked by QuickBuild REST 403. PIC matrix 56/56, RPM screen 78/92 scanned and 14 incomplete. Compiler sample 80/81 Clang-marked ELFs. Argot target awaits the pinned cargo-tizen configuration trace. Full compiler-marker coverage awaits native results.
 
 - Friday MLGO replay stages its own fixed kernel and toolchains. G can run after review. H waits for the candidate Product URL. I is ready for board review. Actual QB compiler provenance, live measurements, the drop counter and exact board flash/recovery procedure are pending.
 

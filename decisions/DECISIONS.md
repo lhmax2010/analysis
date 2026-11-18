@@ -250,3 +250,10 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Close the T5 REST route after the account's HTTP 403 responses. Accept a web UI export if provided.
 - Qualify PIC members by bytes and consumer. Start the full compiler-marker proposal after review and after the running ARM/Thumb scan finishes. Continue per-file cause attribution once its complete roster arrives.
 - Status: **Agreed — user direction**. Live readbacks and candidate QB artifacts are pending.
+
+## D-028 — Source-level kernel gate and argot Thumb attribution
+
+- Date: 2026-11-18, round 0005 addendum.
+- Record the passed MLGO source gate on pending shelf 14427407. With the QB log unavailable, use the changed kernel payload and the user-space ELF comparison against the item 2 Base delta for Base-swap attribution. Retain the limits on effective compiler and model-only evidence.
+- Trace cargo-tizen from the actual selected argot build sources. Preserve the resolved target, ABI and linker. Prefer the same-target Thumb feature if the baseline emits A32 and the candidate preserves the ABI. Use a supported same-ABI Thumb target only after isolating the instruction-mode difference.
+- Status: **Agreed — user direction**. Config resolution, image comparison and native results are pending.

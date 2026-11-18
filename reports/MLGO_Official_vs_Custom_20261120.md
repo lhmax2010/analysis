@@ -2,7 +2,7 @@
 
 This draft records the planned KantSU2E comparison for Friday, 20 November. Run-level results and a conclusion are pending.
 
-The 11 November image report recorded release MLGO in the Linux kernel and byte-identical outputs in the sampled user-space control after disabling ML inlining. For this image pair the kernel is the primary measurement and user space is the identity control. The current board boots Linux 6.12.60 built by Clang/LLD 22.1.8, with tztv-kernel-perf installed. The planned shelf list selects the vdlinux change that records both advisor switches. Confirm source rules or actual kernel compiler commands and the Base compiler installed by each QB job. A cached, reused, prebuilt, or heuristics-only kernel does not establish an Official versus Customized model comparison. [Kernel evidence](../artifacts/evidence/kernel-mlgo-source-chain-20261117.txt)
+The 11 November image report recorded release MLGO in the Linux kernel and byte-identical outputs in the sampled user-space control after disabling ML inlining. For this image pair the kernel is the primary measurement and user space is the identity control. The current board boots Linux 6.12.60 built by Clang/LLD 22.1.8, with tztv-kernel-perf installed. The planned shelf list selects the vdlinux change that records both advisor switches. The post-login source gate passed. Actual QB argv and compiler-install records remain unavailable through the current REST account. Use the source and image criteria below to interpret the Base comparison. [Kernel evidence](../artifacts/evidence/kernel-mlgo-source-chain-20261117.txt)
 
 | Lane | Inputs to record |
 |---|---|
@@ -23,10 +23,17 @@ Keep each run and both exact artifacts. Preserve rollback before flashing. Repor
 
 ## Model identity before reporting
 
-Independently prepare vdlinux baseline 14293732 with shelf 14427407 and the KantSU2E perf defconfig. Compare both Base compilers in four advisor modes using three fixed kernel translation units and the probe. Keep differing default artifacts or identical release artifacts as findings. Confirm the effective QuickBuild compiler separately when its job evidence arrives. [Standalone model identity launcher](../comms/codex_to_claude/0004_reply.md#g-standalone-mlgo-model-identity-replay-for-friday)
+Independently prepare vdlinux baseline 14293732 with shelf 14427407 and the KantSU2E perf defconfig. Compare both Base compilers in four advisor modes using three fixed kernel translation units and the probe. Keep differing default artifacts or identical release artifacts as findings. Retain the effective QuickBuild compiler as unverified until its package build evidence arrives. [Standalone model identity launcher](../comms/codex_to_claude/0004_reply.md#g-standalone-mlgo-model-identity-replay-for-friday)
 
 The 2,342-RPM image comparison is staged for the candidate Product URL. Board measurement tools and the attended flash/rollback checklist are ready for review. Exact approved flash/recovery instructions and a verified playback drop counter are still needed for live runs. [Image and board procedures](../comms/codex_to_claude/0004_reply.md#h-official-versus-customized-product-payloads)
 
 ## Round 0005 preflight and confounders
 
 Native preflight shows identical Base and shelf lists and 3,000 delta rows, 2,952 outside LLVM. The previous successful OBS status packet records rev12 published/succeeded on both arches. The read-only direct Python transport will verify actual RPM bytes after the initial OSC proxy error. The image comparison uses the same retained non-LLVM input as the installed-overlap and release/version classification. Candidate job ID and Product URL, installed overlap, and observed image and TV results remain pending. [Round 0005](../comms/codex_to_claude/0005_reply.md)
+
+
+## Source gate and image attribution
+
+**Source-level gate passed.** The pending vdlinux shelf 14427407 selects Base Clang and LLVM under `_toolchain clang`, sets `LLVM=1 LLVM_IAS=1`, and enables `CONFIG_MLGO=y` in the KantSU2E perf defconfig. The Kconfig and shelf description identify both release advisors. Read the corrected Makefile excerpt for direct line-level corroboration. The QuickBuild kernel log remains unavailable after REST HTTP 403. Effective argv and the exact executing compiler remain unverified. [Round 0005 addendum](../comms/codex_to_claude/0005_reply.md#addendum-a--kernel-source-gate-passed)
+
+**Image attribution is pending.** If `tztv-kernel-perf` differs between the two images and every covered user-space ELF outside the item 2 Base-delta packages is byte-identical, report the observed difference as a kernel-focused Base-swap result supported by the source gate and the image comparison. List all user-space differences within the Base delta, flag affected benchmark dependencies, and record any unresolved or unexplained ELF as a confounder. This scope supports a Base-swap association. Production advisor execution and model-only effects require their own evidence.
