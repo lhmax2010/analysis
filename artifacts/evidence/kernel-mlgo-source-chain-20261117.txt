@@ -1,0 +1,24 @@
+Board read-only SDB capture, 2026-11-17, 192.168.108.13:26101
+Linux version 6.12.60 (abuild@A1512LMG) (clang version 22.1.8, LLD 22.1.8) #1 SMP PREEMPT Mon Nov 16 20:15:36 UTC 2026
+tztv-kernel-perf 1-1 armv7l tztv-kernel-1-1.src.rpm
+argot 0.6.1-1 armv7l argot-0.6.1-1.src.rpm
+KERNEL_CONFIG_NOT_READABLE
+
+Retained, SHA-verified shelf report
+Source report SHA-256: 1cfc808d41ca97650590a099841c0a9a31cfefc3ad404c14563b633e4ac72e13
+Manifest SHA-256: c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736
+Selected manifest entry: {'path': '//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/...', 'cl': '14427407'}
+
+[Clang][MLGO] vdlinux: enable MLGO (ML inliner and register allocation advisors) for the Clang toolchain
+
+1. MLGO for the Clang toolchain (GCC builds unchanged)
+- init/Kconfig: new CONFIG_MLGO (depends on CC_IS_CLANG) with CONFIG_MLGO_INLINER and CONFIG_MLGO_REGALLOC (default y under CONFIG_MLGO).
+- Makefile: -mllvm -enable-ml-inliner=release and -mllvm -regalloc-enable-advisor=release in KBUILD_CFLAGS, so the image and every module (in-tree and external) use the release models embedded in the platform clang.
+- KANTSU2E debug/perf/release defconfigs: CONFIG_MLGO=y. With GCC the option does not exist (depends on CC_IS_CLANG); the tinykernel build is not affected.
+- Stack frames: the ML inliner inlines a few static functions that the default inliner keeps out of line, and the caller goes over CONFIG_FRAME_WARN (1024, -Werror). They are marked noinline_for_stack with a comment giving the measured frames. ipc/kdbus/connection.c: kdbus_conn_wait_reply (664-byte frame; kdbus_cmd_send 1472 bytes with it inlined); kdbus_priority_logging (224-byte frame, CONFIG_KDBUS_DEBUG; kdbus_cmd_send 1056 bytes with it inlined). fs/minimal_core.c: elf_minimal_core_dump (960-byte frame; do_minimal_core 1224 bytes with it inlined). PLEASE CHECK
+- Size, local gbs build with the LLVM Base, against Clang without MLGO: KANTSU2E release zImage -10.0%, uImage -10.6%, modules -5.2%; perf zImage -10.0%, modules -5.0%; debug zImage -8.1%, modules -4.4%.
+- Verified with a local gbs build of tztv-kernel under the Quickbuild conditions (build.conf of Quickbuild 14368686, LLVM Base snapshot 20261029.1): debug, perf, release and tinykernel build, no frame-size warnings. Performance test on the board is in progress.
+
+2. This CL also carries the changes of shelve CL 14351457 (hao.lin, "[Clang] tztv-kernel: build the Linux kernel with LLVM under the Clang toolchain"), unchanged, on vdlinux@14293732, the base revision of the fix5h list, so that the package has one shelve.
+
+Historical local GBS measurements in the description are not results for the present Official/Customized pair.

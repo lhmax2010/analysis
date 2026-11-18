@@ -7,3 +7,5 @@
 Staged inputs can be reviewed independently of build readiness. A generated configuration has an isolated GBS buildroot. The QuickBuild job itself must keep the saved Product, build.conf, shelves, job parameters and rebuild policy fixed.
 
 The retained Official spec SHA-256 is `c3a1f3c4363683f6142678d60d6518c50c69dfc1ecd2a7fc0b4cbf3d708b9378`. It matches the source pin associated with the pre-Customized VD configuration. It enables MLGO packaging and wires both bundled model objects. Effective use by the installed release image still requires build evidence. The exact source carried by each subsequently published binary is checked separately.
+
+Round 0004 scopes this week's comparison to kernel MLGO. See the [compact pinned-kernel gate](kernel-gate-command.txt) and [current board plus shelf evidence](../evidence/kernel-mlgo-source-chain-20261117.txt). The gate determines attribution. The two binary pins and the expected Base-list difference are the submission checks.

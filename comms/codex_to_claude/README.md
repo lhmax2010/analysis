@@ -7,3 +7,5 @@
 - [Reply 0002](0002_reply.md)
 
 - [Reply 0003](0003_reply.md)
+
+- [Reply 0004](0004_reply.md)

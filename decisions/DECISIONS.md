@@ -192,14 +192,14 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Status: **Agreed — user direction**.
 
 
-## D-021 — Official versus Customized MLGO this week
+## D-021 — Official versus Customized kernel MLGO this week
 
-- Date: 2026-11-17. Due Friday 20 November.
-- Options: frozen whole-image Base substitution, a same-revision reference/custom attribution pair, and kernel results where qualification permits.
-- Claude position: records user direction to use the running 1113.1 board as Official control and produce a 1118.1 image with matching Product, build.conf, shelves and QB configuration. Verify model selection, advisor activity and RPM differences before submission.
-- Codex position: agree. The source defaults embed custom models. Effective advisors and the published binary pin require the intranet preflight. Use a same-rev12 A/B with reference/custom objects but identical SR runtime to isolate models. A Base delta includes all package changes. Confirm kernel provenance before adding kernel measurements.
-- Final decision: the weekly whole-image lane takes contested native capacity ahead of 10.1 and ledger I/O. User submits QB after reviewing the preflight. Changes to effective advisor flags require a recorded decision if the original configuration uses heuristics. Use the smaller deadline benchmark set and publish run-level evidence.
-- Status: **Agreed — user direction**.
+- Date: 2026-11-17. Round 0004 updates scope and submission conditions. Due Friday 20 November.
+- Options: frozen image Base substitution with kernel measurements, user-space identity control, and future same-toolchain model attribution.
+- Claude position: use 1113.1 as Official and 1118.1 as Customized. The historical report identifies Linux kernel as the MLGO consumer and user space as the identity control. Submit after both binary pins and the expected Base-list diff. The kernel gate determines interpretation.
+- Codex position: agree. Current TV boot confirms Clang/LLD-built Linux 6.12.60 with tztv-kernel-perf. The pinned shelf 14427407 describes both release switches in Kbuild. Check pinned sources and recover effective command and Base clang provenance in each job.
+- Final decision: keep Product, build.conf, shelves and saved QB inputs fixed. Prioritize the native preflight. Verify rebuilt kernel artifacts, Image/vmlinux/modules, five boots, kernel microbenchmarks and three 4K runs per lane. Compare user-space ELF hashes and list every confounder. Defer global release flags and same-rev12 macro 0/1 rebuilds.
+- Status: **Agreed — user direction**. This replaces the earlier advisor-as-submission-gate interpretation.
 
 ## D-022 — ARM-mode evidence and Thumb transition
 
@@ -207,5 +207,14 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Options: mapping-symbol baseline, coverage-weighted dynamic function symbols, matched debuginfo and retained build-tree objects.
 - Claude position: combine methods per file, identify ARM-mode causes, measure paired size results and run Bluetooth and DRM regressions.
 - Codex position: agree. Sized dynamic symbols establish lower bounds. Use a conservative threshold with unknown bytes, union aliases, and verify debuginfo by Build ID and actual section/symbol evidence.
-- Final decision: proposed. 5,120 packaged ELF path results are staged with method labels. Prioritize Bluetooth and Widevine, retain necessary ARM-only files and trace overrides. Archive the HQ appendix as sent after user confirmation.
+- Final decision: proposed. Round 0004 withdraws the unsent Appendix A. The forthcoming user scan over 2,342 installed RPMs supplies the working cohort using mapping symbols and a labelled condition-field heuristic. Keep prior dynsym output as historical. Recover actual per-file invocations and source evidence. Verify argot target and candidate ABI before any one-change board experiment.
 - Status: **Proposed**.
+
+
+## D-023 — Terminal text transport for native and TV work
+
+- Date: 2026-11-17, round 0004.
+- Topic: return evidence as terminal text because the operator cannot transfer files from native.
+- Codex position: prefer compact result lines within 300 lines. Encode longer structured outputs as zlib+base64 with SHA-256, using numbered parts when needed. Retain the original native artifacts within vd-tree and give explicit terminal print commands.
+- Final decision: apply to all new native/TV commands. Earlier file-return instructions are historical where superseded.
+- Status: **Agreed — user direction**.

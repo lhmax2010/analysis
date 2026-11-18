@@ -1,24 +1,22 @@
-# Official versus Customized MLGO — comparison record
+# Official versus Customized MLGO — kernel comparison record
 
-This draft records the planned comparison on KantSU2E. Run-level results and an outcome are pending.
+This draft records the planned KantSU2E comparison for Friday, 20 November. Run-level results and a conclusion are pending.
 
-| Lane | Pinned input | Evidence needed |
+The 11 November image report recorded release MLGO in the Linux kernel and byte-identical outputs in the sampled user-space control after disabling ML inlining. For this image pair the kernel is the primary measurement and user space is the identity control. The current board boots Linux 6.12.60 built by Clang/LLD 22.1.8, with tztv-kernel-perf installed. The planned shelf list selects the vdlinux change that records both advisor switches. Confirm source rules or actual kernel compiler commands and the Base compiler installed by each QB job. A cached, reused, prebuilt, or heuristics-only kernel does not establish an Official versus Customized model comparison. [Kernel evidence](../artifacts/evidence/kernel-mlgo-source-chain-20261117.txt)
+
+| Lane | Inputs to record |
+|---|---|
+| Official | Base 20261113.1, current KantSU2E image, QB 37627297 control configuration, kernel image checksum, package and compiler identity |
+| Customized | Base 20261118.1, pinned LLVM rev12 on armv7l/x86_64, matching Product/build.conf/shelves, candidate QB ID, package and compiler identity |
+
+The operator submits the candidate after the preflight verifies the two PINNED_LLVM_BINARY results and the intended Base-list diff. The kernel gate determines the label and conclusions. The wider same-rev12 reference/custom rebuild and global advisor options are deferred.
+
+| Metric | Procedure | Result |
 |---|---|---|
-| Official snapshot | Base 20261113.1 and current KantSU2E image | Image checksum, QB inputs, RPM SHA-256 and Build-ID chain, effective advisor selection |
-| Customized snapshot | Base 20261118.1, expected LLVM rev12 srcmd5 `0b38aead137ec42dcd99dee28091acc1` | New QB input proof, architecture binary hashes, effective advisor selection |
-| Attribution control | Same rev12 toolchain sources and SR runtime, VD reference models and custom models selected independently | Per-build model digests and advisor-use evidence |
+| Kernel and modules | Same perf variant; compare Image, published zImage/uImage where present, vmlinux section bytes and installed .ko counts/sizes. Separate stripped/unstripped and compressed/uncompressed sizes. | Pending |
+| Boot | Five matched cold boots per lane; same board, firmware and Home-ready marker | Pending |
+| Kernel microbenchmarks | Preselect runnable syscall, scheduling/context-switch and memory probes; five blocked runs per lane after a warm-up, fixed CPU affinity, frequency policy and load | Pending |
+| Normal-memory 4K | Three matched runs per lane; identical stream/player/firmware, CPU and dropped or late frames, stalls and new regression signatures | Pending |
+| User-space identity | SHA-256 by installed path and package owner on identical scope; list added, removed and byte-different ELF, with Build IDs for triage. Correlate with non-LLVM inventory delta and rebuilt package records. Treat every unexplained difference as a confounder. | Pending |
 
-Hold Product, build.conf, shelf list and workload constant for the snapshot comparison. List every added, removed or changed non-LLVM package. Attribute the whole snapshot delta separately from model-only effects. Record compiler wrappers and LTO link commands. If one lane uses heuristics, label it explicitly and use a pair with effective release advisors for model-only claims.
-
-| Measurement | Repetitions and scope | Result |
-|---|---|---|
-| Image/installed size | Exact bytes and same-package intersection, report scope differences separately | Pending |
-| ELF sections | Total .text and PT_LOAD file/memory, top 50 libraries | Pending |
-| Boot | Five cold boots per lane with the same ready marker | Pending |
-| Settled idle | Three boots per lane, PSS/USS and memory counters after ten minutes | Pending |
-| Application launch | Five launches per app and lane, fixed list of five apps | Pending |
-| Normal-memory 4K | Three runs, CPU, frame drops, stalls, private/system memory and zone counters | Pending |
-| Constrained 4K | Three runs if the 1 GB approximation is qualified | Pending |
-| Kernel | Conditional on Clang-built, bootable exact kernel. Two builds per variant. vmlinux, Image, modules, build time, peak memory and microbenchmarks | Pending |
-
-Keep each run with input hashes, board and firmware identifiers, run ID, observation interval and paired lane. Report median, IQR, confidence interval and new crash, LMK/OOM, ANR or audio/video underrun events. The deadline run counts are smaller than the full protocol. Interpret wide intervals accordingly.
+Keep each run and both exact artifacts. Preserve rollback before flashing. Report median, IQR, interval and all absolute regression events. Capture compiler/version, model evidence and any kernel source/config/link-mode difference alongside the result. User-space identity concerns file bytes. It does not imply equal runtime behavior after a kernel change.

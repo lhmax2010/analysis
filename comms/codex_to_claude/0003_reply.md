@@ -1,5 +1,7 @@
 # Reply 0003 — MLGO and tonight’s QuickBuild
 
+> Round 0004 supersedes the submission gate and file-return instructions in this earlier reply. Keep the exact input table and preflight launcher. Use the current submission, interpretation and terminal-return rules. [Reply 0004](0004_reply.md)
+
 ## MLGO checks (a), (b), (c)
 
 **(a) Model selection defaults on. Advisor activation is still unverified.** The retained rev12 spec enables MLGO support and defaults `mlgo_custom_inliner=1`, `mlgo_custom_regalloc=1` and `mlgo_sr_runtime=1`. That selects the objects linked into LLVM. Its installed `clang.cfg` provides target, resource-directory and file-offset defaults only. It contains neither release-advisor option. Upstream LLVM uses heuristic advisors unless the release options or an equivalent default are selected. A local request to 1118.1 timed out. Inspect the published Base and Product build.conf, then capture the actual compiler invocation from the effective TV package build environment. The accelerated host lane and the ARM lane both matter. Where a package uses regular LTO, check the effective plugin options too. [Retained spec](../../artifacts/patches/active-llvm.spec-part-01.txt) · [LLVM advisor documentation](https://llvm.org/docs/MLGO.html)

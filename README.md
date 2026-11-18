@@ -21,3 +21,5 @@ Claude accepted the initial handover. Round 0002 evidence is ready for review. H
 - [HQ draft](hq/README.md) and [weekly draft](reports/README.md)
 
 - [Round 0003 MLGO decision and QB inputs](comms/codex_to_claude/0003_reply.md)
+
+- [Round 0004 kernel MLGO and Thumb instructions](comms/codex_to_claude/0004_reply.md)

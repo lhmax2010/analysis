@@ -27,3 +27,5 @@
 - [Round 0002 checks](handover-0002-validation.txt)
 
 - [Round 0003 checks](handover-0003-validation.txt)
+
+- [Kernel compiler and pinned MLGO shelf evidence](kernel-mlgo-source-chain-20261117.txt)

@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Read selected native build artifacts and print a compact text evidence packet."""
+import argparse
+import base64
+import gzip
+import hashlib
+import json
+from pathlib import Path
+import re
+import subprocess
+import zlib
+
+ROOT = Path("/home1/chengkai/vd-tree")
+COMPILE = re.compile(r"(?:^|[/\s\x22\x27])(?:[\w.+-]*-)?(?:clang\+\+|clang(?:-[0-9.]+)?|gcc|g\+\+|as|rustc)(?=[\s\x22\x27]|$)")
+RELEVANT = re.compile(r"--target|CARGO_BUILD_TARGET|RUSTFLAGS|target-feature|(?<!\w)-m(?:arm|thumb)\b|"
+                      r"enable-ml-inliner|regalloc-enable-advisor|(?:^|\s)\.arm\b|target\s*\(\s*[\"\x27]arm")
+SOURCE = re.compile(r"clang|rustc|cargo|--target|RUSTFLAGS|-marm|-mthumb|\.arm\b|target\s*\(\s*[\"\x27]arm|"
+                    r"prebuilt|%install|\binstall\b|\bcp\b|add_(library|executable)|BUILD\.sh|LLVM[=:]|MLGO", re.I)
+AUTH_ASSIGNMENT = re.compile(r"((?:--(?:password|token|secret|api-key)|(?:^|[\s;])(?:[A-Z0-9_]*(?:PASSWORD|TOKEN|SECRET|API_KEY)))"
+                    r"(?:=|\s+))(?:\"[^\"]*\"|'[^']*'|[^\s;]+)", re.I)
+
+def safe(path):
+    real = path.resolve(strict=True)
+    if not real.is_file() or ROOT not in real.parents:
+        raise ValueError(f"expected retained file under vd-tree: {path}")
+    return real
+
+def redact(text):
+    text = AUTH_ASSIGNMENT.sub(r"\1<REDACTED>", text)
+    return re.sub(r"(https?://)[^\s/]+:[^\s/@]+@",r"\1<REDACTED>@",text)
+
+def entries(path):
+    if path.name == "compile_commands.json":
+        for n, item in enumerate(json.loads(path.read_text()),1):
+            argv = item["command"] if "command" in item else json.dumps(item["arguments"])
+            yield n, argv+" [file="+item.get("file","")+"; cwd="+item.get("directory","")+"]"
+    else:
+        open_file = gzip.open if path.suffix == ".gz" else open
+        with open_file(path,"rt",errors="replace") as stream:
+            for n, line in enumerate(stream,1):
+                yield n, line.rstrip("\r\n")
+
+def tail_evidence(path, needles, source, limit):
+    rows = []
+    omitted = 0
+    for n, line in entries(path):
+        if source:
+            if not SOURCE.search(line):
+                continue
+            kind = "SOURCE_RULE"
+        else:
+            identity_context=re.search(r"CARGO_BUILD_TARGET|CONFIG_(MLGO|CC_IS_CLANG)|clang-accel|20261113\.1|37627297",line)
+            if needles and not any(s in line for s in needles) and not identity_context:
+                continue
+            if COMPILE.search(line) and re.search(r"(?:^|[\s\x22\x27])(?:-c|--crate-name|--emit)(?:[=\s\x22\x27]|$)",line):
+                kind = "KBUILD_OR_RECORDED_ARGV" if path.suffix == ".cmd" or path.name == "compile_commands.json" else "BUILD_LOG_ARGV_CANDIDATE"
+            elif RELEVANT.search(line) or identity_context:
+                kind = "CONTEXT_OR_OPTION"
+            else:
+                continue
+        if len(rows) >= limit:
+            omitted += 1
+            continue
+        rows.append({"line":n, "kind":kind, "text":redact(line)})
+    return {"path":str(path),"rows":rows,"omitted_matching_lines":omitted}
+
+def readelf(path, with_producers):
+    text = subprocess.check_output(["readelf","-h","-nW","-AW",str(path)],text=True,errors="replace",timeout=30)
+    metadata = [s.strip() for s in text.splitlines()
+                if re.search(r"Class:|Machine:|Flags:|Build ID:|Tag_ABI_VFP_args|Tag_CPU_arch",s)]
+    if not with_producers:
+        return metadata
+    result = subprocess.Popen(["readelf","--debug-dump=info","--dwarf-depth=1",str(path)],
+                              stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,errors="replace")
+    try:
+        count = 0
+        for line in result.stdout:
+            if ("DW_AT_producer" in line or "DW_AT_comp_dir" in line or "DW_AT_name" in line) and count < 24:
+                metadata.append(redact(line.strip()))
+                count += 1
+            if count == 24:
+                break
+    finally:
+        if result.poll() is None:
+            result.terminate()
+        result.wait()
+        result.stdout.close()
+    return metadata
+
+def packet(report):
+    raw=json.dumps(report,ensure_ascii=True,separators=(",",":")).encode()
+    payload=base64.b64encode(zlib.compress(raw,9)).decode()
+    print("BUILD_EVIDENCE_SHA256:",hashlib.sha256(raw).hexdigest())
+    print("BUILD_EVIDENCE_BASE64_BEGIN")
+    for i in range(0,len(payload),160):
+        print(payload[i:i+160])
+    print("BUILD_EVIDENCE_BASE64_END")
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--package",required=True)
+    p.add_argument("--installed-path",default="")
+    p.add_argument("--qb-id",default="",help="Operator-supplied identity, corroborate against the log")
+    p.add_argument("--log",type=Path,action="append",default=[])
+    p.add_argument("--source",type=Path,action="append",default=[])
+    p.add_argument("--match",action="append",default=[],help="Repeat for final ELF, source basename or crate name")
+    p.add_argument("--debug",type=Path)
+    p.add_argument("--artifact",type=Path)
+    p.add_argument("--asset",type=Path,help="Vendor source asset to compare byte-for-byte with shipped ELF")
+    a=p.parse_args()
+    if len(a.log)+len(a.source)>12:
+        p.error("pass at most 12 narrowly scoped inputs per package")
+    report={"package":a.package,"installed_path":a.installed_path,"expected_qb":a.qb_id,
+            "requested_match":a.match,"logs":[],"source":[],"elf":[]}
+    for paths,key in ((a.log,"logs"),(a.source,"source")):
+        for path in paths:
+            report[key].append(tail_evidence(safe(path),a.match,key=="source",22))
+    for item in ("debug","artifact","asset"):
+        if (candidate:=getattr(a,item)) is None:
+            continue
+        path=safe(candidate)
+        with path.open("rb") as stream:
+            digest=hashlib.file_digest(stream,"sha256").hexdigest()
+        report["elf"].append({"kind":item,"path":str(path),"sha256":digest,"evidence":readelf(path,item=="debug")})
+    hashes={r["kind"]:r["sha256"] for r in report["elf"]}
+    if "artifact" in hashes and "asset" in hashes:
+        report["byte_identical_vendor_pair"]=hashes["artifact"]==hashes["asset"]
+    report["scope"]="Match Build ID/final artifact and exact source revision before assigning cause. Build rules and DWARF alone do not certify effective argv."
+    packet(report)
+
+if __name__=="__main__":
+    main()

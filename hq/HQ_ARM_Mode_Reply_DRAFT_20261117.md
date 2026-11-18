@@ -1,0 +1,7 @@
+# Draft for review — ARM-mode attribution and Thumb-2 validation
+
+We will coordinate with the VD build team and verify compiler selection, Thumb-2, LTO and MLGO independently. Starting from the affected image, we will identify the shipped ELF and its build, then link each ARM-mode finding to the relevant compiler invocation and source rule. The report will show the package and file, final compiler arguments, the source location for explicit overrides or assembly directives, and the provenance of vendor prebuilt binaries. We will mark cases where the actual command has yet to be confirmed.
+
+The platform flags already select Thumb for ARMv7 builds. The per-file review will check whether a later option overrides that default, whether a source file or function selects ARM mode, or whether the code enters through assembly, Rust or a prebuilt artifact. We will preserve the original 106 as a historical reference while we reconcile its scope with the new image scan and exact build records.
+
+For argot and other hot media modules, we will run a one-change experiment on KantSU2E before acceptance. We will identify the correct executable and its actual Rust target, keep the compiler, optimization level, LTO and dependencies fixed, and compare the existing instruction mode with Thumb-2 where supported. We will record per-process PSS and USS, startup latency, media CPU load and frame drops over repeated runs. Any adopted change needs a measured improvement and must pass the agreed performance and stability criteria.

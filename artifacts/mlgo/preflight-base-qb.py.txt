@@ -112,9 +112,12 @@ def inspect_conf(url, stage):
     data = fetch(url+"builddata/"+pin, 3*1024**2)
     (stage/"published-build.conf").write_bytes(data)
     print("BUILDCONF", meta.findtext("id"), meta.findtext("base_repo"), meta.findtext("buildconf_version"), sha(data))
-    for n, line in enumerate(data.decode(errors="replace").splitlines(),1):
-        if re.search(r"enable-ml-inliner|regalloc-enable-advisor|mlgo", line, re.I):
-            print(f"MLGO_CONFIG_L{n}: {line}")
+    hits = [(n,line) for n,line in enumerate(data.decode(errors="replace").splitlines(),1)
+            if re.search(r"enable-ml-inliner|regalloc-enable-advisor|mlgo",line,re.I)]
+    for n,line in hits[:18]:
+        print(f"MLGO_CONFIG_L{n}: {line[:380]}")
+    if len(hits) > 18:
+        print("MLGO_CONFIG_ADDITIONAL_LINES",len(hits)-18)
     return meta
 
 def stage_qb(out, old, new):
@@ -171,6 +174,11 @@ def stage_qb(out, old, new):
                                            fromfile="control",tofile=filename))
         (out/(filename+".diff")).write_text(diff)
         print("STAGED",out/filename,sha(candidate))
+        print("STAGED_DELTA",filename, "IDENTICAL" if candidate == original else "CHANGED",
+              "DIFF_LINES",len(diff.splitlines()))
+        if candidate != original:
+            for line in diff.splitlines()[:22]:
+                print("DIFF_PREVIEW",line[:420])
 
 def main():
     out = Path(tempfile.mkdtemp(prefix="pm0003-mlgo-", dir=ROOT/"workspace/temp"))
@@ -206,8 +214,11 @@ def main():
                 llvm.append((arch,*key,*after))
     diff_fields=(*fields[:6],"delta","official_sha256","custom_sha256","official_srpm","custom_srpm")
     table(out/"full-delta.csv",diff_fields,rows)
-    table(out/"non-llvm-delta.csv",diff_fields,
-          [row for row in rows if not any(x.startswith("llvm-22.1.8-") for x in row[-2:])])
+    nonllvm = [row for row in rows if not any(x.startswith("llvm-22.1.8-") for x in row[-2:])]
+    table(out/"non-llvm-delta.csv",diff_fields,nonllvm)
+    print("FULL_DELTA_ROWS",len(rows),"NON_LLVM_DELTA_ROWS",len(nonllvm))
+    for row in nonllvm[:16]:
+        print("NON_LLVM_DELTA_PREVIEW",*row[:7])
     table(out/"custom-llvm-rpms.csv",fields,llvm)
     stage_qb(out,old,new)
     source_result = subprocess.run(OSC+["api",f"/source/{PROJECT}/llvm?rev=12"], capture_output=True,timeout=45)
@@ -217,7 +228,9 @@ def main():
         print("OBS_REV12", directory.attrib.get("rev"), directory.attrib.get("srcmd5"))
     for arch in ARCS:
         matching = [row for row in llvm if row[0]==arch and row[1]=="clang" and row[5]==arch]
-        print("CANDIDATE_CLANG",arch,matching,flush=True)
+        print("CANDIDATE_CLANG_COUNT",arch,len(matching),flush=True)
+        for row in matching[:4]:
+            print("CANDIDATE_CLANG",*row)
         try:
             if source_result.returncode or directory.attrib.get("rev") != "12" or directory.attrib.get("srcmd5") != PIN:
                 raise ValueError("unable to verify OBS revision 12 with expected srcmd5")
@@ -240,7 +253,8 @@ def main():
             (out/f"{arch}-clang.rpm").write_bytes(binary)
         except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError) as exc:
             print("LLVM_PROVENANCE_REVIEW",arch,exc)
-    print("REVIEW_BEFORE_SUBMIT: verify effective advisors for both snapshots, actual QB control inputs, and non-llvm-delta.csv.")
+    print("REVIEW_BEFORE_SUBMIT: verify both PINNED_LLVM_BINARY lines and the expected Base-list diff.")
+    print("INTERPRETATION: confirm kernel advisor flags and resolved Base clang separately; capture all non-LLVM deltas.")
     print("REPORT_DIRECTORY",out)
 
 if __name__=="__main__":

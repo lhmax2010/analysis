@@ -77,10 +77,14 @@ if artifact.is_file():
 save('qb-build-results.csv',('source_package','arch','status','step_id','log'),job)
 artifacts=xml('artifacts.xml')
 if artifacts is not None:
-    for node in artifacts:
+    for node in list(artifacts)[:55]:
         row=fields(node)
         if row.get('name'):
             print('PUBLISHED_FILE',row['name'],row.get('directory',''))
+    if len(artifacts)>55:
+        print('ARTIFACT_INDEX_ADDITIONAL',len(artifacts)-55)
+for row in job[:24]:
+    print('PACKAGE_RESULT_PREVIEW', *(field[:230] for field in row))
 if not job:
     print('PACKAGE_ROWS_NOT_EXPOSED_BY_STEPS: use the package result export from the build overview or package job.')
 print('PACKAGE_ROWS_EXPORTED',len(job))
