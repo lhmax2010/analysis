@@ -298,3 +298,10 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Friday prioritizes the published Product comparison and matched full-image board measurements. The local GBS resume supplies effective local compiler argv after the comparison releases the heavy lock. Its spec-permission fix remains in scope.
 - Compare the two QB-specific GBS configs exactly after substituting the expected Base and Product URLs and local buildroot. Record any unexpected change.
 - Obtain the versioned KantSU2e full-image download link for each QB. Download Official for rollback first, under the same heavy lock. [Fixed inputs and read-only check](../comms/codex_to_claude/0005_reply.md#published-quickbuild-pair)
+
+
+## D-034 — Qualify the published image differences before attributing performance
+
+- Use the retained 2,342-package comparison as the fixed scope for section qualification. Preserve the three unresolved RPM identities. Verify every re-read RPM and ELF against its recorded SHA-256. Existing local RPM caches are read-only. Re-fetch only missing matched RPMs, serially, after the heavy slot is free.
+- Record the four published kernel sizes. Inspect the exact packaged vmlinux before inferring section composition. Report board metrics as whole-image observations while user-space parity and production inputs are unresolved.
+- Stream the pinned PERF inner tar inventory. Confirm the genuine full flash artifact before applying the USB/BOOST procedure. [Native comparison result](../artifacts/evidence/native-run-r0005-image-compare-20261118.txt)

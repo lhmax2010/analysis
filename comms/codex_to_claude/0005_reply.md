@@ -321,14 +321,14 @@ CAUSE_ARGS=(--discover-logs /home1/chengkai/vd-tree/workspace/temp)
 ```
 
 ```bash
-(set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX"); export TMPDIR="$d"; f="$d/thumb-causes.py.txt"; curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d2542fa0292e06b3368cfaa61fb678f2496071b6/artifacts/scripts/r0005/thumb-causes.py.txt' -o "$f"; printf '%s  %s\n' 3bc1bbb70987ea950518864ba599be55cbd374fee7e4b1a1818dfa22076252e8 "$f" | sha256sum -c -; python3 -B -u "$f" "${CAUSE_ARGS[@]}")
+(set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX"); export TMPDIR="$d"; f="$d/thumb-causes.py.txt"; curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/4fd539751c65cea70d4540f33a132731015383f8/artifacts/scripts/r0005/thumb-causes.py.txt' -o "$f"; printf '%s  %s\n' 3bc1bbb70987ea950518864ba599be55cbd374fee7e4b1a1818dfa22076252e8 "$f" | sha256sum -c -; python3 -B -u "$f" "${CAUSE_ARGS[@]}")
 ```
 
 Python 3.10.12 tests exercised the 24-entry retained-source resume, a read-only staged spec, RPM spec processing, command mode extraction and the cause-(i) proof gate. These were staging and parsing tests. Effective native compiler defaults, actual per-file causes beyond known evidence and matched package size results await the reviewed native jobs. [Scripts commit](https://github.com/lhmax2010/analysis/commit/d2542fa0292e06b3368cfaa61fb678f2496071b6)
 
 ## Published QuickBuild pair
 
-QB **37654439** finished with Customized Base `tizen-10.0-base-dev-llvm-standard_20261118.1` and pinned LLVM rev12. Official **37627297** uses `20261113.1`. The user is running the `d3cea65` image comparer against [Customized Product 20261118.2](http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/), with [Official Product 20261117.2](http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/) as its existing control. The compare report is Friday's primary evidence. Use its readback after completion. The GBS kernel resume remains queued for supporting argv, after the comparison releases the heavy lock. [Friday report](../../reports/MLGO_Official_vs_Custom_20261120.md)
+QB **37654439** finished with Customized Base `tizen-10.0-base-dev-llvm-standard_20261118.1` and pinned LLVM rev12. Official **37627297** uses `20261113.1`. The user completed the `d3cea65` image comparer against [Customized Product 20261118.2](http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/), with [Official Product 20261117.2](http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/) as its existing control. The compare report is Friday's primary evidence. Use its readback after completion. The GBS kernel resume remains queued for supporting argv, after the comparison releases the heavy lock. [Friday report](../../reports/MLGO_Official_vs_Custom_20261120.md)
 
 ### Compare the two native GBS configs
 
@@ -383,3 +383,55 @@ Run on the native server. This takes seconds and uses no network, scratch files 
 Both HTTP Product directories and parent `artifacts/` directories timed out from this workspace. Both HTTPS parent checks also timed out. No exact `updateSU2E` download URL, size or hash could be verified here. In each completed QB's **Artifacts** view, select the KantSU2e release full image or follow the linked image-generation/publish job. Capture the versioned link to the exact file `updateSU2E`, its byte length and published SHA-256 if shown. If only an archive is listed, capture the immutable bundle link and the member path. The pinned downloader can search the exact fixed Product or parent directory when it is browsable, and it takes the direct file URL when available. [Directory links and pinned downloader](../../reports/KantSU2E_MLGO_Board_Day_0005.md#download-a-flash-image)
 
 After the comparison and its readback, use the heavy slot for the two downloads serially, Official first for rollback. Then the retained foreground kernel GBS resume can use the slot for argv. The config diff and QB UI lookup can happen while the compare runs. No new native build or download was started from here.
+
+## Thumb scan layout fix
+
+Review [4fd539751c65cea70d4540f33a132731015383f8](https://github.com/lhmax2010/analysis/commit/4fd539751c65cea70d4540f33a132731015383f8). The launcher in [Per-file cause collection](#full-cause-ledger-and-compact-evidence-return) uses this commit. The two CSVs live under `pm0004-image-mode.b7rJie/results/` and `mode-summary.txt` lives at the run root. The Python 3.10.12 check used that directory layout and validated 2,342 completed packages and 609 ARM-predominant files. GBS pair mode reads the explicit `--cause-ledger` and inspects its own rebuilt RPMs, so it already supports the layout.
+
+## Published image comparison and attribution
+
+The native comparison covered 2,342 Official package identities. It found 2,289 differing RPMs, 50 identical and 3 unresolved. The 2,279 confounder flags combine ELF changes, other file changes, incomplete evidence and RPMs outside the Base delta. They do not provide a count of changed machine code. The figure of 177 is the separate installed-name/arch intersection with the non-LLVM Base delta. The Friday comparison should state the published image deltas, qualify workload differences and label board measurements as whole-image A/B. [Byte-verified native result](../../artifacts/evidence/native-run-r0005-image-compare-20261118.txt) [Friday report](../../reports/MLGO_Official_vs_Custom_20261120.md#published-kernel-payload-sizes)
+
+The 3.7–3.8 MB packaged `vmlinux` has no section output in the retained transcript. The exact RPM member determines its container format, ELF headers, section sizes, and symbol and debug section presence. The smaller uImage/zImage and larger packaged vmlinux can coexist because their included bytes and compression differ. The reason for the observed growth is still open.
+
+The earlier comparer deleted each downloaded RPM after extracting file hashes. The follow-up verifies the recorded RPM SHA-256 and each changed ELF's SHA-256 before inspecting the sections. It handles direct ELFs, hard-linked entries and supported nested ZIP/TPK/WGT members. It records per-section hashes and attributes, .text differences, other executable sections and conservative metadata-only candidates. Full per-ELF results stay in `sections.jsonl` under `workspace/temp/pm0005-elf-sections.*`. Keep the three unresolved packages in the coverage notes. Any remaining parser or payload errors appear separately. Only the kernel RPMs are read in `--kernel-only` mode.
+
+**Native launcher, after Claude review.** First use `--kernel-only --fetch` if the vmlinux explanation is urgent. Expect roughly 1–10 minutes with network access and a free heavy slot. Use `--fetch` alone for the full run after the GBS job releases both heavy locks, plausibly several hours and multiple GB of network traffic. Current workspace data cannot establish a closer transfer estimate. Working scratch is one RPM and selected members at a time. Reserve 5 GiB free for downloads and use of temporary decoder space. Existing exact RPMs can be reused with repeatable `--cache-dir /path/under/vd-tree`. Cache-only runs omit `--fetch`, use no network or heavy lock, and report missing packages. The default command prints a bounded summary and uses one worker.
+
+```bash
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/mlgo-elf-sections.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/3e96bc410252a5b3922c0f51f5ed0218852f4feb/artifacts/scripts/r0005/mlgo-elf-sections.py.txt' -o "$f"
+  printf '%s  %s\n' '54a35e35c1844ca4d5cff60e6236d76698fe27f4f582347ed544249c146c34fd' "$f" | sha256sum -c -
+  python3 -B "$f" --kernel-only --fetch
+)
+```
+
+For the full run, remove `--kernel-only` in the last line. Return `INPUT`, `VMLINUX_FILE`, `VMLINUX_SECTION`, `TOP_TEXT_CHANGED_PACKAGE`, `USERSPACE_CHANGED_SECTION`, `TEXT_IDENTICAL_SECTION_SAMPLE`, `UNRESOLVED_SAMPLE` and `SUMMARY` lines. Exit status 2 preserves the analysis with incomplete coverage.
+
+If .text changes are broad, bind the exact Official clang binaries to their archived source RPM before comparing with the pinned Customized OBS rev12 source. Compare SRPM member hashes, compiler source/patches, expanded `llvm.spec`, config files and the build environment. The rev12 record documents changes to `llvm.spec`, model/runtime archives and input verification. It does not establish the complete Baseline-to-rev12 source diff. Even when .text differs widely, package source, generated inputs, dependency or linker changes, and build flags are competing explanations. Reproduce representative changed user-space TUs in GBS with fixed source, flags, linked inputs and heuristics/default advisors before assigning ordinary codegen differences to Clang. The existing release flags apply to the kernel source configuration. [Rev12 submit record](../../artifacts/evidence/mlgo-source-submit.txt)
+
+### Inspect the inner PERF tar
+
+The retained evidence identifies the two loop-format archives and their nested tar names. The launcher streams one pinned outer tar.gz through GNU tar and prints at most the first 200 member rows plus total members and the count of paths whose basename matches `updateSU2E` case-insensitively. It creates no extracted image. A case-insensitive hit still requires checking the actual filename and full-image provenance. A miss leaves the full-image producer or publication path open. This checks only the named inner tar. [Native archive discovery](../../artifacts/evidence/native-run-r0005-image-compare-20261118.txt)
+
+**Native launcher, after Claude review and with a free heavy slot.** Expect roughly 5–30 minutes per lane depending on link speed. About 1.78 GB network per invocation, one gzip stream, and negligible disk output. Run Official first, then change the final argument to `customized` for the second stream.
+
+```bash
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/perf-inner-tar.sh.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/3e96bc410252a5b3922c0f51f5ed0218852f4feb/artifacts/scripts/r0005/perf-inner-tar.sh.txt' -o "$f"
+  printf '%s  %s\n' 'b31f14648d75dd5e5f48732151dd7ad1d55a0e49635e8271594e98d532833988' "$f" | sha256sum -c -
+  bash "$f" official
+)
+```
+
+Python 3.10.12 fixture validation exercised a real disposable RPM, hardlinks, a gzip-wrapped ELF, .text mutations, and a nested TPK-format ZIP. The shell fixture exercised a path-prefixed inner member in a gzip tar. Claude review and actual native section/stream outputs are pending. The retained native ledger and published RPMs are available on the intranet. No board mutation was performed.
