@@ -1,0 +1,181 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ THUMB_MODE=defaults
+THUMB_ARGS=()
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  get() {
+    local commit=$1 file=$2 digest=$3
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$commit/artifacts/scripts/$file" -o "$d/${file##*/}"
+    printf '%s  %s\n' "$digest" "$d/${file##*/}" | sha256sum -c -
+  }
+  rev=d2542fa0292e06b3368cfaa61fb678f2496071b6
+  get "$rev" r0005/gbs-mlgo-t7.py.txt c261656a64fa4ae62958c9c68518b5bdb7befa1818d5d232b3aee68df6e9e38a
+  get "$rev" r0005/gbs-thumb.py.txt 45fc17842a210b3a1a3f7ebfb81691eb57055ce60bd803bef57550e0e36984bb
+  args=("${THUMB_MODE:?set defaults, sample or pair}" "${THUMB_ARGS[@]}")
+  if [[ "$THUMB_MODE" == pair ]]; then
+    get ea24f17d8d8f7b245c36d040381880839165d1c5 r0004/image_mode_scan.py.txt 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75
+    args+=(--scan-lib "$d/image_mode_scan.py.txt")
+  fi
+  sudo -v
+  mkdir -p "$PWD/workspace/temp"/pm000{4,5}-native-lock
+  flock -n "$PWD/workspace/temp/pm0004-native-lock/heavy.lock" \
+    flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" \
+    python3 -B -u "$d/gbs-thumb.py.txt" "$d/gbs-mlgo-t7.py.txt" "${args[@]}"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.FVlQAZ/gbs-mlgo-t7.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.FVlQAZ/gbs-thumb.py.txt: OK
+[sudo] password for chengkai:
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l
+CAPACITY disk_free_gib 195 ram_available_gib 69
+GBS_INPUT official /home1/chengkai/vd-tree/config/gbs_vd_llvm_11.16_qb37627297.conf c76e060a0cfcbfed72f292ec9d4e840d46a8ee795dde461297732f4561552ffe STAGED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/gbs.conf 6441e690d6f76570602320cd5b847c657e37beaf2ba154a53a090fb6c19cd0dc
+GBS_INPUT custom /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf 72a982165c14e8a1da251aebf509ac37bb817e08e8c911ed7dd7dabe64f7e322 STAGED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/custom/gbs.conf 31bcffa4fbe14b3e72fb8adef425f683f3c345787191e945ac33bc6580f1726c
+GBS_BUILD_CONF /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 P4_CHANGE 14452507
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf --threads 1 --spec pm-thumb-defaults.spec --fallback-to-native LOG /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/gbs.log
+GBS_EXIT 1
+THUMB_OPTFLAGS -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g
+THUMB_GCC_V Configured with: ../configure --prefix=/usr --infodir=/usr/share/info --mandir=/usr/share/man --libdir=/usr/lib --libexecdir=/usr/lib --enable-languages=c,c++,fortran --enable-checking=release --disable-libssp --disable-bootstrap --disable-libvtv --enable-plugin --disable-libgcj --with-slibdir=/usr/lib --with-system-zlib --with-sysroot=/ --enable-__cxa_atexit --enable-libstdcxx-allocator=new --enable-version-specific-runtime-libs --enable-linker-build-id --without-system-libunwind --enable-threads=posix --disable-multilib --disable-cet --enable-lto --enable-libcc1 --enable-libgfortran --with-arch=armv7-a --with-tune=cortex-a8 --disable-sjlj-exceptions --with-bugurl=http://bugs.tizen.org/ --with-pkgversion='Tizen GCC 14.2.0 20240801 1.77' --target=armv7l-tizen-linux-gnueabi --host=armv7l-tizen-linux-gnueabi --build=armv7l-tizen
+THUMB_GCC_V Target: armv7l-tizen-linux-gnueabi
+THUMB_GCC_V gcc version 14.2.0 (Tizen GCC 14.2.0 20240801 1.77)
+THUMB_WRAPPED_COMPILE_LINES 0
+GBS_END_LOG      /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/index.html
+GBS_END_LOG info: generated RPM packages can be found from local repo:
+GBS_END_LOG      /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/RPMS
+GBS_END_LOG info: generated source RPM packages can be found from local repo:
+GBS_END_LOG      /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/SRPMS
+GBS_END_LOG info: build logs can be found in:
+GBS_END_LOG      /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs
+GBS_END_LOG info: build roots located in:
+GBS_END_LOG      /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.*
+GBS_END_LOG error: <gbs>some packages failed to be built
+BLOCKED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/gbs.log
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/gbs-mlgo-t7.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d2542fa0292e06b3368cfaa61fb678f2496071b6/artifacts/scripts/r0005/gbs-mlgo-t7.py.txt' -o "$f"
+  printf '%s  %s\n' c261656a64fa4ae62958c9c68518b5bdb7befa1818d5d232b3aee68df6e9e38a "$f" | sha256sum -c -
+  sudo -v
+  mkdir -p "$PWD/workspace/temp"/pm000{4,5}-native-lock
+  flock -n "$PWD/workspace/temp/pm0004-native-lock/heavy.lock" \
+    flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" \
+    python3 -B -u "$f" kernel --resume "$PWD/workspace/temp/pm0005-gbs-kernel.mtob625f"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.PG5Cwy/gbs-mlgo-t7.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f
+CAPACITY disk_free_gib 194 ram_available_gib 68
+GBS_INPUT official /home1/chengkai/vd-tree/config/gbs_vd_llvm_11.16_qb37627297.conf c76e060a0cfcbfed72f292ec9d4e840d46a8ee795dde461297732f4561552ffe STAGED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/gbs.conf 6a10363a1a643b54711053a14ccd9304b3350235a397641301fadc23224a03a6
+GBS_INPUT custom /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf 72a982165c14e8a1da251aebf509ac37bb817e08e8c911ed7dd7dabe64f7e322 STAGED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/gbs.conf c36582d39cd0c8e6dc2969f34eb993e29e41537fb837b18a6326061e009c97cf
+GBS_BUILD_CONF /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 P4_CHANGE 14452507
+GBS_SOURCE_REUSED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/vdlinux 14293732 + 14427407 overlays 24 P4_FETCH_SKIPPED
+GBS_SOURCE 14293732 + 14427407 overlays 24 spec_sha256 5663f9c9c074f74e69a57bec9fb3dcc595512985a778814e311e0658e2b12cc5
+GBS_TRACE_ONLY_SPEC_SHA256 4f93165bbf41dd7df6a8310328b3707ecd752738976aecad59738b19fc8cb1b2
+GBS_START official taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf --threads 1 --spec tztv-kernel.spec CWD /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/vdlinux LOG /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/gbs.log
+GBS_EXIT official 0
+KERNEL official [   97s] + printf 'GBS_TOOL %s -> %s\n' /bin/armv7l-tizen-linux-gnueabi-clang /usr/bin/clang-22
+KERNEL official [   97s] + printf 'GBS_TOOL %s -> %s\n' /bin/clang /usr/bin/clang-22
+KERNEL official [   97s] + printf 'GBS_TOOL %s -> %s\n' /emul/usr/bin/clang /emul/usr/bin/clang-22
+KERNEL official [   97s] + rpm -qf /emul/usr/bin/clang-22 --qf 'GBS_TOOL_OWNER %{NAME} %{VERSION}-%{RELEASE}.%{ARCH}\n'
+KERNEL official [   97s] + rpm -qf /usr/bin/clang-22 --qf 'GBS_TOOL_OWNER %{NAME} %{VERSION}-%{RELEASE}.%{ARCH}\n'
+KERNEL official [   97s] + sed 's/^/GBS_TOOL_SHA256 /'
+KERNEL official [   97s] + sed -n '/Machine:/s/^/GBS_TOOL_ELF /p'
+KERNEL official [   97s] GBS_TOOL /bin/armv7l-tizen-linux-gnueabi-clang -> /usr/bin/clang-22
+KERNEL official [   97s] GBS_TOOL /bin/clang -> /usr/bin/clang-22
+KERNEL official [   97s] GBS_TOOL /emul/usr/bin/clang -> /emul/usr/bin/clang-22
+KERNEL official [   97s] GBS_TOOL_ELF   Machine:                           ARM
+KERNEL official [   97s] GBS_TOOL_ELF   Machine:                           Advanced Micro Devices X86-64
+KERNEL official [   97s] GBS_TOOL_OWNER clang 22.1.8-9.1.armv7l
+KERNEL official [   97s] GBS_TOOL_OWNER clang-accel-x86_64-armv7l 0.4-2.4.armv7l
+KERNEL official [   97s] GBS_TOOL_SHA256 41f12a2ef2881dbb9a7440c1bb44e56b5f490de16c386c88918abc11eb8a9a85  /emul/usr/bin/clang-22
+KERNEL official [   97s] GBS_TOOL_SHA256 9234b72f1773aad8d482d508a19938977fe906bc3c3ce03c257c5a5f7ef80f50  /usr/bin/clang-22
+KERNEL official INSTALLED_RPM %{NAME} %{EPOCHNUM} %{VERSION} %{RELEASE} %{ARCH}\n'
+KERNEL official CACHED_RPM_SHA256_UNAVAILABLE %{NAME} %{VERSION} %{RELEASE} %{ARCH}\n'
+KERNEL official INSTALLED_RPM clang 0 22.1.8 9.1 armv7l
+KERNEL official CACHED_RPM_SHA256 clang-22.1.8-9.1.armv7l.rpm 5fafd0909825bcce5b4183806ec8683900bcbe4f6cece9be358fe471ae8376f8
+KERNEL official INSTALLED_RPM clang-accel-x86_64-armv7l 0 0.4 2.4 armv7l
+KERNEL official CACHED_RPM_SHA256 clang-accel-x86_64-armv7l-0.4-2.4.armv7l.rpm 578adff57d04e594e8063abf6c12f030767de4550e39b6acdee16163cfca8f75
+KERNEL official INSTALLED_RPM llvm 0 22.1.8 9.1 armv7l
+KERNEL official CACHED_RPM_SHA256 llvm-22.1.8-9.1.armv7l.rpm 0f38dcaa4b4acabf37e669ff3e26e6e637ae3f61179add1b53bf0a529ebb50d4
+KERNEL official LINES_BOTH_RELEASE_ADVISORS 7100
+KERNEL official ARGV [  104s]   clang -Wp,-MMD,scripts/mod/.empty.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -I./kernel/t2ddebugd -I./kernel/t2ddebugd/include -I./kernel/t2ddebugd/include/t2ddebugd -I./kernel/kdebugd -I./kernel/kdebugd/include -I./kernel/kdebugd/include/kdebugd -I./kernel/kdebugd/aop -I./kernel/kdebugd/elf -I./kernel/kdebugd/elf/dem_src -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -fno-omit-frame-po
+KERNEL official ARGV [  105s]   clang -Wp,-MMD,init/.main.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -I./kernel/t2ddebugd -I./kernel/t2ddebugd/include -I./kernel/t2ddebugd/include/t2ddebugd -I./kernel/kdebugd -I./kernel/kdebugd/include -I./kernel/kdebugd/include/kdebugd -I./kernel/kdebugd/aop -I./kernel/kdebugd/elf -I./kernel/kdebugd/elf/dem_src -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -fno-omit-frame-pointer -m
+KERNEL official ARGV [  105s]   clang -Wp,-MMD,arch/arm/mach-novatek/.board-nvt-dt.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -I./kernel/t2ddebugd -I./kernel/t2ddebugd/include -I./kernel/t2ddebugd/include/t2ddebugd -I./kernel/kdebugd -I./kernel/kdebugd/include -I./kernel/kdebugd/include/kdebugd -I./kernel/kdebugd/aop -I./kernel/kdebugd/elf -I./kernel/kdebugd/elf/dem_src -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -
+KERNEL official IMAGE_BYTES /perf/uImage 11348968
+KERNEL official IMAGE_BYTES /perf/zImage 5326464
+KERNEL official MODULES_COUNT_BYTES 115 6507334
+KERNEL official VMLINUX /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux SECTIONS 46
+CAPACITY disk_free_gib 184 ram_available_gib 68
+GBS_START custom taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf --threads 1 --spec tztv-kernel.spec CWD /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/vdlinux LOG /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/gbs.log
+GBS_EXIT custom 0
+KERNEL custom [  175s] + printf 'GBS_TOOL %s -> %s\n' /bin/armv7l-tizen-linux-gnueabi-clang /usr/bin/clang-22
+KERNEL custom [  175s] + printf 'GBS_TOOL %s -> %s\n' /bin/clang /usr/bin/clang-22
+KERNEL custom [  175s] + printf 'GBS_TOOL %s -> %s\n' /emul/usr/bin/clang /emul/usr/bin/clang-22
+KERNEL custom [  175s] + rpm -qf /emul/usr/bin/clang-22 --qf 'GBS_TOOL_OWNER %{NAME} %{VERSION}-%{RELEASE}.%{ARCH}\n'
+KERNEL custom [  175s] + rpm -qf /usr/bin/clang-22 --qf 'GBS_TOOL_OWNER %{NAME} %{VERSION}-%{RELEASE}.%{ARCH}\n'
+KERNEL custom [  175s] + sed 's/^/GBS_TOOL_SHA256 /'
+KERNEL custom [  175s] + sed -n '/Machine:/s/^/GBS_TOOL_ELF /p'
+KERNEL custom [  175s] GBS_TOOL /bin/armv7l-tizen-linux-gnueabi-clang -> /usr/bin/clang-22
+KERNEL custom [  175s] GBS_TOOL /bin/clang -> /usr/bin/clang-22
+KERNEL custom [  175s] GBS_TOOL /emul/usr/bin/clang -> /emul/usr/bin/clang-22
+KERNEL custom [  175s] GBS_TOOL_ELF   Machine:                           ARM
+KERNEL custom [  175s] GBS_TOOL_ELF   Machine:                           Advanced Micro Devices X86-64
+KERNEL custom [  175s] GBS_TOOL_OWNER clang 22.1.8-11.1.armv7l
+KERNEL custom [  175s] GBS_TOOL_OWNER clang-accel-x86_64-armv7l 0.4-2.5.armv7l
+KERNEL custom [  175s] GBS_TOOL_SHA256 8a463a75fdba9c1d871e731216ae6a1ff29fd30e056c50fa68157fbecec7d880  /emul/usr/bin/clang-22
+KERNEL custom [  175s] GBS_TOOL_SHA256 a43440257f715c0e98b40d2903bafa97b50e39a45a3c33fed7ec1cd27d6bd561  /usr/bin/clang-22
+KERNEL custom INSTALLED_RPM %{NAME} %{EPOCHNUM} %{VERSION} %{RELEASE} %{ARCH}\n'
+KERNEL custom CACHED_RPM_SHA256_UNAVAILABLE %{NAME} %{VERSION} %{RELEASE} %{ARCH}\n'
+KERNEL custom INSTALLED_RPM clang 0 22.1.8 11.1 armv7l
+KERNEL custom CACHED_RPM_SHA256 clang-22.1.8-11.1.armv7l.rpm 6e692d5fb4f372c9e8d8f969b5171ce73275a7f613ae1f9694797758cf66b1a9
+KERNEL custom INSTALLED_RPM clang-accel-x86_64-armv7l 0 0.4 2.5 armv7l
+KERNEL custom CACHED_RPM_SHA256 clang-accel-x86_64-armv7l-0.4-2.5.armv7l.rpm 07f8b37696495c8770f5af3aa13719ce98107c3a858614c432519f64151115b5
+KERNEL custom INSTALLED_RPM llvm 0 22.1.8 11.1 armv7l
+KERNEL custom CACHED_RPM_SHA256 llvm-22.1.8-11.1.armv7l.rpm 89bfbd762da38c89fbfc6211323cb282c715d5abd9bd0787b6d946423edb4c2c
+KERNEL custom LINES_BOTH_RELEASE_ADVISORS 7100
+KERNEL custom ARGV [  182s]   clang -Wp,-MMD,scripts/mod/.empty.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -I./kernel/t2ddebugd -I./kernel/t2ddebugd/include -I./kernel/t2ddebugd/include/t2ddebugd -I./kernel/kdebugd -I./kernel/kdebugd/include -I./kernel/kdebugd/include/kdebugd -I./kernel/kdebugd/aop -I./kernel/kdebugd/elf -I./kernel/kdebugd/elf/dem_src -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -fno-omit-frame-po
+KERNEL custom ARGV [  183s]   clang -Wp,-MMD,init/.main.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -I./kernel/t2ddebugd -I./kernel/t2ddebugd/include -I./kernel/t2ddebugd/include/t2ddebugd -I./kernel/kdebugd -I./kernel/kdebugd/include -I./kernel/kdebugd/include/kdebugd -I./kernel/kdebugd/aop -I./kernel/kdebugd/elf -I./kernel/kdebugd/elf/dem_src -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -fno-omit-frame-pointer -m
+KERNEL custom ARGV [  183s]   clang -Wp,-MMD,arch/arm/mach-novatek/.sparse.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -I./kernel/t2ddebugd -I./kernel/t2ddebugd/include -I./kernel/t2ddebugd/include/t2ddebugd -I./kernel/kdebugd -I./kernel/kdebugd/include -I./kernel/kdebugd/include/kdebugd -I./kernel/kdebugd/aop -I./kernel/kdebugd/elf -I./kernel/kdebugd/elf/dem_src -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -fno-om
+KERNEL custom IMAGE_BYTES /perf/uImage 11085240
+KERNEL custom IMAGE_BYTES /perf/zImage 5222304
+KERNEL custom MODULES_COUNT_BYTES 115 6487666
+KERNEL custom VMLINUX /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux SECTIONS 46
+DELTA_TOTAL_BYTES images 16675432 16307544 -367888
+DELTA_BYTES images /perf/uImage 11348968 11085240
+DELTA_BYTES images /perf/zImage 5326464 5222304
+DELTA_TOTAL_BYTES modules 6507334 6487666 -19668
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/net/wireless/cfg80211.ko 908614 897598
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/drivers/usb/host/usb_enable.ko 33922 30510
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/fs/ext4/ext4.ko 920578 917938
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/sound/usb/snd-usb-audio.ko 413186 415478
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/lib/crypto/libdes.ko 21074 22994
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/fs/smb/client/cifs.ko 1003426 1001570
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/drivers/hid/hid-apple.ko 29134 27330
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/sound/usb/snd-usbmidi-lib.ko 34874 33242
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/drivers/usb/core/usbcore.ko 297602 296242
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/fs/jbd2/jbd2.ko 154782 153750
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/fs/netfs/netfs.ko 161194 160306
+DELTA_BYTES modules /lib/modules/perf/6.12.60/kernel/drivers/net/phy/phylink.ko 45802 46506
+DELTA_TOTAL_BYTES sections 152432813 149949301 -2483512
+DELTA_BYTES sections .debug_info 101632708 100608064
+DELTA_BYTES sections .debug_loc 12204644 11378697
+DELTA_BYTES sections .debug_line 10453198 10126888
+DELTA_BYTES sections .debug_ranges 1565048 1299352
+DELTA_BYTES sections .text 8564600 8315832
+DELTA_BYTES sections .debug_frame 1373692 1487400
+DELTA_BYTES sections .strtab 2456712 2523959
+DELTA_BYTES sections .symtab 1763968 1801488
+DELTA_BYTES sections .init.smpalt 30448 24832
+DELTA_BYTES sections .init.text 225372 220192
+DELTA_BYTES sections .debug_abbrev 2370257 2372351
+DELTA_BYTES sections __bug_table 16644 14964
+DELTA_BYTES sections .rodata 1334714 1333098
+DELTA_BYTES sections .bss 4120840 4122440
+DELTA_BYTES sections .exit.text 10392 9860
+DELTA_BYTES sections .debug_str 3156307 3156543
+DELTA_BYTES sections .data 666016 666112
+DELTA_BYTES sections __ex_table 1752 1728
+DONE GBS_CAPTURE_REVIEW
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$

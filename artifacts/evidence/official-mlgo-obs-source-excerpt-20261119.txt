@@ -1,0 +1,63 @@
+SOURCE tizen-llvm-handover/customized-mlgo-20261117/local-capture/retained-vd-source/llvm.spec
+OBS Tizen:10.0:Base:Dev:LLVM/llvm revision 10 0b12a1b8c5f4bae23b6b1d4d8d2b02ca
+BASE tizen-10.0-base-dev-llvm-standard_20261113.1
+SPEC_SHA256 c3a1f3c4363683f6142678d60d6518c50c69dfc1ecd2a7fc0b4cbf3d708b9378
+BASELINE_ARCHIVE mlgo_arm_model.tar.gz dd468cce897c7f578b38668e9d869c6785f3fdbcf97879fd7775b430bd0a3a9a
+BASELINE_ARCHIVE mlgo_aarch_model.tar.gz 76f896dfdce3fa19d0ed467554ed3a643f062f52b4a4db81f576d04c469014a1
+BASELINE_ARCHIVE mlgo_x86_model.tar.gz 6c221a08aa63f80c3d82713ba968125797f16351c258a174fc0eec6fdffdbf43
+BINARY_REFERENCE tizen-llvm-handover/product-101-20261116.2/base-key-packages.json clang armv7l 22.1.8-9.1 5fafd0909825bcce5b4183806ec8683900bcbe4f6cece9be358fe471ae8376f8 llvm-22.1.8-9.1.src.rpm
+3: # MLGO AOT support for LLVM MLGO (Ahead-of-Time compilation)
+4: # TODO: switch back to a project_config-controlled macro after MLGO is enabled
+5: # for all required arches.
+6: # %%bcond_with mlgo
+7: %ifarch armv7l aarch64 x86_64
+8: %bcond_without mlgo
+9: %endif
+46: # Bundled MLGO AOT assets for the inliner and regalloc models.
+47: # These override build-time AOT compilation, avoiding the need for TensorFlow
+48: # Python in GBS.
+49: Source1002: mlgo_arm_model.tar.gz
+50: Source1003: mlgo_aarch_model.tar.gz
+51: Source1004: mlgo_x86_model.tar.gz
+178: %if %{with mlgo}
+179: mkdir -p mlgo_verify_assets
+180: %ifarch armv7l
+181: tar -C mlgo_verify_assets -xzf %{SOURCE1002}
+182: %endif
+183: %ifarch aarch64
+184: tar -C mlgo_verify_assets -xzf %{SOURCE1003}
+185: %endif
+186: %ifarch x86_64
+187: tar -C mlgo_verify_assets -xzf %{SOURCE1004}
+188: %endif
+189: %endif
+299: %if %{with mlgo}
+300: %ifarch armv7l aarch64 x86_64
+301:     -DTENSORFLOW_AOT_PATH="${MLGO_AOT_DIR}/mlgo_sysroot" \
+302:     -DLLVM_MLGO_EXPORT_TF_XLA_RUNTIME=OFF \
+303:     -DLLVM_MLGO_EMBED_TF_XLA_RUNTIME_OBJECTS="${MLGO_RUNTIME_OBJECTS}" \
+304:     -DLLVM_OVERRIDE_MODEL_HEADER_INLINERSIZEMODEL="${MLGO_AOT_DIR}/InlinerSizeModel.h" \
+305:     -DLLVM_OVERRIDE_MODEL_OBJECT_INLINERSIZEMODEL="${MLGO_AOT_DIR}/InlinerSizeModel.o" \
+306:     -DLLVM_OVERRIDE_MODEL_HEADER_REGALLOCEVICTMODEL="${MLGO_AOT_DIR}/RegAllocEvictModel.h" \
+307:     -DLLVM_OVERRIDE_MODEL_OBJECT_REGALLOCEVICTMODEL="${MLGO_AOT_DIR}/RegAllocEvictModel.o" \
+308: %else
+309:     -DLLVM_INLINER_MODEL_PATH=none \
+310:     -DLLVM_RAEVICT_MODEL_PATH=none \
+311: %endif
+312: %else
+313:     -DLLVM_INLINER_MODEL_PATH=none \
+314:     -DLLVM_RAEVICT_MODEL_PATH=none \
+315: %endif
+316:     ../llvm
+351:   done
+352:   for mlgo_runtime_object in ${MLGO_REQUIRED_RUNTIME_OBJECTS}; do
+353:     mlgo_obj="${MLGO_AOT_DIR}/xla_runtime_objects/${mlgo_runtime_object}"
+354:     readelf -h "${mlgo_obj}" | grep -q "Machine:.*${MLGO_EXPECT_MACHINE}" || \
+355:       { echo "FATAL: ${mlgo_obj} arch mismatch (expected ${MLGO_EXPECT_MACHINE})"; exit 1; }
+356:   done
+357:   # Assertion 2: did not fall into autogenerate mock. Use && short-circuit: file missing => FATAL, don't let '! grep' pass
+358:   test -f CMakeCache.txt && \
+359:     ! grep -qE 'LLVM_INLINER_MODEL_PATH(:[^=]+)?=autogenerate' CMakeCache.txt || \
+360:     { echo "FATAL: Fell into autogenerate mock or CMakeCache missing (trap 2)"; exit 1; }
+361:   test -f CMakeCache.txt && \
+362:     ! grep -qE 'LLVM_RAEVICT_MODEL_PATH(:[^=]+)?=autogenerate' CMakeCache.txt || \

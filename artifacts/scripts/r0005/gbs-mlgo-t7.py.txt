@@ -269,7 +269,9 @@ def summarize_kernel(work, lane, root, log):
             for line in stream:
                 if "GBS_RPM " in line:
                     fields = tuple(line.split("GBS_RPM ", 1)[-1].split())
-                    if len(fields) == 5:
+                    if (len(fields) == 5 and fields[0] in {"clang", "llvm", "clang-accel-x86_64-armv7l"}
+                            and fields[1].isdecimal() and all(re.fullmatch(r"[\w.+~^-]+", item)
+                                                              for item in fields[2:])):
                         nevras.add(fields)
                 if any(tag in line for tag in ("GBS_TOOL ", "GBS_TOOL_SHA256 ", "GBS_TOOL_OWNER ", "GBS_TOOL_ELF ")):
                     observed.add(line.strip())

@@ -17,49 +17,123 @@ DEFAULT_BODY = r'''
 set -eu
 export LC_ALL=C
 printf 'THUMB_OPTFLAGS %%s\n' '%{optflags}'
-gcc -v >gcc-v.log 2>&1
-awk '/Target:|Configured with:|gcc version/ {print "THUMB_GCC_V", $0}' gcc-v.log
-gcc -Q --help=target -c -x c /dev/null -o /dev/null >gcc-target.log 2>&1
-awk '/-marm|-mthumb|-mfloat-abi|-march=|-mcpu=/ {print "THUMB_GCC_Q", $0}' gcc-target.log
+
+if gcc -v >gcc-v.log 2>&1; then
+    awk '/Target:|Configured with:|gcc version/ {print "THUMB_GCC_V", $0}' gcc-v.log
+else
+    printf 'THUMB_GCC_V_ERROR %%s\n' "$?"
+    head -4 gcc-v.log
+fi
+if gcc -Q --help=target -c -x c /dev/null -o /dev/null >gcc-target.log 2>&1; then
+    awk '/-marm|-mthumb|-mfloat-abi|-march=|-mcpu=/ {print "THUMB_GCC_Q", $0}' gcc-target.log
+else
+    printf 'THUMB_GCC_Q_ERROR %%s\n' "$?"
+    head -4 gcc-target.log
+fi
+
 for cc in gcc clang; do
-    actual=$(readlink -f "$(command -v "$cc")")
-    printf 'THUMB_COMPILER %%s %%s\n' "$cc" "$actual"
-    sha256sum "$actual" | sed 's/^/THUMB_COMPILER_SHA256 /'
+    if command -v "$cc" >/dev/null; then
+        actual=$(readlink -f "$(command -v "$cc")")
+        printf 'THUMB_COMPILER %%s %%s\n' "$cc" "$actual"
+        sha256sum "$actual" | sed 's/^/THUMB_COMPILER_SHA256 /'
+    else
+        printf 'THUMB_COMPILER_MISSING %%s\n' "$cc"
+    fi
 done
 clang --version | awk 'NR<=4 {print "THUMB_CLANG", $0}'
-probe() {
-    name=$1
+
+driver() {
+    label=$1
     shift
-    if ! "$@" -dM -E -x c /dev/null >"$name.macros" 2>"$name.error"; then
-        printf 'THUMB_PROBE %%s ERROR\n' "$name"
-        head -4 "$name.error"
-        return
-    fi
-    if grep -q '^#define __thumb__ ' "$name.macros"; then
-        mode=THUMB
-    elif grep -q '^#define __arm__ ' "$name.macros"; then
-        mode=ARM
-    else
-        mode=OTHER_TARGET
-    fi
-    printf 'THUMB_PROBE %%s %%s\n' "$name" "$mode"
-    awk '/^#define (__thumb2?__|__arm__|__ARM_PCS_VFP|__SOFTFP__) / {print "THUMB_MACRO", $0}' "$name.macros"
-    "$@" -### -c -x c /dev/null >"$name.driver" 2>&1 || :
-    awk '/Configuration file:|Target:|"-cc1"/ {print "THUMB_DRIVER", $0}' "$name.driver"
+    "$@" -### >"$label.driver" 2>&1 || :
+    awk -v label="$label" '
+      /^Configuration file:|^Target:/ { print "THUMB_DRIVER_TARGET", label, $0 }
+      /"-cc1"/ {
+        printf "THUMB_DRIVER_FLAGS %%s", label
+        for (i=1; i<=NF; i++) {
+          if ($i == "\"-triple\"" || $i == "\"-mimplicit-it\"") { printf " %%s %%s", $i, $(i+1); i++ }
+          else if ($i ~ /thumb-mode|implicit-it|^-m(arm|thumb)$/) printf " %%s", $i
+        }
+        print ""
+      }' "$label.driver"
 }
+
+probe() {
+    label=$1
+    language=$2
+    shift 2
+    if "$@" -dM -E -x "$language" /dev/null >"$label.macros" 2>"$label.error"; then
+        if grep -q '^#define __thumb2__ ' "$label.macros"; then
+            mode=THUMB2
+        elif grep -q '^#define __thumb__ ' "$label.macros"; then
+            mode=THUMB
+        elif grep -q '^#define __arm__ ' "$label.macros"; then
+            mode=ARM
+        else
+            mode=OTHER_TARGET
+        fi
+        printf 'THUMB_PROBE %%s %%s\n' "$label" "$mode"
+        awk -v label="$label" '/^#define (__thumb2?__|__arm__|__ARM_PCS_VFP|__SOFTFP__) / {
+          print "THUMB_MACRO", label, $2, $3
+        }' "$label.macros"
+    else
+        printf 'THUMB_PROBE %%s ERROR %%s\n' "$label" "$?"
+        sed -n '1,4s/^/THUMB_PROBE_ERROR /p' "$label.error"
+    fi
+    driver "$label" "$@" -c -x "$language" /dev/null
+}
+
+compile() {
+    label=$1
+    source=$2
+    shift 2
+    printf 'THUMB_COMPILE_ARGV %%s' "$label"
+    printf ' %%s' "$@" -c "$source" -o "$label.o"
+    printf '\n'
+    if "$@" -c "$source" -o "$label.o" >"$label.compile" 2>&1; then
+        printf 'THUMB_COMPILE_RESULT %%s COMPILED\n' "$label"
+        if command -v readelf >/dev/null; then
+            readelf -sW "$label.o" | awk -v label="$label" '
+              /\$[at]([.[:space:]]|$)/ {print "THUMB_OBJECT_MAPPING", label, $NF}'
+        fi
+    else
+        printf 'THUMB_COMPILE_RESULT %%s ERROR %%s\n' "$label" "$?"
+        sed -n '1,4s/^/THUMB_COMPILE_ERROR /p' "$label.compile"
+    fi
+}
+
+cat >pm-implicit-it.S <<'PM_ASSEMBLY'
+.syntax unified
+.text
+.global pm_it
+.type pm_it, %%function
+#ifdef __thumb__
+.thumb_func
+#endif
+pm_it:
+    cmp r0, #0
+    moveq r0, r1
+    bx lr
+PM_ASSEMBLY
+cat >pm-mode.c <<'PM_C_SOURCE'
+int pm_mode(int a);
+int pm_mode(int a) { return a + 1; }
+PM_C_SOURCE
+
 set -- %{optflags}
-probe GCC_DEFAULT gcc
-probe GCC_OPTFLAGS gcc "$@"
-probe CLANG_DEFAULT clang
-probe CLANG_NO_DEFAULT_CFG clang --no-default-config
-probe CLANG_OPTFLAGS clang "$@"
-probe CLANG_OPTFLAGS_NO_DEFAULT_CFG clang --no-default-config "$@"
-for dir in /usr/bin /usr/lib/clang /etc/clang /emul/usr/bin; do
-    test -d "$dir" || continue
-    find "$dir" -maxdepth 3 -type f -name 'clang*.cfg' -print | sort | while IFS= read -r f; do
-        sha256sum "$f" | sed 's/^/THUMB_CFG /'
-        awk '/-marm|-mthumb|--target|--config/ {print "THUMB_CFG_MATCH", FILENAME, NR, $0}' "$f"
-    done
+probe GCC_DEFAULT c gcc
+probe GCC_OPTFLAGS c gcc "$@"
+probe CLANG_DEFAULT c clang
+probe CLANG_OPTFLAGS c clang "$@"
+for target in armv7l-tizen-linux-gnueabi arm-linux-gnueabi; do
+    probe "CLANG_${target}_CFG" c clang --target="$target"
+    probe "CLANG_${target}_BARE" c clang --no-default-config --target="$target"
+    probe "CLANG_${target}_OPTFLAGS" c clang --target="$target" "$@"
+    probe "CLANG_${target}_ASM" assembler-with-cpp clang --target="$target" "$@"
+    compile "CLANG_${target}_THUMB_IMPLICIT_IT" pm-implicit-it.S clang --target="$target" -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=thumb
+    compile "CLANG_${target}_THUMB_NO_IMPLICIT_IT" pm-implicit-it.S clang --target="$target" -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=never
+    compile "CLANG_${target}_ASM_OPTFLAGS" pm-implicit-it.S clang --target="$target" "$@"
+    compile "CLANG_${target}_C_OPTFLAGS" pm-mode.c clang --target="$target" "$@"
 done
 '''
 
@@ -175,7 +249,10 @@ def run_gbs(gbs, work, project, spec, config, buildconf, root, include_all, defa
     print("GBS_START", shlex.join(cmd), "LOG", log, flush=True)
     rc = gbs.execute(cmd, project, log, 12*3600, check=False)
     print("GBS_EXIT", rc)
-    candidates = [log, *sorted((root / "local/repos").rglob("*build*.log"))[:12]]
+    repos = root / "local/repos"
+    failed = sorted(path for path in repos.rglob("*") if path.is_file()
+                    and path.parent.name == "fail" and path.parent.parent.name == "logs")
+    candidates = [log, *failed[:4], *sorted(repos.rglob("*build*.log"))[:12]]
     seen, invocations = set(), set()
     for file in candidates:
         if not file.is_file():
@@ -189,21 +266,33 @@ def run_gbs(gbs, work, project, spec, config, buildconf, root, include_all, defa
                     seen.add(line)
     (root.parent / "thumb-probe.txt").write_text("\n".join(sorted(seen))+"\n")
     (root.parent / "compiler-invocations.txt").write_text("\n".join(sorted(invocations))+"\n")
-    priority = ("THUMB_PROBE ", "THUMB_OPTFLAGS ", "THUMB_COMPILER", "THUMB_GCC_Q", "THUMB_CFG")
+    priority = ("THUMB_PROBE ", "THUMB_OPTFLAGS ", "THUMB_COMPILER", "THUMB_GCC_Q",
+                "THUMB_COMPILE_RESULT", "THUMB_COMPILE_ARGV", "THUMB_DRIVER_FLAGS")
     ordered = sorted(seen, key=lambda line: (not line.startswith(priority), line))
-    for line in ordered[:55]:
+    for line in ordered[:110 if defaults else 55]:
         print(line[:850])
-    print("THUMB_WRAPPED_COMPILE_LINES", len(invocations))
+    if not defaults:
+        print("THUMB_WRAPPED_COMPILE_LINES", len(invocations))
     for line in sorted(invocations)[:3]:
         print(line[:900])
     if rc:
-        with log.open("rb") as stream:
-            stream.seek(max(0, log.stat().st_size-8192))
-            for line in stream.read().decode(errors="replace").splitlines()[-10:]:
-                print("GBS_END_LOG", line[:370])
+        for failure in failed[:2] or [log]:
+            with failure.open("rb") as stream:
+                stream.seek(max(0, failure.stat().st_size - 16384))
+                for line in stream.read().decode(errors="replace").splitlines()[-35:]:
+                    print("GBS_FAILURE_LOG", failure.name, line[:700])
         raise ValueError(f"GBS build failed: {log}")
-    if defaults and not any(line.startswith("THUMB_PROBE CLANG_DEFAULT ") for line in seen):
-        raise ValueError("in-root compiler default result is absent from GBS logs")
+    if defaults:
+        required = {"CLANG_OPTFLAGS"}
+        for target in ("armv7l-tizen-linux-gnueabi", "arm-linux-gnueabi"):
+            required.update(f"CLANG_{target}_{kind}" for kind in ("CFG", "BARE", "OPTFLAGS", "ASM"))
+        observed = {fields[1] for line in seen if (fields := line.split())[:1] == ["THUMB_PROBE"]
+                    and len(fields) == 3 and fields[2] in {"ARM", "THUMB", "THUMB2"}}
+        if missing := required - observed:
+            raise ValueError("missing or failed compiler probes: " + ", ".join(sorted(missing)))
+        for target in ("armv7l-tizen-linux-gnueabi", "arm-linux-gnueabi"):
+            if f"THUMB_COMPILE_RESULT CLANG_{target}_C_OPTFLAGS COMPILED" not in seen:
+                raise ValueError(f"missing or failed C compile with optflags: {target}")
     return invocations
 
 

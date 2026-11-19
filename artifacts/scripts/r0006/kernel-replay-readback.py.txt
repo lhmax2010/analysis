@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""Read the retained kernel build, image ledger, and Thumb probe failure logs."""
+
+import argparse
+from collections import Counter
+import csv
+import json
+from pathlib import Path
+import re
+import subprocess
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+GBS = TEMP / "pm0005-gbs-kernel.mtob625f"
+THUMB = TEMP / "pm0005-gbs-thumb.urkj5m2l"
+SCAN = TEMP / "pm0004-image-mode.b7rJie/results/elf-modes.csv"
+LEDGER = TEMP / "pm0005-image-compare.zrtxkrwn/packages.jsonl"
+ISA_FLAG = re.compile(r"(?<!\S)-m(arm|thumb)(?=\s|$)")
+TARGET = re.compile(r"(?<!\S)--target(?:=|\s+)([\w.-]+)")
+CONFIG = re.compile(r"^(?:# )?CONFIG_(?:THUMB2_KERNEL|ARM_THUMB|MLGO(?:_INLINER|_REGALLOC)?)(?:=| is not set)")
+
+
+def emit(label, details):
+    print(label, json.dumps(details, ensure_ascii=True, sort_keys=True), flush=True)
+
+
+def tail(path, lines):
+    with path.open("rb") as stream:
+        stream.seek(max(0, path.stat().st_size - 65536))
+        return stream.read().decode(errors="replace").splitlines()[-lines:]
+
+
+def thumb_failure():
+    root = THUMB / "official"
+    failures = [p for p in (root / "GBS-ROOT/local/repos").rglob("*")
+                if p.is_file() and not p.is_symlink() and p.parent.name == "fail"
+                and p.parent.parent.name == "logs"]
+    for path in sorted(failures)[:2] or [root / "gbs.log"]:
+        for row in tail(path, 45):
+            emit("THUMB_FAILURE_LOG", [str(path), row[:900]])
+
+
+def kernel_argv(lane, root, logs):
+    configs = []
+    for path in logs.rglob(".config"):
+        if "KANTSU2E" in path.parts and path.is_file() and not path.is_symlink():
+            configs.append(path)
+    for path in sorted(configs, key=lambda p: ("perf" not in p.parts, str(p)))[:4]:
+        emit("KERNEL_CONFIG", [lane, str(path), [
+            line for line in path.read_text(errors="replace").splitlines() if CONFIG.match(line)]])
+    if not configs:
+        emit("KERNEL_CONFIG_MISSING", lane)
+    makefiles = sorted(logs.glob("**/linux-6.12/arch/arm/Makefile"))
+    for path in makefiles[:1]:
+        source = path.read_text(errors="replace").splitlines()
+        for n, line in enumerate(source):
+            if "CONFIG_THUMB2_KERNEL" in line or re.search(r"(-marm|-mthumb)", line):
+                emit("KERNEL_MAKEFILE", [lane, str(path), n + 1, line])
+    commands = root / "effective-argv.txt"
+    modes, examples = Counter(), {}
+    with commands.open(errors="replace") as stream:
+        for line in stream:
+            flags = ISA_FLAG.findall(line)
+            triple = TARGET.search(line)
+            key = (triple[1] if triple else "<implicit>", tuple(flags))
+            modes[key] += 1
+            examples.setdefault(key, re.findall(r"(?:^|\s)([\w./+-]+\.[cS])(?=\s|$)", line)[-1:])
+    for (target, flags), count in modes.most_common(12):
+        emit("KERNEL_ARGV_ISA", [lane, target, list(flags), count, examples[target, flags]])
+
+
+def rpm_query(path, query):
+    return subprocess.check_output(["rpm", "-qp", "--qf", query, str(path)],
+                                   text=True, stderr=subprocess.PIPE, timeout=60)
+
+
+def local_members(root):
+    rpms = [p for p in sorted(root.rglob("tztv-kernel-perf-*.rpm"))
+            if p.is_file() and not p.is_symlink()
+            and rpm_query(p, "%{NAME}") == "tztv-kernel-perf"]
+    if len(rpms) != 1:
+        raise ValueError(f"need one retained tztv-kernel-perf RPM, found {len(rpms)}")
+    rpm = rpms[0]
+    algo = rpm_query(rpm, "%{FILEDIGESTALGO}")
+    data = rpm_query(rpm, r"[%{FILENAMES}\t%{FILESIZES}\t%{FILEDIGESTS}\n]")
+    members = {}
+    for row in data.splitlines():
+        name, size, digest = row.split("\t")
+        if re.search(r"(?:^|/)(?:[zu]?Image|vmlinux)$|\.ko(?:\.(?:xz|gz|zst|lz4))?$", name):
+            verified_type = algo == "8" and re.fullmatch(r"[0-9a-f]{64}", digest) is not None
+            members[name] = (int(size), digest if verified_type else None)
+    return rpm, algo, members
+
+
+def compare_kernel(lane, root, published):
+    rpm, algo, local = local_members(root)
+    emit("LOCAL_KERNEL_RPM", [lane, str(rpm), algo])
+    offsets, hashes = Counter(), Counter()
+    modules = {k for k, v in published.items() if v["kind"] == "module"}
+    local_modules = {k for k in local if re.search(r"\.ko(?:\.(?:xz|gz|zst|lz4))?$", k)}
+    for name in sorted(modules & local_modules):
+        size, digest = local[name]
+        offsets[published[name]["bytes"] - size] += 1
+        hashes["unavailable" if digest is None else
+               "match" if digest == published[name]["sha256"] else "different"] += 1
+    emit("MODULES_QB_MINUS_GBS", [lane, offsets, hashes, len(modules - local_modules),
+                                 len(local_modules - modules)])
+    for name, entry in sorted(published.items()):
+        if entry["kind"] in {"image", "vmlinux"}:
+            size, digest = local.get(name, (None, None))
+            status = "SHA_UNAVAILABLE" if digest is None else (
+                "SHA_MATCH" if digest == entry["sha256"] else "SHA_DIFFERENT")
+            emit("KERNEL_QB_AND_GBS", [lane, name, entry["bytes"], size, entry["sha256"], digest, status])
+
+
+def scan_members():
+    counts = Counter()
+    with SCAN.open(newline="") as stream:
+        for row in csv.DictReader(stream):
+            basename = row["path"].split("/")[-1]
+            member = "module" if re.search(r"\.ko(?:\.(?:xz|gz|zst|lz4))?$", basename) else (
+                "vmlinux" if basename == "vmlinux" else "")
+            loadable = row["kind"] in {"EXEC", "DYN"}
+            arm = loadable and row["mode"] in {"ARM", "MIXED_ARM"}
+            counts["loadable"] += loadable
+            counts["arm_predominant"] += arm
+            if member:
+                counts[f"{member}_{row['kind']}"] += 1
+                if arm:
+                    counts[f"{member}_in_arm_predominant"] += 1
+    emit("IMAGE_MODE_KERNEL_MEMBERSHIP", counts)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--no-thumb-tail", action="store_true")
+    args = parser.parse_args()
+    issues = 0
+    if not args.no_thumb_tail:
+        try:
+            thumb_failure()
+        except OSError as exc:
+            emit("THUMB_LOG_UNAVAILABLE", str(exc))
+            issues += 1
+    try:
+        with LEDGER.open() as stream:
+            (published,) = [row["kernel"] for row in map(json.loads, stream)
+                            if row["package"][0] == "tztv-kernel-perf"]
+    except (OSError, ValueError, KeyError) as exc:
+        emit("KERNEL_LEDGER_UNAVAILABLE", str(exc))
+        published = (None, None)
+        issues += 1
+    for lane, entries in zip(("official", "custom"), published):
+        stage = GBS / lane
+        root = stage / "GBS-ROOT"
+        try:
+            kernel_argv(lane, stage, root / "local/BUILD-ROOTS")
+        except (OSError, ValueError) as exc:
+            emit("KERNEL_ARGV_UNAVAILABLE", [lane, str(exc)])
+            issues += 1
+        if entries:
+            try:
+                compare_kernel(lane, root / "local/repos", entries)
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                emit("KERNEL_RPM_UNAVAILABLE", [lane, str(exc)])
+                issues += 1
+    try:
+        scan_members()
+    except (OSError, KeyError) as exc:
+        emit("SCAN_MEMBERSHIP_UNAVAILABLE", str(exc))
+        issues += 1
+    return 2 if issues else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
