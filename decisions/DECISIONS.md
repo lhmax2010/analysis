@@ -305,3 +305,12 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Use the retained 2,342-package comparison as the fixed scope for section qualification. Preserve the three unresolved RPM identities. Verify every re-read RPM and ELF against its recorded SHA-256. Existing local RPM caches are read-only. Re-fetch only missing matched RPMs, serially, after the heavy slot is free.
 - Record the four published kernel sizes. Inspect the exact packaged vmlinux before inferring section composition. Report board metrics as whole-image observations while user-space parity and production inputs are unresolved.
 - Stream the pinned PERF inner tar inventory. Confirm the genuine full flash artifact before applying the USB/BOOST procedure. [Native comparison result](../artifacts/evidence/native-run-r0005-image-compare-20261118.txt)
+
+## D-035 — Qualify kernel replay and packaged BTF
+
+- Count the completed local GBS builds as supporting argv, tool and linked-ELF evidence. Preserve the distinction between same-size local/QB uImage files and any later SHA match. Require a model-only controlled comparison before attributing causality to changed advisors.
+- Record the Official pair as the VD-bundled reference AOT inliner and eviction models. Keep content identity with upstream weights unresolved. Record raw BTF type and string byte growth separately from linked code and device memory. [Friday report](../reports/MLGO_Official_vs_Custom_20261120.md)
+
+## D-036 — Join Thumb evidence by exact packaged members
+
+- Preserve the 609-file cohort and keep ELF producer markers, packaging origin and ISA cause separate. Collect exact historical logs before serial GBS sample builds. Log failures per action, and use the actual prefixed Clang driver and effective mode order. Keep the full ELF section scan in its existing heavy slot. [Origin ledger](../artifacts/ledger/thumb-producer-origin-20261119.md) [Round 0006](../comms/codex_to_claude/0006_reply.md)

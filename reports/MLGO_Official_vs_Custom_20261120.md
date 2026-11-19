@@ -13,7 +13,7 @@ The operator reported QB 37654439 finished and completed the pinned Product comp
 
 | Metric | Procedure | Result |
 |---|---|---|
-| Kernel and modules | Same perf variant; compare Image, published zImage/uImage where present, vmlinux section bytes and installed .ko counts/sizes. Separate stripped/unstripped and compressed/uncompressed sizes. | uImage −2.32%, zImage −1.96%, modules −0.29%, packaged vmlinux +3.37%. Section sizes pending. |
+| Kernel and modules | Same perf variant; compare Image, published zImage/uImage where present, vmlinux section bytes and installed .ko counts/sizes. Separate stripped/unstripped and compressed/uncompressed sizes. | uImage −2.32%, zImage −1.96%, modules −0.29%. Rootfs vmlinux is raw BTF, +3.37%. Local ELF .text −2.90%. |
 | Boot | Five matched cold boots per lane; same board, firmware and Home-ready marker | Pending |
 | Kernel microbenchmarks | Preselect runnable syscall, scheduling/context-switch and memory probes; five blocked runs per lane after a warm-up, fixed CPU affinity, frequency policy and load | Pending |
 | Normal-memory 4K | Three matched runs per lane; identical stream/player/firmware, CPU and dropped or late frames, stalls and new regression signatures | Pending |
@@ -23,13 +23,43 @@ Keep each run and both exact artifacts. Preserve rollback before flashing. Repor
 
 ## Supporting GBS compiler command evidence
 
-The QB kernel build log remains unavailable under HTTP 403. Use the retained two-root GBS build only for effective local compiler argv and accelerator identity. The launcher holds the Product inputs and build.conf fixed and changes the Base in the reproduction. This is a local reconstruction of the compiler commands. Report the real QB image's size and module results from the published artifacts. [Foreground GBS resume](../comms/codex_to_claude/0005_reply.md#foreground-kernel-resume)
+The foreground replay completed both lanes from the same vdlinux input (14293732 + 14427407, 24 overlays), same Product URL and `published-build.conf` (P4 14452507). The launcher compared the two staged GBS configs after normalizing the Base URL and buildroot. Each local lane retained 7,100 command entries containing both release advisors. The sampled compiler driver target is `arm-linux-gnueabi`. Installed Clang and LLVM moved from `22.1.8-9.1` to `22.1.8-11.1` and `clang-accel-x86_64-armv7l` from `0.4-2.4` to `0.4-2.5`. The trace identifies both ARM and x86-64 compiler files by owner and hash. The full installed dependency set was not diffed. Production QB argv remains unavailable under REST HTTP 403. [GBS evidence](../artifacts/evidence/native-run-r0005-gbs-kernel-thumb-20261118.txt#L68)
 
-The first GBS attempt verified the configs, build.conf 14452507 and 24 vdlinux overlays before stopping at the read-only spec. Keep the owner-write resume and run it only after the Product comparison releases the heavy lock. Full flash-image downloads use that same lock. [Native GBS log](../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt#L432) [Board-day procedure](KantSU2E_MLGO_Board_Day_0005.md)
+**Official model.** Base 20261113.1 provides Clang `22.1.8-9.1`, from `llvm-22.1.8-9.1.src.rpm`. The retained Official OBS revision 10 spec enables MLGO by default for armv7l, aarch64 and x86-64. It selects the corresponding VD model archive and explicitly overrides both AOT model headers and objects. “Official” means the VD baseline's bundled release inliner and register-allocation eviction models. The capture does not establish that the weights are the upstream stock artifacts. Customized is the pinned rev12 package with the SR models/runtime inputs. [Pinned Official OBS source](../artifacts/evidence/official-mlgo-obs-source-excerpt-20261119.txt) [Customized input pin](../artifacts/evidence/mlgo-source-submit.txt)
+
+Upstream LLVM 22.1.8 raises an error when the requested inliner cannot be initialized. The regalloc legacy path can construct a default provider while emitting an error for the unavailable requested advisor. A successful compile with both release options is consistent with the Official spec's embedded models. [LLVM inliner](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/lib/Transforms/IPO/Inliner.cpp) [LLVM eviction advisor](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/lib/CodeGen/RegAllocEvictionAdvisor.cpp)
+
+### Local GBS reproduction against QuickBuild
+
+| Payload | Official GBS | Official QB | QB − GBS | Customized GBS | Customized QB | QB − GBS | GBS custom − official |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| uImage | 11,348,968 | 11,348,968 | 0 | 11,085,240 | 11,085,240 | 0 | −263,728 (−2.32%) |
+| zImage | 5,326,464 | 5,326,496 | +32 | 5,222,304 | 5,222,024 | −280 | −104,160 (−1.96%) |
+| 115 modules | 6,507,334 | 6,567,110 | +59,776 | 6,487,666 | 6,547,762 | +60,096 | −19,668 (−0.30%) |
+
+Equal uImage lengths await the local SHA-256 join to the published member. In the 12 module paths present in both previews, the Official QB offset is +512 bytes for nine and +576 bytes for three, while the Customized offset is +512 bytes for all twelve. That pattern is consistent with fixed-size packaging additions such as signatures. Strip or signing details and the full 115-path distribution require inspection of the packaged bytes or sign step. The published module delta is 320 bytes smaller in magnitude than the local delta. [GBS module rows](../artifacts/evidence/native-run-r0005-gbs-kernel-thumb-20261118.txt#L145) [Published module rows](../artifacts/evidence/native-run-r0005-image-compare-20261118.txt#L17)
+
+### Local GBS linked vmlinux sections
+
+| Section | Official bytes | Customized bytes | Delta bytes | Delta |
+|---|---:|---:|---:|---:|
+| .text | 8,564,600 | 8,315,832 | −248,768 | −2.90% |
+| .init.text | 225,372 | 220,192 | −5,180 | −2.30% |
+| .exit.text | 10,392 | 9,860 | −532 | −5.12% |
+| .rodata | 1,334,714 | 1,333,098 | −1,616 | −0.12% |
+| .data | 666,016 | 666,112 | +96 | +0.014% |
+| __bug_table | 16,644 | 14,964 | −1,680 | −10.09% |
+| .init.smpalt | 30,448 | 24,832 | −5,616 | −18.45% |
+| .symtab | 1,763,968 | 1,801,488 | +37,520 | +2.13% |
+| .strtab | 2,456,712 | 2,523,959 | +67,247 | +2.74% |
+| .debug_frame | 1,373,692 | 1,487,400 | +113,708 | +8.28% |
+| Sum of reported ELF section sizes | 152,432,813 | 149,949,301 | −2,483,512 | −1.63% |
+
+The selected code and data sections (.text, .init.text, .exit.text, .rodata and .data) total **10,801,094 → 10,545,094 bytes, −256,000 (−2.37%)**. This sum excludes .bss, BTF and other allocatable sections and does not measure resident memory. The pattern is consistent with changed inlining and out-of-line function retention. Inlining decisions, symbol kinds, and the number of unwind FDEs require their own evidence. The size changes also combine input-package and register-allocation effects. [Linked ELF section sizes](../artifacts/evidence/native-run-r0005-gbs-kernel-thumb-20261118.txt#L161)
 
 ## Round 0005 preflight and confounders
 
-Native preflight verified identical Base and shelf lists and counted 3,000 delta rows, 2,952 outside LLVM. The direct OBS replay proved the following published Base 20261118.1 Clang RPM bytes correspond to OBS revision 12, source digest `0b38aead137ec42dcd99dee28091acc1`. The hashes identify the published RPMs. The kernel compile command and resolved executable remain open. [Native binary pin](../artifacts/evidence/native-run-r0005-20261118.txt#L3)
+Native preflight verified identical Base and shelf lists and counted 3,000 delta rows, 2,952 outside LLVM. The direct OBS replay proved the following published Base 20261118.1 Clang RPM bytes correspond to OBS revision 12, source digest `0b38aead137ec42dcd99dee28091acc1`. The hashes identify the published RPMs. The local replay independently records compiler identity and both advisor flags. [Native binary pin](../artifacts/evidence/native-run-r0005-20261118.txt#L3)
 
 | Architecture | Published Clang RPM | SHA-256 |
 |---|---|---|
@@ -47,7 +77,7 @@ The deduplicated name/arch overlap is **177 of 2,342**. Category counts overlap.
 
 ## Source gate and image attribution
 
-**Source-level gate passed.** The pending vdlinux shelf 14427407 selects Base Clang and LLVM under `_toolchain clang`, sets `LLVM=1 LLVM_IAS=1`, and enables `CONFIG_MLGO=y` in the KantSU2E perf defconfig. Makefile lines 1065–1070 add `-mllvm -enable-ml-inliner=release` and `-mllvm -regalloc-enable-advisor=release` to `KBUILD_CFLAGS` under `CONFIG_MLGO_INLINER` and `CONFIG_MLGO_REGALLOC`, respectively. The QuickBuild kernel log remains unavailable after REST HTTP 403. Effective argv and the exact executing compiler remain unverified. [Native source gate](../artifacts/evidence/native-run-r0005-20261118.txt#L22)
+**Source-level gate passed.** The pending vdlinux shelf 14427407 selects Base Clang and LLVM under `_toolchain clang`, sets `LLVM=1 LLVM_IAS=1`, and enables `CONFIG_MLGO=y` in the KantSU2E perf defconfig. Makefile lines 1065–1070 add `-mllvm -enable-ml-inliner=release` and `-mllvm -regalloc-enable-advisor=release` to `KBUILD_CFLAGS` under `CONFIG_MLGO_INLINER` and `CONFIG_MLGO_REGALLOC`, respectively. The QuickBuild kernel log remains unavailable after REST HTTP 403. The local two-root GBS replay verifies advisor argv and records the resolved tool files. The actual QB invocation remains unavailable. [Native source gate](../artifacts/evidence/native-run-r0005-20261118.txt#L22)
 
 **The user-space byte-identity criterion failed for this image pair.** Of 2,342 Official installed package identities resolved against the published repositories, 2,289 RPMs differed, 50 were identical and 3 were unresolved. The comparer flagged 2,279 package rows as potential user-space confounders. The flags include ELF changes, other payload changes and differences outside the expected Base delta. This screening establishes which packages need review. The ELF-section audit will quantify how often executable bytes and other runtime sections changed. If there are broad code changes or unresolved differences in workload dependencies, report board measurements as whole-image A/B observations. The data currently support that qualified interpretation. [Native image comparison](../artifacts/evidence/native-run-r0005-image-compare-20261118.txt)
 
@@ -63,4 +93,13 @@ Reconcile candidate-only and removed packages against the actual board inventori
 | 115 modules | 6,567,110 | 6,547,762 | −19,348 (−0.29%) |
 | `/lib/modules/perf/6.12.60/kernel/vmlinux` | 3,696,242 | 3,820,867 | +124,625 (+3.37%) |
 
-Individual modules changed in both directions. The native run emitted no `VMLINUX_SECTION` rows. File size and pathname alone cannot establish the file format, stripping status, or which sections contributed to the increase. A packaged `vmlinux` and compressed boot images can vary independently because packaging, included material and compression affect those sizes. Identifying the actual increase requires inspecting the verified RPM members. [Native kernel output](../artifacts/evidence/native-run-r0005-image-compare-20261118.txt#L15) [Section-audit launcher](../comms/codex_to_claude/0005_reply.md#published-image-comparison-and-attribution)
+Individual modules changed in both directions. The QuickBuild `tztv-kernel-perf` payload owns the rootfs file named `vmlinux`. Its validated header describes an independent raw BTF v1 blob. This file holds type metadata and a string table. The entire increase is explained by their stored lengths. [Native kernel-only capture](../artifacts/evidence/native-run-r0006-causes-kernel-sections-20261119.txt#L244) [BTF format](https://docs.kernel.org/bpf/btf.html)
+
+| Packaged BTF component | Official bytes | Customized bytes | Delta |
+|---|---:|---:|---:|
+| Header | 24 | 24 | 0 |
+| BTF type records | 2,207,044 | 2,282,972 | +75,928 (+3.44%) |
+| BTF strings | 1,489,174 | 1,537,871 | +48,697 (+3.27%) |
+| Total | 3,696,242 | 3,820,867 | +124,625 (+3.37%) |
+
+**BTF kind counts pending.** More FUNC/FUNC_PROTO records could explain some growth, but the header lengths alone do not establish record counts or their cause. The local ELF's .symtab, .strtab and .debug_frame increased separately. Those sections are absent from the raw BTF file. The kernel boot image can shrink while rootfs metadata grows. Upstream 6.12 also links allocatable .BTF into the running kernel image when CONFIG_DEBUG_INFO_BTF is enabled. Confirm that option, the local .BTF size delta and any exact blob match through the pinned native decoder. The published rootfs file's size does not establish resident RAM or whether a tool opens that file versus reading kernel-exported BTF. Actual VD tooling load and lifetime remain unmeasured. [Kernel v6.12 link procedure](https://github.com/torvalds/linux/blob/v6.12/scripts/link-vmlinux.sh#L100-L123) [Native decoder](../comms/codex_to_claude/0006_reply.md#packaged-btf)

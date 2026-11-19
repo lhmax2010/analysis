@@ -1,0 +1,15 @@
+--- OBS-GCC/glibc/glibc.spec
++++ OBS-LLVM/glibc/glibc.spec
+@@ -50,8 +50,12 @@
+ # This will avoid building some parts of glibc
+ %define asan_arch x86_64 armv7l aarch64
+ %define hwasan_arch aarch64
+ %bcond_with    fast_build
++
++# Always build with gcc due to using extensions of gcc
++%define _toolchain_override gcc
++
+ Name:           glibc
+ VCS:		//TIZEN/[MAIN]/[BASE2026_Prj]/[INT]/VD_PKGS/glibc#vbs-glibc-20251118.152938-0-13323359
+ Summary:        Standard Shared Libraries (from the GNU C Library)
+ License:        LGPL-2.1+ and LGPL-2.1+-with-GCC-exception and GPL-2.0+

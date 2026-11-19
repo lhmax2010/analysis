@@ -1,0 +1,87 @@
+SOURCE tizen-llvm-handover/implementation-20261116/captured-build-inputs/vd_memps/packaging/memps.spec
+d2801f28afac9be40f6247b87a7b359ea4ddc4097a512394d836e5b3bc6f33e6  tizen-llvm-handover/implementation-20261116/captured-build-inputs/vd_memps/packaging/memps.spec
+Retained source excerpt. Version/release and destination match the Official RPM. Exact build transaction not recaptured.
+     1	Name:       vd_memps
+     2	Summary:    vd_memps
+     3	Version:    0.3.5
+     4	Release:    1
+     5	Group:      TO_BE/FILLED_IN
+     6	License:    Apache
+     7	Source0:    %{name}-%{version}.tar.gz
+     8
+     9	%define rd_config_path_nostrip /etc/notstrip
+    10
+    27	%prep
+    28	%setup -q
+    29
+    30	%build
+    31	export CFLAGS+=" -Wno-deprecated-declarations -fPIE"
+    32	export CXXFLAGS+=" -Wno-deprecated-declarations -fPIE"
+    33	export LDFLAGS+=" -pie"
+    34
+    35	# For 64-bit builds, disable irq_storm build because the bundled bpftool
+    36	# is a 32-bit binary that cannot run on a 64-bit build host.
+    37	# For 32-bit builds, enable irq_storm build from source.
+    38	# For emulator builds, disable irq_storm (no sys-tools/libbpf available).
+    39	%if ("%{_vd_cfg_chip_vendor}" == "EMUL")
+    40	cmake -DCMAKE_INSTALL_PREFIX=%{_prefix} -DENABLE_IRQ_STORM=OFF
+    41	%else
+    42	%ifarch aarch64
+    43	cmake -DCMAKE_INSTALL_PREFIX=%{_prefix} -DENABLE_IRQ_STORM=OFF
+    44	%else
+    45	cmake -DCMAKE_INSTALL_PREFIX=%{_prefix} -DENABLE_IRQ_STORM=ON
+    46	%endif
+    47	%endif
+    48	make %{?jobs:-j%jobs}
+    49
+    50	%install
+    51	rm -rf %{buildroot}
+    52
+    53	# Install vd_memps (and irq_storm binaries + bpftool.service via add_subdirectory
+    54	# for 32-bit builds where libbpf is available)
+    55	%make_install
+    56
+    57	# Install bpftrace - pre-compiled binaries
+    58	# Skip for emulator builds (_vd_cfg_chip_vendor == EMUL)
+    59	# Use _vd_cfg_system64 to decide which architecture to install:
+    85	# 32-bit kernel: install 32-bit bpftrace and libraries
+    86	%if ("%{sec_buildconf_kernel_version}" == "6.12")
+    87	install -m 755 bpftrace_v26/32_bit/bpftrace %{buildroot}/usr/bin/bpftrace32
+    88	mkdir -p %{buildroot}/usr/lib/bpftrace
+    89	cp -a bpftrace_v26/32_bit/lib/* %{buildroot}/usr/lib/bpftrace/
+    90	%else
+    91	install -m 755 bpftrace/32_bit/bpftrace %{buildroot}/usr/bin/bpftrace32
+    92	mkdir -p %{buildroot}/usr/lib/bpftrace
+    93	cp -a bpftrace/32_bit/lib/* %{buildroot}/usr/lib/bpftrace/
+    94	%endif
+    95
+    96	# Patch bpftrace32: set interpreter to bundled ld-linux
+    97	patchelf --set-interpreter /usr/lib/ld-linux.so.3 %{buildroot}/usr/bin/bpftrace32
+    98
+    99	# Create wrapper script: use LD_LIBRARY_PATH for library loading
+   100	cat > %{buildroot}/usr/bin/bpftrace << 'EOF'
+   101	#!/bin/bash
+   102	export LD_LIBRARY_PATH="/usr/lib/bpftrace"
+   103	exec "/usr/bin/bpftrace32" "$@"
+   104	EOF
+   105	chmod +x %{buildroot}/usr/bin/bpftrace
+   106
+   107	%endif
+   130	# Files: vd_memps (includes bpftrace)
+   131	# =============================================================================
+   132	%files
+   133	%manifest memps.manifest
+   134	%defattr(-,root,root,-)
+   135	%{_bindir}/vd_memps
+   136	%{_bindir}/page_owner
+   137	%{_bindir}/slub_info
+   138	%{_prefix}/share/license/%{name}
+   139	%{rd_config_path_nostrip}/vd_memps.notstrip
+   140	%if ("%{_vd_cfg_chip_vendor}" != "EMUL")
+   141	/usr/bin/bpftrace*
+   142	/usr/bin/bpf_scripts/*
+   143	%ghost /usr/bin/irq_storm
+   144	%ghost /usr/lib/bpf/irq_storm.bpf.o
+   145	%ghost %{_unitdir}/bpftool.service
+   146	%ghost %{_unitdir}/basic.target.wants/bpftool.service
+   147	%if ("%{_vd_cfg_system64}" == "y")
