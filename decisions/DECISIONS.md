@@ -290,3 +290,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Resume the retained pre-build vdlinux workdir with the recorded spec and defconfig hashes and 24 shelf actions. Write-enable only the staged spec before applying the existing trace. Run GBS in an attended foreground terminal.
 - The completed scan is the 609-file ARM-predominant roster. Treat GCC/Clang/Rust marker strings as screening evidence. Test compiler defaults with the effective GBS flags/config and match the actual compilation and linked artifact before assigning each cause.
 - Require three paired, cause-(i) GBS measurements before a code-size extrapolation. Keep estimated executable bytes distinct from resident memory. [Native evidence](../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt)
+
+
+## D-033 — Report the real QuickBuild pair
+
+- The operator reports Customized QB 37654439 completed on Base 20261118.1. Official QB 37627297 on Base 20261113.1 remains the control.
+- Friday prioritizes the published Product comparison and matched full-image board measurements. The local GBS resume supplies effective local compiler argv after the comparison releases the heavy lock. Its spec-permission fix remains in scope.
+- Compare the two QB-specific GBS configs exactly after substituting the expected Base and Product URLs and local buildroot. Record any unexpected change.
+- Obtain the versioned KantSU2e full-image download link for each QB. Download Official for rollback first, under the same heavy lock. [Fixed inputs and read-only check](../comms/codex_to_claude/0005_reply.md#published-quickbuild-pair)

@@ -1,15 +1,15 @@
 # Official versus Customized MLGO — kernel comparison record
 
-This draft records the planned KantSU2E comparison for Friday, 20 November. Run-level results and a conclusion are pending.
+The Friday, 20 November report uses the completed KantSU2E QuickBuild pair. The native Product RPM comparison is running. Its results and the board measurements remain pending.
 
 The 11 November image report recorded release MLGO in the Linux kernel and byte-identical outputs in the sampled user-space control after disabling ML inlining. For this image pair the kernel is the primary measurement and user space is the identity control. The current board boots Linux 6.12.60 built by Clang/LLD 22.1.8, with tztv-kernel-perf installed. The planned shelf list selects the vdlinux change that records both advisor switches. The post-login source gate passed. Actual QB argv and compiler-install records remain unavailable through the current REST account. Use the source and image criteria below to interpret the Base comparison. [Kernel evidence](../artifacts/evidence/kernel-mlgo-source-chain-20261117.txt)
 
-| Lane | Inputs to record |
-|---|---|
-| Official | Base 20261113.1, current KantSU2E image, QB 37627297 control configuration, kernel image checksum, package and compiler identity |
-| Customized | Base 20261118.1, pinned LLVM rev12 on armv7l/x86_64, matching Product/build.conf/shelves, candidate QB ID, package and compiler identity |
+| Lane | QuickBuild | Base | Published Product |
+|---|---|---|---|
+| Official | `37627297` | `20261113.1` | `TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2` |
+| Customized | `37654439` | `20261118.1`, pinned LLVM rev12 | `TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2` |
 
-The operator already started the candidate QuickBuild with Base 20261118.1 and the other QB 37627297 inputs. Its job ID, completion and Product URL are pending. The kernel gate determines the label and conclusions. The wider same-rev12 reference/custom rebuild and global advisor options are deferred.
+The operator reported QB 37654439 finished and started the existing pinned Product comparison using its fixed repository. Its results are the primary Friday evidence for kernel, modules and user-space payloads. The approved board measurements use the full flash images from these same two QuickBuild runs. Compare the two actual GBS config files separately to confirm input parity outside the two repository URLs and local buildroot. [Fixed repositories and config check](../comms/codex_to_claude/0005_reply.md#published-quickbuild-pair)
 
 | Metric | Procedure | Result |
 |---|---|---|
@@ -21,15 +21,11 @@ The operator already started the candidate QuickBuild with Base 20261118.1 and t
 
 Keep each run and both exact artifacts. Preserve rollback before flashing. Report median, IQR, interval and all absolute regression events. Capture compiler/version, model evidence and any kernel source/config/link-mode difference alongside the result. User-space identity concerns file bytes. It does not imply equal runtime behavior after a kernel change.
 
-## GBS kernel comparison
+## Supporting GBS compiler command evidence
 
-The first standalone replay captured vdlinux 14293732, shelf 14427407 and the perf defconfig. The retained accelerator `/emul/usr/bin/clang-22` existed at 170,432 bytes. Its host execution failed before any four-mode results. The team uses GBS build roots for compiler and linker execution. The replacement builds `tztv-kernel` twice, serially, under separate armv7l GBS roots. It uses the pinned QB 37627297 Product build.conf in both lanes and changes the Base URL and root path only. The same trace instrumentation enables verbose Kbuild and records in-root compiler paths, ELF hashes and installed RPM identity in each lane. Local verbose argv documents this reproduction. The archived production QB argv remains unavailable. [New native evidence](../artifacts/evidence/native-run-r0005-pic-accel-argot-20261118.txt) [GBS commands](../comms/codex_to_claude/0005_reply.md#gbs-kernel-and-t7-replacement)
+The QB kernel build log remains unavailable under HTTP 403. Use the retained two-root GBS build only for effective local compiler argv and accelerator identity. The launcher holds the Product inputs and build.conf fixed and changes the Base in the reproduction. This is a local reconstruction of the compiler commands. Report the real QB image's size and module results from the published artifacts. [Foreground GBS resume](../comms/codex_to_claude/0005_reply.md#foreground-kernel-resume)
 
-**The first GBS attempt stopped before compilation.** It verified capacity, both configs, build.conf 14452507 and 24 vdlinux overlays. Perforce left the staged spec read-only. Use the foreground resume under the same retained work directory after review. Kernel metrics remain pending. [Native GBS log](../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt#L432) [Resume](../comms/codex_to_claude/0005_reply.md#foreground-kernel-resume)
-
- Compare packaged kernel image and module sizes and retained vmlinux sections. Bind each compiler path seen in a captured command to the in-root binary/owner. Where accelerator dispatch cannot be tied to the command, record its installed identity separately. Run an optional four-mode TU experiment only inside these same GBS roots after the normal pair passes.
-
-The 2,342-RPM image comparison is staged for the candidate Product URL. The KantSU2E checklist records the operator's BOOST sequence, separate menu and write gates, Official rollback verification and the three measurement protocols. The Official download awaits a native run. The candidate bundle, image fingerprint mapping, flash completion prompts and playback drop source remain pending. [Board-day procedure](KantSU2E_MLGO_Board_Day_0005.md)
+The first GBS attempt verified the configs, build.conf 14452507 and 24 vdlinux overlays before stopping at the read-only spec. Keep the owner-write resume and run it only after the Product comparison releases the heavy lock. Full flash-image downloads use that same lock. [Native GBS log](../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt#L432) [Board-day procedure](KantSU2E_MLGO_Board_Day_0005.md)
 
 ## Round 0005 preflight and confounders
 
@@ -47,7 +43,7 @@ Native preflight verified identical Base and shelf lists and counted 3,000 delta
 | Same NEVRA with payload difference | 18 | 9 | 1 | 1 |
 | Version or epoch change | 0 | 0 | 0 | 0 |
 
-The deduplicated name/arch overlap is **177 of 2,342**. Category counts overlap. Zero version changes describes the resolved version/epoch pairs. The 52 ambiguous events still require reconciliation. This is a repository-to-installed-inventory join. Compare actual image payloads, including the same-NEVRA case and workload-relevant release bumps, before attributing observed differences. Candidate job ID, Product URL and image/TV results remain pending. [Native Base delta](../artifacts/evidence/native-run-r0005-20261118.txt#L11)
+The deduplicated name/arch overlap is **177 of 2,342**. Category counts overlap. Zero version changes describes the resolved version/epoch pairs. The 52 ambiguous events still require reconciliation. This is a repository-to-installed-inventory join. Compare actual image payloads, including the same-NEVRA case and workload-relevant release bumps, before attributing observed differences. QB IDs and Product URLs are fixed. The compare output and TV results remain pending. [Native Base delta](../artifacts/evidence/native-run-r0005-20261118.txt#L11)
 
 ## Source gate and image attribution
 
@@ -55,4 +51,4 @@ The deduplicated name/arch overlap is **177 of 2,342**. Category counts overlap.
 
 **Image attribution is pending.** If `tztv-kernel-perf` differs between the two images and every covered user-space ELF outside the item 2 Base-delta packages is byte-identical, report the observed difference as a kernel-focused Base-swap result supported by the source gate and the image comparison. List all user-space differences within the Base delta, flag affected benchmark dependencies, and record any unresolved or unexplained ELF as a confounder. This scope supports a Base-swap association. Production advisor execution and model-only effects require their own evidence.
 
-Reconcile candidate-only and removed packages against the actual board inventories. Verify workload-relevant non-ELF inputs and dependencies even when changed packages are in the expected Base delta. The four-mode replay diagnoses selected translation units. Require production compiler and linker provenance and the actual LTO path before correlating its observations with kernel Image differences. [Round 0005 independent review](KantSU2E_MLGO_Board_Day_0005.md#independent-review-of-mlgo-attribution)
+Reconcile candidate-only and removed packages against the actual board inventories. Verify workload-relevant non-ELF inputs and dependencies even when changed packages are in the expected Base delta. Use local compiler argv as supporting provenance. Keep model-only causal claims contingent on controlling other build inputs, dependencies and the effective compiler/linker path. [Round 0005 independent review](KantSU2E_MLGO_Board_Day_0005.md#independent-review-of-mlgo-attribution)

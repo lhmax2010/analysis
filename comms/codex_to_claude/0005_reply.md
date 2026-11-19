@@ -87,9 +87,9 @@ Running at **1,200 of 2,342** at the last observation in `pm0004-image-mode.b7rJ
 
 ## 8. Candidate QuickBuild and image pair
 
-The user submitted the candidate against Base 20261118.1 with the other QB 37627297 inputs. Its job ID and candidate Product URL are still pending. The comparison fixes Official Product at `TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2`. It uses the exact retained non-LLVM delta from item 2, verifies its ARM rows against both pinned Base inventories, and labels differences by matching binary identity or source RPM and the corresponding change category. The report includes `tztv-kernel-perf` image bytes, module totals and largest module deltas, shipped vmlinux sections, and each changed user-space ELF. It records all differences and unresolved evidence in the confounder ledger.
+Customized QB 37654439 finished against Base 20261118.1. The operator is running the pinned comparison using its fixed Product repository. [Current pair](#published-quickbuild-pair) The comparison fixes Official Product at `TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2`. It uses the exact retained non-LLVM delta from item 2, verifies its ARM rows against both pinned Base inventories, and labels differences by matching binary identity or source RPM and the corresponding change category. The report includes `tztv-kernel-perf` image bytes, module totals and largest module deltas, shipped vmlinux sections, and each changed user-space ELF. It records all differences and unresolved evidence in the confounder ledger.
 
-**Native, run after the candidate URL arrives.** Set `PRODUCT_ARGS=("$new_product_url")`. Budget several hours and substantial network traffic for the serialized repository reads. The job uses a single RPM pair and one member scratch file at a time. For retained output set `PRODUCT_ARGS=(--readback "$image_run_dir" --page 1)` and increment pages. Add `--all-packages` to include identical records. Readback takes seconds.
+**Native comparison already running.** The launch record is retained below. Use readback after it has results. Budget several hours and substantial network traffic for the serialized repository reads. The job uses a single RPM pair and one member scratch file at a time. For retained output set `PRODUCT_ARGS=(--readback "$image_run_dir" --page 1)` and increment pages. Add `--all-packages` to include identical records. Readback takes seconds.
 
 
 ```bash
@@ -128,7 +128,7 @@ Python 3.10.12 fixtures exercised the expired and valid P4 cases, pinned paths, 
 
 The independent review changes five gates. Verify the current Official image and rollback supply before measuring. Check both USB copies against their fixed QB artifacts. Pause at the BOOST `mmc` menu before selecting `a`. Require an image discriminator tied to the candidate before collecting results. Apply rollback to board or image failures after confirming that writing has stopped. A bad sample requires a new measurement gate. The checklist records the exact keyboard/menu sequence supplied by the operator, what to paste, and what to do for each failure. [Numbered checklist and pinned launchers](../../reports/KantSU2E_MLGO_Board_Day_0005.md)
 
-The known Official Product endpoint timed out from this workspace on both HTTP and HTTPS. The native directory is unavailable here. The helper is ready for the native Official run after review, followed by the candidate run when its URL is supplied. If the Official URL lists only RPMs, use the immutable full-image link from the QB 37627297 web UI. No image digest is available yet. The known Bolt.ts playback clip lacks confirmed 4K evidence, and no stream-specific drop counter has been verified. Record frame drops as `NA` until the counter is qualified. [Measurement and operator prerequisites](../../reports/KantSU2E_MLGO_Board_Day_0005.md#open-prerequisites-for-the-operator)
+The known Official Product endpoint timed out from this workspace on both HTTP and HTTPS. The native directory is unavailable here. The helper is ready for both fixed QuickBuilds after review and after the Product comparison exits. Resolve their full-image links using the board-day instructions. If the Official URL lists only RPMs, use the immutable full-image link from the QB 37627297 web UI. No image digest is available yet. The known Bolt.ts playback clip lacks confirmed 4K evidence, and no stream-specific drop counter has been verified. Record frame drops as `NA` until the counter is qualified. [Measurement and operator prerequisites](../../reports/KantSU2E_MLGO_Board_Day_0005.md#open-prerequisites-for-the-operator)
 
 The Base swap supports a kernel-focused comparison with confounders. The 2,952 non-LLVM delta rows, candidate-only or removed packages, and non-ELF inputs can qualify attribution even when covered user-space ELF matches meet the proposed rule. The standalone kernel replay identifies optimizer behavior on selected inputs. The production compiler/linker path and LTO code generation require their own evidence. [Independent MLGO review](../../reports/KantSU2E_MLGO_Board_Day_0005.md#independent-review-of-mlgo-attribution)
 
@@ -236,7 +236,7 @@ Verified the 442-line log and SHA-256 `1e45ccfcb339bbc44d7fca64feb1c19bfc5d1ca9d
 
 ### Foreground kernel resume
 
-Use after Claude review on the native server in a plain foreground terminal. The launcher verifies the exact existing Workdir contents and reuses the 24 overlaid files, the source logs and the two staged configs. It preserves the uninstrumented spec and adds its owner-write bit inside that Workdir. It accepts only the recorded pre-build failure and unused GBS roots. It prints `GBS_SOURCE_REUSED … P4_FETCH_SKIPPED` and then the two normal `GBS_START` lines. No tmux dependency. Refresh sudo in the attended terminal and allow the normal prompt during GBS. Estimate 45–150 minutes per kernel lane once source staging is skipped. Retain 50 GiB disk and 16 GiB RAM headroom with the existing additional job reservation. The locks keep this serial with other heavy work.
+The real QuickBuild pair takes priority. Use this for supporting effective argv only, after the Product comparison releases the heavy lock. Run after Claude review on the native server in a plain foreground terminal. The launcher verifies the exact existing Workdir contents and reuses the 24 overlaid files, the source logs and the two staged configs. It preserves the uninstrumented spec and adds its owner-write bit inside that Workdir. It accepts only the recorded pre-build failure and unused GBS roots. It prints `GBS_SOURCE_REUSED … P4_FETCH_SKIPPED` and then the two normal `GBS_START` lines. No tmux dependency. Refresh sudo in the attended terminal and allow the normal prompt during GBS. Estimate 45–150 minutes per kernel lane once source staging is skipped. Retain 50 GiB disk and 16 GiB RAM headroom with the existing additional job reservation. The locks keep this serial with other heavy work.
 
 ```bash
 (
@@ -325,3 +325,61 @@ CAUSE_ARGS=(--discover-logs /home1/chengkai/vd-tree/workspace/temp)
 ```
 
 Python 3.10.12 tests exercised the 24-entry retained-source resume, a read-only staged spec, RPM spec processing, command mode extraction and the cause-(i) proof gate. These were staging and parsing tests. Effective native compiler defaults, actual per-file causes beyond known evidence and matched package size results await the reviewed native jobs. [Scripts commit](https://github.com/lhmax2010/analysis/commit/d2542fa0292e06b3368cfaa61fb678f2496071b6)
+
+## Published QuickBuild pair
+
+QB **37654439** finished with Customized Base `tizen-10.0-base-dev-llvm-standard_20261118.1` and pinned LLVM rev12. Official **37627297** uses `20261113.1`. The user is running the `d3cea65` image comparer against [Customized Product 20261118.2](http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/), with [Official Product 20261117.2](http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/) as its existing control. The compare report is Friday's primary evidence. Use its readback after completion. The GBS kernel resume remains queued for supporting argv, after the comparison releases the heavy lock. [Friday report](../../reports/MLGO_Official_vs_Custom_20261120.md)
+
+### Compare the two native GBS configs
+
+Run on the native server. This takes seconds and uses no network, scratch files or heavy lock. It prints up to 70 lines of the original diff, requires exactly one occurrence of each expected URL, one buildroot and `profile.qb1111` per file, then checks the remaining normalized configuration. `GBS_CONFIG_DIFF_ONLY_BASE_PRODUCT_BUILDROOT` confirms the expected change set. The actual config files are unavailable in this checkout.
+
+```bash
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree/config
+  old=gbs_vd_llvm_11.16_qb37627297.conf
+  new=gbs_vd_llvm_11.16_qb37654439.conf
+  repo=http://repos.vd.sec.samsung.net
+  base="$repo/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_"
+  prod_old="$repo/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/"
+  prod_new="$repo/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/"
+  raw=$(diff -U1 -- "$old" "$new") || [[ $? == 1 ]]
+  printf '%s\n' "$raw" | sed -n '1,70p'
+  normalize() {
+    awk -v base="$1" -v product="$2" '
+      match($0, /^[[:space:]]*url[[:space:]]*=[[:space:]]*/) {
+        value = substr($0, RLENGTH+1)
+        if (value == base) { b++; $0 = substr($0, 1, RLENGTH) "<BASE>" }
+        if (value == product) { p++; $0 = substr($0, 1, RLENGTH) "<PRODUCT>" }
+      }
+      match($0, /^[[:space:]]*buildroot[[:space:]]*=[[:space:]]*/) {
+        if (substr($0, RLENGTH+1) ~ /[^[:space:]]/) { r++; $0 = substr($0, 1, RLENGTH) "<BUILDROOT>" }
+      }
+      /^[[:space:]]*profile[[:space:]]*=[[:space:]]*profile\.qb1111[[:space:]]*$/ { q++ }
+      { print }
+      END {
+        if (b != 1 || p != 1 || r != 1 || q != 1) {
+          printf "GBS_CONFIG_CHECK_FAILED %s base=%d product=%d buildroot=%d qb1111=%d\n", FILENAME, b, p, r, q > "/dev/stderr"
+          exit 2
+        }
+      }' "$3"
+  }
+  left=$(normalize "${base}20261113.1/" "$prod_old" "$old")
+  right=$(normalize "${base}20261118.1/" "$prod_new" "$new")
+  if [[ "$left" == "$right" ]]; then
+    printf '%s\n' GBS_CONFIG_DIFF_ONLY_BASE_PRODUCT_BUILDROOT
+  else
+    printf '%s\n' GBS_CONFIG_UNEXPECTED_DELTA
+    delta=$(diff -U1 <(printf '%s\n' "$left") <(printf '%s\n' "$right")) || [[ $? == 1 ]]
+    printf '%s\n' "$delta" | sed -n '1,100p'
+    exit 2
+  fi
+)
+```
+
+### Resolve the two full flash artifacts
+
+Both HTTP Product directories and parent `artifacts/` directories timed out from this workspace. Both HTTPS parent checks also timed out. No exact `updateSU2E` download URL, size or hash could be verified here. In each completed QB's **Artifacts** view, select the KantSU2e release full image or follow the linked image-generation/publish job. Capture the versioned link to the exact file `updateSU2E`, its byte length and published SHA-256 if shown. If only an archive is listed, capture the immutable bundle link and the member path. The pinned downloader can search the exact fixed Product or parent directory when it is browsable, and it takes the direct file URL when available. [Directory links and pinned downloader](../../reports/KantSU2E_MLGO_Board_Day_0005.md#download-a-flash-image)
+
+After the comparison and its readback, use the heavy slot for the two downloads serially, Official first for rollback. Then the retained foreground kernel GBS resume can use the slot for argv. The config diff and QB UI lookup can happen while the compare runs. No new native build or download was started from here.
