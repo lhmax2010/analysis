@@ -184,7 +184,12 @@ def main():
     print("WORKDIR", work)
     rpt = inside(SCAN / "mode-summary.txt")
     print("SCAN_SUMMARY_SHA256", hashlib.sha256(rpt.read_bytes()).hexdigest())
-    scan = csv_rows(inside(SCAN / "elf-modes.csv"))
+    results = SCAN / "results"
+    statuses = csv_rows(inside(results / "rpm-status.csv"))
+    if (len(statuses) != 2342 or len({(r["package"], r["identity"]) for r in statuses}) != 2342
+            or any(r["status"] != "SCANNED" for r in statuses)):
+        raise ValueError("expected the complete pinned 2,342-RPM scan")
+    scan = csv_rows(inside(results / "elf-modes.csv"))
     rows = [r for r in scan if r["kind"] in ("EXEC", "DYN") and r["mode"] in ("ARM", "MIXED_ARM")]
     keys = {key(row) for row in rows}
     if len(rows) != 609 or len(keys) != 609:
