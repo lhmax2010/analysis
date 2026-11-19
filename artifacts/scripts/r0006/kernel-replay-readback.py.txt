@@ -16,7 +16,7 @@ SCAN = TEMP / "pm0004-image-mode.b7rJie/results/elf-modes.csv"
 LEDGER = TEMP / "pm0005-image-compare.zrtxkrwn/packages.jsonl"
 ISA_FLAG = re.compile(r"(?<!\S)-m(arm|thumb)(?=\s|$)")
 TARGET = re.compile(r"(?<!\S)--target(?:=|\s+)([\w.-]+)")
-CONFIG = re.compile(r"^(?:# )?CONFIG_(?:THUMB2_KERNEL|ARM_THUMB|MLGO(?:_INLINER|_REGALLOC)?)(?:=| is not set)")
+CONFIG = re.compile(r"^(?:# )?CONFIG_(?:THUMB2_KERNEL|ARM_THUMB|DEBUG_INFO_BTF|MLGO(?:_INLINER|_REGALLOC)?)(?:=| is not set)")
 
 
 def emit(label, details):

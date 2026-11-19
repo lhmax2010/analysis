@@ -144,7 +144,11 @@ printf 'THUMB_BUILD_PATH %%s\n' "$PATH"
 WRAP_BODY = r'''
 pm_bin="$PWD/.pm-thumb-compiler"
 mkdir -p "$pm_bin"
-for pm_name in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++; do
+pm_compilers="clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++"
+if [ 'PM_LANE' = sample ]; then
+    pm_compilers="$pm_compilers gcc g++ armv7l-tizen-linux-gnueabi-gcc armv7l-tizen-linux-gnueabi-g++"
+fi
+for pm_name in $pm_compilers; do
     pm_real=$(command -v "$pm_name" || :)
     test -n "$pm_real" || continue
     {
@@ -159,6 +163,7 @@ for arg; do
     case "$arg" in
         -c) compile=1 ;;
         *.c|*.C|*.cc|*.cpp|*.cxx) source=1 ;;
+        *.s|*.S) [[ "$lane" != sample ]] || source=1 ;;
     esac
 done
 if [[ "$compile" == 1 && "$source" == 1 ]]; then
@@ -223,9 +228,7 @@ def stage_package(gbs, work, args, lane):
     if spec.is_symlink() or not spec.resolve().is_relative_to(project):
         raise ValueError("invalid package spec path")
     old = spec.read_text()
-    body = TRACE_BODY
-    if args.mode == "pair":
-        body += WRAP_BODY.replace("PM_LANE", lane)
+    body = TRACE_BODY + WRAP_BODY.replace("PM_LANE", lane)
     updated, count = re.subn(r"(?m)^%build[ \t]*$", lambda _: "%build\n"+body, old)
     if count != 1:
         raise ValueError("expected one exact %build section")

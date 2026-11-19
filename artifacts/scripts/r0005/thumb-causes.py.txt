@@ -107,7 +107,8 @@ def discover_logs(root):
     for directory, dirs, files in os.walk(root):
         dirs[:] = [name for name in dirs if name not in {".git", "proc", "sys", "dev", "ccache"}]
         for name in files:
-            if not (name.endswith(".log") or name.startswith("_log")):
+            if not (name.endswith(".log") or name.startswith("_log") or
+                    (name == "log.txt" and "logs" in Path(directory).parts)):
                 continue
             path = Path(directory) / name
             if path.is_symlink() or not path.is_file() or path.stat().st_size > 512 * 1024**2:
@@ -199,7 +200,7 @@ def main():
     if len(evidence) != len(supplied) or set(evidence) - keys:
         raise ValueError("reviewed evidence has duplicate or unmatched ELF identities")
     default_text = inside(args.defaults_log).read_text(errors="replace") if args.defaults_log else ""
-    defaults = bool(re.search(r"(?m)^.*THUMB_PROBE CLANG_DEFAULT ARM\s*$", default_text))
+    defaults = bool(re.search(r"(?m)^.*THUMB_PROBE CLANG_(?:DEFAULT|PLATFORM_DEFAULT) ARM\s*$", default_text))
     ledger, counts, sizes = [], Counter(), Counter()
     by_package = {}
     top = sorted(rows, key=lambda r: (-int(r["arm_bytes_est"]), key(r)))

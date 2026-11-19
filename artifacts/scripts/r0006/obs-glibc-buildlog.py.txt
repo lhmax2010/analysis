@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Read the OBS glibc source and log only for the pinned Official binary."""
+
+import argparse
+import hashlib
+from pathlib import Path
+import re
+import runpy
+import tempfile
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+BINARY = "glibc-2.40-1.111.armv7l.rpm"
+BINARY_SHA = "1223bc1f06a221f96a282374d09b5ce2c7b26ac3aaa6de5c701f05fa6cb63b4b"
+PROJECT = "Tizen:10.0:Base:Dev:LLVM"
+BUILD_PATH = ["build", PROJECT, "standard", "armv7l", "glibc"]
+
+
+def stream(obs, path, output, limit, query=None):
+    digest = hashlib.sha256()
+    size = 0
+    with obs.open(path, query) as source, output.open("xb") as target:
+        for block in iter(lambda: source.read(1024**2), b""):
+            size += len(block)
+            if size > limit:
+                raise ValueError(f"{path[-1]} exceeds capture limit")
+            target.write(block)
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def candidates(log, pattern):
+    with log.open(errors="replace") as source:
+        return [(i, line.strip()) for i, line in enumerate(source, 1) if pattern.search(line)]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("obs_library", type=Path)
+    args = parser.parse_args()
+    lib = runpy.run_path(str(args.obs_library))
+    work = Path(tempfile.mkdtemp(prefix="pm0006-obs-glibc.", dir=TEMP))
+    print("WORKDIR", work, flush=True)
+    try:
+        obs = lib["ObsGet"](work)
+        info = obs.xml(BUILD_PATH + ["_buildinfo"], work / "before.xml")
+        rev = info.get("srcmd5") or info.findtext("srcmd5")
+        if not rev or not re.fullmatch(r"[a-f0-9]{32}", rev):
+            raise ValueError("no exact OBS source revision")
+        actual = stream(obs, BUILD_PATH + [BINARY], work / BINARY, 64 * 1024**2)
+        if actual != BINARY_SHA:
+            raise ValueError("current OBS binary differs from the Official package")
+        log = work / "glibc.log"
+        log_hash = stream(obs, BUILD_PATH + ["_log"], log, 128 * 1024**2, {"nostream": "1"})
+        spec = work / "glibc.spec"
+        spec_hash = stream(obs, ["source", PROJECT, "glibc", "glibc.spec"], spec, 2 * 1024**2, {"rev": rev})
+        after = obs.xml(BUILD_PATH + ["_buildinfo"], work / "after.xml")
+        after_sha = stream(obs, BUILD_PATH + [BINARY], work / "binary-after.rpm", 64 * 1024**2)
+        if (after.get("srcmd5") or after.findtext("srcmd5")) != rev or after_sha != actual:
+            raise ValueError("OBS build changed during retrieval")
+        print("OBS_OFFICIAL_GLIBC", BINARY, actual, rev, flush=True)
+        print("OBS_GLIBC_SPEC", spec_hash, "OBS_GLIBC_LOG", log_hash, flush=True)
+        for i, line in candidates(spec, re.compile(r"-m(?:arm|thumb)\b|_toolchain_override|CFLAGS|sysdeps"))[:30]:
+            print("SPEC", i, lib["scrub"](line)[:700])
+        pattern = re.compile(r"(?:\bgcc(?:-\d+)?\b|\b\w+-gcc\b).* -c (?:.*\.[cSs]\b)")
+        matches = candidates(log, pattern)
+        print("GCC_COMPILE_LINES", len(matches))
+        explicit = [(i, row) for i, row in matches if re.search(r"(?<!\S)-m(?:arm|thumb)(?=\s|$)", row)]
+        print("GCC_EXPLICIT_ISA_LINES", len(explicit))
+        for i, row in (explicit or matches)[:22]:
+            print("COMPILE", i, lib["scrub"](row)[:1100])
+        print("FULL_LOG", log)
+    except Exception as exc:
+        print("OBS_GLIBC_LOG_UNAVAILABLE", lib["error_text"](exc))
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

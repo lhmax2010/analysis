@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""Report producer markers, packaging origin, and specimen paths for the ARM cohort."""
+
+import argparse
+from collections import Counter, defaultdict
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import tempfile
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+SCAN = TEMP / "pm0004-image-mode.b7rJie/results/elf-modes.csv"
+LEDGER = TEMP / "pm0005-image-compare.zrtxkrwn/packages.jsonl"
+CAUSES = TEMP / "pm0005-thumb-causes.22c0n6da/causes.json"
+SAMPLE = (
+    "inference-engine-tflite", "nnstreamer-tensorflow2-lite", "deviced", "gst-plugins-dash",
+    "libgcrypt", "gst-ffmpeg", "libpisa-ipc", "vdfs", "webapi-plugins", "nodejs",
+    "com.samsung.tv.cobalt-perf", "glibc",
+)
+VD_MEMPS_PATHS = {
+    "/usr/bin/bpftrace32", "/usr/lib/bpftrace/libLLVM.so.19.1",
+    "/usr/lib/bpftrace/libclang.so.19.1", "/usr/lib/bpftrace/libclang-cpp.so.19.1",
+}
+
+
+def line(label, row):
+    print(label, json.dumps(row, sort_keys=True, ensure_ascii=True), flush=True)
+
+
+def elf_key(row):
+    return tuple(row[k] for k in ("package", "identity", "path"))
+
+
+def metadata(path):
+    with path.open() as source:
+        rows = [json.loads(raw) for raw in source]
+    return {(r["package"][0], r["package"][1]): r for r in rows}
+
+
+def identify(row, cause, record):
+    path = row["path"]
+    if cause["cause"] == "PREBUILT":
+        return "PREBUILT_EXTERNAL_PRODUCER", cause["evidence_ref"]
+    if (row["package"], row["identity"]) == ("vd_memps", "0.3.5-1.armv7l") and path in VD_MEMPS_PATHS:
+        if record and record["official"] and record["official"][1][1] == "vd_memps-0.3.5-1.src.rpm":
+            return "PREBUILT_BUNDLED_SPEC", "retained memps.spec 50–59, 85–97; same NEVRA and exact payload path"
+    if "!" in path:
+        return "UNVERIFIED_ARCHIVE_MEMBER", path.partition("!")[0]
+    if path.startswith(("/opt/usr/apps/", "/usr/apps/")):
+        return "UNVERIFIED_DIRECT_APP", "RPM install path only"
+    return "UNVERIFIED_DIRECT", ""
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.parse_args()
+    with SCAN.open(newline="") as source:
+        cohort = {elf_key(r): r for r in csv.DictReader(source)
+                  if r["kind"] in {"EXEC", "DYN"} and r["mode"] in {"ARM", "MIXED_ARM"}}
+    causes = {elf_key(r): r for r in json.loads(CAUSES.read_text())}
+    if len(cohort) != 609 or cohort.keys() != causes.keys():
+        raise ValueError("fixed 609-file scan and cause ledger disagree")
+    inventory = metadata(LEDGER)
+    work = Path(tempfile.mkdtemp(prefix="pm0006-thumb-provenance.", dir=TEMP))
+    totals, bytes_by_class = Counter(), Counter()
+    packages = defaultdict(list)
+    table = work / "producer-origin.tsv"
+    fields = ("package", "identity", "path", "markers", "kind", "arm_bytes_est", "origin_class",
+              "origin_evidence", "source_rpm", "repo_route", "rpm_sha256", "isa_cause")
+    with table.open("w", newline="") as target:
+        writer = csv.DictWriter(target, fields, delimiter="\t")
+        writer.writeheader()
+        for key, row in sorted(cohort.items()):
+            record = inventory.get((row["package"], row["identity"].rsplit(".", 1)[-1]))
+            rpm = record["official"] if record else None
+            if rpm and (rpm[0][2] + "-" + rpm[0][3] + "." + rpm[0][4]) != row["identity"]:
+                raise ValueError(f"Official RPM identity mismatch for {key}")
+            cause = causes[key]
+            origin, evidence = identify(row, cause, record)
+            item = {k: row[k] for k in fields if k in row}
+            item.update(origin_class=origin, origin_evidence=evidence,
+                        source_rpm=rpm[1][1] if rpm else "", rpm_sha256=rpm[1][0] if rpm else "",
+                        repo_route=record["routes"][0] if record else "", isa_cause=cause["cause"])
+            writer.writerow(item)
+            label = (row["markers"], origin)
+            totals[label] += 1
+            bytes_by_class[label] += int(row["arm_bytes_est"])
+            packages[row["package"]].append(item)
+    for key, count in sorted(totals.items()):
+        line("THUMB_ORIGIN_CLASS", [*key, count, bytes_by_class[key]])
+    unknown = [name for name in packages if any(
+        r["origin_class"].startswith("UNVERIFIED") for r in packages[name])]
+    extras = sorted(set(unknown) - set(SAMPLE), key=lambda name: (
+        -sum(int(r["arm_bytes_est"]) for r in packages[name]
+             if r["origin_class"].startswith("UNVERIFIED")), name))[:12]
+    for name in (*SAMPLE, "glibc-locale", *extras):
+        items = packages.get(name, ())
+        if not items and name in SAMPLE:
+            line("THUMB_SAMPLE", [name, 0, "NO_FILE_IN_COHORT"])
+            continue
+        if not items:
+            continue
+        top = max(items, key=lambda row: int(row["arm_bytes_est"]))
+        line("THUMB_SAMPLE", [name, len(items), top["source_rpm"], top["repo_route"], top["path"],
+                             sorted({r["origin_class"] for r in items})])
+    line("THUMB_ORIGIN_TOTAL", sum(totals.values()))
+    line("THUMB_ORIGIN_TSV", [str(table), hashlib.sha256(table.read_bytes()).hexdigest()])
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (KeyError, OSError, ValueError) as exc:
+        raise SystemExit(f"THUMB_ORIGIN_FAILED {exc}") from exc

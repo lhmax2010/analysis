@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""Decode the two pinned packaged kernel BTF blobs and compare local .BTF."""
+
+import argparse
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import struct
+import tempfile
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+GBS = TEMP / "pm0005-gbs-kernel.mtob625f"
+PATH = "/lib/modules/perf/6.12.60/kernel/vmlinux"
+LEDGER_SHA = "0a1b971f5b4f76f38f60f87cd6bcb3c6d6c8c213cdfb3b37534d914012774d44"
+MAX_BTF = 16 * 1024**2
+KINDS = (
+    "UNKN", "INT", "PTR", "ARRAY", "STRUCT", "UNION", "ENUM", "FWD", "TYPEDEF",
+    "VOLATILE", "CONST", "RESTRICT", "FUNC", "FUNC_PROTO", "VAR", "DATASEC",
+    "FLOAT", "DECL_TAG", "TYPE_TAG", "ENUM64",
+)
+FIXED = {1: 4, 3: 12, 14: 4, 17: 4}
+VARIABLE = {4: 12, 5: 12, 6: 8, 13: 8, 15: 12, 19: 12}
+
+
+def emit(tag, data):
+    print(tag, json.dumps(data, ensure_ascii=True, sort_keys=True), flush=True)
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def decode(blob):
+    order = {b"\x9f\xeb": "<", b"\xeb\x9f": ">"}.get(blob[:2])
+    if not order or len(blob) < 24:
+        raise ValueError("missing raw BTF magic or header")
+    header = dict(zip(("magic", "version", "flags", "hdr_len", "type_off", "type_len",
+                       "str_off", "str_len"), struct.unpack_from(order + "HBBIIIII", blob)))
+    h, t, s = (header[k] for k in ("hdr_len", "type_len", "str_len"))
+    start = h + header["type_off"]
+    strings = h + header["str_off"]
+    end = start + t
+    if (header["version"] != 1 or header["flags"] != 0 or h < 24 or t % 4
+            or not h <= start <= end <= strings or s < 1 or strings + s != len(blob)
+            or blob[strings] != 0 or blob[-1] != 0):
+        raise ValueError("unsupported or inconsistent BTF header and string table")
+    header.update(bytes=len(blob), endian="little" if order == "<" else "big", sha256=sha(blob))
+    counts, sizes = Counter(), Counter()
+    pos = start
+    while pos < end:
+        if end - pos < 12:
+            raise ValueError("truncated BTF type header")
+        name_off, info, _ = struct.unpack_from(order + "III", blob, pos)
+        kind = (info >> 24) & 31
+        if kind == 0 or kind >= len(KINDS) or name_off >= s:
+            raise ValueError(f"unsupported BTF kind {kind} or invalid name offset {name_off}")
+        length = 12 + FIXED.get(kind, 0) + VARIABLE.get(kind, 0) * (info & 65535)
+        if pos + length > end:
+            raise ValueError("truncated BTF type payload")
+        counts[KINDS[kind]] += 1
+        sizes[KINDS[kind]] += length
+        pos += length
+    return header, counts, sizes
+
+
+def packaged(lib, record, expected, work, cache, fetch):
+    data = None
+    with lib["rpm_input"](record, cache, work, fetch) as rpm:
+        with lib["cpio_members"](rpm) as members:
+            for name, kind, _, size, source in members:
+                if name != PATH:
+                    lib["copy_bytes"](source, size)
+                    continue
+                if data is not None or kind != 0o100000 or not 0 < size <= MAX_BTF:
+                    raise ValueError("unexpected packaged BTF entry")
+                data = source.read(size)
+                if len(data) != size:
+                    raise ValueError("truncated packaged BTF")
+    if data is None or sha(data) != expected["sha256"] or len(data) != expected["bytes"]:
+        raise ValueError("packaged BTF differs from retained QuickBuild comparison")
+    return data
+
+
+def local_section(lane):
+    root = GBS / lane
+    path = root / "vmlinux-sections.txt"
+    with path.open(errors="replace") as stream:
+        rows = re.findall(r"(?m)^\s*\[\s*\d+\]\s+\.BTF\s+\S+\s+[0-9a-fA-F]+\s+"
+                          r"([0-9a-fA-F]+)\s+([0-9a-fA-F]+)\s", stream.read())
+    if len(rows) != 1:
+        raise ValueError(f"expected a unique .BTF section in {path}")
+    offset, size = (int(x, 16) for x in rows[0])
+    if not 0 < size <= MAX_BTF:
+        raise ValueError(".BTF size outside reading bound")
+    folders = root / "GBS-ROOT/local/BUILD-ROOTS"
+    images = sorted(folders.glob("*/home/abuild/rpmbuild/BUILD/**/KANTSU2E/image/perf/vmlinux"))
+    if len(images) != 1:
+        return size, None
+    with images[0].open("rb") as source:
+        if source.read(4) != b"\x7fELF":
+            raise ValueError("retained local perf vmlinux is not ELF")
+        source.seek(offset)
+        blob = source.read(size)
+    if len(blob) != size:
+        raise ValueError("truncated local .BTF")
+    return size, sha(blob)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("elf_library", type=Path)
+    parser.add_argument("--fetch", action="store_true")
+    parser.add_argument("--cache-dir", action="append", default=[], type=Path)
+    args = parser.parse_args()
+    lib = runpy.run_path(str(args.elf_library))
+    ledger = lib["COMPARISON"]
+    if lib["sha_file"](ledger) != LEDGER_SHA:
+        raise ValueError("retained QuickBuild ledger hash differs")
+    (row,) = [r for r in lib["rows_from"](ledger) if r["package"][0] == "tztv-kernel-perf"]
+    cache = lib["cache_index"](args.cache_dir)
+    work = Path(tempfile.mkdtemp(prefix="pm0006-kernel-btf.", dir=TEMP))
+    emit("WORKDIR", str(work))
+    results, local_sizes = {}, []
+    for lane, members in zip(("official", "custom"), row["kernel"]):
+        data = packaged(lib, row[lane], members[PATH], work, cache, args.fetch)
+        (work / (lane + ".btf")).write_bytes(data)
+        header, counts, sizes = decode(data)
+        results[lane] = [header, counts, sizes]
+        emit("BTF_OWNER", [lane, row[lane][0], row[lane][1][1], PATH])
+        emit("BTF_HEADER", [lane, header])
+        try:
+            size, digest = local_section(lane)
+            emit("LOCAL_ELF_BTF", [lane, size, digest, None if digest is None else digest == header["sha256"]])
+            local_sizes.append(size)
+        except (OSError, ValueError) as exc:
+            emit("LOCAL_ELF_BTF_UNAVAILABLE", [lane, str(exc)])
+    for kind in KINDS[1:]:
+        before, after = (results[lane][1][kind] for lane in ("official", "custom"))
+        left, right = (results[lane][2][kind] for lane in ("official", "custom"))
+        emit("BTF_KIND", [kind, before, after, after - before, left, right, right - left])
+    before, after = (results[lane][0] for lane in ("official", "custom"))
+    emit("BTF_DELTA", {key: after[key] - before[key] for key in ("bytes", "type_len", "str_len")})
+    if len(local_sizes) == 2:
+        emit("LOCAL_ELF_BTF_DELTA", local_sizes[1] - local_sizes[0])
+    spec = GBS / "vdlinux/packaging/tztv-kernel.spec"
+    if spec.is_file():
+        matches = [(i, row.strip()) for i, row in enumerate(spec.read_text(errors="replace").splitlines(), 1)
+                   if re.search(r"\b(?:BTF|pahole|vmlinux|sign-file)\b", row, re.I)]
+        for number, text in matches[:24]:
+            emit("KERNEL_SPEC_CONTEXT", [str(spec), number, text[:450]])
+    (work / "btf-summary.json").write_text(json.dumps(results, indent=2) + "\n")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, KeyError) as exc:
+        raise SystemExit(f"BTF_CHECK_FAILED {exc}") from exc
