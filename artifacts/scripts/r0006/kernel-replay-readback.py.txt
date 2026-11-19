@@ -32,8 +32,8 @@ def tail(path, lines):
 def thumb_failure():
     root = THUMB / "official"
     failures = [p for p in (root / "GBS-ROOT/local/repos").rglob("*")
-                if p.is_file() and not p.is_symlink() and p.parent.name == "fail"
-                and p.parent.parent.name == "logs"]
+                if p.is_file() and not p.is_symlink() and "logs" in p.parts
+                and "fail" in p.parts and "pm-thumb-defaults-1-1" in p.parts]
     for path in sorted(failures)[:2] or [root / "gbs.log"]:
         for row in tail(path, 45):
             emit("THUMB_FAILURE_LOG", [str(path), row[:900]])
@@ -52,9 +52,10 @@ def kernel_argv(lane, root, logs):
     makefiles = sorted(logs.glob("**/linux-6.12/arch/arm/Makefile"))
     for path in makefiles[:1]:
         source = path.read_text(errors="replace").splitlines()
-        for n, line in enumerate(source):
-            if "CONFIG_THUMB2_KERNEL" in line or re.search(r"(-marm|-mthumb)", line):
-                emit("KERNEL_MAKEFILE", [lane, str(path), n + 1, line])
+        matches = [(n, line) for n, line in enumerate(source, 1)
+                   if "CONFIG_THUMB2_KERNEL" in line or re.search(r"-marm|-mthumb", line)]
+        for n, line in matches[:16]:
+            emit("KERNEL_MAKEFILE", [lane, str(path), n, line])
     commands = root / "effective-argv.txt"
     modes, examples = Counter(), {}
     with commands.open(errors="replace") as stream:
@@ -66,6 +67,29 @@ def kernel_argv(lane, root, logs):
             examples.setdefault(key, re.findall(r"(?:^|\s)([\w./+-]+\.[cS])(?=\s|$)", line)[-1:])
     for (target, flags), count in modes.most_common(12):
         emit("KERNEL_ARGV_ISA", [lane, target, list(flags), count, examples[target, flags]])
+
+
+    thumb_dirs, source_modes = Counter(), Counter()
+    log = root / "gbs.log"
+    if not log.is_file():
+        emit("FULL_LOG_MISSING", lane)
+        return
+    with log.open(errors="replace") as stream:
+        for line in stream:
+            flags = ISA_FLAG.findall(line)
+            if not flags or not re.search(r"\bclang(?:-22)?\s", line) or " -c " not in line:
+                continue
+            src = re.findall(r"(?:^|\s)([\w./+-]+\.(?:c|S|s))(?=\s|$)", line)
+            if not src:
+                continue
+            source = Path(src[-1])
+            source_modes[(source.suffix, "+".join(flags))] += 1
+            if "thumb" in flags:
+                thumb_dirs[str(source.parent)] += 1
+    for (extension, flags), count in source_modes.most_common(15):
+        emit("FULL_LOG_ISA", [lane, extension, flags, count])
+    for directory, count in thumb_dirs.most_common(15):
+        emit("FULL_LOG_THUMB_DIR", [lane, directory, count])
 
 
 def rpm_query(path, query):

@@ -14,92 +14,84 @@ import tempfile
 from types import SimpleNamespace
 
 DEFAULT_BODY = r'''
-set -eu
+set +e
 export LC_ALL=C
 printf 'THUMB_OPTFLAGS %%s\n' '%{optflags}'
+printf 'THUMB_BUILD_ENV CC=%%s CXX=%%s AR=%%s\n' "${CC:-}" "${CXX:-}" "${AR:-}"
+printf 'THUMB_EXPORTED_CFLAGS %%s\n' "${CFLAGS:-}"
+printf 'THUMB_EXPORTED_CXXFLAGS %%s\n' "${CXXFLAGS:-}"
+printf 'THUMB_EXPORTED_FFLAGS %%s\n' "${FFLAGS:-}"
 
-if gcc -v >gcc-v.log 2>&1; then
-    awk '/Target:|Configured with:|gcc version/ {print "THUMB_GCC_V", $0}' gcc-v.log
-else
-    printf 'THUMB_GCC_V_ERROR %%s\n' "$?"
-    head -4 gcc-v.log
-fi
-if gcc -Q --help=target -c -x c /dev/null -o /dev/null >gcc-target.log 2>&1; then
-    awk '/-marm|-mthumb|-mfloat-abi|-march=|-mcpu=/ {print "THUMB_GCC_Q", $0}' gcc-target.log
-else
-    printf 'THUMB_GCC_Q_ERROR %%s\n' "$?"
-    head -4 gcc-target.log
-fi
-
-for cc in gcc clang; do
-    if command -v "$cc" >/dev/null; then
-        actual=$(readlink -f "$(command -v "$cc")")
-        printf 'THUMB_COMPILER %%s %%s\n' "$cc" "$actual"
-        sha256sum "$actual" | sed 's/^/THUMB_COMPILER_SHA256 /'
-    else
-        printf 'THUMB_COMPILER_MISSING %%s\n' "$cc"
-    fi
-done
-clang --version | awk 'NR<=4 {print "THUMB_CLANG", $0}'
-
-driver() {
-    label=$1
+step() {
+    name=$1
     shift
-    "$@" -### >"$label.driver" 2>&1 || :
-    awk -v label="$label" '
-      /^Configuration file:|^Target:/ { print "THUMB_DRIVER_TARGET", label, $0 }
-      /"-cc1"/ {
-        printf "THUMB_DRIVER_FLAGS %%s", label
-        for (i=1; i<=NF; i++) {
-          if ($i == "\"-triple\"" || $i == "\"-mimplicit-it\"") { printf " %%s %%s", $i, $(i+1); i++ }
-          else if ($i ~ /thumb-mode|implicit-it|^-m(arm|thumb)$/) printf " %%s", $i
-        }
-        print ""
-      }' "$label.driver"
+    "$@" >"$name.out" 2>"$name.err"
+    step_rc=$?
+    printf 'THUMB_STEP %%s rc=%%s\n' "$name" "$step_rc"
+    sed -n "1,20s/^/THUMB_STDERR $name /p" "$name.err"
 }
 
-probe() {
+gcc_opts() {
+    label=$1
+    shift
+    step "$label" gcc "$@" -Q --help=target
+    awk -v label="$label" '$1 ~ /^-m(arm$|thumb$|arch=|float-abi=)/ {print "THUMB_GCC_Q", label, $0}' "$label.out"
+}
+
+mapping() {
+    label=$1
+    step "$label.symbols" readelf -sW "$label.o"
+    awk -v label="$label" '/\$[at]([.[:space:]]|$)/ {print "THUMB_OBJECT_MAPPING", label, $NF}' "$label.symbols.out"
+    step "$label.attributes" readelf -A "$label.o"
+    awk -v label="$label" '/Tag_THUMB_ISA_use:|Tag_ARM_ISA_use:/ { print "THUMB_OBJECT_ATTRIBUTE", label, $0 }' "$label.attributes.out"
+}
+
+clang_macros() {
     label=$1
     language=$2
     shift 2
-    if "$@" -dM -E -x "$language" /dev/null >"$label.macros" 2>"$label.error"; then
-        if grep -q '^#define __thumb2__ ' "$label.macros"; then
-            mode=THUMB2
-        elif grep -q '^#define __thumb__ ' "$label.macros"; then
-            mode=THUMB
-        elif grep -q '^#define __arm__ ' "$label.macros"; then
-            mode=ARM
-        else
-            mode=OTHER_TARGET
-        fi
-        printf 'THUMB_PROBE %%s %%s\n' "$label" "$mode"
-        awk -v label="$label" '/^#define (__thumb2?__|__arm__|__ARM_PCS_VFP|__SOFTFP__) / {
-          print "THUMB_MACRO", label, $2, $3
-        }' "$label.macros"
+    step "$label.macros" "$@" -dM -E -x "$language" /dev/null
+    if [ "$step_rc" -ne 0 ]; then
+        mode=ERROR
+    elif grep -q '^#define __thumb2__ ' "$label.macros.out"; then
+        mode=THUMB2
+    elif grep -q '^#define __thumb__ ' "$label.macros.out"; then
+        mode=THUMB
+    elif grep -q '^#define __arm__ ' "$label.macros.out"; then
+        mode=ARM
     else
-        printf 'THUMB_PROBE %%s ERROR %%s\n' "$label" "$?"
-        sed -n '1,4s/^/THUMB_PROBE_ERROR /p' "$label.error"
+        mode=OTHER_TARGET
     fi
-    driver "$label" "$@" -c -x "$language" /dev/null
+    printf 'THUMB_PROBE %%s %%s\n' "$label" "$mode"
 }
 
 compile() {
     label=$1
     source=$2
     shift 2
-    printf 'THUMB_COMPILE_ARGV %%s' "$label"
-    printf ' %%s' "$@" -c "$source" -o "$label.o"
-    printf '\n'
-    if "$@" -c "$source" -o "$label.o" >"$label.compile" 2>&1; then
-        printf 'THUMB_COMPILE_RESULT %%s COMPILED\n' "$label"
-        if command -v readelf >/dev/null; then
-            readelf -sW "$label.o" | awk -v label="$label" '
-              /\$[at]([.[:space:]]|$)/ {print "THUMB_OBJECT_MAPPING", label, $NF}'
-        fi
-    else
-        printf 'THUMB_COMPILE_RESULT %%s ERROR %%s\n' "$label" "$?"
-        sed -n '1,4s/^/THUMB_COMPILE_ERROR /p' "$label.compile"
+    printf 'THUMB_COMPILE_ARGV %%s %%s -c %%s -o %%s\n' "$label" "$*" "$source" "$label.o"
+    step "$label" "$@" -c "$source" -o "$label.o"
+    if [ "$step_rc" -eq 0 ]; then
+        mapping "$label"
     fi
+}
+
+clang_c() {
+    label=$1
+    shift
+    clang_macros "$label" c "$@"
+    step "$label.driver" "$@" -### -c pm-mode.c
+    awk -v label="$label" '
+      /^Configuration file:|^Target:/ { print "THUMB_DRIVER_TARGET", label, $0 }
+      /"-cc1"/ {
+        printf "THUMB_DRIVER_FLAGS %%s", label
+        for (i=1; i<=NF; i++) {
+          if ($i == "\"-triple\"" || $i == "\"-mimplicit-it\"") { printf " %%s %%s", $i, $(i+1); i++ }
+          else if ($i ~ /thumb-mode|implicit-it/) printf " %%s", $i
+        }
+        print ""
+      }' "$label.driver.err"
+    compile "$label.C" pm-mode.c "$@"
 }
 
 cat >pm-implicit-it.S <<'PM_ASSEMBLY'
@@ -116,25 +108,30 @@ pm_it:
     bx lr
 PM_ASSEMBLY
 cat >pm-mode.c <<'PM_C_SOURCE'
-int pm_mode(int a);
-int pm_mode(int a) { return a + 1; }
+void pm_mode(void);
+void pm_mode(void) {}
 PM_C_SOURCE
 
+target_driver=armv7l-tizen-linux-gnueabi-clang
+step GCC_VERSION gcc -v
+step CLANG_VERSION "$target_driver" --version
+sed -n '1,4s/^/THUMB_CLANG /p' CLANG_VERSION.out
 set -- %{optflags}
-probe GCC_DEFAULT c gcc
-probe GCC_OPTFLAGS c gcc "$@"
-probe CLANG_DEFAULT c clang
-probe CLANG_OPTFLAGS c clang "$@"
-for target in armv7l-tizen-linux-gnueabi arm-linux-gnueabi; do
-    probe "CLANG_${target}_CFG" c clang --target="$target"
-    probe "CLANG_${target}_BARE" c clang --no-default-config --target="$target"
-    probe "CLANG_${target}_OPTFLAGS" c clang --target="$target" "$@"
-    probe "CLANG_${target}_ASM" assembler-with-cpp clang --target="$target" "$@"
-    compile "CLANG_${target}_THUMB_IMPLICIT_IT" pm-implicit-it.S clang --target="$target" -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=thumb
-    compile "CLANG_${target}_THUMB_NO_IMPLICIT_IT" pm-implicit-it.S clang --target="$target" -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=never
-    compile "CLANG_${target}_ASM_OPTFLAGS" pm-implicit-it.S clang --target="$target" "$@"
-    compile "CLANG_${target}_C_OPTFLAGS" pm-mode.c clang --target="$target" "$@"
-done
+gcc_opts GCC_DEFAULT
+gcc_opts GCC_OPTFLAGS "$@"
+compile GCC_DEFAULT_C pm-mode.c gcc
+
+clang_c CLANG_PLATFORM_DEFAULT "$target_driver"
+clang_c CLANG_PLATFORM_BARE "$target_driver" --no-default-config --target=armv7l-tizen-linux-gnueabi
+clang_c CLANG_PLATFORM_OPTFLAGS "$target_driver" "$@"
+clang_c CLANG_KERNEL_DEFAULT "$target_driver" --target=arm-linux-gnueabi
+clang_c CLANG_KERNEL_BARE "$target_driver" --no-default-config --target=arm-linux-gnueabi
+clang_c CLANG_KERNEL_OPTFLAGS "$target_driver" --target=arm-linux-gnueabi "$@"
+compile CLANG_PLATFORM_ASM_OPTFLAGS pm-implicit-it.S "$target_driver" "$@"
+compile CLANG_KERNEL_ASM_OPTFLAGS pm-implicit-it.S "$target_driver" --target=arm-linux-gnueabi "$@"
+compile CLANG_KERNEL_ASM_IMPLICIT_IT pm-implicit-it.S "$target_driver" --target=arm-linux-gnueabi -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=thumb
+compile CLANG_KERNEL_ASM_NO_IMPLICIT_IT pm-implicit-it.S "$target_driver" --target=arm-linux-gnueabi -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=never
+printf 'THUMB_MATRIX_END\n'
 '''
 
 TRACE_BODY = r'''
@@ -188,12 +185,13 @@ def stage_defaults(gbs, work):
     (project / "README").write_text("Local GBS target default probe.\n")
     (packaging / "pm-thumb-defaults.spec").write_text("""Name: pm-thumb-defaults
 Version: 1
-Release: 1
+Release: 2
 Summary: Local compiler target option probe
 License: MIT
 Source0: %{name}-%{version}.tar.gz
 BuildRequires: gcc
 BuildRequires: clang
+BuildRequires: binutils
 %description
 Local GBS probe for compiler instruction mode.
 %prep
@@ -237,7 +235,7 @@ def stage_package(gbs, work, args, lane):
     return project, args.spec
 
 
-def run_gbs(gbs, work, project, spec, config, buildconf, root, include_all, defaults):
+def run_gbs(gbs, capture, project, spec, config, buildconf, root, include_all, defaults):
     cpu = ",".join(map(str, sorted(os.sched_getaffinity(0))[:6]))
     cmd = ["taskset", "-c", cpu, "gbs", "-c", str(config), "build", "-A", "armv7l",
            "-B", str(root), "-D", str(buildconf), "--threads", "1", "--spec", spec]
@@ -245,13 +243,14 @@ def run_gbs(gbs, work, project, spec, config, buildconf, root, include_all, defa
         cmd += ["--include-all"]
     if defaults:
         cmd += ["--fallback-to-native"]
-    log = root.parent / "gbs.log"
+    log = capture / "gbs.log"
     print("GBS_START", shlex.join(cmd), "LOG", log, flush=True)
     rc = gbs.execute(cmd, project, log, 12*3600, check=False)
     print("GBS_EXIT", rc)
     repos = root / "local/repos"
     failed = sorted(path for path in repos.rglob("*") if path.is_file()
-                    and path.parent.name == "fail" and path.parent.parent.name == "logs")
+                    and "logs" in path.parts and "fail" in path.parts
+                    and (not defaults or "pm-thumb-defaults-1-2" in path.parts))
     candidates = [log, *failed[:4], *sorted(repos.rglob("*build*.log"))[:12]]
     seen, invocations = set(), set()
     for file in candidates:
@@ -264,12 +263,13 @@ def run_gbs(gbs, work, project, spec, config, buildconf, root, include_all, defa
                     invocations.add(line)
                 elif line.startswith(("THUMB_", "GBS_RPM ")):
                     seen.add(line)
-    (root.parent / "thumb-probe.txt").write_text("\n".join(sorted(seen))+"\n")
-    (root.parent / "compiler-invocations.txt").write_text("\n".join(sorted(invocations))+"\n")
-    priority = ("THUMB_PROBE ", "THUMB_OPTFLAGS ", "THUMB_COMPILER", "THUMB_GCC_Q",
-                "THUMB_COMPILE_RESULT", "THUMB_COMPILE_ARGV", "THUMB_DRIVER_FLAGS")
+    (capture / "thumb-probe.txt").write_text("\n".join(sorted(seen))+"\n")
+    (capture / "compiler-invocations.txt").write_text("\n".join(sorted(invocations))+"\n")
+    priority = ("THUMB_STEP ", "THUMB_PROBE ", "THUMB_OPTFLAGS ", "THUMB_BUILD_ENV",
+                "THUMB_EXPORTED_", "THUMB_GCC_Q", "THUMB_COMPILE_ARGV", "THUMB_DRIVER_FLAGS",
+                "THUMB_OBJECT_MAPPING", "THUMB_OBJECT_ATTRIBUTE", "THUMB_MATRIX_END")
     ordered = sorted(seen, key=lambda line: (not line.startswith(priority), line))
-    for line in ordered[:110 if defaults else 55]:
+    for line in ordered[:170 if defaults else 55]:
         print(line[:850])
     if not defaults:
         print("THUMB_WRAPPED_COMPILE_LINES", len(invocations))
@@ -283,16 +283,18 @@ def run_gbs(gbs, work, project, spec, config, buildconf, root, include_all, defa
                     print("GBS_FAILURE_LOG", failure.name, line[:700])
         raise ValueError(f"GBS build failed: {log}")
     if defaults:
-        required = {"CLANG_OPTFLAGS"}
-        for target in ("armv7l-tizen-linux-gnueabi", "arm-linux-gnueabi"):
-            required.update(f"CLANG_{target}_{kind}" for kind in ("CFG", "BARE", "OPTFLAGS", "ASM"))
+        required = {"CLANG_PLATFORM_DEFAULT", "CLANG_PLATFORM_OPTFLAGS", "CLANG_KERNEL_DEFAULT"}
         observed = {fields[1] for line in seen if (fields := line.split())[:1] == ["THUMB_PROBE"]
                     and len(fields) == 3 and fields[2] in {"ARM", "THUMB", "THUMB2"}}
-        if missing := required - observed:
-            raise ValueError("missing or failed compiler probes: " + ", ".join(sorted(missing)))
-        for target in ("armv7l-tizen-linux-gnueabi", "arm-linux-gnueabi"):
-            if f"THUMB_COMPILE_RESULT CLANG_{target}_C_OPTFLAGS COMPILED" not in seen:
-                raise ValueError(f"missing or failed C compile with optflags: {target}")
+        expected_steps = {"GCC_DEFAULT", "GCC_OPTFLAGS", "GCC_DEFAULT_C",
+                          "CLANG_PLATFORM_OPTFLAGS.C", "CLANG_PLATFORM_ASM_OPTFLAGS",
+                          "CLANG_KERNEL_OPTFLAGS.C", "CLANG_KERNEL_ASM_OPTFLAGS"}
+        successful = {fields[1] for line in seen if (fields := line.split())[:1] == ["THUMB_STEP"]
+                      and len(fields) == 3 and fields[2] == "rc=0"}
+        missing = sorted((required - observed) | (expected_steps - successful))
+        if "THUMB_MATRIX_END" not in seen:
+            missing.append("THUMB_MATRIX_END")
+        print("THUMB_MATRIX_STATUS", "INCOMPLETE" if missing else "COMPLETE", *missing)
     return invocations
 
 
@@ -336,6 +338,7 @@ def main():
     parser.add_argument("gbs_lib", type=Path)
     parser.add_argument("mode", choices=("defaults", "sample", "pair"))
     parser.add_argument("--source", type=Path)
+    parser.add_argument("--resume", type=Path, help="reuse the official GBS root of a prior defaults probe")
     parser.add_argument("--revision")
     parser.add_argument("--spec")
     parser.add_argument("--package")
@@ -343,25 +346,38 @@ def main():
     parser.add_argument("--scan-lib", type=Path)
     parser.add_argument("--cause-ledger", type=Path)
     args = parser.parse_args()
+    if args.resume and args.mode != "defaults":
+        parser.error("--resume is for defaults only")
     if args.mode != "defaults" and not all((args.source, args.revision, args.spec)):
         parser.error("sample and pair require --source, --revision and --spec")
     if args.mode == "pair" and (not all((args.package, args.elf, args.scan_lib, args.cause_ledger))
                                  or not re.fullmatch(r"[\w.+-]+", args.package)):
         parser.error("pair requires --package, --elf, --scan-lib and --cause-ledger")
     gbs = SimpleNamespace(**runpy.run_path(str(args.gbs_lib)))
-    work = Path(tempfile.mkdtemp(prefix="pm0005-gbs-thumb.", dir=gbs.NATIVE))
-    os.environ["TMPDIR"] = str(work)
-    print("WORKDIR", work, flush=True)
     try:
+        if args.resume:
+            work = args.resume.resolve(strict=True)
+            if (args.resume.is_symlink() or work.parent != gbs.NATIVE.resolve()
+                    or not work.name.startswith("pm0005-gbs-thumb.")
+                    or not (work / "default-probe/packaging/pm-thumb-defaults.spec").is_file()
+                    or not (work / "official/GBS-ROOT").is_dir()):
+                raise ValueError("resume requires a prior defaults workdir below workspace/temp")
+            capture = Path(tempfile.mkdtemp(prefix="defaults-rerun.", dir=work))
+        else:
+            work = Path(tempfile.mkdtemp(prefix="pm0005-gbs-thumb.", dir=gbs.NATIVE))
+            capture = work / "official"
+        os.environ["TMPDIR"] = str(work)
+        print("WORKDIR", work, flush=True)
+        print("RUN_CAPTURE", capture, flush=True)
         gbs.available(work, 45 if args.mode == "pair" else 22, 12)
-        cfg, dist = gbs.configurations(work)
+        cfg, dist = gbs.configurations(work, reuse_official_root=args.resume is not None)
         conf, official_root = cfg["official"]
         if args.mode == "defaults":
-            project, spec = stage_defaults(gbs, work)
-            run_gbs(gbs, work, project, spec, conf, dist, official_root, False, True)
+            project, spec = stage_defaults(gbs, capture if args.resume else work)
+            run_gbs(gbs, capture, project, spec, conf, dist, official_root, False, True)
         elif args.mode == "sample":
             project, spec = stage_package(gbs, work, args, "sample")
-            run_gbs(gbs, work, project, spec, conf, dist, official_root, True, False)
+            run_gbs(gbs, official_root.parent, project, spec, conf, dist, official_root, True, False)
         else:
             ledger = args.cause_ledger.resolve(strict=True)
             if not ledger.is_relative_to(gbs.ROOT.resolve()):
@@ -379,7 +395,7 @@ def main():
                 project, spec = stage_package(gbs, work, args, lane)
                 lane_conf = root.parent/"pair-gbs.conf"
                 lane_conf.write_bytes(conf.read_bytes().replace(str(official_root).encode(), str(root).encode()))
-                lines = run_gbs(gbs, work, project, spec, lane_conf, dist, root, True, False)
+                lines = run_gbs(gbs, root.parent, project, spec, lane_conf, dist, root, True, False)
                 if not lines or (lane == "thumb" and any(not line.endswith(" -mthumb") for line in lines)):
                     raise ValueError("no verified mode-forcing compiler calls")
                 captures[lane] = measured_elfs(scan, root, args.package, set(args.elf))

@@ -1,0 +1,68 @@
+chengkai@risc-v-Alienware-Aurora-R16:config$ w=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official
+k=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official
+find "$w/GBS-ROOT/local/repos" -path '*/logs/fail/*' -type f | while read -r f; do echo "== $f"; tail -n 60 "$f"; done
+grep -ohE -- ' -m(arm|thumb)( |$)' "$k/gbs.log" | sort | uniq -c
+find "$k/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1" -maxdepth 4 -name .config 2>/dev/null | head -3 | xargs -r grep -H -E 'CONFIG_THUMB2_KERNEL|CONFIG_ARM_THUMB=|CONFIG_MLGO'
+== /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/pm-thumb-defaults-1-1/log.txt
+[   58s] + '[' 0 -ne 0 ']'
+[   58s] + cd pm-thumb-defaults-1
+[   58s] + /bin/chmod -Rf a+rX,u+w,g-w,o-w .
+[   58s] + exit 0
+[   58s] Executing(%build): /bin/sh -e /var/tmp/rpm-tmp.k8rwOk
+[   58s] + umask 022
+[   58s] + cd /home/abuild/rpmbuild/BUILD
+[   58s] + CFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g'
+[   58s] + export CFLAGS
+[   58s] + CXXFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g'
+[   58s] + export CXXFLAGS
+[   58s] + FFLAGS=
+[   58s] + export FFLAGS
+[   58s] + FCFLAGS=
+[   58s] + export FCFLAGS
+[   58s] + CFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto'
+[   58s] + export CFLAGS
+[   58s] + CXXFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto'
+[   58s] + export CXXFLAGS
+[   58s] + FFLAGS=' -flto'
+[   58s] + export FFLAGS
+[   58s] + case " $CFLAGS " in
+[   58s] + CFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects'
+[   58s] + CXXFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects'
+[   58s] + FFLAGS=' -flto -ffat-lto-objects'
+[   58s] + export CFLAGS CXXFLAGS FFLAGS
+[   58s] + cd pm-thumb-defaults-1
+[   58s] + ref=/usr/lib/rpm
+[   58s] + mints=0
+[   58s] + case $(uname -m) in
+[   58s] ++ uname -m
+[   58s] + for s in guess sub
+[   58s] ++ find -maxdepth 8 -name config.guess
+[   58s] + for s in guess sub
+[   58s] ++ find -maxdepth 8 -name config.sub
+[   58s] + export AR=llvm-ar RANLIB=llvm-ranlib
+[   58s] + AR=llvm-ar
+[   58s] + RANLIB=llvm-ranlib
+[   58s] + export CC=armv7l-tizen-linux-gnueabi-clang CXX=armv7l-tizen-linux-gnueabi-clang++
+[   58s] + CC=armv7l-tizen-linux-gnueabi-clang
+[   58s] + CXX=armv7l-tizen-linux-gnueabi-clang++
+[   58s] + set -eu
+[   58s] + export LC_ALL=C
+[   58s] + LC_ALL=C
+[   58s] + printf 'THUMB_OPTFLAGS %s\n' '-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g'
+[   58s] THUMB_OPTFLAGS -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g
+[   58s] + gcc -v
+[   58s] + awk '/Target:|Configured with:|gcc version/ {print "THUMB_GCC_V", $0}' gcc-v.log
+[   58s] THUMB_GCC_V Target: armv7l-tizen-linux-gnueabi
+[   58s] THUMB_GCC_V Configured with: ../configure --prefix=/usr --infodir=/usr/share/info --mandir=/usr/share/man --libdir=/usr/lib --libexecdir=/usr/lib --enable-languages=c,c++,fortran --enable-checking=release --disable-libssp --disable-bootstrap --disable-libvtv --enable-plugin --disable-libgcj --with-slibdir=/usr/lib --with-system-zlib --with-sysroot=/ --enable-__cxa_atexit --enable-libstdcxx-allocator=new --enable-version-specific-runtime-libs --enable-linker-build-id --without-system-libunwind --enable-threads=posix --disable-multilib --disable-cet --enable-lto --enable-libcc1 --enable-libgfortran --with-arch=armv7-a --with-tune=cortex-a8 --disable-sjlj-exceptions --with-bugurl=http://bugs.tizen.org/ --with-pkgversion='Tizen GCC 14.2.0 20240801 1.77' --target=armv7l-tizen-linux-gnueabi --host=armv7l-tizen-linux-gnueabi --build=armv7l-tizen-linux-gnueabi
+[   58s] THUMB_GCC_V gcc version 14.2.0 (Tizen GCC 14.2.0 20240801 1.77)
+[   58s] + gcc -Q --help=target -c -x c /dev/null -o /dev/null
+[   58s] error: Bad exit status from /var/tmp/rpm-tmp.k8rwOk (%build)
+[   58s]
+[   58s]
+[   58s] RPM build errors:
+[   58s]     Bad exit status from /var/tmp/rpm-tmp.k8rwOk (%build)
+[   58s]
+[   58s] risc-v-Alienware-Aurora-R16 failed "build pm-thumb-defaults.spec" at Thu Nov 19 07:02:02 UTC 2026.
+[   58s]
+   1884  -marm
+    302  -mthumb

@@ -76,7 +76,7 @@ def execute(argv, cwd, log, timeout, check=True):
     return status
 
 
-def configurations(work):
+def configurations(work, reuse_official_root=False):
     control = ROOT / "config/gbs_vd_llvm_11.16_qb37627297.conf"
     custom = pinned(PRE / "gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf", CUSTOM_CONF_SHA)
     conf = pinned(PRE / "product/published-build.conf", BUILD_CONF_SHA)
@@ -94,7 +94,8 @@ def configurations(work):
         folder = work / lane
         folder.mkdir(exist_ok=True)
         root = folder / "GBS-ROOT"
-        if folder.is_symlink() or root.exists() or root.is_symlink():
+        reusing = reuse_official_root and lane == "official" and root.is_dir()
+        if folder.is_symlink() or (root.exists() and not reusing) or root.is_symlink():
             raise ValueError(f"resume requires an unused GBS root: {root}")
         normal, data = normalize(path.read_bytes(), token, str(root).encode())
         if lane == "official":
@@ -105,6 +106,8 @@ def configurations(work):
         if local.is_symlink() or (local.exists() and local.read_bytes() != data):
             raise ValueError(f"retained staged config differs: {local}")
         if not local.exists():
+            if reusing:
+                raise ValueError(f"retained GBS root has no original config: {local}")
             local.write_bytes(data)
         configs[lane] = local, root
         print("GBS_INPUT", lane, path, sha(path), "STAGED", local, sha(local), flush=True)
