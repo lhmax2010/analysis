@@ -283,3 +283,10 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Reproduce the pinned VD kernel package in two serial, isolated GBS roots with the same QB 37627297 Product configuration and source shelf. Capture effective local Kbuild argv, root compiler binary and RPM identities and derived artifact sizes. Preserve the distinction between local GBS evidence and the unavailable production QB log.
 - T7 links the byte-identified CAPI member and the four other TLS archives inside a GBS probe package. Compare native GNU ld, Gold/LLVMgold and the CAPI runtime thread checks. Consumer link maps and actual outputs determine impact.
 - Argot ownership is the CODEOWNERS team `@AGENTIC/argo-tizen-maintainers`. The retained submitter is `youngb.shin`. Run the pinned CI/config readback before declaring the ARM triple or Thumb setting. [Native input](../artifacts/evidence/native-run-r0005-pic-accel-argot-20261118.txt)
+
+
+## D-032 — Resume the GBS kernel and verify Thumb causes
+
+- Resume the retained pre-build vdlinux workdir with the recorded spec and defconfig hashes and 24 shelf actions. Write-enable only the staged spec before applying the existing trace. Run GBS in an attended foreground terminal.
+- The completed scan is the 609-file ARM-predominant roster. Treat GCC/Clang/Rust marker strings as screening evidence. Test compiler defaults with the effective GBS flags/config and match the actual compilation and linked artifact before assigning each cause.
+- Require three paired, cause-(i) GBS measurements before a code-size extrapolation. Keep estimated executable bytes distinct from resident memory. [Native evidence](../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt)

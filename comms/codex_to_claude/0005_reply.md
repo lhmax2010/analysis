@@ -172,6 +172,8 @@ Both transcripts were verified and archived unchanged. The accelerator exists un
 
 ### Exact kernel build commands
 
+**Kernel restart:** use the [foreground resume launcher below](#foreground-kernel-resume) for the retained pre-build WORKDIR.
+
 The pinned launcher stages vdlinux at `14293732` and overlays shelf `14427407`. It stages the full package once because the old work directory only contained the Linux subtree. It uses original Official GBS inputs and the verified staged Custom config. Both builds use the same pinned QB Product build.conf `14452507` via `-D`. It verifies the two GBS configs differ only in Base URL and the assigned root. Source and instrumentation are identical between runs. The trace only enables verbose Kbuild and prints in-root tool data. The command below is exactly the shape printed by the launcher for each lane. [GBS build options](https://github.com/Samsung/tizen-docs/blob/master/docs/platform/reference/gbs/gbs-build.md)
 
 ```bash
@@ -227,3 +229,99 @@ Workflow `.github/workflows/tizen-build.yml` pins `ci-cargo-tizen-v0.6.7` from t
 ```
 
 Local Python 3.10.12 fixtures passed config staging, seven-row member selection, RPM spec parsing and explicit archive/search-path classification. Bash syntax passed. The fixed internal repositories and native workspace are inaccessible here, so neither GBS build nor the exact Argot config read has run. [Scripts commit](https://github.com/lhmax2010/analysis/commit/cd7f97e9cf75fd9bb70e0abe85ca626a073c64be)
+
+## Native scan result and Thumb verification
+
+Verified the 442-line log and SHA-256 `1e45ccfcb339bbc44d7fca64feb1c19bfc5d1ca9d2bcd0e088b8dd95e395b2d6`. It contains the complete Argot config, the scan summary preview and the pre-build GBS failure. The native `elf-modes.csv` remains the complete file-level input. [Exact transcript](../../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt)
+
+### Foreground kernel resume
+
+Use after Claude review on the native server in a plain foreground terminal. The launcher verifies the exact existing Workdir contents and reuses the 24 overlaid files, the source logs and the two staged configs. It preserves the uninstrumented spec and adds its owner-write bit inside that Workdir. It accepts only the recorded pre-build failure and unused GBS roots. It prints `GBS_SOURCE_REUSED … P4_FETCH_SKIPPED` and then the two normal `GBS_START` lines. No tmux dependency. Refresh sudo in the attended terminal and allow the normal prompt during GBS. Estimate 45–150 minutes per kernel lane once source staging is skipped. Retain 50 GiB disk and 16 GiB RAM headroom with the existing additional job reservation. The locks keep this serial with other heavy work.
+
+```bash
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/gbs-mlgo-t7.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d2542fa0292e06b3368cfaa61fb678f2496071b6/artifacts/scripts/r0005/gbs-mlgo-t7.py.txt' -o "$f"
+  printf '%s  %s\n' c261656a64fa4ae62958c9c68518b5bdb7befa1818d5d232b3aee68df6e9e38a "$f" | sha256sum -c -
+  sudo -v
+  mkdir -p "$PWD/workspace/temp"/pm000{4,5}-native-lock
+  flock -n "$PWD/workspace/temp/pm0004-native-lock/heavy.lock" \
+    flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" \
+    python3 -B -u "$f" kernel --resume "$PWD/workspace/temp/pm0005-gbs-kernel.mtob625f"
+)
+```
+
+### Verified scan and attribution queue
+
+The 2,342-RPM sweep completed with zero reported errors. The 5,166 loadable ELFs contain 837.6 MiB of executable code and an estimated 358.9 MiB of A32 code. The 609-file ARM-predominant cohort comprises DYN 593 ARM and 4 mixed-ARM, and EXEC 11 ARM and 1 mixed-ARM. The 179 ARM relocatables and 2 too-small relocatables are separate. The condition signal agreed with mapping-symbol classification on 4,305 files and disagreed on 30. The scan uses mapping-symbol evidence when available. [Native scan summary](../../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt#L162)
+
+The top 40 can already be recovered in scan rank order. The attached TSV preserves the printed code KiB and A32 share values. Use `elf-modes.csv` for exact estimated byte counts and all 609 rows. [Top 40 native preview](../../artifacts/ledger/thumb-a32-top40-20261118.tsv)
+
+| Producer marker strings in the 609 | Files | Estimated A32 MiB |
+|---|---:|---:|
+| GCC+Clang | 445 | 134.66 |
+| GCC only | 157 | 186.38 |
+| GCC+Rust | 4 | 12.38 |
+| None | 3 | 9.67 |
+
+The optflags hypothesis remains open. GCC and Clang marker strings identify the population to sample. They can come from linked objects and cannot identify the producer of every ARM code range. A package demonstrates cause (i) when a compile line for the matching output omits the intended mode flag and that precise driver, target and config combination defaults to ARM. A later `-marm` and a response file or per-target config are different evidence cases. Test defaults first using GCC's configuration and effective options, then Clang macros and `-###` with and without optflags and default config. [Clang configuration-file behavior](https://clang.llvm.org/docs/UsersManual.html#configuration-files)
+
+Ten initial Clang-marker sample packages are `inference-engine-tflite`, `nnstreamer-tensorflow2-lite`, `deviced`, `gst-plugins-dash`, `libgcrypt`, `gst-ffmpeg`, `libpisa-ipc`, `vdfs`, `webapi-plugins` and `nodejs`. Confirm the CMake, Meson, Autotools, custom Make and gyp coverage from the pinned package sources and actual build driver. Include `com.samsung.tv.cobalt-perf` as a GN candidate and producer control because its visible ARM rows are GCC-only. Check glibc separately. Use verbose in-root GBS logs or exact matching published logs, and join to the linked output by package identity, path, Build ID/hash and source revision. A launcher can capture an individual GBS sample when a matched published log is absent.
+
+The Argot config sets `arch = "armv7l"` and has no explicit Thumb setting. CI installs both `armv7-unknown-linux-gnueabi` and `armv7-unknown-linux-gnueabihf` and calls `cargo tizen … -A armv7l`. The retained installed Argot client has soft-float EABI evidence, consistent with the GNU EABI candidate. ABI flags can distinguish the convention. The exact Rust triple and underlying Thumb mode setting still require cargo-tizen's actual rustc argv or equivalent producer mapping. The two Argot payload paths are prebuilt from the platform build's perspective. Keep any Rust producer details as secondary attribution. Do the same ABI/argv match for `rust-std-shared` and `pkgmgr-server`. The presence of a library in a TPK alone leaves its provenance open. For glibc, inspect the pinned spec/rules and actual compile line before asserting `-marm`. [Argot config and CI](../../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt#L5) [Rust Arm Linux target conventions](https://doc.rust-lang.org/rustc/platform-support/arm-linux.html)
+
+### GBS Thumb defaults, sample and paired code-size builds
+
+Native foreground after review. Start with `THUMB_MODE=defaults` and `THUMB_ARGS=()`. A small GBS build runs the compiler probes inside the dedicated root. Estimate 10–45 minutes, up to 22 GiB scratch and one package worker with affinity to up to six CPUs. For `sample`, use `THUMB_ARGS=(--source "$pinned_native_git_checkout" --revision "$full_checkout_commit" --spec "$spec_basename")`. This is one normal verbose GBS build of that exact source with the Official QB build.conf. For `pair`, add `--package "$installed_rpm_name" --elf "$exact_elf_path" --cause-ledger "$reviewed_causes_json"` and repeat `--elf` for matching outputs. Only start the three pairs once the respective cause-(i) rows are reviewed. The paired runner adds `-mthumb` to intercepted C/C++ compiler invocations inside GBS, keeps the control identical apart from that flag, and measures paired executable section bytes and A32 estimates. Verify wrapper coverage and same artifact paths, especially for LTO or absolute compiler paths, before accepting a pair. Allow up to 45 GiB for the two roots plus the capacity floor and estimate 30–150 minutes per lane depending on package size.
+
+```bash
+THUMB_MODE=defaults
+THUMB_ARGS=()
+```
+
+```bash
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  get() {
+    local commit=$1 file=$2 digest=$3
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$commit/artifacts/scripts/$file" -o "$d/${file##*/}"
+    printf '%s  %s\n' "$digest" "$d/${file##*/}" | sha256sum -c -
+  }
+  rev=d2542fa0292e06b3368cfaa61fb678f2496071b6
+  get "$rev" r0005/gbs-mlgo-t7.py.txt c261656a64fa4ae62958c9c68518b5bdb7befa1818d5d232b3aee68df6e9e38a
+  get "$rev" r0005/gbs-thumb.py.txt 45fc17842a210b3a1a3f7ebfb81691eb57055ce60bd803bef57550e0e36984bb
+  args=("${THUMB_MODE:?set defaults, sample or pair}" "${THUMB_ARGS[@]}")
+  if [[ "$THUMB_MODE" == pair ]]; then
+    get ea24f17d8d8f7b245c36d040381880839165d1c5 r0004/image_mode_scan.py.txt 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75
+    args+=(--scan-lib "$d/image_mode_scan.py.txt")
+  fi
+  sudo -v
+  mkdir -p "$PWD/workspace/temp"/pm000{4,5}-native-lock
+  flock -n "$PWD/workspace/temp/pm0004-native-lock/heavy.lock" \
+    flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" \
+    python3 -B -u "$d/gbs-thumb.py.txt" "$d/gbs-mlgo-t7.py.txt" "${args[@]}"
+)
+```
+
+### Full cause ledger and compact evidence return
+
+Native after Claude review. This is read-only analysis of the completed scan and supplied evidence, with outputs under `workspace/temp/pm0005-thumb-causes.*`. It normally takes seconds for the inventory and longer if reading verbose package logs. Scratch is the ledger and selected command excerpts. Start with `CAUSE_ARGS=(--discover-logs /home1/chengkai/vd-tree/workspace/temp)`. Supply explicit `--sample-log "package=$exact_verbose_log"` for matching logs and `--defaults-log "$gbs_default_probe_log"`. Read relevant source flags with `--flag-source "$pinned_glibc_spec"` or inspect extracted Rust ELF attributes with `--abi-elf "$exact_elf"`. The initial join assigns the two known Argot prebuilts and preserves unknowns. Fill the returned evidence-template TSV with exact reviewed source/argv/artifact provenance and pass it via `--evidence`. One cause per ELF is a primary explanation; mixed TUs can record secondary reasons in the note. Print additional package counters via `--page`. Fetch the 609-file JSON in numbered packets with `--packet --part N`, or retrieve complete source commands for a sampled package via `--sample-packet NAME --part N` and the same sample-log arguments.
+
+Run the estimate only after three reviewed pairs using `--pair-metrics` three times and the same confirmed cause ledger. The reported disk-code projection adds measured savings to the remaining confirmed A32 bytes times the pooled measured saving per control A32 byte. The minimum and maximum observed package ratios give sensitivity bounds. Keep the unverified 445-file cohort out of that extrapolation until its affected bytes are attributed. This projects executable-section bytes, with runtime PSS/RSS still requiring separate measurements.
+
+```bash
+CAUSE_ARGS=(--discover-logs /home1/chengkai/vd-tree/workspace/temp)
+```
+
+```bash
+(set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX"); export TMPDIR="$d"; f="$d/thumb-causes.py.txt"; curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d2542fa0292e06b3368cfaa61fb678f2496071b6/artifacts/scripts/r0005/thumb-causes.py.txt' -o "$f"; printf '%s  %s\n' 3bc1bbb70987ea950518864ba599be55cbd374fee7e4b1a1818dfa22076252e8 "$f" | sha256sum -c -; python3 -B -u "$f" "${CAUSE_ARGS[@]}")
+```
+
+Python 3.10.12 tests exercised the 24-entry retained-source resume, a read-only staged spec, RPM spec processing, command mode extraction and the cause-(i) proof gate. These were staging and parsing tests. Effective native compiler defaults, actual per-file causes beyond known evidence and matched package size results await the reviewed native jobs. [Scripts commit](https://github.com/lhmax2010/analysis/commit/d2542fa0292e06b3368cfaa61fb678f2496071b6)
