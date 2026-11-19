@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""Build the 609-file Thumb cause ledger and collect reviewable compiler argv."""
+import argparse
+import base64
+from collections import Counter
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+import tempfile
+import textwrap
+import zlib
+
+ROOT = Path("/home1/chengkai/vd-tree")
+NATIVE = ROOT / "workspace/temp"
+SCAN = NATIVE / "pm0004-image-mode.b7rJie"
+CASES = ("OPTFLAGS_NOT_PASSED", "EXPLICIT_MARM", "ASM_ARM", "PREBUILT", "RUST", "GLIBC_MARM")
+ARGS_FIELDS = ("package", "identity", "path", "cause", "compile_argv", "source_ref", "artifact_match", "note")
+KNOWN_ARGOT = {
+    "/usr/bin/argot",
+    "/usr/apps/.preload-tpk/com.samsung.tizen.argot-0.6.1-armv7l.tpk!bin/argot",
+}
+COMPILER = re.compile(r"^(?:[\w.+-]+-)?(?:clang(?:-[0-9.]+|\+\+)?|gcc(?:-[0-9.]+)?|g\+\+|rustc)$")
+PLANNED_SAMPLE = (
+    "inference-engine-tflite", "nnstreamer-tensorflow2-lite", "deviced", "gst-plugins-dash",
+    "libgcrypt", "gst-ffmpeg", "libpisa-ipc", "vdfs", "webapi-plugins", "nodejs",
+    "com.samsung.tv.cobalt-perf", "glibc",
+)
+
+
+def inside(path):
+    real = path.resolve(strict=True)
+    if not real.is_relative_to(ROOT.resolve()):
+        raise ValueError(f"path leaves vd-tree: {path}")
+    return real
+
+
+def csv_rows(path, delimiter=","):
+    with path.open(newline="") as stream:
+        return list(csv.DictReader(stream, delimiter=delimiter))
+
+
+def key(row):
+    return row["package"], row["identity"], row["path"]
+
+
+def argv_state(argv):
+    if not argv:
+        return "NO_ARGV"
+    if any(word.startswith("@") for word in argv):
+        return "RESPONSE_FILE_REVIEW"
+    mode = [word for word in argv if word in ("-marm", "-mthumb")]
+    return mode[-1] if mode else "NO_MODE_FLAG"
+
+
+def good_evidence(row, defaults):
+    cause = row["cause"]
+    if cause not in CASES or not row["artifact_match"] or not row["source_ref"]:
+        return False
+    try:
+        words = shlex.split(row["compile_argv"])
+    except ValueError:
+        return False
+    tools = [Path(word).name for word in words if COMPILER.fullmatch(Path(word).name)]
+    state = argv_state(words)
+    if cause == "OPTFLAGS_NOT_PASSED":
+        # The reader attests that this in-root default belongs to the same driver,
+        # target, config and source output as the observed command.
+        return bool(defaults and tools and " -c " in f" {row['compile_argv']} " and state == "NO_MODE_FLAG"
+                    and row["note"] and any("clang" in name for name in tools))
+    if cause in {"EXPLICIT_MARM", "GLIBC_MARM"}:
+        return bool(tools and state == "-marm")
+    if cause == "RUST":
+        return any(name == "rustc" for name in tools) and any(
+            word == "--target" or word.startswith("--target=") for word in words)
+    return cause in {"ASM_ARM", "PREBUILT"}
+
+
+def sample_log(path, output):
+    hits = []
+    with path.open(errors="replace") as stream:
+        for i, line in enumerate(stream, 1):
+            line = re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*", "", line).rstrip()
+            if not re.search(r"(?:clang|gcc|g\+\+|rustc)", line) or len(line) > 50000:
+                continue
+            if re.search(r"authorization|(?:password|token|secret|api_key)\s*=", line, re.I):
+                continue
+            try:
+                words = shlex.split(line)
+            except ValueError:
+                continue
+            if "-c" not in words and "rustc" not in words:
+                continue
+            if not any(COMPILER.fullmatch(Path(word).name) for word in words):
+                continue
+            hits.append([i, argv_state(words), line])
+    output.write_text(json.dumps(hits, ensure_ascii=False, indent=2) + "\n")
+    return hits
+
+
+def discover_logs(root):
+    output = {}
+    for directory, dirs, files in os.walk(root):
+        dirs[:] = [name for name in dirs if name not in {".git", "proc", "sys", "dev", "ccache"}]
+        for name in files:
+            if not (name.endswith(".log") or name.startswith("_log")):
+                continue
+            path = Path(directory) / name
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 512 * 1024**2:
+                continue
+            for package in PLANNED_SAMPLE:
+                token = re.compile(r"(?<![\w])" + re.escape(package) + r"(?![\w])")
+                if token.search(str(path)) and (package not in output or path.stat().st_mtime > output[package].stat().st_mtime):
+                    output[package] = path
+    return [f"{pkg}={output[pkg]}" for pkg in PLANNED_SAMPLE if pkg in output]
+
+
+def estimate(ledger, paths):
+    eligible = {(r["package"], r["path"]): int(r["arm_bytes_est"]) for r in ledger
+                if r["cause"] == "OPTFLAGS_NOT_PASSED"}
+    rates, measured, sampled = [], 0, set()
+    packages = set()
+    for path in paths:
+        doc = json.loads(inside(path).read_text())
+        pkg = doc["package"]
+        keys = {(pkg, name) for name in doc["paths"]}
+        if pkg in packages or not keys or not keys <= eligible.keys():
+            raise ValueError("use three distinct cause-(i) packages with matching ELF paths")
+        a, b = doc["metrics"]["control"], doc["metrics"]["thumb"]
+        if a["a32_bytes"] <= 0 or b["a32_bytes"] >= a["a32_bytes"]:
+            raise ValueError(f"no verified A32 decline: {pkg}")
+        saving = a["code_bytes"] - b["code_bytes"]
+        measured += saving
+        rates.append((saving, a["a32_bytes"]))
+        sampled.update(keys)
+        packages.add(pkg)
+        print("MEASURED_GBS_CODE_DELTA", pkg, a["code_bytes"], b["code_bytes"], saving)
+    rest = sum(size for key, size in eligible.items() if key not in sampled)
+    weighted = sum(n for n, _ in rates) / sum(d for _, d in rates)
+    bounds = sorted(n/d for n,d in rates)
+    print("EXTRAPOLATED_FILE_CODE_BYTES_ONLY", "confirmed_untested_a32_bytes", rest,
+          "pooled_saving", round(measured + rest*weighted),
+          "observed_rate_range", round(measured + rest*bounds[0]), round(measured + rest*bounds[-1]))
+
+
+def print_packet(label, payload, part):
+    encoded = base64.b64encode(zlib.compress(payload)).decode()
+    total = (len(encoded)+8999)//9000
+    if not 1 <= part <= total:
+        raise ValueError(f"packet part must be in 1..{total}")
+    print(label + "_SHA256", hashlib.sha256(payload).hexdigest())
+    print(label + "_PART", f"{part}/{total}")
+    print(label + "_BASE64_BEGIN")
+    print("\n".join(textwrap.wrap(encoded[(part-1)*9000:part*9000], 120)))
+    print(label + "_BASE64_END")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, help="reviewed TSV joined to the exact package, identity and ELF path")
+    parser.add_argument("--defaults-log", type=Path, help="reviewed GBS default result tied to the same driver, target and config")
+    parser.add_argument("--sample-log", action="append", default=[], metavar="PACKAGE=/path/to/verbose.log")
+    parser.add_argument("--discover-logs", type=Path, help="discover candidate GBS logs under this directory")
+    parser.add_argument("--pair-metrics", action="append", type=Path, default=[],
+                        help="repeat for exactly three reviewed GBS pair-metrics.json results")
+    parser.add_argument("--abi-elf", action="append", type=Path, default=[],
+                        help="inspect an extracted Rust ELF header and ARM attributes without executing it")
+    parser.add_argument("--flag-source", action="append", type=Path, default=[],
+                        help="read pinned source file/spec lines that can explain mode flags")
+    parser.add_argument("--page", type=int, default=1, help="package summary page, 100 packages each")
+    parser.add_argument("--packet", action="store_true", help="emit the complete 609-file cause ledger as zlib/base64")
+    parser.add_argument("--part", type=int, default=1, help="packet part number")
+    parser.add_argument("--sample-packet", help="only export full command lines for this sample package")
+    args = parser.parse_args()
+    if args.pair_metrics and len(args.pair_metrics) != 3:
+        parser.error("--pair-metrics needs three distinct measured packages")
+    if args.page < 1 or len(args.sample_log) > 16 or len(args.abi_elf)+len(args.flag_source) > 4:
+        parser.error("use positive page numbers and at most 16 logs")
+    work = Path(tempfile.mkdtemp(prefix="pm0005-thumb-causes.", dir=NATIVE))
+    print("WORKDIR", work)
+    rpt = inside(SCAN / "mode-summary.txt")
+    print("SCAN_SUMMARY_SHA256", hashlib.sha256(rpt.read_bytes()).hexdigest())
+    scan = csv_rows(inside(SCAN / "elf-modes.csv"))
+    rows = [r for r in scan if r["kind"] in ("EXEC", "DYN") and r["mode"] in ("ARM", "MIXED_ARM")]
+    keys = {key(row) for row in rows}
+    if len(rows) != 609 or len(keys) != 609:
+        raise ValueError("expected 609 unambiguous loadable ARM-predominant rows")
+    supplied = csv_rows(inside(args.evidence), "\t") if args.evidence else []
+    evidence = {key(r): r for r in supplied}
+    if len(evidence) != len(supplied) or set(evidence) - keys:
+        raise ValueError("reviewed evidence has duplicate or unmatched ELF identities")
+    default_text = inside(args.defaults_log).read_text(errors="replace") if args.defaults_log else ""
+    defaults = bool(re.search(r"(?m)^.*THUMB_PROBE CLANG_DEFAULT ARM\s*$", default_text))
+    ledger, counts, sizes = [], Counter(), Counter()
+    by_package = {}
+    top = sorted(rows, key=lambda r: (-int(r["arm_bytes_est"]), key(r)))
+    with (work / "evidence-template.tsv").open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, ARGS_FIELDS, delimiter="\t")
+        writer.writeheader()
+        for row in top:
+            proof = evidence.get(key(row))
+            cause = "UNRESOLVED"
+            ref = ""
+            if proof and good_evidence(proof, defaults):
+                cause, ref = proof["cause"], proof["source_ref"]
+            if row["package"] == "argot" and row["identity"] == "0.6.1-1.armv7l" and row["path"] in KNOWN_ARGOT:
+                cause, ref = "PREBUILT", "published argo-tizen spec 194–205 and CI; cargo-tizen artifact packing"
+            count = by_package.setdefault(row["package"], Counter())
+            count[cause] += 1
+            counts[cause] += 1
+            sizes[cause] += int(row["arm_bytes_est"])
+            ledger.append(dict(row, cause=cause, evidence_ref=ref, reviewed_evidence=proof))
+            writer.writerow({name: (proof or row).get(name, "") for name in ARGS_FIELDS})
+    payload = (json.dumps(ledger, ensure_ascii=False, indent=2) + "\n").encode()
+    (work / "causes.json").write_bytes(payload)
+    if args.packet:
+        print_packet("THUMB_CAUSE", payload, args.part)
+        return
+    for cause in (*CASES, "UNRESOLVED") if not args.sample_packet else ():
+        print("CAUSE", cause, counts[cause], sizes[cause])
+    for row in (ledger[:40] if not args.sample_packet else []):
+        print("TOP_A32", row["arm_bytes_est"], row["cause"], row["package"], row["path"])
+    packages = sorted(by_package)
+    if not args.sample_packet:
+        print("PACKAGE_PAGE", args.page, "OF", (len(packages)+99)//100)
+    for pkg in (packages[(args.page-1)*100:args.page*100] if not args.sample_packet else []):
+        print("PACKAGE", pkg, json.dumps(by_package[pkg], sort_keys=True))
+    print("SAMPLE_PLAN", *PLANNED_SAMPLE)
+    seen_packages, argv_packages = set(), set()
+    entries = {item.partition("=")[0]: item for item in
+               (discover_logs(inside(args.discover_logs)) if args.discover_logs else [])}
+    entries.update({item.partition("=")[0]: item for item in args.sample_log})
+    for item in list(entries.values())[:16]:
+        package, sep, path = item.partition("=")
+        if args.sample_packet and args.sample_packet != package:
+            continue
+        if not sep or package not in {r["package"] for r in rows}:
+            raise ValueError(f"sample log needs an installed ARM-predominant package: {package}")
+        source = inside(Path(path))
+        if source.stat().st_size > 512 * 1024**2:
+            raise ValueError("sample log exceeds 512 MiB; pass the relevant package log")
+        hits = sample_log(source, work / f"sample-{len(seen_packages)}-{package}.json")
+        if args.sample_packet:
+            print_packet("THUMB_ARGV", json.dumps(hits, ensure_ascii=False).encode(), args.part)
+            return
+        seen_packages.add(package)
+        if hits:
+            argv_packages.add(package)
+        print("SAMPLE_ARGV_CANDIDATE", package, source, len(hits), json.dumps(Counter(hit[1] for hit in hits)))
+        for mode in ("-marm", "-mthumb", "NO_MODE_FLAG", "RESPONSE_FILE_REVIEW"):
+            match = next((hit for hit in hits if hit[1] == mode), None)
+            if match:
+                print("SAMPLE", package, match[0], mode, match[2][:950])
+    print("SAMPLE_PACKAGES_WITH_LOGS", len(seen_packages), "WITH_ARGV_CANDIDATES", len(argv_packages))
+    for i, item in enumerate(args.abi_elf):
+        file = inside(item)
+        analysis = subprocess.run(["readelf", "-h", "-A", str(file)], text=True,
+                                  capture_output=True, check=True, timeout=60).stdout
+        (work / f"abi-{i}.txt").write_text(analysis)
+        print("ABI_ELF", file)
+        for line in [line for line in analysis.splitlines()
+                     if re.search(r"Flags:|Machine:|Tag_ABI_VFP_args|Tag_CPU_arch|Tag_THUMB_ISA_use", line)][:10]:
+            print("ABI", line.strip())
+    for i, item in enumerate(args.flag_source):
+        file = inside(item)
+        if file.stat().st_size > 2 * 1024**2:
+            raise ValueError(f"pass a scoped source/config file under 2 MiB: {file}")
+        pattern = re.compile(r"-marm|-mthumb|%\{optflags\}|\.arm\b|target\s*\(\s*[\x22\x27]arm")
+        matches = [(n,line) for n,line in enumerate(file.read_text(errors="replace").splitlines(),1) if pattern.search(line)]
+        (work/f"flag-source-{i}.json").write_text(json.dumps(matches, indent=2)+"\n")
+        print("FLAG_SOURCE", file, len(matches))
+        for line in matches[:12]:
+            print("FLAG_SOURCE_MATCH", line[0], line[1][:450])
+    if args.pair_metrics:
+        estimate(ledger, args.pair_metrics)
+
+
+
+if __name__ == "__main__":
+    main()

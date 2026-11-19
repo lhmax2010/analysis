@@ -1,0 +1,442 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX"); export TMPDIR="$d"; f="$d/argot-ci-target.py.txt"; curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/cd7f97e9cf75fd9bb70e0abe85ca626a073c64be/artifacts/scripts/r0005/argot-ci-target.py.txt' -o "$f"; printf '%s  %s\n' '58782c19c75a22753709609f0c21a6b65eb857f3ebb275a2799c51f7bb106693' "$f" | sha256sum -c -; python3 -B -u "$f")
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.ABi7Hq/argot-ci-target.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-argot-ci-target.i156bvgt
+SOURCE //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/AGENTIC_PLATFORM/AgenticPlatform/Agentic/argo-tizen/.cargo-tizen.toml@14296233 982b2fd23fcad459a6ecfafe7378826a06a3b41178cbbd7bdbad810f681d089b
+# Packaging contract for cargo-tizen (v2 unit schema; minimum tool version
+# below). Each unit names the crates it ships and the authored packaging file
+# it is built from. Everything is spelled out explicitly so this file doubles
+# as a reference example; the comments note which keys could be omitted.
+min_tool_version = "0.6.7"
+
+[default]
+arch = "armv7l"
+profile = "mobile"
+platform_version = "10.0"
+
+[rpm.argot-dashboard]
+rust_packages = ["argot-dashboard"]
+# Omitting `spec` defaults to <packaging-dir>/rpm/<unit>.spec — this path.
+spec = "tizen/rpm/argot-dashboard.spec"
+
+# Daemon-less client binary. Its host spec renames the argot-client bin
+# target to /usr/bin/argot at rpm time, and the GBS spec repackages the
+# payload as-is (from an isolated unrpm root). The full daemon binary ships
+# only inside the preload TPK; no RPM lane packages it anymore.
+[rpm.argot-client]
+rust_packages = ["argot-client"]
+# Omitting `spec` defaults to <packaging-dir>/rpm/<unit>.spec — this path.
+spec = "tizen/rpm/argot-client.spec"
+
+# Symbolized client for gh-release; the RPM identity remains argot-client.
+[rpm.argot-client_rel_deb]
+rust_packages = ["argot-client"]
+cargo_profile = "release-debug"
+spec = "tizen/rpm/argot-client.spec"
+
+# Dev-lane TPK: same payload as the GBS preload TPK (bin/argot + manifest)
+# minus the KUEP/platform signing chain, which only exists in the GBS
+# environment.
+[tpk.argot]
+rust_package = "argot"
+cargo_profile = "release"
+# Omitting `manifest` defaults to
+# <packaging-dir>/tpk/<unit>/tizen-manifest.xml — this path.
+manifest = "tizen/tpk/argot/tizen-manifest.xml"
+sign = "vd"
+
+# Release artifact consumed by GBS: keep symbols so the shipped daemon and
+# its debug counterpart can be derived from the same ELF.
+[tpk.argot_rel_deb]
+rust_package = "argot"
+cargo_profile = "release-debug"
+manifest = "tizen/tpk/argot/tizen-manifest.xml"
+sign = "vd"
+
+# GBS needs symbols to apply the product signing hook. Shares the production
+# package id with argot_rel_deb, so the suffix is what keeps the two staged
+# artifacts apart; it names the file only, never the installed package.
+[tpk.argot_telemetry]
+rust_package = "argot"
+cargo_profile = "release-debug"
+manifest = "tizen/tpk/argot/tizen-manifest.xml"
+features = ["telemetry"]
+sign = "vd"
+release_asset_suffix = "telemetry"
+
+# Opt-in system action guide with QJS code_run; keep its artifact separate from the normal
+# daemon and telemetry variants. The installed package identity stays the same.
+[tpk.argot_tizen_action]
+rust_package = "argot"
+cargo_profile = "release-debug"
+manifest = "tizen/tpk/argot/tizen-manifest.xml"
+features = ["tizen-action"]
+sign = "vd"
+release_asset_suffix = "tizen-action"
+
+# TPK signing certs live in ONE place — tizen/tpk/certs/ — shared by this
+# config and the GBS spec (packaging/argot.spec provisions the same files).
+# Dev builds must all author-sign with this same pair: pkgmgr compares the
+# author cert's key on package update, so any other author cert (including
+# the SDK default, which carries the identical CN=author subject but a
+# different key) fails install as an update over a dev-signed TPK. The GBS
+# preload is additionally platform re-signed in the VD environment, so no
+# dev-signed TPK updates it in place — remove the preload first. cargo-tizen
+# provisions the `argot_signing_profile` security profile from these files
+# automatically when the machine does not have it yet; the passwords are the
+# well-known test-cert values already public in the GBS spec.
+[sign.vd]
+profile = "argot_signing_profile"
+author_cert = "tizen/tpk/certs/argot-author.p12"
+author_password = "author_test"
+# argot-distributor.p12 is the Tizen partner-manufacturer test signer: it
+# sets the privilege tier the TPK may use (public < partner < platform).
+distributor_cert = "tizen/tpk/certs/argot-distributor.p12"
+distributor_password = "tizenpkcs12passfordsigner"
+
+[release]
+arches = ["armv7l", "aarch64"]
+# Omitting `rpms`/`tpks` selects every defined unit of that kind; listed
+# explicitly so the release contents are visible at a glance.
+rpms = ["argot-dashboard", "argot-client_rel_deb"]
+tpks = ["argot_rel_deb", "argot_telemetry", "argot_tizen_action"]
+# The GBS preload spec has no owning [rpm.*] unit (the TPK lane replaced
+# [rpm.argot]), so gh-release only syncs its Version: because it is listed
+# here — synced and committed, never built or published by cargo-tizen.
+sync_specs = ["packaging/argot.spec"]
+SOURCE //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/AGENTIC_PLATFORM/AgenticPlatform/Agentic/argo-tizen/.github/workflows/tizen-build.yml@14296233 72d75301cfccac3d952412dc1f3825346925e2167c4883b6b27a4f209a08477c
+2: # Cross-build + RPM packaging lane for the Tizen device targets (armv7l,
+3: # aarch64). Runs the same `cargo tizen rpm` lane a maintainer runs locally
+4: # before `cargo tizen gh-release`, so ARM-only breakage (cross-compile
+10: # still cross-built here via `cargo tizen build -- -p argot`.
+13: #   - Rust cross targets: rustup, via ./.github/actions/setup-rust.
+16: #   - cargo-tizen: a prebuilt static-musl binary attached to this repo's
+17: #     `ci-cargo-tizen-v*` release (tag pinned below), fetched through the
+20: #     keys are disabled org-wide on the private Tizen-AIOS/cargo-tizen
+21: #     repo. To publish a newer tool: from a cargo-tizen checkout run
+22: #     `cargo build --release --target x86_64-unknown-linux-musl`, create
+23: #     release `ci-cargo-tizen-v<X>` on this repo with the binary as its
+30: #     cargo-tizen only needs an SDK-shaped directory tree; full Tizen
+32: #     fleet-constant path and `cargo tizen setup` re-derives its sysroot
+38: # (packages tizen-<ver>-rs-device*.core and cross-{arm,aarch64}-gcc-*),
+41: # Note: cargo-tizen does not pass --locked to cargo. Lockfile honesty is
+49:       - ".cargo-tizen.toml"
+53:       # built against the Tizen sysroot) or target-specific deps that only
+54:       # break under the cross toolchain — preflight's host-arch `--cfg tizen`
+61:     # nightly-full (18:00 + ~2h): catches cross-target rot within a day.
+79:   TOOL_TAG: ci-cargo-tizen-v0.6.7
+92:     name: tizen rpm (armv7l + aarch64)
+98:       # ~/.cargo is fleet-constant (see preflight.yml's cache-targets
+103:           path: ~/.cargo/bin/cargo-tizen
+104:           key: cargo-tizen-${{ env.TOOL_TAG }}-x86_64-linux-musl
+106:       - name: Fetch cargo-tizen from this repo's ci-tools release
+125:             -o "$HOME/.cargo/bin/cargo-tizen" "$asset_url"
+126:           echo "${PIN_TOOL_SHA}  $HOME/.cargo/bin/cargo-tizen" | sha256sum -c -
+127:           chmod +x "$HOME/.cargo/bin/cargo-tizen"
+143:           targets: armv7-unknown-linux-gnueabi,armv7-unknown-linux-gnueabihf,aarch64-unknown-linux-gnu
+151:           cache-targets: false
+187:           fetch "cross-aarch64-gcc-14.2_${PIN_GCC_VER}_ubuntu-64.zip"                      "$PIN_GCC_ARM64_SHA"
+189:       # All later cargo-tizen calls discover the SDK through this env var
+192:       - name: Point cargo-tizen at the skeleton
+197:       - name: cargo tizen doctor (informational)
+198:         run: cargo tizen doctor || true
+200:       - name: Prepare sysroots (armv7l + aarch64)
+202:           cargo tizen setup -A armv7l
+203:           cargo tizen setup -A aarch64
+208:       - name: Cross-build argot (armv7l)
+209:         run: cargo tizen build -A armv7l -- -p argot
+211:       - name: Cross-build argot (aarch64)
+212:         run: cargo tizen build -A aarch64 -- -p argot
+214:       - name: Build + package RPMs (armv7l)
+215:         run: cargo tizen rpm argot-client argot-dashboard -A armv7l
+217:       - name: Build + package RPMs (aarch64)
+218:         run: cargo tizen rpm argot-client argot-dashboard -A aarch64
+221:         run: find target/tizen -name '*.rpm' -exec ls -l {} +
+231:           path: target/tizen/*/release/rpm/*/rpmbuild/RPMS/**/*.rpm
+STATUS REVIEW_ARMV7L_TARGET_AND_THUMB_MODE
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0004-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/mode_summary.py.txt' -o "$d/mode_summary.py.txt" && printf '%s  %s\n' 'a5f518efb014b8a3e184ea27c4578d60d1f48c909d78c055e067fb293fd1eede' "$d/mode_summary.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/ea24f17d8d8f7b245c36d040381880839165d1c5/artifacts/scripts/r0004/print-scan-summary.py.txt' -o "$d/print-scan-summary.py.txt" && printf '%s  %s\n' 'fcc6d6bc75d39b654350df5887285cc9dc623d9652df19d58508ef74ca2b8c6a' "$d/print-scan-summary.py.txt" | sha256sum -c - && python3 -B -u "$d/print-scan-summary.py.txt" "$d/mode_summary.py.txt")
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.nvZv85/mode_summary.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0004-tools.nvZv85/print-scan-summary.py.txt: OK
+RUN_DIR /home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie
+SCAN_EXIT 0
+RPM_STATUS_ROWS 2342 UNIQUE_IDENTITIES 2342 REPORTED_ERRORS 0
+FULL_SUMMARY /home1/chengkai/vd-tree/workspace/temp/pm0004-image-mode.b7rJie/mode-summary.txt
+== RPMs: {'SCANNED': 2342}
+== ELFs by kind/mode:
+   DYN ARM 593
+   DYN MIXED_ARM 4
+   DYN MIXED_THUMB 2
+   DYN THUMB 4530
+   DYN TOO_SMALL 25
+   EXEC ARM 11
+   EXEC MIXED_ARM 1
+   REL ARM 179
+   REL TOO_SMALL 2
+== cond-vs-map validation (files with symtab, >=1 KiB code): agree=4305 disagree=30
+   DIS glibc-locale /usr/lib/gconv/IBM1364.so map_arm_share 0.544 cond 0.453
+   DIS glibc-locale /usr/lib/gconv/IBM1371.so map_arm_share 0.543 cond 0.451
+   DIS glibc-locale /usr/lib/gconv/IBM1388.so map_arm_share 0.543 cond 0.452
+   DIS glibc-locale /usr/lib/gconv/IBM932.so map_arm_share 0.564 cond 0.468
+   DIS glibc-locale /usr/lib/gconv/IBM943.so map_arm_share 0.568 cond 0.47
+   DIS glibc-locale /usr/lib/gconv/T.61.so map_arm_share 0.531 cond 0.448
+   DIS glibc-locale /usr/lib/gconv/UNICODE.so map_arm_share 0.503 cond 0.424
+   DIS glibc-locale /usr/lib/gconv/UTF-32.so map_arm_share 0.519 cond 0.437
+   DIS gst-plugins-tizen-tv-sec /usr/lib/gstreamer-1.0/libgstdisplayencodesrc.so map_arm_share 0.991 cond 0.123
+   DIS gstreamer-plugins-smsrc /usr/lib/gstreamer-1.0/libgstsmsrcvideoenc.so map_arm_share 0.992 cond 0.303
+== Loadable ELFs: 5166  code 837.6 MiB  A32 code (est) 358.9 MiB
+== ARM-predominant ELFs: 609   (Thumb-predominant with 20-50% A32: 2)
+   markers=GCC          files= 157 A32= 186.38 MiB
+   markers=GCC+Clang    files= 445 A32= 134.66 MiB
+   markers=GCC+Rust     files=   4 A32=  12.38 MiB
+   markers=none         files=   3 A32=   9.67 MiB
+== ARM-predominant list: package | path | code KiB | A32 share | basis | markers
+  vd_memps | /usr/lib/bpftrace/libLLVM.so.19.1 | 51120 | 1.0 | map | GCC
+  vd_memps | /usr/lib/bpftrace/libclang-cpp.so.19.1 | 48971 | 1.0 | map | GCC
+  vd_memps | /usr/lib/bpftrace/libclang.so.19.1 | 27554 | 1.0 | map | GCC
+  nodejs | /usr/bin/node | 23174 | 1.0 | map | GCC+Clang
+  bluetooth-impl-sec-oal | /prd/usr/lib/libbluetooth.so | 9979 | 1.0 | map | GCC
+  argot | /usr/apps/.preload-tpk/com.samsung.tizen.argot-0.6.1-armv7l.tpk!bin/argot | 9826 | 1.0 | cond | GCC+Rust
+  tvp-tv | /opt/usr/apps/ieme/Ddrm/libFPS.so | 8873 | 1.0 | cond | none
+  gst-ffmpeg | /usr/local/lib/libavcodec.so | 8152 | 1.0 | map | GCC+Clang
+  nnstreamer-tensorflow2-lite | /usr/lib/nnstreamer/filters/libnnstreamer_filter_tensorflow2-lite.so | 6223 | 0.999 | map | GCC+Clang
+  inference-engine-tflite | /usr/lib/libinference-engine-tflite.so | 6222 | 0.998 | map | GCC+Clang
+  libav-common | /usr/lib/libavcodec_common.so.55.52.102 | 5050 | 0.999 | map | GCC+Clang
+  org.tizen.tv-viewer | /usr/apps/org.tizen.tv-viewer/bin/tv-viewer | 4705 | 0.974 | cond | GCC+Clang
+  bluetooth-impl-sec-oal | /prd/usr/lib/libbluetooth_rtk.default.so | 4335 | 1.0 | map | GCC
+  bluetooth-impl-sec-oal | /prd/usr/lib/libbluetooth_mtk.default.so | 4019 | 1.0 | map | GCC
+  vd_memps | /usr/bin/bpftrace32 | 3868 | 1.0 | map | GCC
+  sensor-hal-accelerometer-sensor | /usr/lib/sensor/libsensor-hal-accelerometer-sensor.so | 3923 | 0.969 | map | GCC+Clang
+  pisa-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.pisa-service-31.11.126-arm.tpk!res/awf_for_andy/partner/palsdk/encrypt_addon.tizen.node | 3350 | 0.95 | cond | GCC
+  qte-bm | /usr/lib/BM/qt5.5.1/lib/libQt5Widgets.so.5.5.1 | 2968 | 1.0 | map | GCC+Clang
+  qte-bm | /usr/lib/BM/qt5.5.1/lib/libQt5Core.so.5.5.1 | 2709 | 1.0 | map | GCC+Clang
+  bluetooth-impl-sec-oal | /prd/usr/lib/libleaudio.so | 2764 | 0.963 | cond | GCC
+  qte-bm | /usr/lib/BM/qt5.5.1/lib/libQt5Gui.so.5.5.1 | 2655 | 1.0 | map | GCC+Clang
+  rpm | /usr/lib/librpm.so.3.1.0 | 2337 | 0.999 | map | GCC+Clang
+  service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.knox-matrix-6.0.22-10.0-arm.tpk!lib/libkmx-chain-manager.so | 2201 | 1.0 | cond | GCC
+  org.tizen.mbr-daemon | /usr/bin/mbr-daemon | 1735 | 1.0 | map | GCC+Clang
+  argot | /usr/bin/argot | 1685 | 1.0 | map | GCC+Rust
+  com.samsung.tv.slive-daemon | /usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libavcodec_common.so.55 | 1754 | 0.932 | cond | GCC
+  ncnn | /usr/lib/libncnn.so | 1529 | 1.0 | map | GCC+Clang
+  org.tizen.webserver | /usr/apps/org.tizen.webserver/bin/liblighttpd.so | 1480 | 1.0 | map | GCC+Clang
+  pisa-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.pisa-service-31.11.126-arm.tpk!bin/adagent-service | 1489 | 0.959 | cond | GCC+Clang
+  sys-tools | /usr/bin/target_view/python3/bin/python3.5m | 1541 | 0.875 | cond | GCC+Clang
+  playready | /usr/lib/libplayready.so.0.1.0 | 1514 | 0.889 | map | GCC+Clang
+  com.samsung.tv.cobalt-perf | /usr/apps/com.samsung.tv.cobalt/bin/crashpad_handler | 1320 | 1.0 | map | GCC
+  com.samsung.tv.cobalt-perf | /usr/apps/com.samsung.tv.cobalt/bin_gold/cobalt_launcher | 1314 | 1.0 | map | GCC
+  com.samsung.tv.cobalt-perf | /usr/apps/com.samsung.tv.cobalt/bin/cobalt_launcher | 1294 | 1.0 | map | GCC
+  com.samsung.tv.cobalt-perf | /usr/apps/com.samsung.tv.cobalt/bin_gold/crashpad_handler | 1278 | 1.0 | map | GCC
+  widevine-cdm | /opt/usr/apps/Ddrm/WidevineCdm/lib/libwvcdmleve3.so.0.1.1 | 2225 | 0.555 | map | GCC+Clang
+  playready-test | /opt/usr/apps/playready/playready_test | 1627 | 0.753 | cond | GCC+Clang
+  widevine-cdm | /opt/usr/apps/Ddrm/WidevineCdm/lib/libwvcdm.so.0.1.1 | 2092 | 0.585 | map | GCC+Clang
+  multiprofile-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.multiprofile-service-126.26.09212-arm.tpk!bin/multiprofile-serviceapp | 1255 | 0.955 | cond | GCC+Clang
+  org.tizen.tts-engine-neural | /usr/apps/.preload-rw-tpk/org.tizen.tts-engine-neural-27.26.09282-arm.tpk!lib/libSMT_engine_sh.so | 1267 | 0.934 | cond | GCC
+  performeter-perf | /opt/usr/apps/streamline_module/perf/gatord | 1218 | 0.964 | cond | GCC
+  com.samsung.tv.ghservice | /usr/apps/.preload-rw-tpk/com.samsung.tv.ghservice-8.26.09293-arm.tpk!shared/res/libcompgamehome.so | 1195 | 0.97 | cond | GCC+Clang
+  vdfs | /prd/usr/bin/mkfs.vdfs | 1256 | 0.899 | cond | GCC+Clang
+  vdfs | /prd/usr/bin/tune.vdfs | 1207 | 0.934 | cond | GCC+Clang
+  vdfs | /prd/usr/bin/fsck.vdfs | 1218 | 0.926 | cond | GCC+Clang
+  vdfs | /prd/usr/bin/unpack.vdfs | 1206 | 0.935 | cond | GCC+Clang
+  glibc | /lib/libc.so.6 | 1108 | 0.997 | map | GCC
+  glibc | /lib/libc-2.40_perf.so | 1107 | 0.997 | map | GCC
+  com.samsung.tv.vif | /usr/apps/.preload-rw-tpk/com.samsung.tv.vif-26.09.29271-arm.tpk!bin/voice-interaction-framework | 1067 | 0.955 | cond | none
+  bluetooth-impl-sec-oal | /prd/usr/lib/librtkbt_ss_da.so | 1012 | 0.98 | cond | GCC
+  com.samsung.tv.utterance-recommender-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.utterance-recommender-service-1.4.3226-arm.tpk!bin/utterance-recommender-core | 1007 | 0.984 | cond | GCC+Clang
+  webapi-plugins-avplay | /usr/lib/tizen-extensions-crosswalk/libwebapis_avplaystore.so | 991 | 1.0 | map | GCC+Clang
+  nagsam-mw | /usr/lib/debug_output/libnagsamtvs-api.so | 983 | 1.0 | map | GCC
+  com.samsung.ep-plateau-agent-service | /usr/apps/.preload-rw-tpk/com.samsung.ep-plateau-agent-service-1.6.2126-arm.tpk!lib/libtvs-api.so | 983 | 0.986 | cond | GCC
+  gst-plugins-dash | /usr/lib/libdash.so | 962 | 1.0 | map | GCC+Clang
+  performeter-perf | /opt/usr/apps/streamline_module/perf/non_gpu/gatord | 992 | 0.966 | cond | GCC
+  bluetooth-frwk | /usr/lib/libbluetooth-api.so.1.0.0 | 951 | 1.0 | map | GCC+Clang
+  bluetooth-impl-sec-oal | /prd/usr/lib/libaudio.a2dp.default.so | 948 | 1.0 | map | GCC
+  bluetooth-impl-sec-oal | /prd/usr/lib/libaudio.leaudio.default.so | 941 | 1.0 | map | GCC
+  webapi-plugins-avplay | /usr/lib/tizen-extensions-crosswalk/libwebapis_avplay.so | 917 | 1.0 | map | GCC+Clang
+  com.samsung.tv.slive-daemon | /usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libtvs-api.so | 922 | 0.99 | cond | GCC
+  rust-std-shared | /usr/lib/libstd-161dbff30b3b0c00.so | 910 | 1.0 | map | GCC+Rust
+  org.tizen.dseal | /usr/apps/.preload-rw-tpk/org.tizen.dseal-1.2.2427-arm.tpk!lib/libtvs-api.so | 910 | 1.0 | map | GCC
+  org.tizen.dseal | /usr/apps/.preload-rw-tpk/org.tizen.dseal-1.2.2427-arm.tpk!lib/armv7l/libtvs-api.so | 910 | 0.98 | cond | GCC
+  libpisa-ipc | /usr/lib/libpisa-ipc.so | 880 | 1.0 | map | GCC+Clang
+  org.tizen.ScreenMirroring-app-tv | /usr/apps/.preload-rw-tpk/org.tizen.ScreenMirroring-app-tv-4.2.09250-arm.tpk!bin/screenmirroring-app-tv | 949 | 0.911 | cond | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_mediacontroller.so | 792 | 1.0 | map | GCC+Clang
+  com.samsung.tv.uem-client | /usr/apps/.preload-tpk/com.samsung.tv.uem-client-1.2.55-arm.tpk!lib/plugin/libiothub_client.so | 785 | 1.0 | map | GCC
+  service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.smartthings-plugin-6.0.5-10.0-arm.tpk!lib/libshp.so | 783 | 1.0 | cond | GCC
+  cms-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.cms-service-127.26.09301-arm.tpk!bin/cms-daemon | 753 | 0.968 | cond | GCC+Clang
+  org.tizen.AVControl | /usr/apps/org.tizen.AVControl/bin/AVControl | 723 | 1.0 | map | GCC+Clang
+  widevine-cdm-test | /opt/usr/apps/wvcdm/test_oemcrypto_level3 | 1275 | 0.554 | map | GCC+Clang
+  widevine-cdm-test | /opt/usr/apps/wvcdm/test_oemcrypto | 1166 | 0.597 | map | GCC+Clang
+  playready-test | /opt/usr/apps/playready/libplayready.v3test.so.0.1.0 | 809 | 0.849 | map | GCC+Clang
+  playready | /usr/lib/libplayready3.so.0.1.0 | 830 | 0.825 | map | GCC+Clang
+  com.samsung.tizen.perception-engine | /usr/apps/.preload-rw-tpk/com.samsung.tizen.perception-engine-1.0.3-arm.tpk!bin/com.samsung.tizen.perception-engine | 671 | 1.0 | cond | GCC+Clang
+  widevine-cdm-test | /opt/usr/apps/wvcdm/test_wvcdm | 692 | 0.955 | map | GCC+Clang
+  org.tizen.pvr-service | /usr/lib/libpvr-service-interface.so | 682 | 0.951 | map | GCC+Clang
+  gst-ffmpeg | /usr/local/lib/libavformat.so | 651 | 0.995 | map | GCC+Clang
+  libgcrypt | /usr/lib/libgcrypt.so.20.5.0 | 648 | 0.998 | map | GCC+Clang
+  org.tizen.pvr-service | /usr/bin/pvr-service | 670 | 0.95 | map | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_bluetooth.so | 614 | 1.0 | map | GCC+Clang
+  com.samsung.tv.slive-daemon | /usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libhls.so | 610 | 0.978 | cond | GCC+Clang
+  gst-ffmpeg-atsc3 | /usr/lib/gstreamer-1.0/libgstffmpegatsc3.so | 593 | 0.995 | map | GCC+Clang
+  com.samsung.tv.bmp | /usr/apps/.preload-rw-tpk/com.samsung.tv.bmp-5.0.45-arm.tpk!bin/bmp | 603 | 0.969 | cond | GCC+Clang
+  vd-capi-network | /usr/bin/tcpdump | 573 | 1.0 | map | GCC
+  vd_memps | /usr/lib/bpftrace/libbcc_bpf.so.0 | 551 | 1.0 | map | GCC+Clang
+  deviced | /usr/bin/deviced | 550 | 1.0 | map | GCC+Clang
+  com.samsung.tv.broadcastingmenu | /usr/lib/libbroadcastmenu-csharpGadgetSupport.so | 540 | 1.0 | map | GCC+Clang
+  bluetooth-frwk-service | /usr/bin/bt-service | 534 | 1.0 | map | GCC+Clang
+  com.samsung.tv.broadcastingmenu | /usr/apps/com.samsung.tv.broadcastingmenu/bin/broadcastingmenu | 532 | 1.0 | map | GCC+Clang
+  glibc | /sbin/ldconfig | 512 | 0.997 | map | GCC
+  org.tizen.volume-app | /usr/apps/org.tizen.volume-app/bin/volume-app | 506 | 1.0 | map | GCC+Clang
+  aurum-bootstrap | /usr/apps/org.tizen.aurum-bootstrap/bin/aurum-bootstrap | 500 | 1.0 | map | GCC+Clang
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_kr.so | 607 | 0.822 | cond | GCC
+  aurum | /usr/lib/libaurum.so.0.1.1 | 480 | 1.0 | map | GCC+Clang
+  service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.smartthings-plugin-6.0.5-10.0-arm.tpk!lib/libshpplatform.so | 484 | 0.973 | cond | GCC
+  gst-ffmpeg | /usr/local/lib/libswscale.so | 473 | 0.995 | map | GCC+Clang
+  com.samsung.tv.termsclient | /usr/apps/.preload-rw-tpk/com.samsung.tv.termsclient-1.2.1127-arm.tpk!bin/termsclient | 483 | 0.965 | cond | GCC+Clang
+  account-extra-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.account-extra-service-127.26.07311-arm.tpk!bin/account-extra-service | 479 | 0.962 | cond | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_ml.so | 451 | 1.0 | map | GCC+Clang
+  wifi-drivers-RTK-rtl8822EU-perf | /lib/modules/linux/wifi/rtl8822eu/rtwpriv | 436 | 1.0 | map | GCC
+  org.tizen.ssoservice | /usr/apps/.preload-rw-tpk/org.tizen.ssoservice-127.26.09251-arm.tpk!shared/res/lib/libsa-common-adapter.so | 463 | 0.943 | cond | GCC+Clang
+  libslive-provider | /usr/apps/org.tizen.slive-util/bin/slive-util | 433 | 1.0 | map | GCC+Clang
+  streaming-accelerator | /usr/bin/HttpAccel | 506 | 0.82 | map | GCC+Clang
+  qte-bm | /usr/lib/BM/qt5.5.1/lib/libQt5Network.so.5.5.1 | 413 | 1.0 | map | GCC+Clang
+  com.samsung.tv.slive-daemon | /usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libavformat_mmhls.so.55 | 430 | 0.942 | cond | GCC
+  gst-plugins-hls | /usr/lib/libavformat_mmhls.so.55 | 407 | 0.993 | map | GCC+Clang
+  libav-common | /usr/lib/libavutil_common.so.52.66.100 | 379 | 0.994 | map | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_iotcon.so | 376 | 1.0 | map | GCC+Clang
+  bm_graphic_ui | /usr/lib/BM/JBM/lib/libui-qt_r.so.1.0.0 | 375 | 1.0 | map | GCC
+  csft-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.csft-service-126.26.05071-arm.tpk!bin/csft-daemon | 387 | 0.964 | cond | GCC+Clang
+  boost-test | /usr/lib/libboost_unit_test_framework.so.1.83.0 | 373 | 1.0 | map | GCC+Clang
+  gst-plugins-dash | /usr/lib/gstreamer-1.0/libgstdash.so | 372 | 0.996 | map | GCC+Clang
+  boost-locale | /usr/lib/libboost_locale.so.1.83.0 | 370 | 1.0 | map | GCC+Clang
+  service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.knox-matrix-6.0.22-10.0-arm.tpk!lib/libescrow-vault.so | 369 | 1.0 | cond | GCC
+  gst-ffmpeg | /usr/local/lib/libavutil.so | 370 | 0.994 | map | GCC+Clang
+  gst-plugins-ss | /usr/lib/libSSEngine.so | 366 | 1.0 | map | GCC
+  capi-rdm-handler-manager | /usr/lib/libyaml-cpp.so | 359 | 1.0 | map | GCC
+  remote-server | /usr/bin/remote-server | 358 | 1.0 | map | GCC+Clang
+  com.samsung.tv.broadcastingmenu | /usr/share/menu/providers/libbroadcastmenu-dataprovider.so.0.1 | 347 | 1.0 | map | GCC+Clang
+  com.samsung.tv.ghservice | /usr/apps/.preload-rw-tpk/com.samsung.tv.ghservice-8.26.09293-arm.tpk!shared/res/libghservice-api.so | 353 | 0.982 | cond | GCC+Clang
+  org.tizen.tts-engine-neural | /usr/apps/.preload-rw-tpk/org.tizen.tts-engine-neural-27.26.09282-arm.tpk!bin/tts-engine-neural | 360 | 0.962 | cond | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_systeminfo.so | 342 | 1.0 | map | GCC+Clang
+  libbrotlienc | /usr/lib/libbrotlienc.so.1.1.0 | 342 | 1.0 | map | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_archive.so | 333 | 1.0 | map | GCC+Clang
+  com.samsung.tv.coba.adagent | /usr/apps/.debug-tpk/com.samsung.tv.coba.adagent-26.1.7026.tpk!shared/res/libcomp-adagent.so | 356 | 0.935 | cond | GCC+Clang
+  com.samsung.tv.coba.adagent | /usr/apps/.preload-rw-tpk/com.samsung.tv.coba.adagent-26.1.7026.tpk!shared/res/libcomp-adagent.so | 356 | 0.935 | cond | GCC+Clang
+  com.samsung.tv.ghdaemon | /usr/apps/.preload-rw-tpk/com.samsung.tv.ghdaemon-8.26.09301-arm.tpk!bin/ghdaemon | 332 | 1.0 | cond | GCC+Clang
+  gst-plugins-httpdemux | /usr/lib/libavformat_mmhttp.so.55 | 323 | 0.991 | map | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_filesystem.so | 316 | 1.0 | map | GCC+Clang
+  gst-plugins-dash | /usr/lib/libavformat_mmdash.so.55 | 318 | 0.991 | map | GCC+Clang
+  com.samsung.tv.slive-daemon | /usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libavformat_mmdash.so.55 | 332 | 0.946 | cond | GCC
+  com.samsung.tv.slive-daemon | /usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libavformat_mmhttp.so.55 | 331 | 0.944 | cond | GCC
+  com.samsung.tv.bixbycapsuleviewer | /usr/apps/.preload-rw-tpk/com.samsung.tv.bixbycapsuleviewer-27.026.07230-arm.tpk!lib/libwebp_lwe.so | 322 | 0.953 | cond | GCC
+  glibc | /usr/sbin/glibc_post_upgrade | 308 | 0.977 | map | GCC
+  webapi-network-pepper-plugin | /usr/lib/tizen-extensions-crosswalk/libwebapis_network.so | 297 | 1.0 | map | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_common.so | 283 | 1.0 | map | GCC+Clang
+  org.tizen.tv.ci-app | /usr/lib/libciapp-provider.so | 272 | 1.0 | map | GCC+Clang
+  com.samsung.tv.broadcastingmenu | /usr/share/menu/providers/libbroadcastmenu-enablechecker.so.0.1 | 265 | 1.0 | map | GCC+Clang
+  com.samsung.tv.broadcastingmenu | /usr/share/menu/providers/libbroadcastmenu-visiblechecker.so.0.1 | 260 | 1.0 | map | GCC+Clang
+  sys-tools | /usr/local/bin/alsan | 261 | 0.992 | map | GCC+Clang
+  pkgmgr-server | /usr/bin/pkgmgr-server | 255 | 1.0 | map | GCC+Rust
+  sys-tools | /usr/local/bin/memleak | 254 | 0.992 | map | GCC+Clang
+  org.tizen.voice-client | /usr/apps/.preload-rw-tpk/org.tizen.voice-client-26.27.09281-arm.tpk!lib/libFarfield_VAD_TV.so | 269 | 0.908 | cond | GCC
+  com.samsung.tv.uem-client | /usr/apps/.preload-tpk/com.samsung.tv.uem-client-1.2.55-arm.tpk!lib/plugin/libcurl-d.so | 243 | 1.0 | map | GCC
+  sys-tools | /usr/local/bin/futexctn | 245 | 0.991 | map | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_application.so | 237 | 1.0 | map | GCC+Clang
+  pisa-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.pisa-service-31.11.126-arm.tpk!bin/pisa-service | 242 | 0.961 | cond | GCC+Clang
+  capi-multiprofile-tv | /usr/lib/libmultiprofile-mapi.so.1.0.0 | 221 | 0.999 | map | GCC+Clang
+  com.samsung.tv.slive-daemon | /usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libavutil_common.so.52 | 226 | 0.978 | cond | GCC
+  webapi-tvs-plugin | /usr/lib/tizen-extensions-crosswalk/libwebapis_tvs.so | 219 | 0.999 | map | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_content.so | 214 | 0.999 | map | GCC+Clang
+  vd-capi-network | /usr/bin/iperf | 213 | 1.0 | map | GCC
+  org.tizen.tv-viewer | /usr/apps/org.tizen.tv-viewer/bin/tvcontrol-notify-manager | 213 | 0.999 | map | GCC+Clang
+  unzip | /usr/bin/zipinfo | 226 | 0.94 | cond | GCC+Clang
+  dbus-libs-extension-kdbus | /usr/lib/libdbus-1.so.3.19.13.extension-kdbus | 211 | 0.999 | map | GCC+Clang
+  boost-regex | /usr/lib/libboost_regex.so.1.83.0 | 208 | 0.999 | map | GCC+Clang
+  glibc | /usr/bin/localedef | 208 | 0.999 | map | GCC
+  bluetooth-impl-sec-oal | /prd/usr/lib/libbt-vendor-aic.so | 207 | 1.0 | map | GCC
+  eden-webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libwebapis_common.so | 195 | 0.999 | map | GCC+Clang
+  sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_decimal.cpython-35m-arm-linux-gnueabi.so | 209 | 0.929 | cond | GCC+Clang
+  org.tizen.voice-client | /usr/apps/.preload-rw-tpk/org.tizen.voice-client-26.27.09281-arm.tpk!lib/libcapi-context-engine.so | 194 | 1.0 | cond | GCC
+  SZDrv_tools | /sbin/mkfs.szdrv | 195 | 0.994 | map | GCC+Clang
+  qte-bm | /usr/lib/BM/qt5.5.1/lib/libQt5Xml.so.5.5.1 | 193 | 0.999 | map | GCC+Clang
+  gstreamer-plugins-pvr | /usr/lib/gstreamer-1.0/libgstpvrplugin.so | 197 | 0.983 | map | GCC+Clang
+  SZDrv_tools | /sbin/fsck.szdrv | 194 | 0.994 | map | GCC+Clang
+  org.tizen.rdm-client | /usr/apps/org.tizen.rdm-client/lib/libnats.so | 188 | 1.0 | map | GCC
+  org.tizen.rdm-client | /usr/apps/org.tizen.rdm-client/lib/libnats.so.2.3 | 188 | 1.0 | map | GCC
+  org.tizen.rdm-client | /usr/apps/org.tizen.rdm-client/lib/libnats.so.2.3.0 | 188 | 1.0 | map | GCC
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_exif.so | 182 | 0.999 | map | GCC+Clang
+  dbus-libs | /usr/lib/libdbus-1.so.3.19.13 | 180 | 0.999 | map | GCC+Clang
+  org.tizen.voice-client | /usr/apps/.preload-rw-tpk/org.tizen.voice-client-26.27.09281-arm.tpk!lib/libTitleSelection.so | 182 | 0.961 | cond | GCC
+  glibc | /lib/libm.so.6 | 182 | 0.956 | map | GCC
+  webapi-bixby-plugin | /usr/lib/tizen-extensions-crosswalk/libwebapis_bixby.so | 165 | 0.999 | map | GCC+Clang
+  webapi-unipicture-plugin | /usr/lib/tizen-extensions-crosswalk/libwebapis_unipicture.so | 160 | 0.999 | map | GCC+Clang
+  com.samsung.tv.kmx-setting-app | /usr/apps/.preload-rw-tpk/com.samsung.tv.kmx-setting-app-3.10.14-arm.tpk!bin/kmx-setting-app | 159 | 1.0 | map | GCC+Clang
+  webapi-allshare-pepper-plugin | /usr/lib/tizen-extensions-crosswalk/libwebapis_allshare.so | 157 | 0.999 | map | GCC+Clang
+  rpm | /usr/lib/librpmbuild.so.3.1.0 | 153 | 0.999 | map | GCC+Clang
+  cordova-api | /usr/lib/tizen-extensions-crosswalk/libtizen_cordova_globalization.so | 153 | 0.999 | map | GCC+Clang
+  rpm | /usr/lib/librpmio.so.3.1.0 | 152 | 0.986 | map | GCC+Clang
+  boost-program-options | /usr/lib/libboost_program_options.so.1.83.0 | 149 | 0.999 | map | GCC+Clang
+  webapi-plugins | /usr/lib/tizen-extensions-crosswalk/libtizen_tvchannel.so | 149 | 0.999 | map | GCC+Clang
+  libdeviced | /usr/lib/libdeviced.so.1.0.3 | 148 | 0.999 | map | GCC+Clang
+  com.samsung.tv.uem-client | /usr/apps/.preload-tpk/com.samsung.tv.uem-client-1.2.55-arm.tpk!lib/plugin/libXioSdk.so | 148 | 1.0 | map | GCC
+  webapi-pluginmanager-pepper-plugin | /usr/lib/tizen-extensions-crosswalk/libwebapis_PluginManager.so | 147 | 0.999 | map | GCC+Clang
+  qte-bm | /usr/lib/BM/qt5.5.1/plugins/platforms/libqlinuxfb.so | 146 | 0.999 | map | GCC+Clang
+  webapi-systemcontrol-pepper-plugin | /usr/lib/tizen-extensions-crosswalk/libwebapis_systemcontrol.so | 146 | 0.999 | map | GCC+Clang
+  webapi-broadcast-pepper-plugin | /usr/lib/tizen-extensions-crosswalk/libwebapis_broadcast.so | 144 | 0.999 | map | GCC+Clang
+  qte-bm | /usr/lib/BM/qt5.5.1/lib/libQt5Sql.so.5.5.1 | 144 | 0.999 | map | GCC+Clang
+  aurum | /usr/lib/libaurumsharp.so.0.1.1 | 142 | 0.999 | map | GCC+Clang
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_fr.so | 153 | 0.927 | cond | GCC
+  libwidget_viewer_dali | /usr/lib/libwidget_viewer_dali.so.1.4.12 | 137 | 0.999 | map | GCC+Clang
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_ge.so | 146 | 0.933 | cond | GCC
+  bluetooth-impl-sec-oal | /prd/usr/lib/librtkbt_vendor.so | 136 | 1.0 | map | GCC
+  sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/pyexpat.cpython-35m-arm-linux-gnueabi.so | 160 | 0.848 | cond | GCC+Clang
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_usen.so | 144 | 0.933 | cond | GCC
+  pkgmgr-installer | /usr/lib/libpkgmgr_installer.so.0.23.4 | 134 | 0.999 | map | GCC+Clang
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_uken.so | 144 | 0.933 | cond | GCC
+  org.tizen.contents-recognition-api | /usr/lib/libcontents-recognition-api.so.1.0.0 | 134 | 0.999 | map | GCC+Clang
+  gst-plugins-dash | /usr/lib/libgurl.so | 134 | 0.999 | map | GCC+Clang
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_es.so | 143 | 0.932 | cond | GCC
+  glibc | /lib/ld-linux.so.3 | 134 | 0.983 | map | GCC
+  atsc3uhdcp | /usr/apps/atsc3uhdcp/digicap/copp/image/client/dpc_D_S01028.csw | 133 | 0.99 | cond | GCC
+  luabind | /usr/lib/libluabindd.so.0.9.0 | 130 | 0.999 | map | GCC+Clang
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_it.so | 139 | 0.933 | cond | GCC
+  pisa-service | /usr/apps/.preload-rw-tpk/com.samsung.tv.pisa-service-31.11.126-arm.tpk!lib/libpisa-framework.so | 127 | 0.978 | cond | GCC
+  app2usb-plugin-tv | /usr/bin/app2sd-server | 124 | 0.999 | map | GCC+Clang
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_pt.so | 132 | 0.932 | cond | GCC
+  org.tizen.tts-resource | /usr/apps/.preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!shared/Lib/libSMT_lang_ru.so | 132 | 0.932 | cond | GCC
+  org.tizen.stand-by-scan | /usr/lib/libstand-by-scan-lib.so | 122 | 0.999 | map | GCC+Clang
+SUMMARY_PREVIEW_TRUNCATED 240
+SCAN_ROSTER COMPLETE
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ tmux new -s mlgo
+sudo -v
+MODE=kernel
+CONSUMER_ARGS=()
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  rev=cd7f97e9cf75fd9bb70e0abe85ca626a073c64be
+  get() {
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/artifacts/scripts/r0005/$1" -o "$d/$1"
+    printf '%s  %s\n' "$2" "$d/$1" | sha256sum -c -
+  }
+  get gbs-mlgo-t7.py.txt 119aefdcc39d6f121c560f464963ee3f42fe232594611598180b48617a038ed3
+  args=( "${MODE:?set kernel or pic}" )
+  if [[ "$MODE" == pic ]]; then
+    get gbs-t7-link.sh.txt c36498246c21dbd6de23567cbf7e3320f80cef7a0c61a499acee0a74feb01c77
+    args+=( --probe "$d/gbs-t7-link.sh.txt" "${CONSUMER_ARGS[@]}" )
+  fi
+  mkdir -p "$PWD/workspace/temp"/pm000{4,5}-native-lock
+  flock -n "$PWD/workspace/temp/pm0004-native-lock/heavy.lock" \
+    flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" \
+    python3 -B -u "$d/gbs-mlgo-t7.py.txt" "${args[@]}"
+)
+Command 'tmux' not found, but can be installed with:
+sudo apt install tmux
+[sudo] password for chengkai:
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.QTSIo2/gbs-mlgo-t7.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f
+CAPACITY disk_free_gib 198 ram_available_gib 68
+GBS_INPUT official /home1/chengkai/vd-tree/config/gbs_vd_llvm_11.16_qb37627297.conf c76e060a0cfcbfed72f292ec9d4e840d46a8ee795dde461297732f4561552ffe STAGED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/gbs.conf 6a10363a1a643b54711053a14ccd9304b3350235a397641301fadc23224a03a6
+GBS_INPUT custom /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf 72a982165c14e8a1da251aebf509ac37bb817e08e8c911ed7dd7dabe64f7e322 STAGED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/gbs.conf c36582d39cd0c8e6dc2969f34eb993e29e41537fb837b18a6326061e009c97cf
+GBS_BUILD_CONF /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 P4_CHANGE 14452507
+GBS_SOURCE 14293732 + 14427407 overlays 24 spec_sha256 5663f9c9c074f74e69a57bec9fb3dcc595512985a778814e311e0658e2b12cc5
+BLOCKED [Errno 13] Permission denied: '/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/vdlinux/packaging/tztv-kernel.spec'
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
+

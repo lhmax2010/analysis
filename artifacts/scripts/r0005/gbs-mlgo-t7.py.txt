@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import tempfile
 
@@ -31,6 +32,8 @@ ARCHIVES = {
 CAPI_SHA = "6924cf7bfc22065a8cb0dc267c8f6398ef2713fd6a9837ee137bdb1016653d6c"
 REL = re.compile(r"R_ARM_[A-Z0-9_]+")
 ADVISORS = ("-enable-ml-inliner=release", "-regalloc-enable-advisor=release")
+FAILED_WORKDIR = "pm0005-gbs-kernel.mtob625f"
+FAILED_SPEC_SHA = "5663f9c9c074f74e69a57bec9fb3dcc595512985a778814e311e0658e2b12cc5"
 CONFIG_SHA = "11c224a1247eeb20c72efc6548808a564b0766321c2b0570dc20d18d965f4caf"
 INSTRUMENT = r'''
 export V=1 KBUILD_VERBOSE=1
@@ -89,15 +92,20 @@ def configurations(work):
     configs = {}
     for lane, path, token in (("official", control, b"20261113\.1"), ("custom", custom, b"20261118\.1")):
         folder = work / lane
-        folder.mkdir()
+        folder.mkdir(exist_ok=True)
         root = folder / "GBS-ROOT"
+        if folder.is_symlink() or root.exists() or root.is_symlink():
+            raise ValueError(f"resume requires an unused GBS root: {root}")
         normal, data = normalize(path.read_bytes(), token, str(root).encode())
         if lane == "official":
             baseline = normal.replace(str(root).encode(), b"ROOT")
         elif baseline != normal.replace(str(root).encode(), b"ROOT"):
             raise ValueError("QB GBS configurations differ beyond Base URL and buildroot")
         local = folder / "gbs.conf"
-        local.write_bytes(data)
+        if local.is_symlink() or (local.exists() and local.read_bytes() != data):
+            raise ValueError(f"retained staged config differs: {local}")
+        if not local.exists():
+            local.write_bytes(data)
         configs[lane] = local, root
         print("GBS_INPUT", lane, path, sha(path), "STAGED", local, sha(local), flush=True)
     print("GBS_BUILD_CONF", conf, BUILD_CONF_SHA, "P4_CHANGE", 14452507, flush=True)
@@ -113,12 +121,16 @@ def local_git(source, work):
         execute(git + args, source, work / ("git-" + name + ".log"), 1200)
 
 
-def stage_kernel(work):
+def stage_kernel(work, resume=False):
     src = work / "vdlinux"
-    src.mkdir()
     desc = work / "shelf.log"
-    execute(P4 + ["login", "-s"], ROOT, work / "p4-login.log", 30)
-    execute(P4 + ["describe", "-S", "-s", "14427407"], ROOT, desc, 60)
+    if resume:
+        if src.is_symlink() or not src.is_dir() or not (work / "base-print.log").is_file():
+            raise ValueError("resume requires the retained source and P4 result logs")
+    else:
+        src.mkdir()
+        execute(P4 + ["login", "-s"], ROOT, work / "p4-login.log", 30)
+        execute(P4 + ["describe", "-S", "-s", "14427407"], ROOT, desc, 60)
     raw = desc.read_text(errors="replace")
     if not re.search(r"(?m)^Change\s+14427407\b", raw):
         raise ValueError("wrong shelf description")
@@ -126,27 +138,48 @@ def stage_kernel(work):
              if depot.startswith(DEPOT)]
     if not files:
         raise ValueError("no vdlinux files in shelf")
-    execute(P4 + ["print", "-q", "-o", str(src / "..."), DEPOT + "...@14293732"],
-            ROOT, work / "base-print.log", 7200)
+    if not resume:
+        execute(P4 + ["print", "-q", "-o", str(src / "..."), DEPOT + "...@14293732"],
+                ROOT, work / "base-print.log", 7200)
+    elif len(files) != 24:
+        raise ValueError("retained shelf differs from recorded 24-file vdlinux overlay")
     for i, (depot, action) in enumerate(files):
         relative = PurePosixPath(depot.removeprefix(DEPOT))
         dest = src / relative
         if relative.is_absolute() or ".." in relative.parts or not dest.parent.resolve().is_relative_to(src):
             raise ValueError(f"unsafe shelf path {relative}")
+        removed = action in {"delete", "move/delete"}
+        if resume:
+            exists = dest.exists() or dest.is_symlink()
+            if exists == removed or (not removed and not (work / f"shelf-print-{i}.log").is_file()):
+                raise ValueError(f"retained shelf action or log mismatch: {relative}")
+            continue
         dest.unlink(missing_ok=True)
-        if action not in {"delete", "move/delete"}:
+        if not removed:
             dest.parent.mkdir(parents=True, exist_ok=True)
             execute(P4 + ["print", "-q", "-o", str(dest), depot + "@=14427407"],
                     ROOT, work / f"shelf-print-{i}.log", 180)
     pinned(src / "linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig", CONFIG_SHA)
     spec = src / "packaging/tztv-kernel.spec"
+    if spec.is_symlink() or not spec.is_file():
+        raise ValueError("expected a regular staged kernel spec")
+    if resume:
+        pinned(spec, FAILED_SPEC_SHA)
+        print("GBS_SOURCE_REUSED", src, "14293732 + 14427407", "overlays", len(files), "P4_FETCH_SKIPPED", flush=True)
     old = spec.read_text()
     lines = re.findall(r"(?m)^%build[ \t]*$", old)
     if len(lines) != 1 or (src / ".git").exists():
         raise ValueError("cannot stage the pinned kernel packaging layout")
     print("GBS_SOURCE 14293732 + 14427407", "overlays", len(files),
           "spec_sha256", sha(spec), flush=True)
-    spec.write_text(re.sub(r"(?m)^%build[ \t]*$", lambda _: "%build\n" + INSTRUMENT, old))
+    updated = re.sub(r"(?m)^%build[ \t]*$", lambda _: "%build\n" + INSTRUMENT, old)
+    original = work / "tztv-kernel.spec.before-trace"
+    if not original.exists():
+        shutil.copyfile(spec, original)
+    elif sha(original) != sha(spec):
+        raise ValueError("retained pre-trace spec disagrees with staged spec")
+    spec.chmod(stat.S_IMODE(spec.stat().st_mode) | stat.S_IWUSR)
+    spec.write_text(updated)
     print("GBS_TRACE_ONLY_SPEC_SHA256", sha(spec), flush=True)
     local_git(src, work)
     return src
@@ -372,15 +405,21 @@ def main():
     parser.add_argument("mode", choices=("kernel", "pic"))
     parser.add_argument("--probe", type=Path)
     parser.add_argument("--consumer-dir", type=Path, action="append", default=[])
+    parser.add_argument("--resume", type=Path, help="reuse the recorded pre-build kernel WORKDIR")
     args = parser.parse_args()
-    work = Path(tempfile.mkdtemp(prefix="pm0005-gbs-" + args.mode + ".", dir=NATIVE))
+    if args.resume is not None:
+        work = args.resume.resolve(strict=True)
+        if args.mode != "kernel" or work != NATIVE.resolve() / FAILED_WORKDIR:
+            parser.error("--resume only accepts the recorded pre-build kernel WORKDIR")
+    else:
+        work = Path(tempfile.mkdtemp(prefix="pm0005-gbs-" + args.mode + ".", dir=NATIVE))
     os.environ["TMPDIR"] = str(work)
     print("WORKDIR", work, flush=True)
     try:
         available(work, *capacity_args(args.mode))
         cfg, buildconf = configurations(work)
         if args.mode == "kernel":
-            source, spec, lanes = stage_kernel(work), "tztv-kernel.spec", ("official", "custom")
+            source, spec, lanes = stage_kernel(work, resume=args.resume is not None), "tztv-kernel.spec", ("official", "custom")
         else:
             if args.probe is None:
                 raise ValueError("--probe is required for the PIC GBS probe")
