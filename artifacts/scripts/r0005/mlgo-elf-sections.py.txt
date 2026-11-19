@@ -1,0 +1,534 @@
+#!/usr/bin/env python3
+"""Audit ELF sections for the retained KantSU2E QuickBuild RPM comparison."""
+
+import argparse
+from collections import Counter, defaultdict
+from contextlib import ExitStack, contextmanager
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from urllib.parse import unquote, urlsplit
+import zipfile
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+COMPARISON = TEMP / "pm0005-image-compare.zrtxkrwn/packages.jsonl"
+HOST = "repos.vd.sec.samsung.net"
+LIMIT = 1024**3
+BLOCK = 1024**2
+SECTION = re.compile(
+    r"^\s*\[\s*(\d+)\]\s+(\S+)\s+(\S+)\s+([0-9a-fA-F]+)\s+"
+    r"([0-9a-fA-F]+)\s+([0-9a-fA-F]+)\s+([0-9a-fA-F]+)\s*"
+    r"(\S*?)\s+(\d+)\s+(\d+)\s+(\d+)\s*$"
+)
+
+
+def line(label, value):
+    print(label, json.dumps(value, ensure_ascii=True, sort_keys=True), flush=True)
+
+
+def copy_bytes(source, size, dest=None, digest=None):
+    while size:
+        block = source.read(min(size, BLOCK))
+        if not block:
+            raise ValueError("truncated member")
+        if dest is not None:
+            dest.write(block)
+        if digest is not None:
+            digest.update(block)
+        size -= len(block)
+
+
+def sha_file(path):
+    with path.open("rb") as source:
+        digest = hashlib.sha256()
+        copy_bytes(source, path.stat().st_size, digest=digest)
+        return digest.hexdigest()
+
+
+def checked_path(value):
+    path = value.resolve(strict=True)
+    if not path.is_relative_to(TEMP.parent.parent):
+        raise ValueError(f"path must stay under vd-tree: {value}")
+    return path
+
+
+def rpm_url(value):
+    url = urlsplit(value)
+    path = PurePosixPath(unquote(url.path))
+    prefixes = ("/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/",
+                "/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/",
+                "/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/"
+                "tizen-10.0-base-dev-llvm-standard_20261113.1/",
+                "/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/"
+                "tizen-10.0-base-dev-llvm-standard_20261118.1/")
+    if (url.scheme not in ("http", "https") or url.netloc != HOST or url.query or url.fragment
+            or ".." in path.parts or path.suffix != ".rpm" or not str(path).startswith(prefixes)):
+        raise ValueError("unexpected retained RPM URL")
+    return path.name
+
+
+@contextmanager
+def rpm_input(record, cache, scratch, fetch):
+    _, (expected, _, url) = record
+    name = rpm_url(url)
+    for path in cache.get(name, ()):
+        if sha_file(path) == expected:
+            yield path
+            return
+    if not fetch:
+        raise ValueError(f"no SHA-256-matching cached RPM for {name}")
+    path = scratch / "download.rpm"
+    try:
+        subprocess.run(
+            ["curl", "-fsS", "--noproxy", HOST, "--connect-timeout", "10", "--max-time", "900",
+             "--max-filesize", str(LIMIT), "-o", str(path), url],
+            check=True, timeout=910, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        )
+        if sha_file(path) != expected:
+            raise ValueError(f"RPM SHA-256 mismatch for {name}")
+        yield path
+    finally:
+        path.unlink(missing_ok=True)
+
+
+@contextmanager
+def cpio_members(rpm):
+    def stream_members(source):
+        def exact(size):
+            data = source.read(size)
+            if len(data) != size:
+                raise ValueError("truncated cpio stream")
+            return data
+
+        while True:
+            raw = exact(110)
+            if raw[:6] not in (b"070701", b"070702"):
+                raise ValueError("unsupported RPM cpio header")
+            fields = [int(raw[i:i+8], 16) for i in range(6, 110, 8)]
+            ino, mode, _, _, nlink, _, size, devmajor, devminor, _, _, namesize, _ = fields
+            if not 1 <= namesize <= 65536:
+                raise ValueError("invalid cpio name length")
+            name = exact(namesize)[:-1].decode(errors="surrogateescape")
+            exact(-(110 + namesize) % 4)
+            if name == "TRAILER!!!":
+                break
+            key = (devmajor, devminor, ino) if nlink > 1 else None
+            path = normalized(name)
+            yield path, mode & 0o170000, key, size, source
+            exact(-size % 4)
+        while source.read(BLOCK):
+            pass
+
+    with subprocess.Popen(["rpm2cpio", str(rpm)], stdout=subprocess.PIPE,
+                          stderr=subprocess.DEVNULL) as proc:
+        try:
+            yield stream_members(proc.stdout)
+            if proc.wait(timeout=90):
+                raise ValueError("rpm2cpio failed")
+        except BaseException:
+            proc.kill()
+            raise
+
+
+def normalized(name):
+    path = PurePosixPath(name.lstrip("/"))
+    if ".." in path.parts or str(path) == ".":
+        raise ValueError(f"invalid member path: {name!r}")
+    return "/" + str(path)
+
+
+def readelf(path, flag):
+    return subprocess.run(["readelf", flag, str(path)], check=True, text=True,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          env={**os.environ, "LC_ALL": "C"}, timeout=30).stdout
+
+
+def elf_info(path):
+    with path.open("rb") as data:
+        if data.read(4) != b"\x7fELF":
+            raise ValueError("expected ELF magic")
+        sections = {}
+        for row in readelf(path, "-SW").splitlines():
+            match = SECTION.match(row)
+            if not match:
+                if re.match(r"^\s*\[\s*[1-9]\d*\]", row):
+                    raise ValueError(f"unparsed section row: {row.strip()}")
+                continue
+            index, name, kind, address, offset, size, entsize, flags, link, info, align = match.groups()
+            if index == "0":
+                continue
+            if name in sections:
+                raise ValueError(f"duplicate ELF section name: {name}")
+            size = int(size, 16)
+            digest = None
+            if kind != "NOBITS":
+                offset = int(offset, 16)
+                if offset + size > path.stat().st_size:
+                    raise ValueError(f"section exceeds ELF file: {name}")
+                data.seek(offset)
+                hashed = hashlib.sha256()
+                copy_bytes(data, size, digest=hashed)
+                digest = hashed.hexdigest()
+            sections[name] = {"type": kind, "bytes": size, "sha256": digest, "flags": flags,
+                              "address": int(address, 16), "entsize": int(entsize, 16),
+                              "link": int(link), "info": int(info), "align": int(align)}
+    header = readelf(path, "-hW")
+    fields = {}
+    for key in ("Class", "Data", "Type", "Machine", "Entry point address", "Flags"):
+        match = re.search(r"^\s*" + re.escape(key) + r":\s*(.*)$", header, re.M)
+        if not match:
+            raise ValueError(f"readelf header missing {key}")
+        fields[key] = match[1]
+    programs = readelf(path, "-lW").split("Section to Segment mapping:", 1)[0]
+    return {"header": fields, "program_headers_sha256": hashlib.sha256(programs.encode()).hexdigest(),
+            "sections": sections}
+
+
+def vmlinux_info(path, scratch):
+    with path.open("rb") as stream:
+        magic = stream.read(32)
+    info = {"magic_hex": magic.hex(), "format": "ELF" if magic.startswith(b"\x7fELF") else "UNRECOGNIZED"}
+    for signature, decoder in (
+        (b"\x1f\x8b", "gzip"), (b"\xfd7zXZ\0", "xz"), (b"\x28\xb5\x2f\xfd", "zstd"),
+        (b"\x04\x22\x4d\x18", "lz4"), (b"BZh", "bzip2"),
+    ):
+        if magic.startswith(signature):
+            info["format"] = decoder
+            decoded = scratch / "vmlinux.decoded"
+            try:
+                with decoded.open("wb") as dest:
+                    subprocess.run(["timeout", "90", "bash", "-c",
+                                    'ulimit -f 1048576; exec "$1" -dc -- "$2"',
+                                    "vmlinux-decoder", decoder, str(path)],
+                                   check=True, stdout=dest, stderr=subprocess.PIPE, timeout=95)
+                info["decoded_bytes"] = decoded.stat().st_size
+                info["decoded_sha256"] = sha_file(decoded)
+                with decoded.open("rb") as stream:
+                    info["decoded_magic_hex"] = stream.read(32).hex()
+                if info["decoded_magic_hex"].startswith("7f454c46"):
+                    info["elf"] = elf_info(decoded)
+                else:
+                    info["diagnostic"] = "decoded bytes are not ELF"
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                info["diagnostic"] = str(exc)
+            finally:
+                decoded.unlink(missing_ok=True)
+            return info
+    if info["format"] == "ELF":
+        info["elf"] = elf_info(path)
+    elif shutil.which("file"):
+        info["description"] = subprocess.run(["file", "-b", str(path)], check=True, text=True,
+                                             capture_output=True, timeout=20).stdout.strip()
+    return info
+
+
+def inspect_member(path, expected, kernel, scratch):
+    size = path.stat().st_size
+    digest = sha_file(path)
+    if digest != expected:
+        raise ValueError("member SHA-256 differs from the retained comparison")
+    details = {"bytes": size, "sha256": digest}
+    if kernel:
+        details.update(vmlinux_info(path, scratch))
+    else:
+        details["elf"] = elf_info(path)
+    return details
+
+
+def inspect_payload(rpm, wanted, vmlinux, scratch):
+    outer = defaultdict(list)
+    for path, expected in wanted.items():
+        parent, sep, child = path.partition("!")
+        outer[parent].append((path, child if sep else None, expected))
+    found, errors, pending, carriers = {}, {}, defaultdict(list), defaultdict(list)
+
+    def collect(requests, source, size):
+        if size > LIMIT:
+            copy_bytes(source, size)
+            for path, _, _ in requests:
+                errors[path] = "member exceeds inspection size cap"
+            return
+        member = scratch / "member.bin"
+        with member.open("wb") as dest:
+            copy_bytes(source, size, dest=dest)
+        try:
+            nested = [request for request in requests if request[1] is not None]
+            if nested:
+                try:
+                    with zipfile.ZipFile(member) as zf:
+                        entries = defaultdict(list)
+                        for info in zf.infolist():
+                            if not info.is_dir():
+                                entries[normalized(info.filename)].append(info)
+                        for path, child, expected in nested:
+                            try:
+                                (item,) = entries[child]
+                                if item.file_size > LIMIT:
+                                    raise ValueError("ZIP member exceeds inspection size cap")
+                                child_file = scratch / "nested.bin"
+                                with zf.open(item) as data, child_file.open("wb") as dest:
+                                    copy_bytes(data, item.file_size, dest=dest)
+                                    if data.read(1):
+                                        raise ValueError("ZIP member length mismatch")
+                                found[path] = inspect_member(child_file, expected, False, scratch)
+                            except (OSError, ValueError, RuntimeError, NotImplementedError,
+                                    zipfile.BadZipFile, subprocess.SubprocessError) as exc:
+                                errors[path] = str(exc)
+                            finally:
+                                (scratch / "nested.bin").unlink(missing_ok=True)
+                except (OSError, ValueError, zipfile.BadZipFile) as exc:
+                    for path, _, _ in nested:
+                        errors[path] = str(exc)
+            for path, child, expected in requests:
+                if child is None:
+                    try:
+                        found[path] = inspect_member(member, expected, path in vmlinux, scratch)
+                    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                        errors[path] = str(exc)
+        finally:
+            member.unlink(missing_ok=True)
+
+    seen = set()
+    with cpio_members(rpm) as members:
+        for name, kind, key, size, source in members:
+            if name in seen:
+                raise ValueError(f"duplicate RPM member {name}")
+            seen.add(name)
+            if kind == 0o100000 and key and size:
+                carriers[key].append(name)
+            if name not in outer or kind != 0o100000:
+                copy_bytes(source, size)
+            elif key and not size:
+                pending[key].extend(outer[name])
+            else:
+                collect(outer[name], source, size)
+
+    aliases = {}
+    for key, requests in pending.items():
+        if len(carriers[key]) == 1:
+            aliases[carriers[key][0]] = requests
+        else:
+            for path, _, _ in requests:
+                errors[path] = "hardlink data carrier missing or ambiguous"
+    if aliases:
+        with cpio_members(rpm) as members:
+            for name, _, _, size, source in members:
+                if name in aliases:
+                    collect(aliases[name], source, size)
+                else:
+                    copy_bytes(source, size)
+    return found, errors
+
+
+def known_metadata(name):
+    return (name in {".note.gnu.build-id", ".comment", ".symtab", ".strtab", ".shstrtab", ".gnu_debuglink"}
+            or name.startswith((".debug_", ".zdebug_")))
+
+
+def section_compare(before, after):
+    old, new = (item["elf"]["sections"] for item in (before, after))
+    changed = sorted(name for name in old.keys() | new.keys() if old.get(name) != new.get(name))
+    text = [side.get(".text") for side in (old, new)]
+    if text[0] is None and text[1] is None:
+        text_state = "NO_TEXT_BOTH"
+    elif text[0] and text[1] and all(text[0][key] == text[1][key] for key in ("sha256", "bytes", "type")):
+        text_state = "TEXT_IDENTICAL"
+    else:
+        text_state = "TEXT_CHANGED"
+    exec_changed = [name for name in changed if name != ".text" and
+                    any("X" in side.get(name, {}).get("flags", "") for side in (old, new))]
+    layout = any(before["elf"][key] != after["elf"][key] for key in ("header", "program_headers_sha256"))
+    classification = ("METADATA_ONLY_CANDIDATE" if changed and not layout and
+                      all(known_metadata(name) for name in changed) else "OTHER_CHANGE_OR_UNEXPLAINED")
+    return {"text_state": text_state, "text_bytes": [item["bytes"] if item else 0 for item in text],
+            "changed_sections": changed, "other_executable_sections": exec_changed,
+            "header_or_segment_layout_changed": layout, "classification": classification}
+
+
+def rows_from(path):
+    if not path.name == "packages.jsonl" or not path.parent.name.startswith("pm0005-image-compare."):
+        raise ValueError("expected a retained image-compare packages.jsonl")
+    with path.open() as stream:
+        rows = [json.loads(line) for line in stream]
+    if len(rows) != 2342 or len({tuple(row["package"]) for row in rows}) != 2342:
+        raise ValueError("expected 2,342 unique retained package rows")
+    if sum(row["package"][0] == "tztv-kernel-perf" for row in rows) != 1:
+        raise ValueError("expected exactly one tztv-kernel-perf row")
+    return rows
+
+
+def cache_index(directories):
+    result = defaultdict(list)
+    for directory in directories:
+        for path in checked_path(directory).rglob("*.rpm"):
+            if not path.is_symlink() and path.is_file():
+                result[re.sub(r"^[0-9a-f]{16}-", "", path.name)].append(path)
+    return result
+
+
+def is_kernel_module(path):
+    return bool(re.search(r"\.ko(?:\.(?:xz|gz|zst|lz4))?$", path))
+
+
+def kernel_details(path, left, right):
+    for lane, item in zip(("official", "custom"), (left, right)):
+        if item:
+            fields = {key: val for key, val in item.items() if key != "elf"}
+            elf = item.get("elf", {})
+            fields["sections_total"] = len(elf.get("sections", {}))
+            fields["elf_header"] = elf.get("header", {})
+            fields["has_symtab"] = ".symtab" in elf.get("sections", {})
+            fields["debug_sections"] = sum(name.startswith((".debug_", ".zdebug_"))
+                                          for name in elf.get("sections", {}))
+            line("VMLINUX_FILE", [path, lane, fields])
+    sections = [item.get("elf", {}).get("sections", {}) if item else {} for item in (left, right)]
+    names = sections[0].keys() | sections[1].keys()
+    order = sorted(names, key=lambda key: (-max(side.get(key, {}).get("bytes", 0) for side in sections), key))
+    for name in order[:40]:
+        line("VMLINUX_SECTION", [path, name, *(side.get(name, {}).get("bytes") for side in sections)])
+    if len(order) > 40:
+        line("VMLINUX_SECTION_ROWS_IN_JSONL", len(order))
+
+
+def execute(args, work, rows):
+    cache = cache_index(args.cache_dir)
+    counts, changed_names = Counter(), Counter()
+    top = defaultdict(lambda: [0, 0, 0])
+    samples, error_samples = [], []
+    scratch = work / "scratch"
+    scratch.mkdir()
+    line("INPUT", {"ledger": str(args.ledger), "sha256": sha_file(args.ledger), "fetch": args.fetch,
+                   "kernel_only": args.kernel_only, "rpms_in_local_cache": sum(map(len, cache.values())),
+                   "original_statuses": Counter(row["status"] for row in rows)})
+    with (work / "sections.jsonl").open("w") as out:
+        for row in sorted(rows, key=lambda r: (r["package"][0] != "tztv-kernel-perf", r["package"])):
+            pkg = row["package"]
+            kernel = pkg[0] == "tztv-kernel-perf"
+            targets = {} if kernel else dict(row.get("elf_delta", {}))
+            files = row.get("kernel", [{}, {}])
+            vmlinux = {key for side in files for key, value in side.items() if value["kind"] == "vmlinux"}
+            for path in vmlinux:
+                targets[path] = [entry.get(path, {}).get("sha256") for entry in files]
+            if args.kernel_only and not kernel:
+                continue
+            if kernel and not vmlinux:
+                counts["VMLINUX_MISSING_FROM_LEDGER"] += 1
+            if row["status"] in {"UNRESOLVED", "READ_ERROR"}:
+                counts["ORIGINAL_PACKAGE_UNRESOLVED"] += 1
+            if not targets:
+                continue
+            counts["TARGET_PACKAGES"] += 1
+            sides, errs = [], []
+            for index, lane in enumerate(("official", "custom")):
+                wanted = {path: pair[index] for path, pair in targets.items() if pair[index] is not None}
+                try:
+                    if wanted:
+                        with rpm_input(row[lane], cache, scratch, args.fetch) as rpm:
+                            found, errors = inspect_payload(rpm, wanted, vmlinux, scratch)
+                        errors.update({path: "member absent from payload traversal" for path in wanted.keys()
+                                       - found.keys() - errors.keys()})
+                    else:
+                        found, errors = {}, {}
+                except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                    found, errors = {}, {path: str(exc) for path in wanted}
+                sides.append(found)
+                errs.append(errors)
+            seen_pkg_change = False
+            for path in sorted(targets):
+                old, new = (side.get(path) for side in sides)
+                errors = [side.get(path) for side in errs]
+                family = "VMLINUX" if kernel else ("KERNEL_MODULE" if is_kernel_module(path) else "USERSPACE")
+                result = {"package": pkg, "path": path, "family": family, "non_llvm_delta": row["non_llvm_delta"],
+                          "official": old, "custom": new, "errors": errors, "retained_sha256": targets[path]}
+                if any(errors):
+                    state = "SECTION_READ_UNRESOLVED"
+                    if len(error_samples) < 12:
+                        error_samples.append([pkg, path, errors])
+                elif kernel:
+                    state = ("VMLINUX_SECTIONS_READ" if all(item and item.get("elf") for item in (old, new))
+                             else "VMLINUX_SECTIONS_UNAVAILABLE")
+                elif not old or not new:
+                    state = "ELF_ADDED" if new else "ELF_REMOVED"
+                else:
+                    compared = section_compare(old, new)
+                    state = compared["text_state"]
+                    result.update(compared)
+                    if family == "USERSPACE":
+                        changed_names.update(compared["changed_sections"])
+                        if len(samples) < 24 and state == "TEXT_IDENTICAL":
+                            samples.append([pkg, path, compared["changed_sections"][:16], compared["classification"]])
+                        if state == "TEXT_CHANGED":
+                            seen_pkg_change = True
+                            data = top[tuple(pkg)]
+                            data[0] += 1
+                            data[1] += compared["text_bytes"][0]
+                            data[2] += compared["text_bytes"][1]
+                            counts["USERSPACE_TEXT_CHANGED_OFFICIAL_BYTES"] += compared["text_bytes"][0]
+                            counts["USERSPACE_TEXT_CHANGED_CUSTOM_BYTES"] += compared["text_bytes"][1]
+                            if row["non_llvm_delta"] == "NONE":
+                                counts["USERSPACE_TEXT_CHANGED_OUTSIDE_BASE_DELTA"] += 1
+                        if compared["other_executable_sections"]:
+                            counts["USERSPACE_OTHER_EXEC_CHANGED"] += 1
+                        if compared["classification"] == "METADATA_ONLY_CANDIDATE":
+                            counts["USERSPACE_METADATA_ONLY_CANDIDATE"] += 1
+                counts[family + "_" + state if not kernel else state] += 1
+                result["state"] = state
+                out.write(json.dumps(result, ensure_ascii=True) + "\n")
+                if kernel:
+                    kernel_details(path, old, new)
+            if seen_pkg_change:
+                counts["USERSPACE_PACKAGES_WITH_TEXT_CHANGES"] += 1
+            out.flush()
+            if counts["TARGET_PACKAGES"] % 250 == 0:
+                line("PROGRESS_PACKAGES", counts["TARGET_PACKAGES"])
+    for pkg, (files, old, new) in sorted(top.items(), key=lambda item: (-max(item[1][1:]), item[0]))[:25]:
+        line("TOP_TEXT_CHANGED_PACKAGE", [pkg, files, old, new, new-old])
+    for name, count in sorted(changed_names.items(), key=lambda item: (-item[1], item[0]))[:25]:
+        line("USERSPACE_CHANGED_SECTION", [name, count])
+    for sample in samples:
+        line("TEXT_IDENTICAL_SECTION_SAMPLE", sample)
+    for sample in error_samples:
+        line("UNRESOLVED_SAMPLE", sample)
+    line("SUMMARY", counts)
+    line("DETAILS", str(work / "sections.jsonl"))
+    return 2 if any("UNRESOLVED" in key or "UNAVAILABLE" in key or "MISSING" in key for key in counts) else 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--ledger", type=Path, default=COMPARISON)
+    parser.add_argument("--cache-dir", type=Path, action="append", default=[])
+    parser.add_argument("--fetch", action="store_true", help="refetch missing exact RPMs from the recorded repositories")
+    parser.add_argument("--kernel-only", action="store_true")
+    args = parser.parse_args()
+    try:
+        args.ledger = checked_path(args.ledger)
+        rows = rows_from(args.ledger)
+        with ExitStack() as locks:
+            if args.fetch:
+                for number in (4, 5):
+                    lock = TEMP / f"pm{number:04}-native-lock/heavy.lock"
+                    lock.parent.mkdir(exist_ok=True)
+                    handle = locks.enter_context(lock.open("a"))
+                    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if shutil.disk_usage(TEMP).free < 5 * LIMIT:
+                    raise ValueError("need at least 5 GiB free under workspace/temp for streamed inspection")
+            work = Path(tempfile.mkdtemp(prefix="pm0005-elf-sections.", dir=TEMP))
+            line("WORKDIR", str(work))
+            return execute(args, work, rows)
+    except BlockingIOError:
+        line("STOP", "native heavy slot is busy")
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        line("STOP", str(exc))
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

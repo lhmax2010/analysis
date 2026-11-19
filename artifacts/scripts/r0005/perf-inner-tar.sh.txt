@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+case "${1:-}" in
+  official)
+    product='http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2'
+    stamp='202611171009'
+    ;;
+  customized)
+    product='http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2'
+    stamp='202611182216'
+    ;;
+  *)
+    printf '%s\n' 'Usage: perf-inner-tar.sh.txt official|customized' >&2
+    exit 2
+    ;;
+esac
+
+work=/home1/chengkai/vd-tree/workspace/temp
+target=T-KSU2EJAKUC-0101-PERF
+outer="$product/images/$target/${product##*/}_${target}.tar.gz"
+inner="$target-$stamp.tar"
+mkdir -p "$work/pm0004-native-lock" "$work/pm0005-native-lock"
+exec 4>>"$work/pm0004-native-lock/heavy.lock"
+exec 5>>"$work/pm0005-native-lock/heavy.lock"
+if ! flock -n 4 || ! flock -n 5; then
+  printf '%s\n' 'STOP native heavy slot is busy' >&2
+  exit 2
+fi
+printf 'OUTER %s\nINNER %s\n' "$outer" "$inner"
+export LC_ALL=C
+curl -fsS --noproxy repos.vd.sec.samsung.net --connect-timeout 10 --max-time 7200 "$outer" |
+  tar --extract --gzip --to-stdout --file=- --wildcards --no-anchored "$inner" |
+  tar --list --verbose --quoting-style=escape --file=- |
+  awk 'NR<=200 { print } tolower($NF) ~ /(^|\/)updatesu2e$/ { updates++ }
+       END {print "INNER_MEMBER_COUNT", NR; print "UPDATESU2E_MEMBER_COUNT", updates+0}'

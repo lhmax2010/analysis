@@ -1,0 +1,147 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ PRODUCT_ARGS=("http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/")
+(set -o pipefail; cd /home1/chengkai/vd-tree && d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX") && export TMPDIR="$d" && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/mlgo-image-compare.py.txt' -o "$d/mlgo-image-compare.py.txt" && printf '%s  %s\n' '0b453bf9d7b456fcdcf72a4ce9e3bf5e6ea35d835157bdca947217d1255260b8' "$d/mlgo-image-compare.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/image-repo-lib.py.txt' -o "$d/image-repo-lib.py.txt" && printf '%s  %s\n' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f' "$d/image-repo-lib.py.txt" | sha256sum -c - && curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/base-delta.py.txt' -o "$d/base-delta.py.txt" && printf '%s  %s\n' 'deb067f904d1bdd512a4a4c2ee0a9413e3b3e2ae9974a1ade228062ccef87adb' "$d/base-delta.py.txt" | sha256sum -c - && if [[ "${PRODUCT_ARGS[0]:-}" == --readback ]]; then python3 -B -u "$d/mlgo-image-compare.py.txt" "$d/image-repo-lib.py.txt" "$d/base-delta.py.txt" "${PRODUCT_ARGS[@]}"; else mkdir -p "$PWD/workspace/temp/pm0005-native-lock" && flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" python3 -B -u "$d/mlgo-image-compare.py.txt" "$d/image-repo-lib.py.txt" "$d/base-delta.py.txt" "${PRODUCT_ARGS[@]}"; fi)
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.2z80S5/mlgo-image-compare.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.2z80S5/image-repo-lib.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.2z80S5/base-delta.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-image-compare.zrtxkrwn
+NON_LLVM_DELTA_INPUT 2952 390a935ed81dcdf3fd9a2de3f607b7d6e5cc4e0b4ea607b3913df3e870e96bb0
+PROGRESS {"DIFFERS": 241, "IDENTICAL": 8, "UNRESOLVED": 1, "USERSPACE_CONFOUNDER": 241}
+PROGRESS {"DIFFERS": 490, "IDENTICAL": 9, "UNRESOLVED": 1, "USERSPACE_CONFOUNDER": 490}
+PROGRESS {"DIFFERS": 731, "IDENTICAL": 18, "UNRESOLVED": 1, "USERSPACE_CONFOUNDER": 731}
+PROGRESS {"DIFFERS": 971, "IDENTICAL": 28, "UNRESOLVED": 1, "USERSPACE_CONFOUNDER": 971}
+PROGRESS {"DIFFERS": 1217, "IDENTICAL": 32, "UNRESOLVED": 1, "USERSPACE_CONFOUNDER": 1214}
+PROGRESS {"DIFFERS": 1466, "IDENTICAL": 33, "UNRESOLVED": 1, "USERSPACE_CONFOUNDER": 1459}
+PROGRESS {"DIFFERS": 1712, "IDENTICAL": 36, "UNRESOLVED": 2, "USERSPACE_CONFOUNDER": 1705}
+PROGRESS {"DIFFERS": 1952, "IDENTICAL": 45, "UNRESOLVED": 3, "USERSPACE_CONFOUNDER": 1944}
+PROGRESS {"DIFFERS": 2199, "IDENTICAL": 48, "UNRESOLVED": 3, "USERSPACE_CONFOUNDER": 2189}
+KERNEL image counts 2 2 bytes 16675464 16307264
+KERNEL_MEMBER image /perf/uImage 11348968 11085240 -263728
+KERNEL_MEMBER image /perf/zImage 5326496 5222024 -104472
+KERNEL module counts 115 115 bytes 6567110 6547762
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/net/wireless/cfg80211.ko 909126 898110 -11016
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/drivers/usb/host/usb_enable.ko 34498 31022 -3476
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/fs/ext4/ext4.ko 921090 918450 -2640
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/sound/usb/snd-usb-audio.ko 413698 415990 2292
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/fs/smb/client/cifs.ko 1004002 1002082 -1920
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/lib/crypto/libdes.ko 21586 23506 1920
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/drivers/hid/hid-apple.ko 29646 27842 -1804
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/sound/usb/snd-usbmidi-lib.ko 35450 33754 -1696
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/drivers/usb/core/usbcore.ko 298114 296754 -1360
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/fs/jbd2/jbd2.ko 155294 154262 -1032
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/fs/netfs/netfs.ko 161706 160818 -888
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/drivers/net/phy/phylink.ko 46314 47018 704
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/drivers/net/tun.ko 55562 56246 684
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/lib/crypto/gf128mul.ko 13398 14026 628
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/net/ipv6/ip6_tunnel.ko 38658 39218 560
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/drivers/media/usb/uvc/uvcvideo.ko 127318 126782 -536
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/net/ipv4/ip_tunnel.ko 27498 28022 524
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/drivers/scsi/ch.ko 24854 25302 448
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/drivers/usb/host/ehci-hcd.ko 74906 74458 -448
+KERNEL_MEMBER module /lib/modules/perf/6.12.60/kernel/crypto/ccm.ko 16490 16070 -420
+KERNEL vmlinux counts 1 1 bytes 3696242 3820867
+KERNEL_MEMBER vmlinux /lib/modules/perf/6.12.60/kernel/vmlinux 3696242 3820867 124625
+PACKAGE_PREVIEW [["ABC-test-apps", "armv7l"], "DIFFERS", "NONE", ["/opt/usr/apps/acm-test-app/bin/acm-test-app", "/opt/usr/apps/adagent-native-test-app/bin/adagent-native-test-app", "/opt/usr/apps/audio-settings-test-app/bin/audio-settings-test-app", "/opt/usr/apps/hbbtv-test-app/bin/hbbtv-test-app"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["AT-HUB-perf", "armv7l"], "DIFFERS", "NONE", ["/bin/issue_report_agent", "/usr/apps/AT-HUB/bin/emergency-log-transmitter", "/usr/bin/ArtifactManager", "/usr/bin/HSMClient"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["AboutTVGadget", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["BM_HWTest-release", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/BM/EW/lib/libew-cli.so", "/usr/lib/BM/EW/lib/libew-config.so", "/usr/lib/BM/EW/lib/libew-gen.so", "/usr/lib/BM/EW/lib/libew-ipc.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["Bixby-menu-util", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libBixby-menu-util.so.0.1.0"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["BluetoothGadget", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["BroadcastingmenuViews", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["ChannelList", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["ChannelList-theme-resource", "armv7l"], "DIFFERS", "NONE", [], ["OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["Cifsd_tools-DTV", "armv7l"], "DIFFERS", "NONE", ["/prd/usr/bin/ksmbd.tools"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["Com.Samsung.TV.Wizard.BTActivity", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["DeviceDataProvider", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libDDPCrypto.so", "/usr/lib/libDDPDeviceInfo.so", "/usr/lib/libDDPLogManager.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["EngineeringMode", "armv7l"], "DIFFERS", "NONE", ["/usr/bin/EMW", "/usr/bin/EMdaemon", "/usr/lib/libEM_REE.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["EngineeringMode-PPI", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libEngineeringMode-PPI.so.0.1"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["EngineeringMode-PPI_Impl", "armv7l"], "DIFFERS", "NONE", ["/prd/usr/lib/libem_product_impl.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["EngineeringMode-driver-perf", "armv7l"], "DIFFERS", "NONE", ["/lib/modules/linux/kernel/drivers/misc/tzdev/perf/emdev.ko"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["GraphicsMagick", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/GraphicsMagick-1.3.45/modules-Q8/coders/bmp.so", "/usr/lib/GraphicsMagick-1.3.45/modules-Q8/coders/gif.so", "/usr/lib/GraphicsMagick-1.3.45/modules-Q8/coders/jpeg.so", "/usr/lib/GraphicsMagick-1.3.45/modules-Q8/coders/meta.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["HTLogTracker", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libHTLogTracker.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["HbbTVMenuGadget", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["InfoMeter", "armv7l"], "DIFFERS", "NONE", ["/usr/apps/InfoMeter/bin/InfoMeter"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["KnoxVault", "armv7l"], "DIFFERS", "NONE", ["/opt/usr/apps/Ddrm/KnoxVault/lib/libkvs-tc-lib.so", "/usr/bin/kvs-update-fw"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["Multicontrol-Menuitem-Settings", "armv7l"], "DIFFERS", "NONE", ["/usr/share/menu/providers/libmulticontrol-dataprovider.so.25.09.2026", "/usr/share/menu/providers/libmulticontrol-enablechecker.so", "/usr/share/menu/providers/libmulticontrol-visibilitychecker.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["OpenCvSharpExtern", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libOpenCvSharpExtern.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["QSymphonyGadget", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["ReporterTA", "armv7l"], "DIFFERS", "NONE", ["/opt/usr/apps/Ddrm/ReporterTA/bin/reporter-ca"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SDL2", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libSDL2-2.0.so.0.14.0"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SIM-perf", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libsim-scs-common-client-wrapper.so", "/zone/securezone/rootfs/usr/apps/sim/bin/AttDaemonBin"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SPhysics", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libSPMotion.so.2.0.1"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SPhysics_NoSignal", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libSPhysics_NoSignal.so."], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SPhysics_NoSignal-theme-resource", "armv7l"], "DIFFERS", "NONE", [], ["OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SZDrv-perf", "armv7l"], "DIFFERS", "NONE", ["/lib/modules/linux/kernel/szdrv_perf.ko"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SZDrv_core-perf", "armv7l"], "DIFFERS", "NONE", ["/lib/modules/linux/kernel/szdrv_core_perf.ko"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SZDrv_tools", "armv7l"], "DIFFERS", "NONE", ["/sbin/fsck.szdrv", "/sbin/mkfs.szdrv"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SlimFitCam-FW-Update", "armv7l"], "DIFFERS", "NONE", [], ["OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SlimFitCam4k-FW-Update", "armv7l"], "DIFFERS", "NONE", [], ["OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["SmartControlService", "armv7l"], "DIFFERS", "NONE", ["/usr/apps/.preload-rw-tpk/SmartControlService-2.1.15-arm.tpk!/bin/smartcontrolservice"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["Storageshare-Menuitem-Settings", "armv7l"], "DIFFERS", "NONE", ["/usr/share/menu/providers/libstorageshare-dataprovider.so.2026.09.25", "/usr/share/menu/providers/libstorageshare-enablechecker.so", "/usr/share/menu/providers/libstorageshare-visibilitychecker.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["TVGuardSecurity", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libTVGuardSecurity.so.0.1.0"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["TestAgent", "armv7l"], "DIFFERS", "NONE", ["/usr/bin/TAgentD", "/usr/bin/file_explorer", "/usr/bin/serial_xfer", "/usr/bin/share_manager"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["UASpinSetting", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["UGProgramDetailNUI", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["VDCurl", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libVDCurl.so.0.9"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["VRUIGadget", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["WebProduct", "armv7l"], "DIFFERS", "NONE", ["/usr/lib/libwp.so"], ["USERSPACE_ELF_DELTA", "OUTSIDE_NON_LLVM_DELTA"], []]
+PACKAGE_PREVIEW [["WooferEqualizerGadget", "armv7l"], "DIFFERS", "NONE", [], ["USERSPACE_OTHER_MEMBERS", "OUTSIDE_NON_LLVM_DELTA"], []]
+SUMMARY {"DIFFERS": 2289, "IDENTICAL": 50, "UNRESOLVED": 3, "USERSPACE_CONFOUNDER": 2279}
+DETAILS /home1/chengkai/vd-tree/workspace/temp/pm0005-image-compare.zrtxkrwn/packages.jsonl
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ for b in \
+  http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/images/T-KSU2EJAKUC-0101-PERF/ \
+  http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/images/T-KSU2EJAKUC-0101-PERF/ ; do
+  echo "==== $b"
+  tgz=$(curl -fsS --max-time 30 "$b" | grep -oE 'href="[^"]+PERF\.tar\.gz"' | sed 's/href="//;s/"$//')
+  echo "TARGZ $tgz"; curl -fsSI --max-time 30 "$b$tgz" | grep -iE 'content-length|last-modified'
+  echo "-- manifest.json"; curl -fsS --max-time 30 "${b}manifest.json" | head -c 3000; echo
+done
+==== http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/images/T-KSU2EJAKUC-0101-PERF/
+TARGZ TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2_T-KSU2EJAKUC-0101-PERF.tar.gz
+Content-Length: 1775363117
+Last-Modified: Tue, 17 Nov 2026 02:52:09 GMT
+-- manifest.json
+{
+    "format": "loop",
+    "version": "0.28.19",
+    "log_file": "/var/qb_workspace/tmpfs/TIZEN/RBS/KantSU2e/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/images/T-KSU2EJAKUC-0101-PERF/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2_T-KSU2EJAKUC-0101-PERF.log.txt",
+    "loop": {
+        "image_files": [
+            "T-KSU2EJAKUC-0101-PERF-202611171009.tar"
+        ],
+        "pack": ".tar",
+        "partitions": {
+            "/factory_peq": "factory_peq",
+            "/opt": "do_not_use",
+            "/mnt/systemrw": "systemrw",
+            "/": "pltf_t",
+            "/prd": "prd_t"
+        }
+    },
+    "created": "2026-11-17 11:52:02"
+}
+==== http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/images/T-KSU2EJAKUC-0101-PERF/
+TARGZ TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2_T-KSU2EJAKUC-0101-PERF.tar.gz
+Content-Length: 1778887419
+Last-Modified: Wed, 18 Nov 2026 15:04:39 GMT
+-- manifest.json
+{
+    "format": "loop",
+    "version": "0.28.19",
+    "log_file": "/var/qb_workspace/tmpfs/TIZEN/RBS/KantSU2e/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/images/T-KSU2EJAKUC-0101-PERF/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2_T-KSU2EJAKUC-0101-PERF.log.txt",
+    "loop": {
+        "image_files": [
+            "T-KSU2EJAKUC-0101-PERF-202611182216.tar"
+        ],
+        "pack": ".tar",
+        "partitions": {
+            "/factory_peq": "factory_peq",
+            "/opt": "do_not_use",
+            "/mnt/systemrw": "systemrw",
+            "/": "pltf_t",
+            "/prd": "prd_t"
+        }
+    },
+    "created": "2026-11-19 00:04:32"
+}
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
+
