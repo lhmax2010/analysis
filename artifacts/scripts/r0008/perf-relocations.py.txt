@@ -1,0 +1,494 @@
+#!/usr/bin/env python3
+"""Audit ARM32 shared/PIE image ELF relocations from a retained PERF archive or tree."""
+
+import argparse
+from collections import Counter
+from contextlib import ExitStack
+import fcntl
+import hashlib
+import io
+import json
+import mmap
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shutil
+import struct
+import subprocess
+import tarfile
+import tempfile
+import zipfile
+
+NATIVE = Path("/home1/chengkai/vd-tree/workspace")
+GIB = 1024**3
+OBJECT_LIMIT = 512 * 1024**2
+ENTRY_LIMIT = 4_000_000
+ARM = {2: "R_ARM_ABS32", 3: "R_ARM_REL32", 23: "R_ARM_RELATIVE",
+       104: "R_ARM_TLS_GD32", 107: "R_ARM_TLS_IE32", 108: "R_ARM_TLS_LE32",
+       109: "R_ARM_TLS_LDO12", 110: "R_ARM_TLS_LE12", 55: "R_ARM_ABS32_NOI", 56: "R_ARM_REL32_NOI"}
+TLS_LE = {108, 110}
+
+
+def out(tag, value):
+    print(tag, json.dumps(value, ensure_ascii=True, sort_keys=True), flush=True)
+
+
+def sha_stream(stream):
+    digest = hashlib.sha256()
+    for block in iter(lambda: stream.read(1024**2), b""):
+        digest.update(block)
+    return digest.hexdigest()
+
+
+def digest(path):
+    with path.open("rb") as stream:
+        return sha_stream(stream)
+
+
+def elf_review(data):
+    if data[:4] != b"\x7fELF":
+        return None
+    if len(data) < 20 or data[4] not in (1, 2) or data[5] not in (1, 2):
+        raise ValueError("invalid ELF identification")
+    order = "<" if data[5] == 1 else ">"
+    elf_type, machine = struct.unpack_from(order+"HH", data, 16)
+    # A PIE is ET_DYN. A dynamic ET_EXEC can be sampled for ASAN but is outside the PIC gate.
+    if elf_type not in (2, 3) or machine != 40:
+        return {"scope": "OTHER_ELF", "issues": {}}
+    if data[4] != 1:
+        raise ValueError("inconsistent ARM ELF class")
+    if len(data) < 52:
+        raise ValueError("short ARM ELF header")
+    phoff, shoff = struct.unpack_from(order+"II", data, 28)
+    phentsize, phnum, shentsize, shnum = struct.unpack_from(order+"HHHH", data, 42)
+    if not phnum or phnum == 65535 or phentsize != 32 or phoff + phentsize*phnum > len(data):
+        raise ValueError("unsupported or invalid program-header table")
+
+    loads, dynamic, interpreter = [], [], False
+    for i in range(phnum):
+        kind, offset, va, _, filesz, memsz, flags, _ = struct.unpack_from(order+"8I", data, phoff+i*32)
+        if filesz and offset+filesz > len(data):
+            raise ValueError("program segment outside file")
+        if kind == 1:
+            if filesz > memsz:
+                raise ValueError("PT_LOAD file size exceeds memory size")
+            loads.append((va, va+memsz, flags, offset, filesz))
+        elif kind == 2:
+            dynamic.append((offset, filesz))
+        elif kind == 3:
+            interpreter = True
+    if elf_type == 2:
+        return {"scope": "ARM_ET_EXEC", "issues": {}}
+    if not loads or len(dynamic) > 1:
+        raise ValueError("missing PT_LOAD or ambiguous PT_DYNAMIC")
+    tags = {}
+    if dynamic:
+        offset, size = dynamic[0]
+        if size < 8 or size % 8 or size//8 > ENTRY_LIMIT:
+            raise ValueError("invalid dynamic segment size")
+        for pos in range(offset, offset+size, 8):
+            tag, value = struct.unpack_from(order+"II", data, pos)
+            if not tag:
+                break
+            if tag in {2, 7, 8, 9, 17, 18, 19, 20, 22, 23, 30, 35, 36, 37, 0x6ffffffb} and tag in tags:
+                raise ValueError("duplicate dynamic relocation/flags tag")
+            tags[tag] = value
+        else:
+            raise ValueError("unterminated dynamic segment")
+    kind = "PIE" if interpreter or tags.get(0x6ffffffb, 0) & 0x08000000 else "DSO"
+    issues = {}
+    if 22 in tags:
+        issues["DT_TEXTREL"] = 1
+    if tags.get(30, 0) & 4:
+        issues["DF_TEXTREL"] = 1
+    if any(tag in tags for tag in (0x6000000f, 0x60000010, 0x60000011, 0x60000012,
+                                   0x6fffe000, 0x6fffe001, 0x6fffe003)):
+        issues["UNSUPPORTED_PACKED_DYNAMIC_RELOCS"] = 1
+    examples = []
+    totals = Counter()
+
+    def table(address, size, step):
+        if size % step or size//step > ENTRY_LIMIT:
+            raise ValueError("invalid dynamic relocation table size")
+        mappings = {offset+address-lo for lo, _, _, offset, span in loads
+                    if lo <= address and address+size <= lo+span}
+        if len(mappings) != 1:
+            raise ValueError("dynamic table is not mapped by a unique file-backed segment")
+        return mappings.pop()
+
+    def relocation(address, insn, origin):
+        if not insn:
+            return
+        types = []
+        if origin != "section":
+            target = [flags for lo, hi, flags, _, _ in loads if lo <= address < hi]
+            if not target:
+                types.append("DYNAMIC_TARGET_UNMAPPED")
+            if any(flags & 1 for flags in target):
+                types.append("DYNAMIC_TARGET_EXECUTABLE")
+            if any(not flags & 2 for flags in target):
+                types.append("DYNAMIC_TARGET_READONLY")
+        if kind == "DSO" and insn in TLS_LE:
+            types.append("DSO_TLS_LE_INPUT_RELOCATION" if origin == "section" else "DSO_TLS_LE_DYNAMIC_RELOCATION")
+        if types:
+            name = ARM.get(insn, f"ARM_RELOC_{insn}")
+            for issue in types:
+                totals[(issue, name)] += 1
+            if len(examples) < 20:
+                examples.append([f"0x{address:08x}", name, origin, types])
+
+    seen = set()
+
+    def rows(address_tag, length_tag, stride, origin):
+        size = tags.get(length_tag, 0)
+        if not size:
+            return
+        if address_tag not in tags:
+            raise ValueError("missing address for dynamic relocation table")
+        offset = table(tags[address_tag], size, stride)
+        for pos in range(offset, offset+size, stride):
+            if pos in seen:
+                continue
+            seen.add(pos)
+            addr, info = struct.unpack_from(order+"II", data, pos)
+            relocation(addr, info & 255, origin)
+
+    for base, size, entry, stride, label in ((17,18,19,8,"REL"), (7,8,9,12,"RELA")):
+        if tags.get(entry, stride) != stride:
+            raise ValueError("unexpected dynamic relocation entry width")
+        rows(base, size, stride, label)
+    if tags.get(2, 0):
+        if tags.get(20) not in (7, 17):
+            raise ValueError("unrecognized DT_PLTREL format")
+        rows(23, 2, 8 if tags[20] == 17 else 12, "JMPREL")
+
+    if tags.get(35, 0):
+        if 36 not in tags or tags.get(37, 4) != 4:
+            raise ValueError("invalid DT_RELR metadata")
+        offset = table(tags[36], tags[35], 4)
+        base = None
+        for pos in range(offset, offset+tags[35], 4):
+            word, = struct.unpack_from(order+"I", data, pos)
+            if word & 1 == 0:
+                if word % 4:
+                    raise ValueError("unaligned RELR address")
+                base = word+4
+                relocation(word, 23, "RELR")
+            elif base is None:
+                raise ValueError("RELR bitmap before base")
+            else:
+                for bit in range(1, 32):
+                    if word & (1 << bit):
+                        relocation(base+4*(bit-1), 23, "RELR")
+                base += 124
+    if shoff and kind == "DSO":
+        if shentsize != 40 or shoff+40 > len(data):
+            raise ValueError("invalid ELF32 section-header table")
+        def section(i):
+            return struct.unpack_from(order+"10I", data, shoff+i*40)
+        shnum = shnum or section(0)[5]
+        if shoff+shnum*40 > len(data):
+            raise ValueError("section table outside file")
+        for i in range(1, shnum):
+            _, stype, _, _, offset, size, _, target, _, entsize = section(i)
+            if stype not in (4, 9) or not 0 < target < shnum or not section(target)[2] & 2:
+                continue
+            stride = 12 if stype == 4 else 8
+            if entsize != stride or size % stride or size//stride > ENTRY_LIMIT or offset+size > len(data):
+                raise ValueError("invalid retained relocation section")
+            for pos in range(offset, offset+size, stride):
+                if pos not in seen:
+                    addr, info = struct.unpack_from(order+"II", data, pos)
+                    if info & 255 in TLS_LE:
+                        relocation(addr, info & 255, "section")
+    for (category, _), count in totals.items():
+        issues[category] = issues.get(category, 0) + count
+    return {"scope": kind, "issues": issues, "examples": examples,
+            "relocation_counts": [[tag, name, n] for (tag, name), n in sorted(totals.items())]}
+
+
+def local_path(path):
+    resolved = path.resolve(strict=True)
+    if not resolved.is_relative_to(NATIVE.resolve()) or path.is_symlink():
+        raise ValueError("inputs must be below vd-tree/workspace")
+    return resolved
+
+
+class Audit:
+    def __init__(self, report, sample):
+        self.report = report
+        self.sample = sample
+        self.counts = Counter()
+        self.flag_counts = Counter()
+
+    def emit(self, record):
+        self.report.write(json.dumps(record, ensure_ascii=True)+"\n")
+        self.counts["FINDINGS"] += 1
+        if self.counts["FINDINGS"] <= 65:
+            out("PERF_FINDING", record)
+
+    def problem(self, path, error):
+        self.counts["READ_ERROR"] += 1
+        self.emit({"path": path, "error": str(error)[:350]})
+
+    def object(self, data, path, file=None):
+        item = elf_review(data)
+        if item is None:
+            return
+        self.counts[item["scope"]] += 1
+        if item["issues"]:
+            self.flag_counts.update(item["issues"].keys())
+            self.emit({"path": path, "sha256": hashlib.sha256(data).hexdigest(), **item})
+        if file and self.sample and self.counts["ASAN_SAMPLED"] < 10 and item["scope"] in ("DSO","PIE","ARM_ET_EXEC"):
+            if path.startswith(("/usr/bin/", "/usr/lib/", "/usr/sbin/", "/prd/")):
+                self.asan(file, path)
+
+    def asan(self, file, path):
+        try:
+            result = subprocess.run(["readelf","-W","-d","-s",str(file)], check=True, timeout=30, text=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, errors="replace",
+                                    env={**os.environ,"LC_ALL":"C"})
+            markers = sorted(set(re.findall(r"\b__asan_\w+", result.stdout)))
+            needed = [line.strip() for line in result.stdout.splitlines()
+                      if "(NEEDED)" in line and re.search(r"\blib(?:clang_rt[.]?)?asan\b|libclang_rt\.asan", line)]
+            self.counts["ASAN_SAMPLED"] += 1
+            self.counts["ASAN_POSITIVE"] += bool(markers or needed)
+            out("PERF_ASAN_SAMPLE", [path, "MARKERS" if markers or needed else "NO_ASAN_MARKER", markers[:12], needed[:8]])
+        except (OSError, subprocess.SubprocessError) as exc:
+            self.counts["ASAN_SAMPLE_UNAVAILABLE"] += 1
+            if self.counts["ASAN_SAMPLE_UNAVAILABLE"] <= 3:
+                out("ASAN_SAMPLE_UNAVAILABLE", [path,str(exc)[:200]])
+
+    def container(self, stream, path, depth):
+        if depth > 2:
+            raise ValueError("nested application ZIP depth exceeds audit limit")
+        with zipfile.ZipFile(stream) as archive:
+            names = set()
+            for member in archive.infolist():
+                if member.is_dir():
+                    continue
+                if member.filename in names:
+                    self.problem(path+"!"+member.filename, "duplicate ZIP path")
+                    continue
+                names.add(member.filename)
+                logical = path+"!"+member.filename
+                try:
+                    with archive.open(member) as inner:
+                        head = inner.read(4)
+                        if head not in (b"\x7fELF", b"PK\x03\x04"):
+                            continue
+                        if member.file_size > OBJECT_LIMIT:
+                            raise ValueError("ELF or ZIP member exceeds audit limit")
+                        content = head+inner.read()
+                    if head == b"\x7fELF":
+                        self.object(content, logical)
+                    else:
+                        self.container(io.BytesIO(content), logical, depth+1)
+                except (OSError, EOFError, ValueError, RuntimeError, zipfile.BadZipFile, NotImplementedError) as exc:
+                    self.problem(logical, exc)
+
+    def walk(self, root, label):
+        def walk_error(exc):
+            self.problem(str(exc.filename), exc)
+        for current, dirs, files in os.walk(root, onerror=walk_error, followlinks=False):
+            # Visit binary and library directories first so the small ASAN spot-check starts there.
+            dirs.sort(key=lambda name: (name not in {"usr","bin","sbin","lib"}, name))
+            for name in sorted(files):
+                file = Path(current)/name
+                if file.is_symlink() or not file.is_file():
+                    continue
+                logical = label.rstrip("/")+"/"+file.relative_to(root).as_posix()
+                try:
+                    with file.open("rb") as stream:
+                        head = stream.read(4)
+                        if head == b"\x7fELF":
+                            with mmap.mmap(stream.fileno(), 0, access=mmap.ACCESS_READ) as content:
+                                self.object(content, logical, file)
+                        elif head == b"PK\x03\x04":
+                            stream.seek(0)
+                            self.container(stream, logical, 0)
+                        elif file.suffix in {".tpk",".wgt"}:
+                            raise ValueError("unsupported installed application archive format")
+                except (OSError, EOFError, ValueError, RuntimeError, zipfile.BadZipFile, NotImplementedError) as exc:
+                    self.problem(logical, exc)
+
+
+def snap_file(directory, identity, name):
+    if Path(name).name != name or not name or name in {".",".."}:
+        raise ValueError("unsafe capture filename")
+    path = directory/name
+    if not path.is_file() or path.is_symlink() or digest(path) != identity["files"][name]:
+        raise ValueError("capture checksum mismatch: "+name)
+    return path
+
+
+def free_for(target, bytes_needed):
+    if shutil.disk_usage(target).free < 50*GIB + bytes_needed:
+        raise ValueError("D-018 disk headroom plus next image extraction exceeds available disk")
+
+
+def extract_partition(inner, member, work, audit, mountpoint):
+    with tempfile.TemporaryDirectory(prefix="partition.",dir=work) as folder:
+        base = Path(folder)
+        raw, tree = base/"image", base/"tree"
+        tree.mkdir()
+        free_for(work, 2*member.size)
+        with inner.extractfile(member) as inp, raw.open("wb") as dest:
+            shutil.copyfileobj(inp, dest, 1024**2)
+        with raw.open("rb") as stream:
+            header = stream.read(28)
+            magic = header[:4]
+            stream.seek(1080)
+            ext = stream.read(2) == b"\x53\xef"
+        if magic == b"\x3a\xff\x26\xed":
+            if len(header) != 28:
+                raise ValueError("truncated sparse image header")
+            block, blocks = struct.unpack_from("<II",header,12)
+            if not block or not blocks:
+                raise ValueError("invalid sparse image size")
+            free_for(work,2*block*blocks)
+            decoded = base/"expanded.img"
+            result = subprocess.run(["simg2img",str(raw),str(decoded)], timeout=1200, check=False,
+                                    stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+            if result.returncode:
+                raise ValueError("simg2img failed: "+result.stdout[-300:])
+            raw = decoded
+            with raw.open("rb") as stream:
+                stream.seek(1080)
+                ext = stream.read(2) == b"\x53\xef"
+            free_for(work,raw.stat().st_size)
+        if not ext:
+            raise ValueError(f"unsupported partition filesystem magic {magic.hex()} for {member.name}")
+        log = work/("debugfs-"+re.sub(r"[^A-Za-z0-9]+","_",mountpoint)+".log")
+        with log.open("w") as stream:
+            result = subprocess.run(["debugfs", "-R", f'rdump / "{tree.resolve()}"', str(raw)],
+                                    stdout=stream, stderr=subprocess.STDOUT, timeout=2400, check=False)
+        errors, ownership_only = [], 0
+        with log.open(errors="replace") as stream:
+            for line in stream:
+                if not line.strip() or line.startswith("debugfs "):
+                    continue
+                if re.fullmatch(r"rdump: (?:Operation not permitted|Invalid argument) while changing ownership of .*", line.strip()):
+                    ownership_only += 1
+                elif len(errors) < 4:
+                    errors.append(line.strip()[:220])
+        if ownership_only:
+            out("PERF_EXTRACT_OWNERSHIP_WARNINGS", [mountpoint,ownership_only])
+        if result.returncode or errors:
+            audit.problem(mountpoint, f"debugfs read had diagnostics (exit {result.returncode}), {log}: {errors}")
+        audit.walk(tree, mountpoint)
+        out("PERF_PARTITION_SCANNED", [mountpoint,member.name,member.size])
+
+
+def capture_scan(directory, work, audit):
+    identity = json.loads((directory/"identity.json").read_text())
+    manifest_path = snap_file(directory, identity, "perf-manifest.json")
+    manifest = json.loads(manifest_path.read_text())
+    archive_meta, = [p for p in identity["payloads"] if p["file"].endswith("-PERF.tar.gz")]
+    archive = snap_file(directory, identity, archive_meta["file"])
+    if archive.stat().st_size != archive_meta["bytes"] or identity["files"][archive.name] != archive_meta["sha256"]:
+        raise ValueError("archive identity mismatch")
+    loop = manifest["loop"]
+    inner_name, = loop["image_files"]
+    if manifest["format"] != "loop" or PurePosixPath(inner_name).name != inner_name or not inner_name.endswith(".tar"):
+        raise ValueError("unexpected PERF compose manifest")
+    targets = {suffix: mount for mount,suffix in loop["partitions"].items() if suffix != "do_not_use"}
+    if ("/" not in targets.values() or len(targets) != sum(x != "do_not_use" for x in loop["partitions"].values())
+            or any(not re.fullmatch(r"[\w.-]+", key) for key in targets)
+            or any(not mount.startswith("/") or ".." in PurePosixPath(mount).parts for mount in targets.values())):
+        raise ValueError("invalid PERF partition list")
+    out("PERF_PARTITION_SCOPE", {"scanned":targets,"excluded":[m for m,v in loop["partitions"].items() if v=="do_not_use"]})
+    out("PERF_CAPTURE", [identity["qb_id_operator_supplied"],identity["product"],archive_meta["sha256"]])
+    with tarfile.open(archive, "r|gz") as outer:
+        for bundle in outer:
+            if PurePosixPath(bundle.name).name == inner_name and bundle.isfile():
+                found = set()
+                members = []
+                with tarfile.open(fileobj=outer.extractfile(bundle),mode="r|") as inner:
+                    for member in inner:
+                        if len(members)<40:
+                            members.append(member.name[:200])
+                        if not member.isfile():
+                            continue
+                        basename = PurePosixPath(member.name).name
+                        for name, mount in targets.items():
+                            if basename not in {name,name+".img",name+".ext4",name+".raw",name+".image",name+".ext3"}:
+                                continue
+                            if name in found:
+                                audit.problem(mount,"ambiguous repeated partition "+name)
+                                continue
+                            found.add(name)
+                            try:
+                                extract_partition(inner,member,work,audit,mount)
+                            except (OSError, ValueError, subprocess.SubprocessError, tarfile.TarError) as exc:
+                                audit.problem(mount,exc)
+                for name in sorted(targets.keys()-found):
+                    audit.problem(targets[name],"partition "+name+" not found in "+inner_name)
+                if targets.keys()-found:
+                    out("PERF_INNER_MEMBER_PREVIEW", members)
+                return
+    raise ValueError("no named inner image archive in PERF bundle")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--tree",type=Path,help="already extracted exact PERF tree, operator-supplied scope")
+    mode.add_argument("--capture",type=Path,help="round 0007 retained QB-evidence directory")
+    mode.add_argument("--readback",type=Path,help="read a page from an existing findings.jsonl")
+    parser.add_argument("--page",type=int,default=1)
+    parser.add_argument("--sample-asan",action="store_true")
+    args = parser.parse_args()
+    if args.readback:
+        if args.page < 1:
+            parser.error("--page must be at least 1")
+        path = local_path(args.readback)
+        if path.name != "findings.jsonl" or not path.parent.name.startswith("pm0008-perf-relocations."):
+            raise ValueError("--readback requires a round 0008 findings ledger")
+        with path.open() as stream:
+            start = (args.page-1)*65
+            for i,line in enumerate(stream):
+                if i >= start+65:
+                    out("MORE_RESULTS_NEXT_PAGE",args.page+1)
+                    break
+                if i >= start:
+                    out("PERF_FINDING",json.loads(line))
+        return 0
+    with ExitStack() as stack:
+        if args.capture:
+            for round_ in (4,5):
+                directory = NATIVE/f"temp/pm000{round_}-native-lock"
+                directory.mkdir(exist_ok=True)
+                lock = stack.enter_context((directory/"heavy.lock").open("a"))
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        work = Path(tempfile.mkdtemp(prefix="pm0008-perf-relocations.",dir=NATIVE/"temp"))
+        out("WORKDIR",str(work))
+        with (work/"findings.jsonl").open("w") as report:
+            audit = Audit(report,args.sample_asan)
+            if args.capture:
+                directory = local_path(args.capture)
+                if directory.parent != NATIVE.resolve()/"qb-evidence":
+                    raise ValueError("--capture requires a retained directory within workspace/qb-evidence")
+                capture_scan(directory,work,audit)
+            else:
+                tree = local_path(args.tree)
+                if not tree.is_dir():
+                    raise ValueError("--tree requires an extracted directory")
+                out("PERF_SCOPE",["OPERATOR_SUPPLIED_TREE",str(tree)])
+                audit.walk(tree,"/")
+        if not (audit.counts["DSO"] or audit.counts["PIE"]):
+            audit.counts["READ_ERROR"] += 1
+        summary = {"counts":dict(audit.counts),"flagged_files_by_check":dict(audit.flag_counts),
+                   "findings":str(work/"findings.jsonl"),"scope":"capture" if args.capture else "operator-supplied tree"}
+        (work/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
+        out("PERF_RELOCATION_SUMMARY",summary)
+        incomplete = audit.counts["READ_ERROR"] or any(tag.startswith("UNSUPPORTED") for tag in audit.flag_counts)
+        out("PERF_AUDIT_RESULT","INCOMPLETE" if incomplete else "FINDINGS" if audit.flag_counts else "NO_FINDINGS_IN_SCOPE")
+        return 2 if incomplete else 1 if audit.flag_counts else 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError, KeyError, EOFError, tarfile.TarError, subprocess.SubprocessError) as error:
+        raise SystemExit("PERF_AUDIT_BLOCKED " + str(error)[:500])

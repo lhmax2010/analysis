@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# Probe the ARM GNU linker in the retained GBS root. Fixture objects never run.
+set -euo pipefail
+native=/home1/chengkai/vd-tree/workspace/temp
+root="$native/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0"
+test -f "$root/etc/passwd" || { echo "NATIVE_PIC_BLOCKED retained GBS root unavailable"; exit 2; }
+ids=$(awk -F: '$1=="abuild" { print $3 ":" $4 }' "$root/etc/passwd")
+[[ "$ids" =~ ^[1-9][0-9]*:[1-9][0-9]*$ ]] || { echo "NATIVE_PIC_BLOCKED no non-root abuild identity"; exit 2; }
+work=$(mktemp -d "$native/pm0008-native-textrel.XXXXXX")
+printf 'WORKDIR %s\nGBS_BUILD_ROOT %s\n' "$work" "$root"
+for config in "$native/pm0004-mlgo-xllvtyr9/"{product,official,custom}/published-build.conf; do
+  if [[ -r "$config" ]]; then
+    sha256sum "$config"
+    awk '
+      /(^|[=[:space:],])(-z[,[:space:]]+(text|notext|textoff)|-z(text|notext|textoff))([[:space:],"%]|$)/ {
+        if (++n<=8) print "CONFIG_LITERAL_MATCH", NR, substr($0,1,400)
+      }
+      END {print "CONFIG_LITERAL_MATCHES", n+0}
+    ' "$config"
+  else
+    printf 'CONFIG_UNREADABLE %s\n' "$config"
+  fi
+done
+
+set +e
+sudo chroot --userspec="$ids" --groups="${ids#*:}" "$root" /bin/bash -s >"$work/fixture.log" 2>&1 <<'INSIDE'
+set -euo pipefail
+export LC_ALL=C PATH=/usr/bin:/bin
+d=$(mktemp -d /tmp/pm0008-native-textrel.XXXXXX)
+trap 'rm -rf -- "$d"' EXIT
+cd "$d"
+find_tool() {
+  command -v "armv7l-tizen-linux-gnueabi-$1" || command -v "$1"
+}
+a=$(find_tool as)
+l=$(find_tool ld)
+r=$(find_tool readelf)
+printf 'GBS_ARM_TOOLS %s %s %s\n' "$a" "$l" "$r"
+"$l" --version > ld-version.txt
+sed -n '1s/^/GBS_LD_VERSION /p' ld-version.txt
+grep -q 'GNU ld' ld-version.txt
+sha256sum "$l" | sed 's/^/GBS_LD_PATH_SHA256 /'
+rpm -q binutils binutils-accel-x86_64-armv7l 2>/dev/null || :
+cat > provider.s <<'ASM'
+.syntax unified
+.data
+.global pm_data
+.type pm_data,%object
+.size pm_data,4
+pm_data: .word 42
+ASM
+cat > abs.s <<'ASM'
+.syntax unified
+.arm
+.text
+.global pm_entry
+.type pm_entry,%function
+pm_entry: bx lr
+.p2align 2
+.word pm_data
+ASM
+sed 's/\.word pm_data$/.word pm_data - ./' abs.s > rel.s
+sed 's/\.word pm_data$/.data\n.word pm_data/' abs.s > writable.s
+cat > mov.s <<'ASM'
+.syntax unified
+.arch armv7-a
+.arm
+.text
+.global pm_entry
+.type pm_entry,%function
+pm_entry:
+ movw r0, #:lower16:pm_data
+ movt r0, #:upper16:pm_data
+ bx lr
+ASM
+cat > tls.s <<'ASM'
+.syntax unified
+.arm
+.section .tdata,"awT",%progbits
+.global pm_tls
+.type pm_tls,%tls_object
+.size pm_tls,4
+pm_tls: .word 23
+.text
+.global pm_entry
+.type pm_entry,%function
+pm_entry: bx lr
+.p2align 2
+.word pm_tls(tpoff)
+ASM
+for input in provider abs rel writable mov tls; do
+  "$a" -o "$input.o" "$input.s"
+  "$r" -rW "$input.o" > "$input.in"
+  awk -v f="$input" '/R_ARM_/ && ++n<=6 {print "INPUT_RELOCATION", f, $0}' "$input.in"
+done
+grep -Eq 'R_ARM_ABS32[[:space:]]' abs.in
+grep -Eq 'R_ARM_REL32[[:space:]]' rel.in
+grep -Eq 'R_ARM_ABS32[[:space:]]' writable.in
+grep -q R_ARM_MOVW_ABS_NC mov.in
+grep -q R_ARM_MOVT_ABS mov.in
+grep -q R_ARM_TLS_LE32 tls.in
+"$l" -shared -z text -soname libprovider.so -o libprovider.so provider.o
+result() {
+  local kind=$1 tag=$2 input=$3
+  shift 3
+  local name="$kind-$tag-$input" rc=0 seen=0
+  local -a args=("-$kind" -z relro --as-needed)
+  if [[ "$kind" == pie ]]; then args+=(-e pm_entry); fi
+  if [[ "$tag" != DEFAULT ]]; then args+=(-z "$tag"); fi
+  args+=(-o "$name.elf" "$input.o" ./libprovider.so)
+  "$l" "${args[@]}" >"$name.log" 2>&1 || rc=$?
+  if (( rc==0 )); then
+    "$r" -h -l -d -r -W "$name.elf" > "$name.elfinfo"
+    grep -q 'Machine:.*ARM' "$name.elfinfo"
+    if grep -q TEXTREL "$name.elfinfo"; then seen=1; fi
+    awk -v f="$name" '/TEXTREL|R_ARM_ABS32|R_ARM_REL32|R_ARM_RELATIVE|R_ARM_TLS/ && ++n<=5 {print "OUTPUT_RELOCATION", f, $0}' "$name.elfinfo"
+  else
+    rm -f -- "$name.elf"
+  fi
+  printf 'NATIVE_LINK %s %s %s rc=%d textrel=%s\n' "$kind" "$tag" "$input" "$rc" "$seen"
+  sed -n '1,3s/^/LINK_DIAGNOSTIC /p' "$name.log"
+}
+for kind in shared pie; do
+  for input in abs rel writable mov tls; do
+    result "$kind" DEFAULT "$input"
+  done
+  for mode in notext text; do
+    for input in abs writable; do
+      result "$kind" "$mode" "$input"
+    done
+  done
+done
+echo NATIVE_PIC_FIXTURE_COMPLETE
+INSIDE
+rc=$?
+set -e
+awk 'NR<=245 {print} END {print "NATIVE_LOG_LINES",NR}' "$work/fixture.log"
+printf 'GBS_FIXTURE_EXIT %d\n' "$rc"
+if (( rc != 0 )); then exit "$rc"; fi
+grep -q '^NATIVE_PIC_FIXTURE_COMPLETE$' "$work/fixture.log"
