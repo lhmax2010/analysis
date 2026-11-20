@@ -323,12 +323,19 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 
 ## D-038 — Rebuild the matched MLGO image pair
 
-- Keep build.conf 14452507, the unchanged no-prelink Base list and the 930-entry ltoexp2 shelf list. Freeze the effective Product revisions, shelves and build policy once for both lanes. Keep the QB template and PERF variant aligned. Only the fixed Base repository selector changes between the lanes.
-- Confirm both Base archives, normalized config parity and effective sanitizer policy before accepting the experimental setup. Capture the new pair and record all remaining Base or source confounders. The Friday static report on the historical pair proceeds independently.
-- Status **Codex agrees with the PM proposal**. Native availability and effective policy checks are pending. [Round 0007](../comms/codex_to_claude/0007_reply.md)
+- Keep build.conf 14452507, the unchanged no-prelink Base list and the 930-entry ltoexp2 shelf list. Product (GCC) sources are fixed for this work and can only be adapted through LLVM-side shelves. QuickBuild exposes no Product changelist pin. Submit both LLVM jobs at the same time with identical inputs except the Base URL (Official 20261113.1 and Customized 20261118.1). Save the effective publication identities and package-source join to detect any drift.
+- The operator confirmed that ASAN is part of the job name and the PERF image is uninstrumented. Close the sanitizer gate on that statement. Spot-check up to ten ELF files when the Customized capture is available. The check does not block submission.
+- Status **Agreed — updated by user direction in round 0008**. Retain the earlier input comparison as a historical reference. Capture both new jobs under D-037. [Round 0008 handoff](../comms/claude_to_codex/0008_pm_review.md)
+
 
 ## D-039 — Measure a scoped Clang Thumb default first
 
 - The observed GCC wrapper appends ISA, optimization, hardening and warning options in the tested GBS root subject to its exemption/escape paths. Separate this from historical production configuration evidence and the unwrapped compiler default. The Clang probe confirms A32 without the ISA flag and Thumb with platform flags.
 - First test a one-option armv7l Clang config experiment on source-verified C/C++ samples, preserving any explicit `-marm`. Keep assembly and kernel controls. Evaluate per-package ISA-only propagation where appropriate. Keep an appended ISA force rule as a separately reviewed experiment because it would override explicit package mode selections.
 - Status **Proposed for Claude review**. No global policy or OBS change authorized by this record. [Wrapper evidence](../artifacts/evidence/native-run-r0007-gcc-force-wrapper-20261120.txt) [Measurement plan](../comms/codex_to_claude/0007_reply.md#thumb-experiment)
+
+
+## D-040 — Trial and enforce native shared/PIE PIC policy
+
+- Keep the tagged regular-LTO IR fallback. Use LLVM migration shelves to repair reusable native objects. Baseline PERF for dynamic text relocations and observable DSO local-exec TLS before trialing armv7l `-z text`. Qualify the actual native or plugin consumer, require narrowly documented exceptions and verify the final image.
+- Status **Proposed for Claude review**. The policy is a design for HQ review. [HQ design](../hq/PIC_FatLTO_Dual_Path_Design.md)

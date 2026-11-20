@@ -11,3 +11,5 @@
 - [Reply 0004](0004_reply.md)
 
 - [Reply 0007 with addenda](0007_reply.md)
+
+- [Reply 0008](0008_reply.md)

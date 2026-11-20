@@ -1,9 +1,14 @@
-# Status — 2026-11-20, round 0007
+# Status — 2026-11-20, round 0008
 
-## 20 November update
+## Round 0008
+
+- The operator confirmed that the PERF image is uninstrumented and ASAN is part of the QB job name. Close the gate on operator evidence. Use the ten-ELF spot check as corroboration when the image is available.
+- The HQ PIC design covers producer PIC, strict native shared/PIE link enforcement and a release ELF audit. The retained old matrix explicitly used `-z text`. The current image's relocation counts and native GNU linker default require native readback. [HQ draft](../hq/PIC_FatLTO_Dual_Path_Design.md) [Native launchers](../comms/codex_to_claude/0008_reply.md)
+
+## Retained round 0007 update
 
 - Friday's static MLGO report records 4,784 of 4,834 comparable user-space ELFs with identical .text. Fifty changes across nine packages remain subject to the exact two-repository source join. The packaged kernel BTF and kernel image sizes are recorded separately. Local and published kernels reproduce size trends and have different hashes. Board measurements remain pending. [Friday report](../reports/MLGO_Official_vs_Custom_20261120.md)
-- Official QB 37627297 Product 20261117.2 returned HTTP 404 for its root, PERF and kernel RPM. Customized QB 37654439 needs the native availability check now. D-037 requires immediate retention after each necessary QB. D-038 retains ltoexp2 and freezes one effective Product state before rebuilding both lanes. [Combined reply](../comms/codex_to_claude/0007_reply.md)
+- Official QB 37627297 Product 20261117.2 returned HTTP 404 for its root, PERF and kernel RPM. Customized QB 37654439 needs the native availability check now. D-037 requires immediate retention after each necessary QB. D-038 retains ltoexp2 and submits both lanes simultaneously with only the Base URL changed. QB has no Product changelist selector. [Combined reply](../comms/codex_to_claude/0007_reply.md)
 - The GBS probe shows GCC's generated wrapper appends Thumb, optimization and warning policy. Clang without the mode option produced A32. The 609 roster is stable, and 603 packaging origins remain unverified. Current QB/OBS wrapper activation, four package compile traces and the matched Thumb measurements remain open. [Origin ledger](../artifacts/ledger/thumb-producer-origin-20261119.md)
 - Round 0007 native launchers passed local Python 3.10.12 fixture checks. Claude review, operator execution and actual native or board results are pending.
 
