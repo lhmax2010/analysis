@@ -354,3 +354,15 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Verify the PERF kernel mappings and argv, then run the serial pilot. Keep the kernel and external-module sources out of both builds and out of any later QB rollout through a complete source-package exclusion list. Treat SERET-UL as a distinct GCC-built migration candidate.
 - Run the separate EXP-Z1 strict-link option later, with baseline and actual final linker argv. Capture bypasses and overrides.
 - Status **Proposed for Claude review**, supplementing D-039 and D-040. [Trial design and evidence](../comms/codex_to_claude/0009_reply.md#exp-t1-clang-thumb-default)
+
+
+## D-043 — Preserve weekly reports verbatim
+
+- Put the supplied originals and checksum manifest under `reports/weekly/<YYYY-MM-DD>/`. Verify all manifest entries before commit, and index the directory in the reports README. Evidence-based corrections belong in working or follow-up reports.
+- Status **Agreed**. The 20 November archive is complete. [Archived report](../reports/weekly/2026-11-20/README.md)
+
+## D-044 — Attribute optimization level and ISA separately
+
+- Map Doc 04 by installed RPM header SOURCERPM. Use the same sources and locked Official environment for A/B/C. A is unchanged, B only appends `-Os`, and C replays the verified historical hook when available. Compare ELF sizes and DWARF producer flags, and maintain libgcrypt's intentional low-level production cases. Default Thumb remains the separate EXP-T1 measurement.
+- Keep the top-211 historical report values traceable and qualify remaining evidence with the exact native scan. Treat family-wide causes and measurements as pending until verified.
+- Status **Staged for Claude review**. [Round 0010 reply](../comms/codex_to_claude/0010_reply.md)

@@ -1,4 +1,12 @@
-# Status — 2026-11-20, round 0009
+# Status — 2026-11-20, round 0010
+
+
+## Round 0010 and 0010a
+
+- Saved the 20 November weekly report verbatim with all eight manifest checks passing. The weekly archive path is fixed by D-043.
+- Full 609-row A32 ledger joined to the installed RPM headers. The scan gives 343.1 MiB. The retained top-40 readback differed in 14 rounded estimates. Ranks 41–211 and exact per-file rootfs coverage await the native packet. The installed roster disproves the build-host-only characterization of sys-tools for this PERF image.
+- Doc 04 resolves to 24 exact installed source names, nine unmatched and one alias pending. Packaged-code A/B replay, separate per-option recipes and the four-package ABI static check are staged. Lane C requires the exact historical expanded hook value. No new GBS result was inferred.
+- Capture both new QBs when published, check the fixed lists and build.conf, audit Official, retain rollback, then run the board and Thumb gates. The updated board runner uses a GBS-only benchmark build. [Reply and Monday commands](../comms/codex_to_claude/0010_reply.md)
 
 
 ## Round 0009
