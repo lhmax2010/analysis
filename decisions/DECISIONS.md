@@ -317,14 +317,14 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 
 ## D-037 — Retain QuickBuild artifacts on completion
 
-- For every QB the project depends on, immediately save the immutable Product and Base identities, submitted configuration and source manifests, checksummed repository metadata and package ledger, and the exact KantSU2E PERF image under `vd-tree/workspace`. Retain the exact kernel RPMs and any priority comparison payloads while the publication still exists. Record SHA-256, size, source URL, QB ID and whether each digest was supplied or computed at download. Keep the actual `updateSU2E` and its identity separately when available.
+- For every QB the project depends on, immediately save the immutable Product and Base identities, submitted configuration and source manifests, checksummed repository metadata and package ledger, and the exact KantSU2E PERF image under `vd-tree/workspace`. Retain the exact kernel RPMs and any priority comparison payloads while the publication still exists. Record SHA-256, size, source URL, QB ID and whether each digest was supplied or computed at download. Keep the prepared `updateSU2E/` and its file-level manifest separately under the QB ID for rollback. D-041 records the flat-bundle procedure.
 - The 20261117.2 Official Product root, PERF tar and kernel RPM returned HTTP 404. Complete the scoped static comparison from the retained ledgers. Matched board work requires the exact archived pair or a newly captured pair. [Availability evidence](../artifacts/evidence/native-run-r0007-clangcfg-gccwrapper-qb404-20261120.txt#L24)
 - Status **Agreed — user direction**.
 
 ## D-038 — Rebuild the matched MLGO image pair
 
 - Keep build.conf 14452507, the unchanged no-prelink Base list and the 930-entry ltoexp2 shelf list. Product (GCC) sources are fixed for this work and can only be adapted through LLVM-side shelves. QuickBuild exposes no Product changelist pin. Submit both LLVM jobs at the same time with identical inputs except the Base URL (Official 20261113.1 and Customized 20261118.1). Save the effective publication identities and package-source join to detect any drift.
-- Round 0008a confirms that the historical pair also changed the published Product build.conf. Official used `@14452507`, and the Customized publication matches the older `@14431365` digest. This changes LTO eligibility for four of the nine changed-.text packages. Both new submissions use `@14452507` and the same shelf list. Verify the published build.conf bytes before interpreting the results. Published source identities match for those nine packages. Remaining Base-driven differences may still appear in the replacement pair.
+- Round 0008a confirms that the historical pair also changed the published Product build.conf. Official used `@14452507`, and the Customized publication matches the older `@14431365` digest. Round 0009 binds both revisions to the published build records and confirms the single LTO-exclusion line. It adds five Customized exclusions. Four correspond to 45 of 50 changed ELF rows and all +1,379,302 bytes of positive .text growth. Both new submissions use `@14452507` and the same shelf list. Verify the published build.conf bytes before interpreting the results. Published source identities match for those nine packages. Remaining Base-driven differences may still appear in the replacement pair.
 - The operator confirmed that ASAN is part of the job name and the PERF image is uninstrumented. Close the sanitizer gate on that statement. Spot-check up to ten ELF files from the completed Customized capture. The check does not block submission.
 - Status **Agreed — updated by user direction in round 0008**. Retain the earlier input comparison as a historical reference. Capture both new jobs under D-037. [Round 0008 handoff](../comms/claude_to_codex/0008_pm_review.md)
 
@@ -339,4 +339,18 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 ## D-040 — Trial and enforce native shared/PIE PIC policy
 
 - Keep the tagged regular-LTO IR fallback. Use LLVM migration shelves to repair reusable native objects. Baseline PERF for dynamic text relocations and observable DSO local-exec TLS before trialing armv7l `-z text`. Qualify the actual native or plugin consumer, require narrowly documented exceptions and verify the final image.
-- Status **Proposed for Claude review**. The policy is a design for HQ review. [HQ design](../hq/PIC_FatLTO_Dual_Path_Design.md)
+- Status **Proposed for Claude review**. The GBS GNU ld 2.43 native fixture verified successful TEXTREL output under default and rejection under strict mode. The design is ready for HQ review while the flat-PERF baseline remains the first acceptance gate. [HQ design](../hq/PIC_FatLTO_Dual_Path_Design.md)
+
+
+## D-041 — Prepare KantSU2E USB from flat PERF captures
+
+- Verify the captured archive and stage its regular flat files under `workspace/usb/<QB_ID>/updateSU2E/`. Use `do_not_use.img` as `data.img` and use `dtb_RW.bin` as `dtb.bin`. Retain a per-file SHA-256 manifest beside the folder and recheck the copied USB contents.
+- Retain and verify Official rollback before any flash. Pause at the BOOST `mmc` menu before choosing `a`.
+- Status **Operator procedure confirmed**. Native preparation and board acceptance pending. This supersedes the earlier nested-tar assumption and single-file lookup. [Operator procedure](../artifacts/evidence/native-run-r0008-ldprobe-forensics-usbmethod-20261120.txt#L1)
+
+## D-042 — Pilot Thumb via the existing Clang config hook
+
+- The exact `clang-force-options-1.0.0-1.1` armv7l RPM matches across both Bases. Use the same preinstall/run hooks in both EXP-T1 lanes and change the helper option list from empty to `-mthumb`. Explicit `-marm` keeps precedence. Run only the three pinned user-space sources against one live reviewed Product and Official Base 1113.1.
+- Verify the PERF kernel mappings and argv, then run the serial pilot. Keep the kernel and external-module sources out of both builds and out of any later QB rollout through a complete source-package exclusion list. Treat SERET-UL as a distinct GCC-built migration candidate.
+- Run the separate EXP-Z1 strict-link option later, with baseline and actual final linker argv. Capture bypasses and overrides.
+- Status **Proposed for Claude review**, supplementing D-039 and D-040. [Trial design and evidence](../comms/codex_to_claude/0009_reply.md#exp-t1-clang-thumb-default)

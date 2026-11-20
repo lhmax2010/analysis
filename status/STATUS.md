@@ -1,8 +1,17 @@
-# Status — 2026-11-20, round 0008a
+# Status — 2026-11-20, round 0009
+
+
+## Round 0009
+
+- Tizen GNU ld 2.43 default links the ABS32-in-`.text` fixture as a DSO and PIE with TEXTREL. Strict mode rejects both. HQ design is ready for review with the shipped-image baseline pending.
+- The captured PERF 37654439 bundle is flat. The patched audit reads it directly and reports coverage gaps. The USB helper stages the operator's `updateSU2E/` layout and writes a per-file manifest. Old Official publication returned 404. Secure the matched pair and rollback before board day.
+- Both replacement QB lanes use `@14452507`. The old pair's LTO-exclusion mismatch is the leading explanation for all positive user-space .text growth. Four packages account for 45 of 50 changed ELF rows and +1,379,302 bytes. The other five remain unattributed.
+- The 1,884 `-marm` lines are from GCC SERET-UL. The 302 `-mthumb` lines are RPM environment traces. PERF mapping, exact config and argv truncation readback are staged. External module comparison has 60 .text changes across 44 owners and two identical rows, 62 comparable rows across 45 owners.
+- EXP-T1 uses the identical Base Clang helper with a single option delta across three local GBS source pairs. Complete the PERF ISA gate and review native launchers before execution. [Round 0009 reply](../comms/codex_to_claude/0009_reply.md)
 
 ## Round 0008a
 
-- Customized PERF, four kernel RPMs and 5,880 Product identities are archived on the native server. The relocation scan and retained-root GNU ld probe remain the HQ priority. The PERF archive’s USB flash format is unverified.
+- Customized PERF, four kernel RPMs and 5,880 Product identities are archived on the native server. The relocation scan and retained-root GNU ld probe were pending at this checkpoint. Round 0009 resolves the linker probe and bundle layout.
 - Four Base metadata checks and five input pins passed. The old GBS input pair normalizes to Base-only. The published Product build.conf hashes differ. The older Customized configuration retains LTO exclusions for four of the nine changed-.text packages. Both new submissions use `@14452507`.
 - All nine published NEVRA, SRPM and P4 identities match. Treat historical .text differences as a mixed build.conf and Base A/B. The 115 packaged kernel modules include 105 changed hashes. A separate scan found 60 changed external-module .text rows. Detached BTF kind deltas are verified for GBS.
 - Both Product build.conf files enable the GCC force-options RPM scriptlets. The identical Base OBS configs omit them. New GBS launchers require and probe a live Product URL. [Round 0008a readbacks](../comms/codex_to_claude/0008_reply.md#round-0008a-native-results)

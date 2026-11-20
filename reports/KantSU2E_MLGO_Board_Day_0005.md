@@ -7,35 +7,24 @@ Claude review is pending. Run one numbered step at a time. Paste its compact ter
 | Proposed step | Correction |
 | --- | --- |
 | 1. Measure Official first | Establish the currently running image's identity and have a verified rollback image ready before starting. Preserve each result on the native host as it is collected. Five software reboots or five reads of uptime cannot establish five cold boots. |
-| 2. Prepare a candidate USB and keep Official available | Verify both flash files and their USB copies before flashing either. A locally calculated digest checks byte consistency. Provenance comes from the fixed QB artifact listing and, when available, its independently published digest. A Product RPM repository may contain no full flash image. |
-| 3. Enter BOOST and flash | Separate entering BOOST from selecting `a`. Verify the USB, exact filename, menu text and recovery access first. The key sequence below is the operator's supplied procedure. The completion prompt and error recovery need confirmation on this board. |
+| 2. Prepare a candidate USB and keep Official available | Verify both prepared directories and their USB copies before flashing either. A locally calculated digest checks byte consistency. Provenance comes from the fixed QB artifact listing and, when available, its independently published digest. A Product RPM repository may contain no full flash image. |
+| 3. Enter BOOST and flash | Separate entering BOOST from selecting `a`. Verify the USB, exact directory name, menu text and recovery access first. The key sequence below is the operator's supplied procedure. The completion prompt and error recovery need confirmation on this board. |
 | 4. Identify and measure the candidate | Kernel version, package NEVRA and package count are sanity checks and may be shared by both builds. Require a build stamp, running kernel fingerprint or equivalent discriminator tied to the expected image. Reuse the exact benchmark binary and test clip. |
 | 5. Roll back immediately on any failure | Recover a failed build or stability regression with a verified Official image when the board is idle and BOOST is available. A bad sample or missing counter only invalidates that result. An uncertain flash state requires recovery guidance before any interruption. Confirm the running Official identity after rollback. |
 
 ## Native commands
 
-### Download a flash image
+### Capture and prepare a flash bundle
 
-Start only after the running Product comparison exits and releases the heavy lock. Download one image at a time, with Official first for rollback. These are the fixed directory inputs. A directory link establishes the build scope. Verify the exact `updateSU2E` file before preparing a USB.
+Capture each completed QB immediately using the [retention launcher](../comms/codex_to_claude/0007_reply.md#1-customized-availability-and-immediate-retention) and retain artifact-to-board identity. The old Official QB 37627297 returned HTTP 404. Customized QB 37654439 is already captured. Secure the reviewed replacement pair or a verified Official rollback image before the first flash. [QuickBuild capture](../artifacts/evidence/native-run-r0007-capture-preflight-readbacks-20261120.txt) [Operator USB procedure](../artifacts/evidence/native-run-r0008-ldprobe-forensics-usbmethod-20261120.txt#L1)
 
-| Lane | QuickBuild | Product repository | Parent artifacts directory |
-|---|---|---|---|
-| Official | 37627297 | [Product 20261117.2](http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/) | [Artifacts 19350658](http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/) |
-| Customized | 37654439 | [Product 20261118.2](http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/) | [Artifacts 19368993](http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/) |
-
-The four HTTP directory checks and the two HTTPS parent checks timed out from this workspace. The flash-file locations are still unverified. In the intranet QuickBuild UI, open the completed run by its numeric QB ID, open **Artifacts** or the linked image-generation/publish job, and follow the KantSU2e `RELEASE` full-image output. Copy the fixed download link for the exact-case file `updateSU2E`, plus the file length and published SHA-256 if shown. If the UI only lists a bundle, capture its fixed link and the internal path of `updateSU2E`. The current downloader accepts a direct file or browsable directory. Record any board-visible build stamp or kernel fingerprint shown with the artifact.
-
-Set `IMAGE_URL` to the confirmed direct link when available. The downloader can also search one of the fixed directories above. It uses bounded HTML discovery and requires a unique match. For a first pass with directory discovery, use the Product directory. If it has only RPMs and the parent is too broad for a unique lookup, use the exact QB artifact link. Before each lane, unset `QB_SHA256` or set it to the independently obtained digest for that lane. Output stays in `workspace/temp/pm0005-image-*`. Hashing uses modest CPU. A full transfer requires roughly one image's size in disk and network and may take 5–60 minutes or longer.
-
-```bash
-(set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX"); export TMPDIR="$d"; f="$d/kantsu2e-image.py.txt"; curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/2303fa18ff0bc39bd26e8b6dc683bbb24bd7611a/artifacts/scripts/r0005/kantsu2e-image.py.txt' -o "$f"; printf '%s  %s\n' '741c22a2c43e79068ebe91475f033be78c0aef49f53c9b5462edd479fd00cf40' "$f" | sha256sum -c -; args=("${IMAGE_URL:?set the approved fixed image URL}"); if [[ -n "${QB_SHA256:-}" ]]; then args+=(--sha256 "$QB_SHA256"); fi; mkdir -p "$PWD/workspace/temp/pm0005-native-lock"; flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" python3 -B -u "$f" "${args[@]}")
-```
+The PERF gzip archive holds flat files. Its companion manifest describes a loop image, and the operator's archive listing establishes the delivered shape. Run the [PERF USB preparation launcher](../comms/codex_to_claude/0009_reply.md#2-prepare-the-usb-directory) separately for each captured lane. It checks the archive digest, writes `workspace/usb/<QB_ID>/updateSU2E/` and prints `USB_PREP_READY`. The helper stages `do_not_use.img` as `data.img`, discards the original `dtb.bin` in scratch, and stages `dtb_RW.bin` as `dtb.bin`. The per-file checksum manifest sits beside the folder. Retain the full bundle, its hash and both prepared directories for the board run.
 
 ### Prepare and retain the board tools once
 
-The legacy staging command invokes the native cross compiler for the benchmark. Apply the GBS-only build rule before this measurement step. The artifact lookup and downloader above are independent of benchmark staging.
+Before the measurement step, prepare a verified static ARM microbenchmark built in GBS. Put it in the verified tools directory as `microbench` with a matching `microbench.sha256` and record its GBS provenance. The current TV runner also has a host-compiler path and must be gated on the presence and verification of both files. The GBS benchmark binary is a board-day prerequisite.
 
-Run on the native server in Bash. This downloads four small files and checks each against the commit. Save `BOARD_TOOLS` in the shell for the entire session. Reuse that directory across flashes. Staging builds the static ARM benchmark once with the approved cross GCC and records its hash. Set `ARM_CC` to the approved cross GCC binary if the default name is missing. Stage takes seconds to about a minute and uses small native disk space and a small SDB transfer. Identity and process checks take seconds. Microbench runs five iterations and may take several minutes on the TV. Each playback sample takes about one minute. The wrapper retains every command's raw SDB output under the native tools directory and prints at most 240 log lines. Board files and samples are written under `/root/llvm-pm/pm0005-mlgo`.
+Run on the native server in Bash. This downloads four small files and checks each against the commit. Save `BOARD_TOOLS` in the shell for the entire session. Reuse that directory across flashes. Staging transfers the same GBS-built benchmark binary to each image and records its hash. Stage takes seconds to about a minute and uses small native disk space and a small SDB transfer. Identity and process checks take seconds. Microbench runs five iterations and may take several minutes on the TV. Each playback sample takes about one minute. The wrapper retains every command's raw SDB output under the native tools directory and prints at most 240 log lines. Board files and samples are written under `/root/llvm-pm/pm0005-mlgo`.
 
 ```bash
 BOARD_TOOLS=$(set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD/workspace/temp/pm0005-board.XXXXXX"); cd "$d"; export TMPDIR="$d"; printf '%s\n' 'af58f426183177382a060a12400687dbaab0890d08baf3764c7e8cd70ab966cb  mlgo-tv-run.sh.txt' '21070fc762b878343faac9a331235ad2dfde06eb87cfa7f2f5ac24a5b855e5cf  mlgo-tv-identity.sh.txt' '97375b61115fa88c3926b729af117c6f702f1423df7001599145a1861f5c9181  mlgo-tv-measure.sh.txt' '9ece8727da564d33a069b69ccf7187aa43b0f8e803b9c51a6a1e11b5ae776a2e  mlgo-tv-microbench.c.txt' >inputs.sha256; for f in mlgo-tv-run.sh.txt mlgo-tv-identity.sh.txt mlgo-tv-measure.sh.txt mlgo-tv-microbench.c.txt; do curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/2303fa18ff0bc39bd26e8b6dc683bbb24bd7611a/artifacts/scripts/r0005/$f" -o "$f"; done; sha256sum -c inputs.sha256 >&2; printf '%s\n' "$d")
@@ -44,18 +33,18 @@ BOARD_TOOLS=$(set -euo pipefail; cd /home1/chengkai/vd-tree; d=$(mktemp -d "$PWD
 ```bash
 sdb devices | head -30
 TV_SERIAL='copy the confirmed device serial from sdb devices'
-board() { (set -euo pipefail; cd "${BOARD_TOOLS:?prepare verified board tools}"; sha256sum --status -c inputs.sha256; bash mlgo-tv-run.sh.txt "$PWD" "${TV_SERIAL:?set the designated TV serial}" "$@"); }
+board() { (set -euo pipefail; cd "${BOARD_TOOLS:?prepare verified board tools}"; sha256sum --status -c inputs.sha256; test -f microbench; test -f microbench.sha256; sha256sum --status -c microbench.sha256; bash mlgo-tv-run.sh.txt "$PWD" "${TV_SERIAL:?set the designated TV serial}" "$@"); }
 ```
 
 The last recorded SDB endpoint was `192.168.108.13:26101`. The last recorded build stamp was `T-KSU2EJAKUC-0101-PERF-202611171009`. Confirm the device and SDB endpoint before using the tools. The historical capture gives a reference stamp and package count. The full QB-to-board binding still needs the artifact evidence. [Retained board capture](../artifacts/evidence/board-readonly-20261117.txt) If the board requires explicit reconnection, use `sdb connect "$TV_ENDPOINT" 2>&1 | head -30` after setting the confirmed endpoint. Keep the serial and board association fixed even if the IP needs updating.
 
 ## Gated board-day checklist
 
-1. **Secure Official and confirm the current control.** Run [the image downloader](#download-a-flash-image) for Official. Prepare the tools, record the SDB serial and run `board stage`, then `board identity`. Record the existing picture/power and playback settings used for the test.
+1. **Secure Official and confirm the current control.** Prepare the Official rollback directory from its verified capture. Prepare the tools, record the SDB serial and run `board stage`, then `board identity`. Record the existing picture/power and playback settings used for the test.
 
-   **Pass.** `STATUS IMAGE_DOWNLOADED`, the fixed Official artifact URL, size and hash, plus `BOARD_STAGED`, three `BOARD_SHA256` lines and an identity output ending in `BOARD_IDENTITY_END` and `PM0005_REMOTE_EXIT 0`. The recorded build stamp or kernel fingerprint ties this TV to the Official artifact. The previous observation of 2,342 RPMs is a consistency check.
+   **Pass.** `USB_PREP_READY`, the fixed Official artifact URL, size and archive SHA-256, plus `BOARD_STAGED`, three `BOARD_SHA256` lines and an identity output ending in `BOARD_IDENTITY_END` and `PM0005_REMOTE_EXIT 0`. The recorded build stamp or kernel fingerprint ties this TV to the Official artifact. The previous observation of 2,342 RPMs is a consistency check.
 
-   **If it fails.** Paste the native status or identity output. If the Product URL has no image, open the Official QB web artifact listing and provide the fixed full-image link. If current image identity is inconclusive, stop control measurements until the artifact mapping is established or arrange a separately confirmed Official flash with the tested recovery path.
+   **If it fails.** Paste the native status or identity output. If the Official bundle is unavailable, keep the current image and obtain the matched replacement pair. If current image identity is inconclusive, stop control measurements until the artifact mapping is established or arrange a separately confirmed Official flash with the tested recovery path.
 
 2. **Capture five Official cold boots individually.** With the TV idle, use the operator-confirmed cold power cycle. For each trial start the same stopwatch at the agreed power-on event and stop when HomeUI is visible and responds to the same directional-key test. Reconnect SDB if needed. Run `board processes` to identify the HomeUI PID, then `board boot official "$N" "$HOME_PID"`, with `N` from 1 to 5. Use the same delay/power procedure and readiness criterion in both lanes.
 
@@ -86,21 +75,31 @@ The last recorded SDB endpoint was `192.168.108.13:26101`. The last recorded bui
 
    **If it fails.** Paste the `ffprobe` or `PLAYBACK` result and what the TV showed. Stop before reporting a dropped-frame number if its source is unclear. Correct a changed PID, interrupted playback or invalid stream before repeating. Keep CPU results separate from any missing drops.
 
-5. **Preserve control evidence and verify both flash USB files.** Run `board summary official`. Paste all completed measurements, Official identity and manual times before preparing to flash. Run the downloader for the verified QB 37654439 full-image link, under the same heavy lock. For each separately labelled flash USB, set `IMAGE_FILE` to the absolute downloaded file, `IMAGE_SHA` to its expected SHA and `FLASH_USB` to that drive's confirmed mounted root. Check the filesystem, capacity and that this is the intended drive. Copy and verify one drive at a time.
+5. **Preserve control evidence and verify both flash USB directories.** Run `board summary official` and paste it with the Official identity and manual times. Prepare each bundle on the native host. Set `USB_PREP` to that lane's checksummed containing directory, such as `/home1/chengkai/vd-tree/workspace/usb/<QB_ID>`. Set `FLASH_USB` to the confirmed mounted USB root. Copy one lane at a time to a separately labelled drive.
 
    ```bash
-   (set -euo pipefail; mountpoint -q -- "$FLASH_USB"; test -f "$IMAGE_FILE"; test ! -e "$FLASH_USB/updateSU2E"; test ! -L "$FLASH_USB/updateSU2E"; df -h -- "$FLASH_USB"; cp -- "$IMAGE_FILE" "$FLASH_USB/updateSU2E"; sync -f -- "$FLASH_USB/updateSU2E"; printf '%s  %s\n' "$IMAGE_SHA" "$FLASH_USB/updateSU2E" | sha256sum -c -; stat -c 'USB_IMAGE_BYTES %s' -- "$FLASH_USB/updateSU2E")
+   (set -euo pipefail
+    mountpoint -q -- "${FLASH_USB:?confirm the mounted USB root}"
+    prep=${USB_PREP:?set the verified QB staging directory}
+    (cd "$prep/updateSU2E"; sha256sum --status -c ../manifest.sha256)
+    df -h -- "$FLASH_USB"
+    target="$FLASH_USB/updateSU2E"
+    mkdir -- "$target"
+    cp -- "$prep"/updateSU2E/* "$target/"
+    sync -f -- "$target"
+    (cd "$target"; sha256sum -c "$prep/manifest.sha256")
+    printf 'USB_BUNDLE_VERIFIED %s %s\n' "$(basename "$prep")" "$target")
    ```
 
-   Eject each drive cleanly from the mounted host after the check. If a correctly named file is already present, first run the checksum and confirm its identity. A different existing file requires the operator to switch drives or remove the old file deliberately. Keep the Official rollback USB physically separate or verify an alternate copy workflow before advancing. Record the checked artifact-to-drive mapping.
+   Eject each drive cleanly. Keep the Official rollback USB separate and record its label and QB identity.
 
-   **Pass.** Five unique Official boot rows, five microbench rows, three playback rows, the independent stopwatch values and the frame-counter coverage displayed. Both USB checks print `updateSU2E: OK` with the expected byte count and both images map to their QB IDs.
+   **Pass.** Five unique Official boot rows, five microbench rows, three playback rows, independent stopwatch values and frame-counter coverage. All entries in both USB manifests report `: OK` and each command prints `USB_BUNDLE_VERIFIED` with the intended QB ID.
 
-   **If it fails.** Paste the summary or checksum error. Keep the TV on Official. Confirm USB filesystem/space, the mount and the QB artifact mapping before retrying.
+   **If it fails.** Paste the summary or checksum error and keep the TV on Official. Confirm the mounted drive, available space and QB identity. A pre-existing directory requires checking its contents against the intended manifest or selecting a freshly prepared drive.
 
 6. **Enter BOOST with the candidate USB, then pause.** Insert the verified candidate drive while the TV is idle. Reboot the TV and keep pressing the literal `~` on the confirmed input until BOOST appears. At the BOOST prompt enter `mmc`, then stop at the menu. Paste the BOOST/menu text or transcribe the displayed options.
 
-   **Pass.** The expected BOOST prompt and `mmc` option `a` for the full USB image are visible. The confirmed candidate drive has the one verified root file. The Official drive and recovery console are ready.
+   **Pass.** The expected BOOST prompt and `mmc` option `a` for the full USB image are visible. The confirmed candidate drive has the verified root directory `updateSU2E/`. The Official drive and recovery console are ready.
 
    **If it fails.** Stop at the prompt or last screen. Paste the menu text/error and confirm the input device and USB detection. Do not select another menu option.
 
@@ -122,7 +121,7 @@ The last recorded SDB endpoint was `192.168.108.13:26101`. The last recorded bui
 
    **If it fails.** Invalidate individual bad samples and retain their error evidence. Use Step 10 for a stability regression or unusable TV after preserving the available evidence. A missing drop counter remains missing data.
 
-10. **Roll back and verify Official.** With the TV idle, remove the candidate flash USB and insert the verified Official rollback USB. Re-check the recorded Official SHA, drive and exact root filename. Reboot and keep pressing `~` until BOOST, enter `mmc`, and paste the menu and selection identity before taking the flash action. After review select `a`, handle the documented confirmation if present and wait for the confirmed completion indication. Reconnect SDB, run `board stage` and `board identity`, and confirm HomeUI plus a short playback smoke.
+10. **Roll back and verify Official.** With the TV idle, remove the candidate flash USB and insert the verified Official rollback USB. Re-check the recorded Official manifest, drive and exact root directory. Reboot and keep pressing `~` until BOOST, enter `mmc`, and paste the menu and selection identity before taking the flash action. After review select `a`, handle the documented confirmation if present and wait for the confirmed completion indication. Reconnect SDB, run `board stage` and `board identity`, and confirm HomeUI plus a short playback smoke.
 
     **Pass.** The menu gate and flash completion are documented, the running Official fingerprint matches Step 1, HomeUI responds and the known test clip starts.
 
@@ -135,7 +134,7 @@ The last recorded SDB endpoint was `192.168.108.13:26101`. The last recorded bui
 - Do the full flash and first boot preserve settings, `/root`, network address, SDB authorization and serial-console access? What is the known recovery path if network or HomeUI does not return?
 - Which supported power cycle qualifies as a cold boot? Which exact HomeUI process and SDB endpoint should we use?
 - Which exact 4K clip and root path should we use, and is there a documented stream-specific dropped-frame counter on this image? Confirm playback process names separately from the counter.
-- Can the QB web artifacts provide the exact Official and candidate full-image links and published digests, plus an image-specific build stamp, kernel build ID or kernel-file hash to map to the live board?
+- Which build stamp, running kernel build ID or kernel-file hash ties each newly captured QB to the live board?
 
 ## Independent review of MLGO attribution
 
@@ -143,11 +142,4 @@ The last recorded SDB endpoint was `192.168.108.13:26101`. The last recorded bui
 - **User-space control.** Compare the actual installed inventories from both images to the two Product/Base resolution chains. The current image comparer covers the retained Official 2,342-RPM roster. Explicitly reconcile candidate-only, removed and unresolved packages, and name every differing ELF even when its package appears in the Base delta. Include workload-relevant non-ELF inputs such as configuration, services, firmware and playback data. Relevant changes inside the expected delta can still affect playback CPU or boot. A matching inventory hash confirms names and versions, while RPM extraction or runtime hashing is needed to assess payload identity. [Current comparison launcher](../comms/codex_to_claude/0005_reply.md#8-candidate-quickbuild-and-image-pair)
 - **Kernel replay.** Treat the four-lane TU replay as a diagnosis of advisor activation and code generation. Require the exact verified compiler binaries and actual native/accelerator path. The retained shelf script names `armv7l-tizen-linux-gnueabi-`; the standalone replay's alternate cross prefix needs validation against the derived production compiler/linker and sysroot before attributing results to the QB. Compare identical kernel source, generated headers, flags and normalized paths. Capture default/default as a reproducibility control and show advisor-specific effects when they change an optimization decision. Identical release lanes can reflect the chosen inputs, while default differences require investigation before comparing release results. If production uses LTO, include the relevant production link-time codegen before using the replay to explain emitted kernels. Record missing provenance or unavailable effective QB argv explicitly. [Retained kernel source excerpts](../artifacts/evidence/native-run-r0004-p4-rerun-20261118.txt) [Standalone replay](../artifacts/scripts/r0004/mlgo-kernel-replay.py.txt)
 
-Both QB IDs and their Product directories are now known. The internal directories timed out here. The two exact full-image URLs, sizes and digests await native or QuickBuild artifact evidence. The image helper passed local Python 3.10.12 fixtures. Board scripts passed syntax checks and the microbenchmark compiled locally. KantSU2E execution still awaits the reviewed sequence.
-
-
-### Published PERF archive check
-
-The operator found a PERF tar.gz for each QB with a loop-format manifest and a nested tar. The outer manifest contains no `updateSU2E` entry. Inspect the nested member table with the read-only stream launcher. Obtain the genuine full-image file, version and hash before using the BOOST flash steps. Use the same serial heavy slot as the native GBS run when streaming the archives. [Pinned PERF archive launcher](../comms/codex_to_claude/0005_reply.md#inspect-the-inner-perf-tar)
-
-The Product comparison found 2,289 differing package files, including changes outside the Base-delta roster. Report board-day results as comparisons of the two published images. Preserve device identity and workload controls and record ELF-section evidence when available. [Friday report](MLGO_Official_vs_Custom_20261120.md#published-kernel-payload-sizes)
+The operator's flat bundle and USB-preparation steps were confirmed for the captured 37654439 layout. Board execution still needs the matched pair, usable rollback, verified GBS-built benchmark and Claude review. The Product comparison found 2,289 differing package files. Record board results as whole-image observations. [Friday report](MLGO_Official_vs_Custom_20261120.md#published-kernel-payload-sizes)
