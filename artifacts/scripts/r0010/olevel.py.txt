@@ -102,6 +102,28 @@ def parse_hook(path, digest):
     return value
 
 
+def research_recipe(path, digest, rows):
+    recipe=json.loads(checked_file(native_path(path),digest).read_text())
+    name=recipe["id"]
+    if name not in {"R1","R2","R3","R4-50","R4-25","R5","R6-lld","R6-icf","R7","EXP-Z1"}:
+        raise ValueError("unknown research comparison")
+    if name.startswith("R") and len({row["doc_source"] for row in rows})!=22:
+        raise ValueError("research requires the reconciled 22-source historical roster")
+    baseline,treatment=(recipe.get(k,"") for k in ("baseline","treatment"))
+    for options in (baseline,treatment):
+        if "\n" in options or not all(op=="#" or re.fullmatch(r"\+-[^\s%]+|O(?:s|z|[0-3g])",op)
+                                         for op in options.split()):
+            raise ValueError("research option lists must be expanded Clang driver edits")
+    if treatment==baseline or not treatment:
+        raise ValueError("missing the independent treatment policy")
+    if name in {"R2","R6-lld","R6-icf","R7","EXP-Z1"}:
+        gate=json.loads(checked_file(native_path(Path(recipe["gate_receipt"])),recipe["gate_sha256"]).read_text())
+        if gate.get("experiment")!=name or gate.get("status")!="REVIEWED_PASS":
+            raise ValueError("reviewed experiment gate is missing")
+    for key,value in (("A",baseline),("B",treatment)):
+        print("RESEARCH_LANE",name,key,value or "UNCHANGED",flush=True)
+    return {"id":name,"A":baseline or None,"B":treatment}
+
 def plans(accepted, product, base):
     candidates = {"Product": product, "Base": base}
     for row in accepted:
@@ -362,9 +384,10 @@ def run_package(gbs, lib, stager, thumb, scan, args, settings, row, matches, rec
     source,spec=source_for(gbs,lib,stager,row,matches,settings["shelves"],settings["source_inputs"],folder)
     original=spec.read_text()
     spec.chmod(spec.stat().st_mode|0o200)
-    options={"A":None,"B":"+-Os","C":settings["hook"]}
+    research=settings["research"]
+    options={key:research[key] for key in ("A","B")} if research else {"A":None,"B":"+-Os","C":settings["hook"]}
     names={r["name"] for r in matches}
-    for label in ("A","B","C"):
+    for label in options:
         if label=="C" and not settings["hook"]:
             record["status"].append("C_HOOK_UNVERIFIED")
             continue
@@ -384,7 +407,7 @@ def run_package(gbs, lib, stager, thumb, scan, args, settings, row, matches, rec
             write_json(lane_dir/"metrics.json",metrics)
             record["lanes"][label]={key:value for key,value in metrics.items() if key!="files"}
             levels=metrics["cu_levels"]
-            if label!="A" and (not levels.get("-Os") or set(levels)-{"-Os","ASSEMBLY"}):
+            if not research and label!="A" and (not levels.get("-Os") or set(levels)-{"-Os","ASSEMBLY"}):
                 record["status"].append(label+"_CU_OS_NOT_PROVEN")
         except (OSError,ValueError,subprocess.SubprocessError) as exc:
             record["error"][label]=error_line(exc,lane_dir)
@@ -398,11 +421,11 @@ def run_package(gbs, lib, stager, thumb, scan, args, settings, row, matches, rec
                 new={(r["rpm"],r["path"]) for r in rows_from_metrics(folder/label/"metrics.json")}
                 if new != old:
                     record["status"].append(label+"_ELF_SET_CHANGED")
-    if {"A","B"}<=record["lanes"].keys():
+    if not research and {"A","B"}<=record["lanes"].keys():
         a,b=(record["lanes"][key]["total"] for key in ("A","B"))
         if a["exec"] and b["exec"] and abs(a["arm"]/a["exec"]-b["arm"]/b["exec"])>0.10:
             record["status"].append("B_A32_SHARE_SHIFT_REVIEW")
-    if row["doc_source"]=="libgcrypt":
+    if not research and row["doc_source"]=="libgcrypt":
         record["status"].append("REFERENCE_KEEP")
 
 
@@ -417,7 +440,10 @@ def readback(directory):
     state=json.loads((work/"progress.json").read_text())
     lines=["O progress "+state["phase"]+" Base "+BASE+" build.conf@14452507",
            "O image columns are .text and executable-section bytes from separate evidence scopes."]
-    if state.get("hook"):
+    if state.get("research"):
+        for lane in ("A","B"):
+            lines.append("RESEARCH_LANE "+state["research"]["id"]+" "+lane+" "+(state["research"][lane] or "UNCHANGED"))
+    elif state.get("hook"):
         lines.append("NOV11_CCC_OVERRIDE_OPTIONS " + state["hook"])
         lines.append("NOV11_HOOK_SHA256 " + state["hook_sha256"])
     else:
@@ -476,6 +502,8 @@ def main():
     run.add_argument("--gcc-text-csv",type=Path)
     run.add_argument("--source-rpms",type=Path,help="TSV with srpm, path and sha256 for published sources lacking VCS")
     run.add_argument("--priority-c-only", action="store_true")
+    run.add_argument("--recipe",type=Path)
+    run.add_argument("--recipe-sha")
     args=parser.parse_args()
     if args.mode=="readback":
         readback(args.work)
@@ -489,6 +517,8 @@ def main():
     forensics=runpy.run_path(str(args.forensics_lib))
     if bool(args.hook)!=bool(args.hook_sha):
         parser.error("--hook and --hook-sha must be specified together")
+    if bool(args.recipe)!=bool(args.recipe_sha) or (args.recipe and args.hook):
+        parser.error("--recipe and --recipe-sha are paired and independent of --hook")
     with bundle["locks"]():
         product,buildconf,inventory=capture_identity(args.capture)
         gbs.live_product(product)
@@ -502,10 +532,11 @@ def main():
         print("WORKDIR",work,flush=True)
         gcc=historical_gcc(args.gcc_text_csv)
         hook=parse_hook(args.hook,args.hook_sha)
-        if hook is None:
+        research=research_recipe(args.recipe,args.recipe_sha,rows) if args.recipe else None
+        if hook is None and research is None:
             print("NOV11_HOOK_UNVERIFIED A/B enabled, C held",flush=True)
         state={"phase":"RUNNING","started_utc":datetime.now(timezone.utc).isoformat(),"packages":[],"product":product,"gcc":gcc,
-               "buildconf_sha256":CONFIG,"shelves_sha256":SHELVES,"hook":hook,"hook_sha256":args.hook_sha}
+               "buildconf_sha256":CONFIG,"shelves_sha256":SHELVES,"hook":hook,"hook_sha256":args.hook_sha,"research":research}
         def write():
             write_json(work/"progress.json",state)
         selected=[row for row in rows if not args.package or row["doc_source"] in args.package]
@@ -521,7 +552,7 @@ def main():
                "sha256":r["sha"],"url":r["url"]} for r in baserows]
         source_inputs={row["srpm"]:row for row in rows_from(native_path(args.source_rpms))} if args.source_rpms else {}
         settings={"shelves":shelf,"gbs_conf":(config,product),"buildconf":buildconf,"hook":hook,
-                  "source_inputs":source_inputs}
+                  "source_inputs":source_inputs,"research":research}
         for (row,matches),record in zip(plans(selected,inventory,base),state["packages"]):
             name=row["doc_source"]
             record["status"].clear()
