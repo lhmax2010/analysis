@@ -324,7 +324,8 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 ## D-038 — Rebuild the matched MLGO image pair
 
 - Keep build.conf 14452507, the unchanged no-prelink Base list and the 930-entry ltoexp2 shelf list. Product (GCC) sources are fixed for this work and can only be adapted through LLVM-side shelves. QuickBuild exposes no Product changelist pin. Submit both LLVM jobs at the same time with identical inputs except the Base URL (Official 20261113.1 and Customized 20261118.1). Save the effective publication identities and package-source join to detect any drift.
-- The operator confirmed that ASAN is part of the job name and the PERF image is uninstrumented. Close the sanitizer gate on that statement. Spot-check up to ten ELF files when the Customized capture is available. The check does not block submission.
+- Round 0008a confirms that the historical pair also changed the published Product build.conf. Official used `@14452507`, and the Customized publication matches the older `@14431365` digest. This changes LTO eligibility for four of the nine changed-.text packages. Both new submissions use `@14452507` and the same shelf list. Verify the published build.conf bytes before interpreting the results. Published source identities match for those nine packages. Remaining Base-driven differences may still appear in the replacement pair.
+- The operator confirmed that ASAN is part of the job name and the PERF image is uninstrumented. Close the sanitizer gate on that statement. Spot-check up to ten ELF files from the completed Customized capture. The check does not block submission.
 - Status **Agreed — updated by user direction in round 0008**. Retain the earlier input comparison as a historical reference. Capture both new jobs under D-037. [Round 0008 handoff](../comms/claude_to_codex/0008_pm_review.md)
 
 

@@ -1,6 +1,13 @@
-# Status — 2026-11-20, round 0008
+# Status — 2026-11-20, round 0008a
 
-## Round 0008
+## Round 0008a
+
+- Customized PERF, four kernel RPMs and 5,880 Product identities are archived on the native server. The relocation scan and retained-root GNU ld probe remain the HQ priority. The PERF archive’s USB flash format is unverified.
+- Four Base metadata checks and five input pins passed. The old GBS input pair normalizes to Base-only. The published Product build.conf hashes differ. The older Customized configuration retains LTO exclusions for four of the nine changed-.text packages. Both new submissions use `@14452507`.
+- All nine published NEVRA, SRPM and P4 identities match. Treat historical .text differences as a mixed build.conf and Base A/B. The 115 packaged kernel modules include 105 changed hashes. A separate scan found 60 changed external-module .text rows. Detached BTF kind deltas are verified for GBS.
+- Both Product build.conf files enable the GCC force-options RPM scriptlets. The identical Base OBS configs omit them. New GBS launchers require and probe a live Product URL. [Round 0008a readbacks](../comms/codex_to_claude/0008_reply.md#round-0008a-native-results)
+
+## Retained round 0008 update
 
 - The operator confirmed that the PERF image is uninstrumented and ASAN is part of the QB job name. Close the gate on operator evidence. Use the ten-ELF spot check as corroboration when the image is available.
 - The HQ PIC design covers producer PIC, strict native shared/PIE link enforcement and a release ELF audit. The retained old matrix explicitly used `-z text`. The current image's relocation counts and native GNU linker default require native readback. [HQ draft](../hq/PIC_FatLTO_Dual_Path_Design.md) [Native launchers](../comms/codex_to_claude/0008_reply.md)
