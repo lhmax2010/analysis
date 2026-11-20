@@ -9,3 +9,5 @@
 - [20 November Doc 02 rev2](weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev2.md) — rev2: attribution sentence and lead corrected, 20 Nov.
 
 Doc 04 rev2 records the ISA and hardening changes in the historical forced-options comparison. [Doc 04 rev2](weekly/2026-11-20/04_HQ_Table_O_Level_rev2.md) [Revision checksums](weekly/2026-11-20/SHA256SUMS.rev2)
+
+Doc 05 rev2: row 18 sys-tools cause corrected to 'Installed in the PERF image (debug tooling)', 20 Nov
