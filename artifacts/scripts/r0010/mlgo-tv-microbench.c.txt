@@ -1,0 +1,164 @@
+#define _GNU_SOURCE
+#include <errno.h>
+#include <sched.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
+
+static void fail(const char *name)
+{
+    perror(name);
+    exit(2);
+}
+
+static uint64_t now_ns(void)
+{
+    struct timespec time;
+    if (clock_gettime(CLOCK_MONOTONIC_RAW, &time))
+        fail("clock_gettime");
+    return (uint64_t)time.tv_sec * 1000000000 + time.tv_nsec;
+}
+
+static uint64_t syscall_loop(unsigned count)
+{
+    uint64_t start = now_ns();
+    for (unsigned i = 0; i < count; ++i)
+        if (syscall(SYS_gettid) == -1)
+            fail("gettid");
+    return now_ns() - start;
+}
+
+static void transfer(int fd, int send)
+{
+    char byte = 0;
+    ssize_t result;
+    do {
+        result = send ? write(fd, &byte, 1) : read(fd, &byte, 1);
+    } while (result == -1 && errno == EINTR);
+    if (result != 1)
+        fail(send ? "pipe write" : "pipe read");
+}
+
+static uint64_t pipe_roundtrips(unsigned count)
+{
+    int to_child[2], to_parent[2];
+    if (pipe(to_child) || pipe(to_parent))
+        fail("pipe");
+    pid_t child = fork();
+    if (child < 0)
+        fail("fork");
+    if (!child) {
+        close(to_child[1]);
+        close(to_parent[0]);
+        for (unsigned i = 0; i < count; ++i) {
+            transfer(to_child[0], 0);
+            transfer(to_parent[1], 1);
+        }
+        _exit(0);
+    }
+    close(to_child[0]);
+    close(to_parent[1]);
+    uint64_t start = now_ns();
+    for (unsigned i = 0; i < count; ++i) {
+        transfer(to_child[1], 1);
+        transfer(to_parent[0], 0);
+    }
+    uint64_t elapsed = now_ns() - start;
+    close(to_child[1]);
+    close(to_parent[0]);
+    int status;
+    if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status)) {
+        fputs("pipe child failed\n", stderr);
+        exit(2);
+    }
+    return elapsed;
+}
+
+static uint64_t first_write_faults(unsigned count)
+{
+    long page = sysconf(_SC_PAGESIZE);
+    if (page <= 0)
+        fail("page size");
+    size_t bytes = count * (size_t)page;
+    volatile char *map = mmap(NULL, bytes, PROT_READ | PROT_WRITE,
+                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (map == MAP_FAILED)
+        fail("mmap");
+    if (madvise((void *)map, bytes, MADV_NOHUGEPAGE)) {
+        if (errno != EINVAL)
+            fail("madvise");
+        puts("NOHUGEPAGE unsupported");
+    }
+    uint64_t start = now_ns();
+    for (unsigned i = 0; i < count; ++i)
+        map[i * (size_t)page] = 1;
+    uint64_t elapsed = now_ns() - start;
+    if (munmap((void *)map, bytes))
+        fail("munmap");
+    return elapsed;
+}
+
+static double memory_copy_mib_s(void)
+{
+    const size_t bytes = 16UL * 1024 * 1024;
+    const unsigned copies = 16;
+    unsigned char *src = malloc(bytes);
+    unsigned char *dest = malloc(bytes);
+    void *(*volatile copy)(void *, const void *, size_t) = memcpy;
+    if (!src || !dest)
+        fail("memory-copy allocation");
+    memset(src, 0x5a, bytes);
+    memset(dest, 0, bytes);
+    copy(dest, src, bytes);
+    uint64_t start = now_ns();
+    for (unsigned i = 0; i < copies; ++i)
+        copy(dest, src, bytes);
+    uint64_t elapsed = now_ns() - start;
+    if (!elapsed || dest[bytes - 1] != 0x5a)
+        fail("memory-copy validation");
+    free(dest);
+    free(src);
+    return (bytes / (1024.0 * 1024.0)) * copies * 1e9 / elapsed;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc == 2 && !strcmp(argv[1], "--clk-tck")) {
+        long ticks = sysconf(_SC_CLK_TCK);
+        if (ticks <= 0)
+            fail("clock ticks");
+        printf("%ld\n", ticks);
+        return 0;
+    }
+    char *end;
+    long cpu = argc == 2 ? strtol(argv[1], &end, 10) : -1;
+    if (cpu < 0 || cpu >= CPU_SETSIZE || *end) {
+        fputs("usage: microbench CPU\n", stderr);
+        return 2;
+    }
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    CPU_SET(cpu, &mask);
+    if (sched_setaffinity(0, sizeof(mask), &mask))
+        fail("sched_setaffinity");
+    syscall_loop(10000);
+    pipe_roundtrips(1000);
+    first_write_faults(512);
+    puts("MICRO_COLUMNS trial gettid_ns_per_op pipe_ns_per_roundtrip minor_fault_ns_per_page copy_MiB_per_s");
+    for (unsigned i = 1; i <= 5; ++i) {
+        uint64_t syscalls = syscall_loop(200000);
+        uint64_t pipe_ns = pipe_roundtrips(10000);
+        uint64_t faults = first_write_faults(4096);
+        double bandwidth = memory_copy_mib_s();
+        printf("MICRO %u %.2f %.2f %.2f %.2f\n", i, syscalls / 200000.0, pipe_ns / 10000.0,
+               faults / 4096.0, bandwidth);
+    }
+    return 0;
+}

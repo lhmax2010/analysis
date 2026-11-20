@@ -1,0 +1,445 @@
+PM0010 SCAN workspace/temp/pm0004-image-mode.b7rJie/results/elf-modes.csv
+SHA256 d6fd74fe1dd6bdbe1db2cf52482010169c379bdc785672c4e16935118e5bdecf
+CHECK loadable=5166 arm_predominant=609 a32_est_MiB=343.1 top211_share=0.971
+== A32 rows 212-609: # | package | path | code KiB | A32 share | est A32 KiB | basis | markers
+A 212 | dbus | /usr/bin/dbus-daemon | 121 | 1.00 | 121 | map | GCC+Clang
+A 213 | webapi-plugins | …/crosswalk/libtizen_rpcport.so | 121 | 1.00 | 121 | map | GCC+Clang
+A 214 | rpm-security-plugin | /usr/lib/rpm-plugins/msm.so | 119 | 1.00 | 119 | map | GCC+Clang
+A 215 | org.tizen.stand-by-scan | /usr/apps/org.tizen.stand-by-scan/bin/stand-by-scan | 116 | 1.00 | 116 | map | GCC+Clang
+A 216 | webapi-debugtool-plugin | …/crosswalk/libwebapis_debugtool.so | 115 | 1.00 | 115 | map | GCC+Clang
+A 217 | com.samsung.tv.utterance-recommender-service | …/preload-rw-tpk/com.samsung.tv.utterance-recommender-service-1.4.3226-arm.tpk!bin/utterance-recommender-app | 117 | 0.98 | 114 | cond | GCC+Clang
+A 218 | webapi-plugins | …/crosswalk/libtizen_datacontrol.so | 113 | 1.00 | 113 | map | GCC+Clang
+A 219 | org.tizen.mcp_server_app | …/preload-tpk/org.tizen.mcp_server_app-1.0.0-arm.tpk!lib/capabilities/libaction_tool.so | 109 | 1.00 | 109 | cond | GCC
+A 220 | settings-api | /usr/lib/libsettings-api.so | 108 | 1.00 | 108 | map | GCC+Clang
+A 221 | webapi-timer-pepper-plugin | …/crosswalk/libwebapis_timer.so | 106 | 1.00 | 105 | map | GCC+Clang
+A 222 | boost-serialization | /usr/lib/libboost_serialization.so.1.83.0 | 103 | 1.00 | 103 | map | GCC+Clang
+A 223 | wifi-drivers-MTK-7668-perf | /lib/modules/linux/wifi/mt7668/wifitest | 102 | 1.00 | 102 | map | GCC
+A 224 | org.tizen.tts-engine-neural | …/preload-rw-tpk/org.tizen.tts-engine-neural-27.26.09282-arm.tpk!bin/tts-download-ui | 103 | 0.97 | 100 | cond | GCC+Clang
+A 225 | tvp-tv | /opt/usr/apps/ieme/Ddrm/libfairplay_ieme_cdm.so | 106 | 0.94 | 100 | cond | GCC
+A 226 | gst-ffmpeg | /usr/lib/libSiscMidi.so | 100 | 1.00 | 100 | map | GCC+Clang
+A 227 | pkgmgr-extension | /etc/pkgmgr-extension/vd_package_manager | 98 | 1.00 | 98 | map | GCC+Clang
+A 228 | webapi-billing-pepper-plugin | …/crosswalk/libwebapis_billing.so | 98 | 1.00 | 98 | map | GCC+Clang
+A 229 | webapi-microphone-pepper-plugin | …/crosswalk/libwebapis_microphone.so | 96 | 1.00 | 96 | map | GCC+Clang
+A 230 | service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.smartthings-plugin-6.0.5-10.0-arm.tpk!lib/libjsoncpp.so | 98 | 0.98 | 96 | cond | GCC
+A 231 | com.samsung.tv.ghdaemon | …/preload-rw-tpk/com.samsung.tv.ghdaemon-8.26.09301-arm.tpk!lib/libghdaemon-notify-plugin.so | 94 | 1.00 | 94 | cond | GCC+Clang
+A 232 | com.samsung.tv.ghdaemon | /usr/apps/com.samsung.tv.ghdaemon/lib/libghdaemon-notify-plugin.so | 94 | 1.00 | 94 | cond | GCC+Clang
+A 233 | com.samsung.tv.ghdaemon | /usr/bin/libghdaemon-notify-plugin.so | 94 | 1.00 | 94 | cond | GCC+Clang
+A 234 | webapi-appcommon-pepper-plugin | …/crosswalk/libwebapis_appcommon.so | 93 | 1.00 | 93 | map | GCC+Clang
+A 235 | bluetooth-impl-sec-oal | /prd/usr/lib/liblc3.so | 95 | 0.97 | 92 | map | GCC
+A 236 | webapi-plugins | …/crosswalk/libtizen_account.so | 92 | 1.00 | 92 | map | GCC+Clang
+A 237 | webapi-productinfo-pepper-plugin | …/crosswalk/libwebapis_productinfo.so | 91 | 1.00 | 91 | map | GCC+Clang
+A 238 | webapi-voice-interaction-plugin | …/crosswalk/libwebapis_voiceinteraction.so | 90 | 1.00 | 90 | map | GCC+Clang
+A 239 | webapi-airplay-plugin | …/crosswalk/libwebapis_airplay.so | 89 | 1.00 | 89 | map | GCC+Clang
+A 240 | lib-ndp-pq-interface-tv | /prd/usr/lib/libPQ.so | 89 | 1.00 | 89 | map | GCC+Clang
+A 241 | webapi-broadcastapputil-plugin | …/crosswalk/libwebapis_broadcastapputil.so | 88 | 1.00 | 88 | map | GCC+Clang
+A 242 | wireless_tools | /usr/sbin/iw | 88 | 0.99 | 87 | map | GCC+Clang
+A 243 | feature-config-daemon | /usr/lib/libfconfigd_grpc_wrapper.so | 85 | 1.00 | 85 | map | GCC+Clang
+A 244 | webapi-plugins | …/crosswalk/libtizen_download.so | 80 | 1.00 | 80 | map | GCC+Clang
+A 245 | service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.smartthings-plugin-6.0.5-10.0-arm.tpk!lib/libfiledbsubscriptionstore.so | 80 | 1.00 | 80 | cond | GCC
+A 246 | webapi-tvinfo-pepper-plugin | …/crosswalk/libwebapis_tvinfo.so | 79 | 1.00 | 79 | map | GCC+Clang
+A 247 | webapi-plugins | …/crosswalk/libtizen_time.so | 79 | 1.00 | 79 | map | GCC+Clang
+A 248 | qte-bm-drm-plugin | /usr/lib/BM/qt5.5.1/plugins/platforms/libqdrm.so | 77 | 1.00 | 77 | map | GCC+Clang
+A 249 | webapi-plugins | …/crosswalk/libtizen_package.so | 76 | 1.00 | 76 | map | GCC+Clang
+A 250 | boost-serialization | /usr/lib/libboost_wserialization.so.1.83.0 | 74 | 1.00 | 74 | map | GCC+Clang
+A 251 | org.tizen.webserver | /usr/lib/libwebconv.so | 73 | 1.00 | 73 | map | GCC+Clang
+A 252 | boost-filesystem | /usr/lib/libboost_filesystem.so.1.83.0 | 73 | 1.00 | 73 | map | GCC+Clang
+A 253 | webapi-sso-pepper-plugin | …/crosswalk/libwebapis_sso.so | 71 | 1.00 | 71 | map | GCC+Clang
+A 254 | atsc3uhdcp | /usr/apps/atsc3uhdcp/digicap/copp/image/dpm/libdpm.so | 71 | 0.99 | 70 | cond | GCC
+A 255 | webapi-multiprofile-plugin | …/crosswalk/libwebapis_multiprofile.so | 69 | 1.00 | 69 | map | GCC+Clang
+A 256 | webapi-plugins | …/crosswalk/libtizen_push.so | 69 | 1.00 | 69 | map | GCC+Clang
+A 257 | eden-webapi-plugins | …/crosswalk/libwebapis_preview.so | 68 | 1.00 | 68 | map | GCC+Clang
+A 258 | unzip | /usr/bin/unzipsfx | 72 | 0.94 | 67 | cond | GCC+Clang
+A 259 | gst-ffmpeg | /usr/local/lib/libswresample.so | 69 | 0.96 | 67 | map | GCC+Clang
+A 260 | source-api | /usr/lib/libsource-api.so | 65 | 1.00 | 65 | map | GCC+Clang
+A 261 | gstreamer-plugins-smsrc | /usr/lib/gstreamer-1.0/libgstsmsrcmpegtsmux.so | 66 | 0.98 | 64 | map | GCC+Clang
+A 262 | webapi-drminfo-pepper-plugin | …/crosswalk/libwebapis_drminfo.so | 64 | 1.00 | 64 | map | GCC+Clang
+A 263 | bluetooth-frwk-service | /usr/lib/libremoconpointing.so.1.0.0 | 64 | 1.00 | 64 | map | GCC+Clang
+A 264 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvvideosink.so | 65 | 0.97 | 63 | map | GCC+Clang
+A 265 | webapi-avinfo-pepper-plugin | …/crosswalk/libwebapis_avinfo.so | 61 | 1.00 | 61 | map | GCC+Clang
+A 266 | webapi-plugins | …/crosswalk/libtizen_alarm.so | 60 | 1.00 | 60 | map | GCC+Clang
+A 267 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_pickle.cpython-35m-arm-linux-gnueabi.so | 63 | 0.93 | 59 | cond | GCC+Clang
+A 268 | webapi-plugins | …/crosswalk/libtizen_tvinfo.so | 59 | 1.00 | 59 | map | GCC+Clang
+A 269 | hal-api-device | /usr/lib/hal/libhal-backend-service-device-led.so | 58 | 1.00 | 58 | map | GCC+Clang
+A 270 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgstsstuner.so | 59 | 0.98 | 58 | map | GCC+Clang
+A 271 | service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.smartthings-plugin-6.0.5-10.0-arm.tpk!lib/libsubscriptionmanager.so | 57 | 1.00 | 57 | cond | GCC
+A 272 | hal-api-device | /usr/lib/hal/libhal-backend-service-device-display.so | 57 | 1.00 | 57 | map | GCC+Clang
+A 273 | webapi-remotepower-pepper-plugin | …/crosswalk/libwebapis_remotepower.so | 56 | 1.00 | 56 | map | GCC+Clang
+A 274 | org.tizen.stand-by-scan-plugin | /usr/share/common-activator/plugins/multi-user.target/libstand-by-scan-plugin-lib.so | 56 | 1.00 | 56 | map | GCC+Clang
+A 275 | webapi-widgetdata-pepper-plugin | …/crosswalk/libwebapis_widgetdata.so | 54 | 1.00 | 54 | map | GCC+Clang
+A 276 | webapi-plugins | …/crosswalk/libtizen_metadata.so | 52 | 1.00 | 52 | map | GCC+Clang
+A 277 | ep-hotel-menu-provider | /usr/ug/lib/libug-ep-tv-viewer.so.0.1 | 52 | 1.00 | 51 | map | GCC+Clang
+A 278 | webapi-plugins | …/crosswalk/libtizen_tvaudio.so | 51 | 1.00 | 51 | map | GCC+Clang
+A 279 | com.samsung.tv.antenna-selection | /usr/apps/com.samsung.tv.antenna-selection/bin/antenna-selection | 50 | 1.00 | 50 | map | GCC+Clang
+A 280 | gstreamer-plugins-smsrc | /usr/lib/gstreamer-1.0/libgstsmsrcaudioenc.so | 49 | 1.00 | 49 | map | GCC+Clang
+A 281 | pkgmgr-extension | /etc/pkgmgr-extension/pkg_migration | 49 | 1.00 | 48 | map | GCC+Clang
+A 282 | webapi-plugins | …/crosswalk/libtizen_voicecontrol.so | 48 | 1.00 | 48 | map | GCC+Clang
+A 283 | webapi-was-pepper-plugin | …/crosswalk/libwebapis_was.so | 46 | 1.00 | 46 | map | GCC+Clang
+A 284 | webapi-plugins | …/crosswalk/libtizen_tvwindow.so | 46 | 1.00 | 46 | map | GCC+Clang
+A 285 | boost-thread | /usr/lib/libboost_thread.so.1.83.0 | 45 | 1.00 | 45 | map | GCC+Clang
+A 286 | webapi-settings-plugin | …/crosswalk/libwebapis_settings.so | 44 | 1.00 | 44 | map | GCC+Clang
+A 287 | glibc | /lib/libnsl.so.1 | 48 | 0.91 | 43 | map | GCC
+A 288 | couponpromotion-pepper-plugin | …/crosswalk/libwebapis_couponpromotion.so | 44 | 1.00 | 43 | map | GCC
+A 289 | webapi-plugins | …/crosswalk/libtizen_messageport.so | 43 | 1.00 | 43 | map | GCC+Clang
+A 290 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvextvideosrc.so | 44 | 0.97 | 43 | map | GCC+Clang
+A 291 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_datetime.cpython-35m-arm-linux-gnueabi.so | 46 | 0.92 | 42 | cond | GCC+Clang
+A 292 | org.tizen.webserver | /usr/apps/org.tizen.webserver/bin/webserver | 42 | 1.00 | 42 | map | GCC+Clang
+A 293 | webapi-aifw-plugin | …/crosswalk/libwebapis_objectdetection.so | 42 | 1.00 | 42 | map | GCC+Clang
+A 294 | service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.smartthings-plugin-6.0.5-10.0-arm.tpk!lib/libshphttpsconnector.so | 42 | 0.99 | 42 | cond | GCC
+A 295 | watchtogether-pepper-plugin | …/crosswalk/libwebapis_watchtogether.so | 41 | 1.00 | 41 | map | GCC+Clang
+A 296 | webapi-aifw-plugin | …/crosswalk/libwebapis_poseestimation.so | 41 | 1.00 | 41 | map | GCC+Clang
+A 297 | webapi-plugins | …/crosswalk/libtizen_keymanager.so | 41 | 1.00 | 41 | map | GCC+Clang
+A 298 | bluetooth-impl-sec-oal | /prd/usr/lib/libbt-vendor_mtk.so.1 | 42 | 0.97 | 40 | cond | GCC
+A 299 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_curses.cpython-35m-arm-linux-gnueabi.so | 43 | 0.92 | 39 | cond | GCC+Clang
+A 300 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_testcapi.cpython-35m-arm-linux-gnueabi.so | 43 | 0.92 | 39 | cond | GCC+Clang
+A 301 | webapi-googlecast-plugin | …/crosswalk/libwebapis_googlecast.so | 39 | 1.00 | 39 | map | GCC+Clang
+A 302 | webapi-unifiedauthentication-pepper-plugin | …/crosswalk/libwebapis_unifiedauthentication.so | 38 | 1.00 | 38 | map | GCC+Clang
+A 303 | webapi-samsunghealth-pepper-plugin | …/crosswalk/libwebapis_samsunghealth.so | 38 | 1.00 | 38 | map | GCC+Clang
+A 304 | vd-cert-svc-plugin | /usr/lib/libcert-svc-validator-plugin.so | 37 | 1.00 | 37 | map | GCC+Clang
+A 305 | org.tizen.tts-engine-neural | …/preload-rw-tpk/org.tizen.tts-engine-neural-27.26.09282-arm.tpk!bin/tts-download-service | 39 | 0.95 | 37 | cond | GCC+Clang
+A 306 | webapi-parentalcontrol-plugin | …/crosswalk/libwebapis_parentalcontrol.so | 37 | 1.00 | 37 | map | GCC+Clang
+A 307 | org.tizen.tv.ci-app | /usr/apps/org.tizen.tv.ci-app/bin/ci-app | 36 | 1.00 | 36 | map | GCC+Clang
+A 308 | webapi-contentsinfo-pepper-plugin | …/crosswalk/libwebapis_contentsinfo.so | 36 | 1.00 | 35 | map | GCC+Clang
+A 309 | hal-api-common | /usr/lib/hal/libhal-api-common.so.0.1.0 | 36 | 1.00 | 35 | map | GCC+Clang
+A 310 | glibc-locale | /usr/lib/gconv/ISO-2022-JP.so | 39 | 0.89 | 35 | map | GCC
+A 311 | webapi-plugins | …/crosswalk/libtizen_ppm.so | 35 | 1.00 | 35 | map | GCC+Clang
+A 312 | com.samsung.tv.TVGuardAgent | /usr/share/common-activator/plugins/multi-user.target/libTVGuardPlugin.so | 35 | 1.00 | 35 | map | GCC+Clang
+A 313 | com.samsung.tv.TVGuardAgent | /usr/share/common-activator/plugins/starter.target/libTVGuardPlugin.so | 35 | 1.00 | 35 | map | GCC+Clang
+A 314 | libServicePlatform-debugmenu | /usr/lib/libServicePlatform-debugmenu.so.0.1 | 35 | 1.00 | 34 | map | GCC+Clang
+A 315 | qte-bm-rc-plugin | /usr/lib/BM/qt5.5.1/plugins/generic/libqevdevrcplugin.so | 34 | 1.00 | 34 | map | GCC+Clang
+A 316 | drm-service | /usr/lib/libdrm-service.so.0.1.0 | 34 | 1.00 | 33 | map | GCC+Clang
+A 317 | gstreamer-plugins-smsrc | /usr/lib/gstreamer-1.0/libgstsmsrcvideoenc.so | 33 | 0.99 | 33 | map | GCC+Clang
+A 318 | glibc-locale | /usr/lib/gconv/ISO-2022-CN-EXT.so | 36 | 0.88 | 32 | map | GCC
+A 319 | hal-api-tdm | /usr/lib/hal/libhal-api-tdm.so.0.1.0 | 32 | 0.99 | 32 | map | GCC+Clang
+A 320 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/parser.cpython-35m-arm-linux-gnueabi.so | 39 | 0.82 | 32 | cond | GCC+Clang
+A 321 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_ssl.cpython-35m-arm-linux-gnueabi.so | 34 | 0.93 | 31 | cond | GCC+Clang
+A 322 | webapi-securityapp-pepper-plugin | …/crosswalk/libwebapis_securityapp.so | 31 | 1.00 | 31 | map | GCC+Clang
+A 323 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_socket.cpython-35m-arm-linux-gnueabi.so | 33 | 0.92 | 31 | cond | GCC+Clang
+A 324 | glibc | /usr/bin/iconv | 31 | 1.00 | 31 | map | GCC
+A 325 | webapi-systeminfo-pepper-plugin | …/crosswalk/libwebapis_systeminfo.so | 31 | 1.00 | 31 | map | GCC+Clang
+A 326 | soc-ir-interface | /prd/usr/lib/libir.so | 32 | 0.96 | 31 | map | GCC+Clang
+A 327 | soc-ir-interface | /prd/usr/lib/libir.so.1 | 32 | 0.96 | 31 | map | GCC+Clang
+A 328 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvvideodec.so | 31 | 0.98 | 30 | map | GCC+Clang
+A 329 | csft-service | …/preload-rw-tpk/com.samsung.tv.csft-service-126.26.05071-arm.tpk!lib/libcms-api.so | 31 | 0.96 | 30 | cond | GCC
+A 330 | webapi-displayrotator-pepper-plugin | …/crosswalk/libwebapis_displayrotator.so | 30 | 1.00 | 30 | map | GCC+Clang
+A 331 | webapi-featureconfig-pepper-plugin | …/crosswalk/libwebapis_featureconfig.so | 30 | 1.00 | 30 | map | GCC+Clang
+A 332 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_elementtree.cpython-35m-arm-linux-gnueabi.so | 33 | 0.91 | 30 | cond | GCC+Clang
+A 333 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_sha512.cpython-35m-arm-linux-gnueabi.so | 29 | 1.00 | 29 | cond | GCC+Clang
+A 334 | boost-test | /usr/lib/libboost_prg_exec_monitor.so.1.83.0 | 30 | 1.00 | 29 | map | GCC+Clang
+A 335 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvdemuxer.so | 30 | 0.98 | 29 | map | GCC+Clang
+A 336 | soc_vendor-user-bins | /prd/usr/local/BM/EW/bin/soc-gpu-ewtest/gputest-es2 | 29 | 1.00 | 29 | map | GCC
+A 337 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_sqlite3.cpython-35m-arm-linux-gnueabi.so | 32 | 0.91 | 29 | cond | GCC+Clang
+A 338 | webapi-logging-pepper-plugin | …/crosswalk/libwebapis_Logging.so | 29 | 1.00 | 29 | map | GCC+Clang
+A 339 | libbrotlidec | /usr/lib/libbrotlidec.so.1.1.0 | 28 | 1.00 | 28 | map | GCC+Clang
+A 340 | gstreamer-plugins-smsrc | /usr/lib/gstreamer-1.0/libgstsmsrcavsource.so | 28 | 1.00 | 28 | map | GCC+Clang
+A 341 | pkgmgr-extension | /etc/pkgmgr-extension/pkg_preload | 28 | 1.00 | 28 | map | GCC+Clang
+A 342 | wireless_tools | /usr/sbin/iwlist | 28 | 0.99 | 27 | map | GCC+Clang
+A 343 | mdnsresponder | /usr/bin/dns-sd | 29 | 0.96 | 27 | map | GCC+Clang
+A 344 | soundtouch | /usr/lib/libSoundTouch.so.0.0.0 | 27 | 1.00 | 27 | map | GCC+Clang
+A 345 | glibc | /lib/libresolv.so.2 | 31 | 0.86 | 27 | map | GCC
+A 346 | gst-plugins-tizen-tv-sec | /usr/lib/gstreamer-1.0/libgstdisplayencodesrc.so | 26 | 0.99 | 26 | map | GCC+Clang
+A 347 | wireless_tools | /usr/sbin/iwconfig | 26 | 0.99 | 26 | map | GCC+Clang
+A 348 | cms-service | …/preload-rw-tpk/com.samsung.tv.cms-service-127.26.09301-arm.tpk!bin/cms-serviceapp | 27 | 0.95 | 26 | cond | GCC+Clang
+A 349 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/cmath.cpython-35m-arm-linux-gnueabi.so | 27 | 0.96 | 26 | cond | GCC+Clang
+A 350 | glibc | /lib/libc_malloc_debug.so.0 | 30 | 0.86 | 26 | map | GCC
+A 351 | webapi-plugins | …/crosswalk/libtizen_tvdisplay.so | 26 | 1.00 | 26 | map | GCC+Clang
+A 352 | webapi-plugins | …/crosswalk/libtizen_mediakey.so | 25 | 0.99 | 25 | map | GCC+Clang
+A 353 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgstwoctvanalogsrc.so | 25 | 0.99 | 24 | map | GCC+Clang
+A 354 | webapi-pms-plugin | …/crosswalk/libwebapis_pms.so | 24 | 0.99 | 24 | map | GCC+Clang
+A 355 | dbus | /usr/lib/dbus/dbus-daemon-launch-helper | 24 | 0.99 | 23 | map | GCC+Clang
+A 356 | pkgmgr-extension | /etc/pkgmgr-extension/pkg_clean | 23 | 0.99 | 23 | map | GCC+Clang
+A 357 | org.tizen.mbr-daemon | /usr/lib/ondemand/libmbr-daemon-ondemand.so | 23 | 0.99 | 23 | map | GCC+Clang
+A 358 | webapi-audiocapture-pepper-plugin | …/crosswalk/libwebapis_audiocapture.so | 23 | 0.99 | 22 | map | GCC+Clang
+A 359 | bluetooth-impl-sec-oal | /prd/usr/lib/libdualaudio.so | 25 | 0.89 | 22 | cond | GCC
+A 360 | boost-iostreams | /usr/lib/libboost_iostreams.so.1.83.0 | 22 | 0.99 | 22 | map | GCC+Clang
+A 361 | bluetooth-impl-sec-oal | /prd/usr/lib/librtkbt_codec.so | 22 | 0.99 | 22 | map | GCC
+A 362 | glibc-locale | /usr/lib/gconv/ISO-2022-CN.so | 26 | 0.84 | 22 | map | GCC
+A 363 | webapi-deviced-pepper-plugin | …/crosswalk/libwebapis_deviced.so | 22 | 0.99 | 22 | map | GCC+Clang
+A 364 | cordova-api | …/crosswalk/libtizen_cordova_file.so | 22 | 0.99 | 22 | map | GCC+Clang
+A 365 | app2usb-plugin-tv | /usr/lib/libapp2sd.so.1.6.1 | 22 | 0.99 | 22 | map | GCC+Clang
+A 366 | giflib | /usr/lib/libgif.so.7.2.0 | 21 | 0.99 | 21 | map | GCC+Clang
+A 367 | trustzone_nwd_ext | /usr/lib/libtzfr_utility_nwd.so.0.1.0 | 21 | 0.99 | 21 | map | GCC+Clang
+A 368 | glibc-locale | /usr/lib/gconv/ISO-2022-JP-3.so | 25 | 0.84 | 21 | map | GCC
+A 369 | webapi-cec-plugin | …/crosswalk/libwebapis_cec.so | 21 | 0.99 | 21 | map | GCC+Clang
+A 370 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvaudiodec.so | 21 | 0.98 | 21 | map | GCC+Clang
+A 371 | glibc | /lib/libgwpasan.so | 21 | 0.99 | 21 | map | GCC
+A 372 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvmultihdmisrc.so | 21 | 0.97 | 20 | map | GCC+Clang
+A 373 | gstreamer-plugins-smsrc | /usr/lib/gstreamer-1.0/libgstsmsrcdualsink.so | 20 | 0.99 | 20 | map | GCC+Clang
+A 374 | csft-service | …/preload-rw-tpk/com.samsung.tv.csft-service-126.26.05071-arm.tpk!bin/csft-serviceapp | 21 | 0.95 | 20 | cond | GCC+Clang
+A 375 | pkgmgr-installer | /usr/bin/pkgmgr-installer-signal-agent | 19 | 0.99 | 19 | map | GCC+Clang
+A 376 | webapi-aisound-pepper-plugin | …/crosswalk/libwebapis_aisound.so | 19 | 0.99 | 19 | map | GCC+Clang
+A 377 | ais-control-settings | /usr/bin/aisctrlmgr_server | 20 | 0.96 | 19 | map | GCC+Clang
+A 378 | com.samsung.tv.broadcastingmenu | /usr/ug/lib/libug-help-satellite-efl.so.0.1 | 19 | 0.99 | 19 | map | GCC+Clang
+A 379 | glibc | /lib/libnss_compat.so.2 | 23 | 0.82 | 19 | map | GCC
+A 380 | libpciaccess | /usr/lib/libpciaccess.so.0.13.2 | 19 | 0.99 | 18 | map | GCC+Clang
+A 381 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_json.cpython-35m-arm-linux-gnueabi.so | 22 | 0.83 | 18 | cond | GCC+Clang
+A 382 | wireless_tools | /usr/sbin/iwpriv | 18 | 0.99 | 18 | map | GCC+Clang
+A 383 | coreapp-api | /usr/lib/libcoreapp-api.so | 18 | 0.99 | 18 | map | GCC+Clang
+A 384 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_testbuffer.cpython-35m-arm-linux-gnueabi.so | 20 | 0.90 | 18 | cond | GCC+Clang
+A 385 | org.tizen.smarthub-connection-test | /usr/bin/sct-packet-dump | 22 | 0.82 | 18 | map | GCC+Clang
+A 386 | webapi-plugins | …/crosswalk/libtizen_utils.so | 18 | 0.99 | 18 | map | GCC+Clang
+A 387 | com.samsung.tv.bixbycapsuleviewer | …/preload-rw-tpk/com.samsung.tv.bixbycapsuleviewer-27.026.07230-arm.tpk!lib/libgif_lwe.so | 19 | 0.93 | 17 | cond | GCC
+A 388 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/math.cpython-35m-arm-linux-gnueabi.so | 19 | 0.90 | 17 | cond | GCC+Clang
+A 389 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/array.cpython-35m-arm-linux-gnueabi.so | 19 | 0.90 | 17 | cond | GCC+Clang
+A 390 | glibc | /lib/libthread_db.so.1 | 20 | 0.79 | 16 | map | GCC
+A 391 | glibc | /lib/libnss_db.so.2 | 19 | 0.78 | 15 | map | GCC
+A 392 | scs-reporter | /usr/share/security-solution-daemon/plugins/scs-reporter-plugin/lib/lua/libluasqlite3.so | 16 | 0.94 | 15 | map | GCC+Clang
+A 393 | pkgmgr-extension | /usr/bin/appfw_db_recovery | 15 | 0.99 | 15 | map | GCC+Clang
+A 394 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/audioop.cpython-35m-arm-linux-gnueabi.so | 17 | 0.85 | 15 | cond | GCC+Clang
+A 395 | tizen-platform-config-tools | /usr/bin/tzplatform-tool | 15 | 0.99 | 15 | map | GCC+Clang
+A 396 | webapi-systemdebug-plugin | …/crosswalk/libwebapis_systemdebug.so | 15 | 0.99 | 14 | map | GCC+Clang
+A 397 | service-enabler | /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.smartthings-plugin-6.0.5-10.0-arm.tpk!lib/libsqlitesubscriptionstore.so | 14 | 1.00 | 14 | cond | GCC
+A 398 | glibc-locale | /usr/lib/gconv/ISO646.so | 18 | 0.78 | 14 | map | GCC
+A 399 | unzip | /usr/bin/funzip | 15 | 0.93 | 14 | cond | GCC+Clang
+A 400 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvaudiosink.so | 14 | 0.98 | 14 | map | GCC+Clang
+A 401 | glibc | /usr/bin/locale | 14 | 0.99 | 14 | map | GCC
+A 402 | hal-api-tbm | /usr/lib/hal/libhal-api-tbm.so.1.1 | 14 | 0.99 | 13 | map | GCC+Clang
+A 403 | soundtouch | /usr/bin/soundstretch | 13 | 0.99 | 13 | map | GCC+Clang
+A 404 | gstreamer-plugins-pvr | /usr/lib/gstreamer-1.0/libgsttstuner.so | 13 | 0.97 | 13 | map | GCC+Clang
+A 405 | SlimFitCam-FW-Update | /usr/fwupdate/controls/libSlimFitCam.so | 13 | 1.00 | 13 | map | GCC
+A 406 | SlimFitCam4k-FW-Update | /usr/fwupdate/controls/libSlimFitCam4k.so | 13 | 1.00 | 13 | map | GCC
+A 407 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_multibytecodec.cpython-35m-arm-linux-gnueabi.so | 14 | 0.92 | 13 | cond | GCC+Clang
+A 408 | gst-rtsp-server-vd | /usr/bin/libgst-rtsp-server-vd-ext.so | 12 | 0.99 | 12 | map | GCC+Clang
+A 409 | gst-rtsp-server-vd | /usr/lib/libgst-rtsp-server-vd-ext.so | 12 | 0.99 | 12 | map | GCC+Clang
+A 410 | libcap | /usr/lib/libcap.so.2.73 | 12 | 0.96 | 12 | map | GCC+Clang
+A 411 | vddebugmenu | /usr/lib/libopen-debugmenu.so | 12 | 0.99 | 12 | map | GCC+Clang
+A 412 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_struct.cpython-35m-arm-linux-gnueabi.so | 13 | 0.91 | 11 | cond | GCC+Clang
+A 413 | glibc-locale | /usr/lib/gconv/UTF-7.so | 15 | 0.73 | 11 | map | GCC
+A 414 | glibc-locale | /usr/lib/gconv/GBK.so | 15 | 0.72 | 11 | map | GCC
+A 415 | glibc-locale | /usr/lib/gconv/TSCII.so | 15 | 0.73 | 11 | map | GCC
+A 416 | vddebugmenu | /usr/bin/vddebugmenu | 11 | 0.99 | 11 | map | GCC+Clang
+A 417 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/ossaudiodev.cpython-35m-arm-linux-gnueabi.so | 12 | 0.88 | 11 | cond | GCC+Clang
+A 418 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_lzma.cpython-35m-arm-linux-gnueabi.so | 12 | 0.91 | 11 | cond | GCC+Clang
+A 419 | sys-tools | /usr/bin/coremark_core4 | 11 | 0.99 | 10 | map | GCC+Clang
+A 420 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_csv.cpython-35m-arm-linux-gnueabi.so | 12 | 0.90 | 10 | cond | GCC+Clang
+A 421 | webapi-terms-pepper-plugin | …/crosswalk/libwebapis_terms.so | 10 | 0.99 | 10 | map | GCC+Clang
+A 422 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/zlib.cpython-35m-arm-linux-gnueabi.so | 11 | 0.87 | 10 | cond | GCC+Clang
+A 423 | sys-tools | /usr/bin/coremark | 10 | 0.98 | 10 | map | GCC+Clang
+A 424 | remote-server | /usr/lib/libacl-proxy-api.so.1.0.0 | 10 | 0.99 | 10 | map | GCC+Clang
+A 425 | glibc | /usr/sbin/iconvconfig | 10 | 0.99 | 9 | map | GCC
+A 426 | streaming-accelerator | /usr/lib/libaxlParser.so | 11 | 0.90 | 9 | map | GCC+Clang
+A 427 | drm-muse-proxy | /usr/lib/libdrm-muse-proxy.so.0.1.0 | 10 | 0.99 | 9 | map | GCC+Clang
+A 428 | boost-chrono | /usr/lib/libboost_chrono.so.1.83.0 | 9 | 0.99 | 9 | map | GCC+Clang
+A 429 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_sha256.cpython-35m-arm-linux-gnueabi.so | 9 | 1.00 | 9 | cond | GCC+Clang
+A 430 | glibc-locale | /usr/lib/gconv/EUC-TW.so | 13 | 0.69 | 9 | map | GCC
+A 431 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/unicodedata.cpython-35m-arm-linux-gnueabi.so | 10 | 0.89 | 9 | cond | GCC+Clang
+A 432 | glibc | /usr/bin/gencat | 9 | 0.99 | 9 | map | GCC
+A 433 | gstreamer-plugins-smsrc | /usr/lib/gstreamer-1.0/libgstsmsrcaudiosilencer.so | 9 | 0.98 | 9 | map | GCC+Clang
+A 434 | webapi-oobepromotion-pepper-plugin | …/crosswalk/libwebapis_oobepromotion.so | 9 | 0.99 | 9 | map | GCC+Clang
+A 435 | drm-service | /usr/lib/liblegacy-drm.so.0.1.0 | 9 | 0.99 | 9 | map | GCC+Clang
+A 436 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_codecs_jp.cpython-35m-arm-linux-gnueabi.so | 10 | 0.86 | 9 | cond | GCC+Clang
+A 437 | remote-server | /usr/lib/libmsfapi.so.1.0.0 | 9 | 0.99 | 9 | map | GCC+Clang
+A 438 | dbus | /usr/bin/dbus-send | 9 | 0.99 | 8 | map | GCC+Clang
+A 439 | glibc-locale | /usr/lib/gconv/EUC-CN.so | 13 | 0.67 | 8 | map | GCC
+A 440 | rpm | /usr/lib/librpmsign.so.3.1.0 | 8 | 0.99 | 8 | map | GCC+Clang
+A 441 | ais-control-settings | /usr/lib/libaudio_ctrl_setting.so.0.0.0 | 8 | 0.99 | 8 | map | GCC+Clang
+A 442 | webapi-widgetdata-pepper-plugin | /usr/bin/emps/empPepperPlugins/widgetdata/libwd-reader.so | 8 | 0.99 | 8 | map | GCC+Clang
+A 443 | glibc | /usr/bin/getent | 8 | 0.99 | 8 | map | GCC
+A 444 | glibc-locale | /usr/lib/gconv/JOHAB.so | 12 | 0.67 | 8 | map | GCC
+A 445 | glibc-locale | /usr/lib/gconv/GB18030.so | 12 | 0.66 | 8 | map | GCC
+A 446 | webapi-hdr10pluscloud-plugin | …/crosswalk/libwebapis_hdr10pluscloud.so | 8 | 0.99 | 8 | map | GCC+Clang
+A 447 | dbus | /usr/bin/dbus-monitor | 8 | 0.98 | 8 | map | GCC+Clang
+A 448 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/select.cpython-35m-arm-linux-gnueabi.so | 8 | 0.93 | 8 | cond | GCC+Clang
+A 449 | glibc-locale | /usr/lib/gconv/SHIFT_JISX0213.so | 12 | 0.66 | 8 | map | GCC
+A 450 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_codecs_iso2022.cpython-35m-arm-linux-gnueabi.so | 9 | 0.87 | 8 | cond | GCC+Clang
+A 451 | glibc-locale | /usr/lib/gconv/EUC-JISX0213.so | 12 | 0.65 | 7 | map | GCC
+A 452 | pisa-service | …/preload-rw-tpk/com.samsung.tv.pisa-service-31.11.126-arm.tpk!bin/pisa-control-service | 8 | 0.97 | 7 | cond | GCC+Clang
+A 453 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/binascii.cpython-35m-arm-linux-gnueabi.so | 9 | 0.82 | 7 | cond | GCC+Clang
+A 454 | glibc-locale | /usr/lib/gconv/BIG5.so | 12 | 0.64 | 7 | map | GCC
+A 455 | webapi-adinfo-pepper-plugin | …/crosswalk/libwebapis_adinfo.so | 7 | 0.98 | 7 | map | GCC+Clang
+A 456 | glibc-locale | /usr/lib/gconv/EUC-JP-MS.so | 12 | 0.65 | 7 | map | GCC
+A 457 | org.tizen.homesetting | /usr/share/menu/providers/libsmarthub-terms-provider.so.0.2.1 | 10 | 0.71 | 7 | map | GCC+Clang
+A 458 | sys-tools | /usr/bin/target_view/bin/screenshot_for_only_debug | 7 | 0.98 | 7 | map | GCC+Clang
+A 459 | org.tizen.mcp_server_app | …/preload-tpk/org.tizen.mcp_server_app-1.0.0-arm.tpk!bin/mcp_server_app | 7 | 0.97 | 7 | cond | GCC
+A 460 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/mmap.cpython-35m-arm-linux-gnueabi.so | 8 | 0.89 | 7 | cond | GCC+Clang
+A 461 | qte-bm | /usr/lib/BM/qt5.5.1/lib/libQt5Concurrent.so.5.5.1 | 7 | 0.98 | 7 | map | GCC+Clang
+A 462 | glibc-locale | /usr/lib/gconv/ISO-2022-KR.so | 11 | 0.64 | 7 | map | GCC
+A 463 | ug-Network_StatusUG-efl | /usr/sbin/ping6 | 11 | 0.63 | 7 | cond | GCC
+A 464 | glibc | /lib/libnss_hesiod.so.2 | 11 | 0.64 | 7 | map | GCC
+A 465 | WebProduct | /usr/lib/libwp.so | 7 | 0.98 | 7 | map | GCC+Clang
+A 466 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/readline.cpython-35m-arm-linux-gnueabi.so | 7 | 0.92 | 7 | cond | GCC+Clang
+A 467 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvalpdemux.so | 7 | 0.98 | 7 | map | GCC+Clang
+A 468 | boost-random | /usr/lib/libboost_random.so.1.83.0 | 7 | 0.98 | 7 | map | GCC+Clang
+A 469 | pkgmgr-extension-lib | /usr/lib/libpkgmgr-extension.so | 7 | 0.98 | 7 | map | GCC+Clang
+A 470 | glibc-locale | /usr/lib/gconv/UHC.so | 11 | 0.62 | 6 | map | GCC
+A 471 | giflib | /usr/lib/libgifutil.so.7.1.0 | 7 | 0.97 | 6 | map | GCC+Clang
+A 472 | glibc-locale | /usr/lib/gconv/CP1255.so | 11 | 0.62 | 6 | map | GCC
+A 473 | glibc-locale | /usr/lib/gconv/CP1258.so | 11 | 0.62 | 6 | map | GCC
+A 474 | com.samsung.tv.subm-service | …/preload-rw-tpk/com.samsung.tv.subm-service-127.260930.1-arm.tpk!lib/libsubm-watcher.so | 7 | 0.94 | 6 | cond | GCC+Clang
+A 475 | glibc-locale | /usr/lib/gconv/EUC-JP.so | 11 | 0.61 | 6 | map | GCC
+A 476 | glibc-locale | /usr/lib/gconv/CP932.so | 11 | 0.61 | 6 | map | GCC
+A 477 | glibc-locale | /usr/lib/gconv/IBM930.so | 10 | 0.61 | 6 | map | GCC
+A 478 | glibc-locale | /usr/lib/gconv/BIG5HKSCS.so | 10 | 0.61 | 6 | map | GCC
+A 479 | glibc-locale | /usr/lib/gconv/IBM939.so | 10 | 0.61 | 6 | map | GCC
+A 480 | webapi-openvpn-plugin | …/crosswalk/libwebapis_openvpn.so | 6 | 0.98 | 6 | map | GCC+Clang
+A 481 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvextaudiosrc.so | 6 | 0.98 | 6 | map | GCC+Clang
+A 482 | capi-csa-api-tv | /usr/lib/libcapi-csa-api-tv.so | 6 | 0.98 | 6 | map | GCC+Clang
+A 483 | glibc-locale | /usr/lib/gconv/IBM937.so | 10 | 0.60 | 6 | map | GCC
+A 484 | glibc-locale | /usr/lib/gconv/TCVN5712-1.so | 10 | 0.60 | 6 | map | GCC
+A 485 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgstwocextinputsrc.so | 6 | 0.97 | 6 | map | GCC+Clang
+A 486 | glibc-locale | /usr/lib/gconv/IBM935.so | 10 | 0.60 | 6 | map | GCC
+A 487 | glibc-locale | /usr/lib/gconv/IBM933.so | 10 | 0.60 | 6 | map | GCC
+A 488 | libCSI-debugmenu | /usr/lib/libCSI-debugmenu.so.0.3 | 6 | 0.98 | 6 | map | GCC+Clang
+A 489 | glibc-locale | /usr/lib/gconv/IBM1390.so | 10 | 0.59 | 6 | map | GCC
+A 490 | glibc-locale | /usr/lib/gconv/IBM1399.so | 10 | 0.59 | 6 | map | GCC
+A 491 | glibc-locale | /usr/lib/gconv/ANSI_X3.110.so | 10 | 0.59 | 6 | map | GCC
+A 492 | glibc-locale | /usr/lib/gconv/EUC-KR.so | 10 | 0.58 | 5 | map | GCC
+A 493 | glibc-locale | /usr/lib/gconv/SJIS.so | 10 | 0.58 | 5 | map | GCC
+A 494 | glibc-locale | /usr/lib/gconv/ISO_6937-2.so | 10 | 0.58 | 5 | map | GCC
+A 495 | glibc-locale | /usr/lib/gconv/ISO_6937.so | 10 | 0.58 | 5 | map | GCC
+A 496 | trustzone-kldr-tool | /usr/apps/tee/version/aes_encrypt | 5 | 0.98 | 5 | map | GCC+Clang
+A 497 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_hashlib.cpython-35m-arm-linux-gnueabi.so | 6 | 0.89 | 5 | cond | GCC+Clang
+A 498 | glibc-locale | /usr/lib/gconv/IBM943.so | 9 | 0.57 | 5 | map | GCC
+A 499 | dbus | /usr/bin/dbus-test-tool | 5 | 0.98 | 5 | map | GCC+Clang
+A 500 | ssdmservice-api | /usr/lib/libssdmservice-api.so | 5 | 0.98 | 5 | map | GCC+Clang
+A 501 | app2sd | /usr/lib/libapp2ext.so.0.8.2 | 5 | 0.98 | 5 | map | GCC+Clang
+A 502 | rpm | /bin/rpm | 5 | 0.98 | 5 | map | GCC+Clang
+A 503 | libpisa-ipc | /usr/bin/pisa-ipc-echo-service | 5 | 0.98 | 5 | map | GCC+Clang
+A 504 | glibc-locale | /usr/lib/gconv/IBM932.so | 9 | 0.56 | 5 | map | GCC
+A 505 | glibc-locale | /usr/lib/gconv/UTF-16.so | 9 | 0.56 | 5 | map | GCC
+A 506 | webapi-plugins | …/crosswalk/libtizen_tvinputdevice.so | 5 | 0.98 | 5 | map | GCC+Clang
+A 507 | webapi-plugins | …/crosswalk/libtizen_websetting.so | 5 | 0.98 | 5 | map | GCC+Clang
+A 508 | glibc-locale | /usr/lib/gconv/IBM1364.so | 9 | 0.54 | 5 | map | GCC
+A 509 | glibc-locale | /usr/lib/gconv/IBM1388.so | 9 | 0.54 | 5 | map | GCC
+A 510 | glibc-locale | /usr/lib/gconv/IBM1371.so | 9 | 0.54 | 5 | map | GCC
+A 511 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_lsprof.cpython-35m-arm-linux-gnueabi.so | 6 | 0.79 | 5 | cond | GCC+Clang
+A 512 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_codecs_cn.cpython-35m-arm-linux-gnueabi.so | 5 | 0.89 | 4 | cond | GCC+Clang
+A 513 | glibc-locale | /usr/lib/gconv/T.61.so | 9 | 0.53 | 4 | map | GCC
+A 514 | atsc3uhdcp | /usr/lib/libuhd_loader.so.1.0.0 | 5 | 0.94 | 4 | cond | GCC
+A 515 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_md5.cpython-35m-arm-linux-gnueabi.so | 4 | 1.00 | 4 | cond | GCC+Clang
+A 516 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_ctypes_test.cpython-35m-arm-linux-gnueabi.so | 6 | 0.68 | 4 | cond | GCC+Clang
+A 517 | glibc-locale | /usr/lib/gconv/UTF-32.so | 8 | 0.52 | 4 | map | GCC
+A 518 | tvp-tv | /opt/usr/apps/ieme/Ddrm/libFPSTee.so | 4 | 0.98 | 4 | cond | none
+A 519 | glibc-locale | /usr/lib/gconv/UNICODE.so | 8 | 0.50 | 4 | map | GCC
+A 520 | key-manager-ta-serialization | /usr/lib/libkm_serialization.so | 4 | 0.97 | 4 | map | GCC+Clang
+A 521 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvtunerinfo.so | 4 | 1.00 | 4 | map | GCC+Clang
+A 522 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_sha1.cpython-35m-arm-linux-gnueabi.so | 4 | 1.00 | 4 | cond | GCC+Clang
+A 523 | hal-api-common | /usr/bin/lshal | 4 | 0.97 | 4 | map | GCC+Clang
+A 524 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_posixsubprocess.cpython-35m-arm-linux-gnueabi.so | 4 | 0.88 | 4 | cond | GCC+Clang
+A 525 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_codecs_kr.cpython-35m-arm-linux-gnueabi.so | 4 | 0.86 | 3 | cond | GCC+Clang
+A 526 | boost-atomic | /usr/lib/libboost_atomic.so.1.83.0 | 3 | 0.97 | 3 | map | GCC+Clang
+A 527 | webapi-xrfw-pepper-plugin | …/crosswalk/libwebapis_xrfw.so | 3 | 0.97 | 3 | map | GCC+Clang
+A 528 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_curses_panel.cpython-35m-arm-linux-gnueabi.so | 3 | 0.90 | 3 | cond | GCC+Clang
+A 529 | webapi-plugins | …/crosswalk/libtizen.so | 3 | 0.97 | 3 | map | GCC+Clang
+A 530 | psa-legacy | /usr/lib/libpsa-legacy.so.0.1.0 | 3 | 0.97 | 3 | map | GCC+Clang
+A 531 | eden-webapi-plugins | /usr/lib/tizen-extensions-crosswalk-service/libwebapis.so | 3 | 0.96 | 3 | map | GCC+Clang
+A 532 | rpm | /usr/bin/rpm2archive | 3 | 0.96 | 3 | map | GCC+Clang
+A 533 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/fcntl.cpython-35m-arm-linux-gnueabi.so | 3 | 0.87 | 3 | cond | GCC+Clang
+A 534 | libhdr10plus-cloudgaming-api | /usr/lib/libhdr10plus-cloudgaming-api.so | 3 | 0.96 | 3 | map | GCC+Clang
+A 535 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_multiprocessing.cpython-35m-arm-linux-gnueabi.so | 3 | 0.90 | 3 | cond | GCC+Clang
+A 536 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgstwocinputsink.so | 3 | 0.96 | 3 | map | GCC+Clang
+A 537 | gst-ffmpeg-atsc3 | /usr/lib/gstreamer-1.0/libgstsimplecaptionparse.so | 3 | 0.96 | 2 | map | GCC+Clang
+A 538 | libcap | /usr/lib/libpsx.so.2.73 | 3 | 0.98 | 2 | map | GCC+Clang
+A 539 | remote-server | /usr/lib/libremote-wall-api.so.1.0.0 | 3 | 0.96 | 2 | map | GCC+Clang
+A 540 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_codecs_hk.cpython-35m-arm-linux-gnueabi.so | 3 | 0.85 | 2 | cond | GCC+Clang
+A 541 | com.samsung.tv.TVGuardAgent | /usr/apps/com.samsung.tv.TVGuardAgent/bin/TVGuardAgent | 2 | 0.96 | 2 | map | GCC+Clang
+A 542 | dbus | /usr/bin/dbus-run-session | 2 | 0.96 | 2 | map | GCC+Clang
+A 543 | dbus | /usr/bin/dbus-update-activation-environment | 2 | 0.96 | 2 | map | GCC+Clang
+A 544 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_heapq.cpython-35m-arm-linux-gnueabi.so | 3 | 0.88 | 2 | cond | GCC+Clang
+A 545 | rpm | /usr/bin/rpmdb | 2 | 0.96 | 2 | map | GCC+Clang
+A 546 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_random.cpython-35m-arm-linux-gnueabi.so | 2 | 0.91 | 2 | cond | GCC+Clang
+A 547 | libpisa-ipc | /usr/bin/pisa-ipc-perf-tester | 2 | 0.95 | 2 | map | GCC+Clang
+A 548 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/resource.cpython-35m-arm-linux-gnueabi.so | 2 | 0.88 | 2 | cond | GCC+Clang
+A 549 | dbus | /usr/bin/dbus-cleanup-sockets | 2 | 0.95 | 2 | map | GCC+Clang
+A 550 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/termios.cpython-35m-arm-linux-gnueabi.so | 2 | 0.89 | 2 | cond | GCC+Clang
+A 551 | systemd | /usr/lib/systemd/wait-target-done | 2 | 0.95 | 2 | map | GCC+Clang
+A 552 | glibc | /usr/libexec/getconf/getconf | 2 | 0.95 | 2 | map | GCC
+A 553 | rpm | /usr/bin/rpmkeys | 2 | 0.94 | 2 | map | GCC+Clang
+A 554 | libpisa-ipc | /usr/bin/pisa-ipc-proxy-tester | 2 | 0.94 | 2 | map | GCC+Clang
+A 555 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/syslog.cpython-35m-arm-linux-gnueabi.so | 2 | 0.87 | 2 | cond | GCC+Clang
+A 556 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_testmultiphase.cpython-35m-arm-linux-gnueabi.so | 2 | 0.83 | 2 | cond | GCC+Clang
+A 557 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_codecs_tw.cpython-35m-arm-linux-gnueabi.so | 2 | 0.84 | 1 | cond | GCC+Clang
+A 558 | vddebugmenu | /usr/bin/dlogd_sdb | 2 | 0.94 | 1 | map | GCC+Clang
+A 559 | libbrotlicommon | /usr/lib/libbrotlicommon.so.1.1.0 | 1 | 0.94 | 1 | map | GCC+Clang
+A 560 | libpisa-ipc | /usr/bin/pisa-ipc-stub-tester | 1 | 0.94 | 1 | map | GCC+Clang
+A 561 | gstreamer-plugins-tv | /usr/lib/gstreamer-1.0/libgsttvfakesrc.so | 1 | 0.97 | 1 | map | GCC+Clang
+A 562 | libpisa-ipc | /usr/lib/libpisa-ipc-ss.so | 1 | 0.93 | 1 | map | GCC+Clang
+A 563 | rpm | /usr/bin/rpm2cpio | 1 | 0.93 | 1 | map | GCC+Clang
+A 564 | deviced | /usr/lib/deviced/libdeviced-battery-hal.so | 1 | 0.93 | 1 | map | GCC+Clang
+A 565 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_bisect.cpython-35m-arm-linux-gnueabi.so | 1 | 0.85 | 1 | cond | GCC+Clang
+A 566 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/grp.cpython-35m-arm-linux-gnueabi.so | 1 | 0.82 | 1 | cond | GCC+Clang
+A 567 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/spwd.cpython-35m-arm-linux-gnueabi.so | 1 | 0.82 | 1 | cond | GCC+Clang
+A 568 | rpm | /usr/lib/rpm-plugins/syslog.so | 1 | 0.91 | 1 | map | GCC+Clang
+A 569 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/xxlimited.cpython-35m-arm-linux-gnueabi.so | 1 | 0.80 | 1 | cond | GCC+Clang
+A 570 | dbus | /usr/bin/dbus-uuidgen | 1 | 0.91 | 1 | map | GCC+Clang
+A 571 | rpm | /usr/bin/rpmqpack | 1 | 0.89 | 1 | map | GCC+Clang
+A 572 | systemd | /usr/lib/systemd/send-booting-done | 0 | 0.86 | 0 | map | GCC+Clang
+A 573 | rpm | /usr/lib/rpm-plugins/ima.so | 0 | 0.86 | 0 | map | GCC+Clang
+A 574 | vdlinux-usb-modules-perf | /prd/bin/usb_gpio_toggle | 0 | 0.83 | 0 | map | GCC+Clang
+A 575 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_opcode.cpython-35m-arm-linux-gnueabi.so | 0 | 1.00 | 0 | dyn | GCC+Clang
+A 576 | deviced | /usr/lib/deviced/libdeviced-factory-reset.so | 0 | 0.82 | 0 | map | GCC+Clang
+A 577 | libCSI-debugmenu | /usr/bin/csi-debug | 0 | 0.82 | 0 | map | GCC+Clang
+A 578 | notification-vd | /usr/lib/libnotification-vd.so.1.0.10 | 1 | 0.57 | 0 | map | GCC+Clang
+A 579 | glibc | /lib/librt.so.1 | 0 | 0.80 | 0 | map | GCC
+A 580 | app-svc | /usr/lib/libappsvc.so.0.1.0 | 0 | 0.55 | 0 | map | GCC+Clang
+A 581 | screend | /usr/bin/LoadingUI | 0 | 0.51 | 0 | map | GCC+Clang
+A 582 | hdcp | /usr/lib/libhdcp.so.0.1.0 | 0 | 0.56 | 0 | map | GCC+Clang
+A 583 | mbr-downloadable-feature | …/preload-tpk/com.samsung.tv.mbr-downloadable-feature-1.1.0-arm.tpk!bin/mbr-downloadable-feature | 0 | 1.00 | 0 | map | GCC
+A 584 | ug-unifiedauthentication-tv-native | …/preload-tpk/com.samsung.tv.UgUnifiedAuthNative-1.26.0522-arm.tpk!bin/com.samsung.tv.ugunifiedauthnative | 0 | 1.00 | 0 | map | GCC
+A 585 | unifiedAuthenticationDN | …/preload-tpk/com.samsung.tv.unifiedAuthentication-1.26.0827-arm.tpk!bin/com.samsung.tv.unifiedauthentication | 0 | 1.00 | 0 | map | GCC
+A 586 | rpm | /usr/lib/rpm-plugins/prioreset.so | 0 | 0.77 | 0 | map | GCC+Clang
+A 587 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_crypt.cpython-35m-arm-linux-gnueabi.so | 0 | 1.00 | 0 | dyn | GCC+Clang
+A 588 | sys-tools | /usr/bin/dtagnames | 0 | 0.54 | 0 | map | GCC+Clang
+A 589 | org.tizen.tts-resource | …/preload-rw-tpk/org.tizen.tts-resource-26.25.10110-arm.tpk!bin/tts-resource | 0 | 1.00 | 0 | map | GCC
+A 590 | sys-tools | /usr/bin/target_view/python3/lib/python3.5/lib-dynload/_testimportmultiple.cpython-35m-arm-linux-gnueabi.so | 0 | 1.00 | 0 | dyn | GCC+Clang
+A 591 | aurum | /usr/lib/libpugixml.so.0.1.1 | 0 | 0.70 | 0 | map | GCC+Clang
+A 592 | fkp | /usr/lib/libfkp.so.0.1.0 | 0 | 0.53 | 0 | map | GCC+Clang
+A 593 | efl-config | /usr/bin/efl_config | 0 | 0.50 | 0 | map | GCC+Clang
+A 594 | libci-core | /usr/bin/ci_debugutil | 0 | 0.52 | 0 | map | GCC+Clang
+A 595 | util-linux | /usr/sbin/nologin | 0 | 0.53 | 0 | map | GCC+Clang
+A 596 | com.samsung.tv.aria-engine | /usr/bin/aria-engine | 0 | 0.51 | 0 | map | GCC+Clang
+A 597 | gawk | /usr/libexec/awk/pwcat | 0 | 0.51 | 0 | map | GCC+Clang
+A 598 | chromium-efl | /usr/bin/efl_webprocess | 0 | 0.59 | 0 | map | GCC
+A 599 | chromium-efl | /usr/bin/wrt | 0 | 0.59 | 0 | map | GCC
+A 600 | content-service-framework | /usr/bin/csf-debug-asf-app | 0 | 0.60 | 0 | map | GCC+Clang
+A 601 | zone-manager-perf | /usr/bin/zone-init | 0 | 0.56 | 0 | map | GCC+Clang
+A 602 | amd | /usr/bin/amd | 0 | 0.60 | 0 | map | GCC+Clang
+A 603 | capi-network-wifi | /usr/bin/wifi_connect_test | 0 | 0.54 | 0 | map | GCC+Clang
+A 604 | capi-network-wifi | /usr/bin/wifi_test | 0 | 0.54 | 0 | map | GCC+Clang
+A 605 | com.samsung.ep.coba-hotel-native | /usr/apps/com.samsung.ep.coba-hotel-native/bin/capi-coba-hotel-native | 0 | 0.60 | 0 | map | GCC+Clang
+A 606 | com.samsung.tv.coba-setting-native | /usr/apps/com.samsung.tv.coba-setting-native/bin/capi-coba-setting-native | 0 | 0.60 | 0 | map | GCC+Clang
+A 607 | com.samsung.tv.coba-source-native | /usr/apps/com.samsung.tv.coba-source-native/bin/capi-coba-source-native | 0 | 0.60 | 0 | map | GCC+Clang
+A 608 | org.tizen.pvrrecorder-syspopup | /usr/apps/org.tizen.pvrrecorder-syspopup/bin/pvrrecorder-syspopup | 0 | 0.60 | 0 | map | GCC+Clang
+A 609 | content-service-framework | /usr/bin/csf-debug-agent | 0 | 0.59 | 0 | map | GCC+Clang
+== A32 rows 212-609 by markers: markers | files | est A32 KiB
+M GCC+Clang | 309 | 8496
+M GCC | 88 | 1680
+M none | 1 | 4
+== -O packages, current image: name | rpm:files:code KiB:A32 KiB (exact name, then name-* sub-packages)
+O org.tizen.AVControl | org.tizen.AVControl:1:723:723
+O org.tizen.tv-viewer | org.tizen.tv-viewer:2:4918:4796
+O org.tizen.webappservice | org.tizen.webappservice:12:6571:40, org.tizen.webappservice-api:7:651:13
+O libpisa-ipc | libpisa-ipc:6:894:894
+O machine-learning-api | NO_LOADABLE_ELF_IN_IMAGE
+O nnstreamer | nnstreamer-core:11:236:13, nnstreamer-flatbuf:5:16:2, nnstreamer-misc:1:6:1, nnstreamer-single:1:34:3, nnstreamer-tensorflow2-lite:1:6223:6215, nnstreamer-tizen-sensor:1:8:1
+O rpm | rpm:13:2672:2665, rpm-security-plugin:1:119:119
+O source-service | source-service:3:193:6
+O vulkan-utility-libraries | NO_LOADABLE_ELF_IN_IMAGE
+O vulkan-validation-layers | NO_LOADABLE_ELF_IN_IMAGE
+O org.tizen.webserver | org.tizen.webserver:3:1596:1595
+O libiri | libiri:1:3:0
+O libgcrypt | libgcrypt:1:648:647
+O mmi | NO_LOADABLE_ELF_IN_IMAGE
+O mmi-plugins-default | NO_LOADABLE_ELF_IN_IMAGE
+O org.tizen.rct-app | NO_LOADABLE_ELF_IN_IMAGE
+O org.tizen.reminder | org.tizen.reminder:1:12:1
+O rct-service | NO_LOADABLE_ELF_IN_IMAGE
+O reminder-api | reminder-api:1:133:5
+O reminder-service | reminder-service:1:44:2
+O tvs-api | tvs-api:1:668:7, tvs-api-ipc:1:33:1, tvs-api-lite:1:82:3
+O tvs-api-native | tvs-api-native:1:608:17
+O tvs-chms | tvs-chms:1:226:7
+O tvs-core | NO_LOADABLE_ELF_IN_IMAGE
+O tvs-dbms | tvs-dbms:1:101:3
+O tvs-dvb-chms | tvs-dvb-chms:1:54:2
+O tvs-dvbbase-chms | tvs-dvbbase-chms:1:24:1
+O tvs-ewbs | tvs-ewbs:1:61:2
+O tvs-ht | tvs-ht:2:240:8
+O tvs-iss | tvs-iss:1:417:9
+O tvs-list-app | NO_LOADABLE_ELF_IN_IMAGE
+O tvs-nrt | tvs-nrt:1:69:3
+O tvs-util | tvs-util:1:384:11
+O ug_rct | NO_LOADABLE_ELF_IN_IMAGE
+PM0010 DONE
+5d3fede77cb432f8301a52cba9786af0d9b4f9ad7530d490bce6345edb3432a4  workspace/temp/pm0010-a32full-olevel-20261120-205401.txt
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
+

@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Export exact A32 rows, current -O cohort paths and optional retained rootfs evidence."""
+import argparse
+import base64
+from collections import Counter
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import tempfile
+import zipfile
+import zlib
+
+WORKSPACE = Path("/home1/chengkai/vd-tree/workspace")
+SCAN = WORKSPACE / "temp/pm0004-image-mode.b7rJie/results/elf-modes.csv"
+SCAN_SHA = "d6fd74fe1dd6bdbe1db2cf52482010169c379bdc785672c4e16935118e5bdecf"
+
+
+def row_stats(rows):
+    return {k:sum(int(r[k] or 0) for r in rows) for k in ("exec_bytes","arm_bytes_est")}
+
+
+def file_evidence(root, path):
+    if root is None:
+        return "NOT_CHECKED"
+    outer, _, member = path.partition("!")
+    p = root / outer.lstrip("/")
+    real = p.resolve()
+    if not real.is_relative_to(root):
+        return "LINK_OUTSIDE_CAPTURE"
+    if not p.is_file():
+        return "NOT_IN_TREE"
+    if not member:
+        return "FILE_PRESENT"
+    try:
+        with zipfile.ZipFile(p) as archive:
+            if member in archive.namelist():
+                return "ARCHIVE_MEMBER_PRESENT"
+            return "MEMBER_NOT_IN_ARCHIVE"
+    except (OSError, zipfile.BadZipFile):
+        return "ARCHIVE_UNREADABLE"
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("a32", type=Path)
+    ap.add_argument("olevel", type=Path)
+    ap.add_argument("--perf-tree", type=Path)
+    ap.add_argument("--part", type=int, default=1)
+    args = ap.parse_args()
+    if args.part < 1:
+        ap.error("--part must be positive")
+    root = args.perf_tree.resolve(strict=True) if args.perf_tree else None
+    if root and (not root.is_dir() or not root.is_relative_to(WORKSPACE)):
+        ap.error("PERF tree must be a retained directory in workspace")
+    raw = SCAN.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != SCAN_SHA:
+        raise ValueError("retained ELF scan differs from the published SHA-256")
+    all_rows = [row for row in csv.DictReader(raw.decode().splitlines()) if row["kind"] in {"EXEC","DYN"}]
+    ordered = sorted((row for row in all_rows if row["mode"] in {"ARM","MIXED_ARM"}),
+                     key=lambda row:-int(row["arm_bytes_est"]))
+    old = list(csv.DictReader(args.a32.open(newline="")))
+    if len(ordered) != 609 or len(old) != 609 or len(all_rows) != 5166:
+        raise ValueError("unexpected pinned roster size")
+    ranks = []
+    for rank,(row,prior) in enumerate(zip(ordered,old),1):
+        actual = (row["package"],row["path"],int(row["exec_bytes"])//1024,
+                  round(float(row["arm_share"]),2),int(row["arm_bytes_est"])//1024,row["markers"])
+        expected = (prior["package"],prior["path"],int(prior["code_kib"]),
+                    float(prior["a32_share"]),int(prior["est_a32_kib"]),prior["markers"])
+        differences = {field:[a,b] for field,a,b in zip(
+            ("package","path","code_kib","a32_share","est_a32_kib","markers"),expected,actual) if a!=b}
+        ranks.append({"rank":rank,"srpm_from_board_roster":prior["source_rpm"] if expected[:2]==actual[:2] else None,
+                      "elf":row,"differences":differences,"tree_evidence":file_evidence(root,row["path"])})
+    mapping = {}
+    with args.olevel.open(newline="") as stream:
+        for entry in csv.DictReader(stream,delimiter="\t"):
+            rpms = set(entry["binary_rpms"].split(",")) - {""}
+            hits = [r for r in all_rows if r["package"] in rpms]
+            mapping[entry["doc_source"]]={"status":entry["status"],"stats":row_stats(hits),
+                "files":[{k:r[k] for k in ("package","identity","path","exec_bytes","arm_bytes_est")} for r in hits]}
+    result={"scan_sha256":SCAN_SHA,"rank_rows":ranks,"olevel":mapping,
+            "elf_tree_counts":dict(Counter(r["tree_evidence"] for r in ranks))}
+    data=json.dumps(result,sort_keys=True,separators=(",",":")).encode()+b"\n"
+    job=Path(tempfile.mkdtemp(prefix="pm0010-a32-readback.",dir=WORKSPACE/"temp"))
+    dest=job/"results.json"
+    dest.write_bytes(data)
+    payload=base64.b64encode(zlib.compress(data,9)).decode()
+    blocks=[payload[i:i+1024] for i in range(0,len(payload),1024)]
+    if args.part>len(blocks)//100+1 or (args.part-1)*100>=len(blocks):
+        raise ValueError("packet part is out of range")
+    print("A32_SCAN",len(all_rows),len(ordered),row_stats(ordered),SCAN_SHA)
+    print("A32_MISMATCHES",sum(bool(r["differences"]) for r in ranks[:211]),
+          sum(bool(r["differences"]) for r in ranks[211:]))
+    print("A32_TREE_EVIDENCE",json.dumps(result["elf_tree_counts"],sort_keys=True))
+    print("A32_RESULT_SHA256",hashlib.sha256(data).hexdigest(),dest)
+    print("A32_PACKET_PART",args.part,(len(blocks)+99)//100)
+    print("A32_PACKET_BEGIN")
+    print("\n".join(blocks[(args.part-1)*100:args.part*100]))
+    print("A32_PACKET_END")
+
+
+if __name__=="__main__":
+    main()

@@ -1,0 +1,553 @@
+#!/usr/bin/env python3
+"""Run frozen-input GBS optimization comparisons or read a completed progress ledger."""
+
+import argparse
+from collections import Counter
+from contextlib import redirect_stdout
+from datetime import datetime, timezone
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import subprocess
+import tempfile
+from types import SimpleNamespace
+import xml.etree.ElementTree as ET
+
+WORKSPACE = Path("/home1/chengkai/vd-tree/workspace")
+TEMP = WORKSPACE/"temp"
+PRIORITY = ("org.tizen.AVControl", "org.tizen.tv-viewer", "org.tizen.webappservice",
+            "libpisa-ipc", "org.tizen.webserver", "libgcrypt", "rpm", "nnstreamer")
+BASE = "20261113.1"
+CONFIG = "98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
+SHELVES = "c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736"
+
+
+def write_json(path, data):
+    stage = path.with_suffix(".part")
+    stage.write_text(json.dumps(data, indent=2, sort_keys=True)+"\n")
+    stage.replace(path)
+
+
+def checked_file(path, digest):
+    if not re.fullmatch("[0-9a-f]{64}", digest or ""):
+        raise ValueError("expected SHA-256 for " + str(path))
+    if path.is_symlink() or file_hash(path) != digest:
+        raise ValueError("checksum mismatch for " + str(path))
+    return path
+
+
+def file_hash(path):
+    sha = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1024**2), b""):
+            sha.update(block)
+    return sha.hexdigest()
+
+
+def rows_from(path, delimiter="\t"):
+    with path.open(newline="") as f:
+        return list(csv.DictReader(f, delimiter=delimiter))
+
+
+def srpm_name(srpm):
+    return srpm.removesuffix(".src.rpm").rsplit("-", 2)[0]
+
+
+def rpm_query(path, fmt):
+    return subprocess.check_output(["rpm","-qp","--qf",fmt,str(path)],text=True,timeout=60)
+
+
+def native_path(path):
+    resolved = path.resolve(strict=True)
+    if not resolved.is_relative_to(WORKSPACE.resolve()) or path.is_symlink():
+        raise ValueError("native input must be in vd-tree/workspace: " + str(path))
+    return resolved
+
+
+def capture_identity(directory):
+    folder = native_path(directory)
+    if folder.parent != WORKSPACE/"qb-evidence":
+        raise ValueError("expected a retained QB capture")
+    identity = json.loads((folder/"identity.json").read_text())
+    def captured(name):
+        return checked_file(folder/name,identity["files"].get(name))
+    xml = ET.parse(captured("build.xml")).getroot()
+    if not xml.findtext("buildconf_version","").endswith("TIZEN_KantSU2E_Clang_build.conf@14452507"):
+        raise ValueError("Official capture must publish Product build.conf@14452507")
+    if not xml.findtext("base_repo","").endswith("_"+BASE+"/"):
+        raise ValueError("Official capture must publish Base "+BASE)
+    config = checked_file(captured("published-build.conf"),CONFIG)
+    return identity["product"], config, rows_from(captured("rpm-identities.tsv"))
+
+
+def parse_hook(path, digest):
+    if not path:
+        return None
+    source = checked_file(native_path(path),digest)
+    # This is the one expanded original env value, collected on the old build.
+    # A macro template or raw shell script is a separate provenance artifact.
+    value = source.read_text().strip()
+    args = value.split()
+    if ("\n" in value or "%" in value or not args or
+        any(not (flag=="#" or re.fullmatch(r"\+-[^\s]+|O(?:s|z|[0-3g])",flag)) for flag in args)
+        or not any(flag in {"+-Os","Os"} for flag in args)):
+        raise ValueError("hook input must be the original expanded CCC_OVERRIDE_OPTIONS line ending in the Clang -Os adaptation")
+    print("NOV11_CCC_OVERRIDE_OPTIONS",value,flush=True)
+    print("NOV11_HOOK_SHA256",digest,"MTHUMB", "+-mthumb" in args,flush=True)
+    return value
+
+
+def plans(accepted, product, base):
+    candidates = {"Product": product, "Base": base}
+    for row in accepted:
+        repo = candidates[row["repository"]]
+        name = row["doc_source"]
+        allowed = set(filter(None,row["binary_rpms"].split(",")))
+        relevant = [rec for rec in repo if srpm_name(rec["srpm"])==name and rec["name"] in allowed]
+        yield row,relevant
+
+
+def source_for(gbs, lib, stager, row, candidates, manifest, source_inputs, folder):
+    name=row["doc_source"]
+    published={r["srpm"] for r in candidates}
+    if len(published)!=1 or not next(iter(published)).endswith(".src.rpm"):
+        raise ValueError("missing or ambiguous matched-SRPM identity")
+    (srpm,)=published
+    if len({(r["name"],r["arch"]) for r in candidates})!=len(candidates):
+        raise ValueError("multiple binary versions for a matched SRPM")
+    sources={r["vcs"] for r in candidates if r["vcs"] and r["vcs"]!="(none)"}
+    choice=next((r for r in candidates if r["name"]==name),candidates[0])
+    if not sources:
+        rpm=lib["cached_rpm"]((choice["url"],choice["sha256"]),folder)
+        header,vcs=rpm_query(rpm,r"%{SOURCERPM}\n%{VCS}\n").splitlines()
+        if header!=srpm:
+            raise ValueError("pinned RPM source header differs from repository metadata")
+        if vcs!="(none)" and vcs:
+            sources.add(vcs)
+    if not sources and srpm in source_inputs:
+        return stage_srpm(srpm, source_inputs[srpm], folder)
+    if len(sources)!=1:
+        raise ValueError("SOURCE_PIN_REQUIRED retain matched SRPM or exact VCS")
+    (vcs,)=sources
+    pin={"package":name,"source_vcs":vcs,"source_rpm":srpm,
+         "rpm_sha256":choice["sha256"],"repository":"llvm-base" if row["repository"]=="Base" else "llvm-product"}
+    return stager["stage"](gbs,lib,pin,folder,manifest)
+
+
+def stage_srpm(srpm, spec_input, folder):
+    archive=checked_file(native_path(Path(spec_input["path"])),spec_input["sha256"])
+    identity=rpm_query(archive,r"%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}").strip()
+    if identity+".rpm"!=srpm or rpm_query(archive,"%{SOURCERPM}").strip() not in {"","(none)"}:
+        raise ValueError("SRPM bytes belong to a different source identity")
+    project=folder/"source"
+    packaging=project/"packaging"
+    packaging.mkdir(parents=True)
+    with (folder/"src.cpio").open("wb") as payload:
+        subprocess.run(["rpm2cpio",str(archive)],stdout=payload,check=True,timeout=240)
+    with (folder/"src.cpio").open("rb") as payload:
+        while True:
+            header=payload.read(110)
+            if len(header)!=110 or header[:6] not in {b"070701",b"070702"}:
+                raise ValueError("invalid SRPM cpio payload")
+            mode,size,length=(int(header[i:i+8],16) for i in (14,54,94))
+            if not 0<length<=256:
+                raise ValueError("invalid SRPM payload name length")
+            name=payload.read(length)[:-1].decode().removeprefix("./")
+            payload.seek(-(110+length)%4,1)
+            if name=="TRAILER!!!":
+                break
+            if not re.fullmatch(r"[A-Za-z0-9_+.%-][A-Za-z0-9_+.%-]*",name) or mode&0o170000!=0o100000:
+                raise ValueError("non-flat or irregular SRPM payload entry")
+            with (packaging/name).open("xb") as dest:
+                for _ in range((size+1024**2-1)//1024**2):
+                    count=min(size,1024**2)
+                    block=payload.read(count)
+                    if len(block)!=count:
+                        raise ValueError("truncated SRPM payload")
+                    dest.write(block)
+                    size-=count
+            payload.seek(-payload.tell()%4,1)
+    (spec,)=packaging.glob("*.spec")
+    print("GBS_MATCHED_SRPM",srpm,spec_input["sha256"],flush=True)
+    return project,spec
+
+
+def configure_gbs(gbs, template, root, product):
+    text,count=re.subn(rb"(?m)^(buildroot\s*=\s*)[^\r\n]+",lambda m:m[1]+str(root).encode(),template)
+    if count!=1:
+        raise ValueError("expected one pinned GBS buildroot")
+    return gbs.rewrite_product(text,product)
+
+
+def measure_elf(scan,path,binary):
+    result=scan["classify"](binary)
+    if not result or result["kind"] not in {"EXEC","DYN"}:
+        return None
+    sections=scan["secs_of"](binary)
+    return {"path":path,"mode":result["mode"],"basis":result["basis"],
+            "arm":result["arm_bytes_est"],"exec":result["exec_bytes"],
+            "text":sum(sh[5] for name,sh in sections if name==".text"),
+            "alloc":sum(sh[5] for _,sh in sections if sh[2]&2),
+            "bytes":len(binary),"sha256":hashlib.sha256(binary).hexdigest()}
+
+
+def elf_build_id(path):
+    output=subprocess.check_output(["readelf","-nW",str(path)],stderr=subprocess.DEVNULL,text=True,timeout=30)
+    found=re.findall(r"Build ID:\s*([0-9a-f]+)",output)
+    return found[0] if len(set(found))==1 else None
+
+
+def parse_cus(lines):
+    in_unit=False
+    producer=None
+    rows=[]
+    for line in lines:
+        if re.search(r"<0><[a-f0-9]+>.*\bDW_TAG_",line,re.I):
+            if in_unit:
+                rows.append(producer)
+            in_unit="DW_TAG_compile_unit" in line
+            producer=None
+        elif in_unit and re.search(r"\bDW_AT_producer\s*:",line):
+            producer=line.split("DW_AT_producer",1)[1].lstrip().removeprefix(":").strip()
+    if in_unit:
+        rows.append(producer)
+    return rows
+
+
+def dwarf(file):
+    proc=subprocess.Popen(["readelf","-wi",str(file)],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
+                          text=True,errors="replace")
+    with proc:
+        values=parse_cus(proc.stdout)
+        if proc.wait():
+            raise ValueError("readelf failed while reading compilation units")
+    return values
+
+
+def classify_producers(values):
+    levels=Counter()
+    chars=Counter()
+    for producer in values:
+        if producer is None:
+            levels["MISSING_PRODUCER"]+=1
+            chars["UNRECORDED"]+=1
+            continue
+        if re.search(r"\bGNU AS\b",producer):
+            levels["ASSEMBLY"]+=1
+            chars["NOT_APPLICABLE"]+=1
+            continue
+        options=re.findall(r"(?<!\S)-O(?:[0-3gsz]|fast)?(?=\s|$)",producer)
+        levels[options[-1] if options else "UNRECORDED"]+=1
+        charopts=re.findall(r"(?<!\S)-f(?:un)?signed-char(?=\s|$)",producer)
+        chars[charopts[-1] if charopts else "UNRECORDED"]+=1
+    return levels,chars
+
+
+def collect_rpms(scan, root, lane, names):
+    working=lane/"elf-proof"
+    working.mkdir()
+    release_elfs=[]
+    debug={}
+    owners=set()
+    for pkg in sorted((root/"local/repos").rglob("*.rpm")):
+        if pkg.name.endswith(".src.rpm"):
+            continue
+        name=rpm_query(pkg,"%{NAME}")
+        debuginfo=name.endswith(("-debuginfo","-debugsource"))
+        if name not in names and not debuginfo:
+            continue
+        if not debuginfo:
+            if name in owners:
+                raise ValueError("ambiguous built RPM for "+name)
+            owners.add(name)
+        with subprocess.Popen(["rpm2cpio",str(pkg)],stdout=subprocess.PIPE) as proc:
+            for path,blob in scan["cpio_entries"](proc.stdout):
+                if debuginfo:
+                    if blob[:4]==b"\x7fELF":
+                        dest=working/(hashlib.sha256(blob).hexdigest()+".debug")
+                        if not dest.exists():
+                            dest.write_bytes(blob)
+                        build_id=elf_build_id(dest)
+                        if build_id:
+                            debug.setdefault(build_id,[]).append(dest)
+                    continue
+                for filename,elf in scan["elf_items"](path,blob):
+                    row=measure_elf(scan,filename,elf)
+                    if row:
+                        dest=working/(row["sha256"]+".elf")
+                        if not dest.exists():
+                            dest.write_bytes(elf)
+                        row.update(rpm=name,build_id=elf_build_id(dest),file=dest)
+                        release_elfs.append(row)
+            while proc.stdout.read(1024**2):
+                pass
+            if proc.wait():
+                raise ValueError("rpm2cpio failed on "+pkg.name)
+    if names-owners or not release_elfs:
+        raise ValueError("missing built RPM names or loadable members: "+",".join(sorted(names-owners)))
+    all_levels=Counter()
+    all_chars=Counter()
+    for row in release_elfs:
+        external=set(debug.get(row["build_id"],[]))
+        embedded=row.pop("file")
+        provider=next(iter(external)) if len(external)==1 else embedded
+        values=dwarf(provider)
+        levels,chars=classify_producers(values)
+        if not values:
+            levels["NO_DWARF_ELF"]+=1
+        all_levels.update(levels)
+        all_chars.update(chars)
+        row.update(cu_levels=dict(levels),cu_signed_char=dict(chars),debug_file=str(provider),
+                   debug_status="AMBIGUOUS_BUILD_ID" if len(external)>1 else "MATCHED_DEBUGINFO" if external else "EMBEDDED_OR_MISSING")
+        if values:
+            digest=hashlib.sha256(json.dumps(values).encode()).hexdigest()
+            (working/(digest+".producers.json")).write_text(json.dumps(values,indent=2)+"\n")
+    total={key:sum(r[key] for r in release_elfs) for key in ("text","alloc","bytes","arm","exec")}
+    return dict(total=total,cu_levels=dict(all_levels),cu_signed_char=dict(all_chars),files=release_elfs)
+
+
+def historical_gcc(path):
+    if not path:
+        print("GCC_SCAN_MISSING",flush=True)
+        return {}
+    result={}
+    for row in rows_from(native_path(path),delimiter=","):
+        key=row["source"]
+        if key in result:
+            raise ValueError("duplicate historical GCC source metric "+key)
+        result[key]=int(row["text_bytes"])
+    return result
+
+
+def under_lane(gbs, thumb, scan, source, spec, root, config, buildconf, names):
+    root.mkdir()
+    gbs.available(root,24,12)
+    gbsroot=root/"GBS-ROOT"
+    config_path=root/"gbs.conf"
+    config_path.write_bytes(configure_gbs(gbs,config[0],gbsroot,config[1]))
+    with (root/"launcher.log").open("w") as output, redirect_stdout(output):
+        thumb["run_gbs"](gbs,root,source,spec.name,config_path,buildconf,gbsroot,True,False)
+    return collect_rpms(scan,gbsroot,root,names)
+
+
+def lane_spec(original, options):
+    if options is None:
+        return original
+    cmd=f"export CCC_OVERRIDE_OPTIONS=\"${{CCC_OVERRIDE_OPTIONS:+$CCC_OVERRIDE_OPTIONS }}\"{shlex.quote(options)}"
+    updated,count=re.subn(r"(?m)^%build[ \t]*$",lambda m:m[0]+"\n"+cmd,original)
+    if count!=1:
+        raise ValueError("expected literal %build section")
+    return updated
+
+
+def error_line(exc,lane_dir):
+    for filename in ("launcher.log","gbs.log"):
+        p=lane_dir/filename
+        if p.is_file():
+            with p.open("rb") as f:
+                f.seek(max(0,p.stat().st_size-65536))
+                errors=[s.strip() for s in f.read().decode(errors="replace").splitlines()
+                        if re.search("error:|failed|permission denied",s,re.I)]
+            if errors:
+                return errors[-1][:360]
+    return " ".join(str(exc).split())[:360]
+
+
+def run_package(gbs, lib, stager, thumb, scan, args, settings, row, matches, record, folder, state, write):
+    source,spec=source_for(gbs,lib,stager,row,matches,settings["shelves"],settings["source_inputs"],folder)
+    original=spec.read_text()
+    spec.chmod(spec.stat().st_mode|0o200)
+    options={"A":None,"B":"+-Os","C":settings["hook"]}
+    names={r["name"] for r in matches}
+    for label in ("A","B","C"):
+        if label=="C" and not settings["hook"]:
+            record["status"].append("C_HOOK_UNVERIFIED")
+            continue
+        if args.priority_c_only and label=="C" and row["doc_source"] not in PRIORITY:
+            record["status"].append("C_DEFERRED")
+            continue
+        lane_dir=folder/label
+        try:
+            spec.write_text(lane_spec(original,options[label]))
+            if label=="A":
+                gbs.local_git(source,folder)
+            record["active"]=label
+            write()
+            if subprocess.run(["sudo","-n","-v"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
+                raise ValueError("background GBS sudo is unavailable; start with valid non-interactive authorization")
+            metrics=under_lane(gbs,thumb,scan,source,spec,lane_dir,settings["gbs_conf"],settings["buildconf"],names)
+            write_json(lane_dir/"metrics.json",metrics)
+            record["lanes"][label]={key:value for key,value in metrics.items() if key!="files"}
+            levels=metrics["cu_levels"]
+            if label!="A" and (not levels.get("-Os") or set(levels)-{"-Os","ASSEMBLY"}):
+                record["status"].append(label+"_CU_OS_NOT_PROVEN")
+        except (OSError,ValueError,subprocess.SubprocessError) as exc:
+            record["error"][label]=error_line(exc,lane_dir)
+        finally:
+            record.pop("active",None)
+            write()
+    if "A" in record["lanes"]:
+        for label in ("B","C"):
+            if label in record["lanes"]:
+                old={(r["rpm"],r["path"]) for r in rows_from_metrics(folder/"A/metrics.json")}
+                new={(r["rpm"],r["path"]) for r in rows_from_metrics(folder/label/"metrics.json")}
+                if new != old:
+                    record["status"].append(label+"_ELF_SET_CHANGED")
+    if {"A","B"}<=record["lanes"].keys():
+        a,b=(record["lanes"][key]["total"] for key in ("A","B"))
+        if a["exec"] and b["exec"] and abs(a["arm"]/a["exec"]-b["arm"]/b["exec"])>0.10:
+            record["status"].append("B_A32_SHARE_SHIFT_REVIEW")
+    if row["doc_source"]=="libgcrypt":
+        record["status"].append("REFERENCE_KEEP")
+
+
+def rows_from_metrics(path):
+    return json.loads(path.read_text())["files"]
+
+
+def readback(directory):
+    work=native_path(directory)
+    if work.parent!=TEMP or not work.name.startswith("pm0010-olevel."):
+        raise ValueError("expected round 0010 optimization workdir")
+    state=json.loads((work/"progress.json").read_text())
+    lines=["O progress "+state["phase"]+" Base "+BASE+" build.conf@14452507",
+           "O image columns are .text and executable-section bytes from separate evidence scopes."]
+    if state.get("hook"):
+        lines.append("NOV11_CCC_OVERRIDE_OPTIONS " + state["hook"])
+        lines.append("NOV11_HOOK_SHA256 " + state["hook_sha256"])
+    else:
+        lines.append("NOV11_HOOK_UNVERIFIED")
+    if not state.get("gcc"):
+        lines.append("GCC_SCAN_MISSING")
+    for row in state["packages"]:
+        lanes=row["lanes"]
+        keys=("A","B","C")
+        def val(k,field):
+            return lanes[k]["total"][field] if k in lanes else None
+        def delta(k):
+            a,b=val("A","text"),val(k,"text")
+            return f"{100*(b-a)/a:+.2f}%" if a and b is not None else "-"
+        def share(k):
+            arm,exec_size=val(k,"arm"),val(k,"exec")
+            return f"{arm/exec_size:.3f}" if exec_size else "-"
+        def fmt(v):
+            return str(v) if v is not None else "-"
+        def levels(k):
+            if k not in lanes:
+                return "-"
+            data=lanes[k]
+            return ",".join(f"{x}={n}" for x,n in sorted(data["cu_levels"].items())) + (
+                f"/signed={data['cu_signed_char'].get('-fsigned-char',0)}"+
+                f"/unsigned={data['cu_signed_char'].get('-funsigned-char',0)}")
+        statuses=row["status"]+[label+"_FAILED" for label in row["error"]]
+        if row.get("active"):
+            statuses.append("ACTIVE_"+row["active"])
+        lines.append("O "+row["name"]+" | "+" | ".join(
+            [fmt(val(k,"text")) for k in keys]+[delta("B"),delta("C")]+
+            [fmt(val(k,"alloc")) for k in keys]+["/".join(share(k) for k in keys),
+             "/".join(levels(k) for k in keys), ", ".join(statuses) or "RECORDED",
+             "image_code/a32_KiB="+("/".join(row["image"]) if all(row["image"]) else "-"),
+             "GCC_text="+fmt(state.get("gcc",{}).get(row["name"]))]))
+        if row["error"]:
+            items=list(row["error"].items())
+            lines.append("OFAIL "+row["name"]+" "+" | ".join(f"{lane} {message}" for lane,message in items))
+    output=work/"readback.txt"
+    output.write_text("\n".join(lines)+"\n")
+    print("\n".join(lines))
+    print("O_SHA256",file_hash(output),output)
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    sub=parser.add_subparsers(dest="mode",required=True)
+    read=sub.add_parser("readback")
+    read.add_argument("work",type=Path)
+    run=sub.add_parser("run")
+    for name in ("capture","roster","repo_lib","gbs_lib","stager_lib","thumb_lib","scan_lib","bundle_lib","forensics_lib"):
+        run.add_argument(name,type=Path)
+    run.add_argument("--package",action="append")
+    run.add_argument("--hook",type=Path)
+    run.add_argument("--hook-sha")
+    run.add_argument("--gcc-text-csv",type=Path)
+    run.add_argument("--source-rpms",type=Path,help="TSV with srpm, path and sha256 for published sources lacking VCS")
+    run.add_argument("--priority-c-only", action="store_true")
+    args=parser.parse_args()
+    if args.mode=="readback":
+        readback(args.work)
+        return
+    gbs=SimpleNamespace(**runpy.run_path(str(args.gbs_lib)))
+    lib=runpy.run_path(str(args.repo_lib))
+    stager=runpy.run_path(str(args.stager_lib))
+    thumb=runpy.run_path(str(args.thumb_lib))
+    scan=runpy.run_path(str(args.scan_lib))
+    bundle=runpy.run_path(str(args.bundle_lib))
+    forensics=runpy.run_path(str(args.forensics_lib))
+    if bool(args.hook)!=bool(args.hook_sha):
+        parser.error("--hook and --hook-sha must be specified together")
+    with bundle["locks"]():
+        product,buildconf,inventory=capture_identity(args.capture)
+        gbs.live_product(product)
+        shelf=gbs.pinned(gbs.ROOT/"manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt",SHELVES)
+        config=gbs.pinned(gbs.ROOT/"config/gbs_vd_llvm_11.16_qb37627297.conf",stager["CONFIG"]).read_bytes()
+        rows=rows_from(args.roster)
+        if args.package and not set(args.package)<={row["doc_source"] for row in rows}:
+            raise ValueError("unknown source name in --package")
+        work=Path(tempfile.mkdtemp(prefix="pm0010-olevel.",dir=TEMP))
+        os.environ["TMPDIR"]=str(work)
+        print("WORKDIR",work,flush=True)
+        gcc=historical_gcc(args.gcc_text_csv)
+        hook=parse_hook(args.hook,args.hook_sha)
+        if hook is None:
+            print("NOV11_HOOK_UNVERIFIED A/B enabled, C held",flush=True)
+        state={"phase":"RUNNING","started_utc":datetime.now(timezone.utc).isoformat(),"packages":[],"product":product,"gcc":gcc,
+               "buildconf_sha256":CONFIG,"shelves_sha256":SHELVES,"hook":hook,"hook_sha256":args.hook_sha}
+        def write():
+            write_json(work/"progress.json",state)
+        selected=[row for row in rows if not args.package or row["doc_source"] in args.package]
+        selected.sort(key=lambda row:(row["doc_source"] not in PRIORITY,int(row["rank"])))
+        state["packages"]=[{"name":row["doc_source"],"image":[row["code_kib"],row["a32_kib"]],
+                            "lanes":{},"error":{},"status":["QUEUED"]} for row in selected]
+        write()
+        repodir=WORKSPACE/"temp/pm0004-mlgo-xllvtyr9/official"
+        base_repo=lib["PREFIX"]+BASE+"/repos/base/armv7l/packages/"
+        baserows=forensics["xml_metadata"](lib,(repodir/"armv7l-repomd.xml").read_bytes(),
+                                           (repodir/"armv7l-primary.download").read_bytes(),base_repo)
+        base=[{"name":r["name"],"arch":r["arch"],"srpm":r["srpm"] or "","vcs":r["vcs"],
+               "sha256":r["sha"],"url":r["url"]} for r in baserows]
+        source_inputs={row["srpm"]:row for row in rows_from(native_path(args.source_rpms))} if args.source_rpms else {}
+        settings={"shelves":shelf,"gbs_conf":(config,product),"buildconf":buildconf,"hook":hook,
+                  "source_inputs":source_inputs}
+        for (row,matches),record in zip(plans(selected,inventory,base),state["packages"]):
+            name=row["doc_source"]
+            record["status"].clear()
+            write()
+            if row["status"]!="SHIPPED":
+                record["status"].append(row["status"])
+                write()
+                continue
+            try:
+                if not re.fullmatch("[A-Za-z0-9_.+-]+",name):
+                    raise ValueError("invalid doc source name")
+                folder=work/name
+                folder.mkdir()
+                gbs.available(folder,24,12)
+                with (folder/"source-and-run.log").open("w") as output,redirect_stdout(output):
+                    run_package(gbs,lib,stager,thumb,scan,args,settings,row,matches,record,folder,state,write)
+            except (OSError,ValueError,subprocess.SubprocessError) as exc:
+                record["error"]["setup"]=" ".join(str(exc).splitlines())[:360]
+                write()
+        state["phase"]="FINISHED"
+        write()
+        print("O_FINISHED",work, "take readback with the same pinned launcher",flush=True)
+
+
+if __name__=="__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError,ValueError,KeyError,subprocess.SubprocessError,ET.ParseError) as error:
+        raise SystemExit("O_BLOCKED "+" ".join(str(error).splitlines())[:500])

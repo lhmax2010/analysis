@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""Check published config and operator-retained submitted lists for a matched QB pair."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+import xml.etree.ElementTree as ET
+
+WORKSPACE=Path("/home1/chengkai/vd-tree/workspace")
+BUILD_CONF="98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
+SHELVES="c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736"
+BASE_LIST="bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3"
+
+
+def check_file(path, want):
+    path=path.resolve(strict=True)
+    if not path.is_relative_to(WORKSPACE.parent):
+        raise ValueError("input outside vd-tree")
+    data=path.read_bytes()
+    actual=hashlib.sha256(data).hexdigest()
+    print("QB_PAIR_FILE",path,actual,actual==want)
+    if actual!=want:
+        raise ValueError("wrong hash for "+str(path))
+    return data
+
+
+def verify(folder, stamp):
+    folder=folder.resolve(strict=True)
+    if folder.parent!=WORKSPACE/"qb-evidence":
+        raise ValueError("capture not under workspace/qb-evidence")
+    identity=json.loads((folder/"identity.json").read_text())
+    xml=ET.fromstring(check_file(folder/"build.xml",identity["files"]["build.xml"]))
+    if not xml.findtext("buildconf_version","").endswith("TIZEN_KantSU2E_Clang_build.conf@14452507"):
+        raise ValueError("published build.conf revision did not match")
+    if not xml.findtext("base_repo","").endswith("_"+stamp+"/"):
+        raise ValueError("published Base did not match")
+    check_file(folder/"published-build.conf",BUILD_CONF)
+    label=identity["qb_id_operator_supplied"]
+    if not re.fullmatch(r"[0-9]{8}",label) or not folder.name.startswith(label+"-"):
+        raise ValueError("QB ID does not match retained directory")
+    print("QB_PAIR_PUBLISHED",label,xml.findtext("id"),stamp)
+    return label
+
+
+def main():
+    a=argparse.ArgumentParser(description=__doc__)
+    for name in ("official","custom","official_shelves","custom_shelves","official_base_list","custom_base_list"):
+        a.add_argument(name,type=Path)
+    args=a.parse_args()
+    first=verify(args.official,"20261113.1")
+    second=verify(args.custom,"20261118.1")
+    if first==second:
+        raise ValueError("the two QB IDs must differ")
+    for path in (args.official_shelves,args.custom_shelves):
+        check_file(path,SHELVES)
+    for path in (args.official_base_list,args.custom_base_list):
+        check_file(path,BASE_LIST)
+    print("QB_PAIR_CONFIG_GATE_PASS submitted list copies and published config match; compare effective Product sources separately")
+
+
+if __name__=="__main__":
+    try:
+        main()
+    except (OSError,ValueError,KeyError,ET.ParseError) as exc:
+        raise SystemExit("QB_PAIR_BLOCKED "+str(exc)[:450])

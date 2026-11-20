@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Run on the native host, with a verified r0010 tools directory.
+set -euo pipefail
+tools=$(realpath -e -- "${1:?tools directory}")
+serial=${2:?TV SDB serial}
+action=${3:?stage, identity, processes, boot, micro, playback or summary}
+shift 3
+case "$action" in stage|identity|processes|boot|micro|playback|memory|top-mappings|summary) ;; *) exit 2;; esac
+case "$tools" in /home1/chengkai/vd-tree/workspace/temp/pm0010-board.*) ;; *) exit 2;; esac
+[[ "$tools" != *[!a-zA-Z0-9_./-]* ]] && [[ "$serial" =~ ^[a-zA-Z0-9_.:-]+$ ]]
+board=/root/llvm-pm/pm0010-mlgo
+export TMPDIR="$tools"
+log=$(mktemp "$tools/$action.XXXXXX")
+printf 'NATIVE_LOG %s\n' "$log"
+
+remote() {
+    local command=$1 status
+    # SDB implementations vary in forwarding the remote process exit status.
+    sdb -s "$serial" shell "( $command ); rc=\$?; printf '\\nPM0010_REMOTE_EXIT %s\\n' \"\$rc\" " >"$log" 2>&1 || {
+        tail -35 "$log"
+        return 2
+    }
+    if [[ $action == summary ]]; then
+        tr -d '\r' <"$log" | awk '!/^MEM_/ { if (++rows<=160) print }'
+        tr -d '\r' <"$log" | awk '/^MEM_/ { n++ } END {print "MEM_LINES_RETAINED",n+0}'
+    else
+        sed -n '1,240p' "$log" | tr -d '\r'
+    fi
+    status=$(tr -d '\r' <"$log" | awk '/^PM0010_REMOTE_EXIT [0-9]+$/ { status=$2 } END {print status}')
+    [[ "$status" == 0 ]]
+}
+
+stage_file() {
+    local input=$1 dest=$2 expected actual
+    expected=$(sha256sum "$input")
+    sdb -s "$serial" push "$input" "$board/$dest" >>"$log" 2>&1 || {
+        tail -35 "$log"
+        return 2
+    }
+    actual=$(sdb -s "$serial" shell "sha256sum $board/$dest" | tr -d '\r')
+    if [[ "${actual%% *}" != "${expected%% *}" ]]; then
+        printf 'BOARD_HASH_MISMATCH %s\n' "$dest"
+        return 2
+    fi
+    printf 'BOARD_SHA256 %s %s\n' "$dest" "${expected%% *}"
+}
+
+number() { [[ "$1" =~ ^[0-9]+$ ]]; }
+lane() { [[ "$1" == official || "$1" == custom ]]; }
+
+case "$action" in
+  stage)
+    [[ "$#" == 0 ]]
+    (cd "$tools" && sha256sum -c inputs.sha256)
+    [[ -f "$tools/microbench" && -f "$tools/microbench.sha256" ]]
+    (cd "$tools" && sha256sum -c microbench.sha256)
+    remote "mkdir -p $board"
+    stage_file "$tools/mlgo-tv-identity.sh.txt" identity.sh
+    stage_file "$tools/mlgo-tv-measure.sh.txt" measure.sh
+    stage_file "$tools/microbench" microbench
+    remote "chmod 700 $board/identity.sh $board/measure.sh $board/microbench"
+    printf 'BOARD_STAGED %s %s\n' "$serial" "$board"
+    ;;
+  identity)
+    [[ "$#" == 0 ]]
+    remote "sh $board/identity.sh"
+    ;;
+  processes)
+    [[ "$#" -le 1 ]]
+    filter=${1:-home|player|media|mmfw|gstreamer|argot}
+    [[ "$filter" =~ ^[a-zA-Z0-9_.\|+-]+$ ]]
+    remote "ps -eo pid,comm | grep -Ei '$filter'"
+    ;;
+  boot)
+    [[ "$#" == 3 ]] && lane "$1" && [[ "$2" =~ ^[1-5]$ ]] && number "$3"
+    remote "sh $board/measure.sh boot $1 $2 $3"
+    ;;
+  micro)
+    [[ "$#" == 2 ]] && lane "$1" && number "$2"
+    remote "sh $board/measure.sh micro $1 $2"
+    ;;
+  playback)
+    [[ "$#" -ge 7 && "$#" -le 18 ]] && lane "$1" && [[ "$2" =~ ^[1-3]$ ]] && number "$3"
+    for counter in "${@:4:3}"; do
+        [[ "$counter" == NA || "$counter" =~ ^/(sys|proc|run|root)/[a-zA-Z0-9_./:-]+$ ]]
+    done
+    for pid in "${@:7}"; do number "$pid"; done
+    remote "sh $board/measure.sh playback $*"
+    ;;
+  memory)
+    [[ "$#" == 2 ]] && lane "$1" && [[ "$2" =~ ^[1-3]$ ]]
+    remote "sh $board/measure.sh memory $*"
+    ;;
+  top-mappings)
+    [[ "$#" -ge 2 && "$#" -le 13 ]] && lane "$1"
+    for pid in "${@:2}"; do number "$pid"; done
+    remote "sh $board/measure.sh top-mappings $*"
+    ;;
+  summary)
+    [[ "$#" == 1 ]] && lane "$1"
+    remote "sh $board/measure.sh summary $1"
+    ;;
+  *) echo "Unknown action"; exit 2;;
+esac

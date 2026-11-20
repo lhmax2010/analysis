@@ -1,0 +1,35 @@
+rank	doc_source	repository	status	source_rpms	binary_rpms	code_kib	a32_kib	readback_note
+1	org.tizen.AVControl	Product	SHIPPED	org.tizen.AVControl-0.2.0-1.src.rpm	org.tizen.AVControl	723	723	—
+2	org.tizen.tv-viewer	Product	SHIPPED	org.tizen.tv-viewer-0.3.8-1.src.rpm	org.tizen.tv-viewer,org.tizen.tv-viewer-theme-resource	4918	4796	theme-resource binary RPM is installed; the readback has no loadable ELF for it
+3	org.tizen.webappservice	Product	SHIPPED	org.tizen.webappservice-0.1-1.src.rpm	org.tizen.webappservice	6571	40	prefix hit org.tizen.webappservice-api has source org.tizen.webappservice-api-0.1-1.src.rpm
+4	libpisa-ipc	Product	SHIPPED	libpisa-ipc-2.10.11-1.src.rpm	libpisa-ipc	894	894	—
+5	machine-learning-api	Product	NOT_SHIPPED					—
+6	nnstreamer	Product	SHIPPED	nnstreamer-2.4.4-0.src.rpm	nnstreamer,nnstreamer-core,nnstreamer-default-configuration,nnstreamer-flatbuf,nnstreamer-misc,nnstreamer-single,nnstreamer-tensorflow2-lite,nnstreamer-tizen-sensor	6523	6235	—
+7	rpm	Base	SHIPPED	rpm-4.14.1.1-1.65.src.rpm	rpm,rpm-security-plugin	2791	2784	—
+8	source-service	Product	SHIPPED	source-service-1.23.1004-1.src.rpm	source-service	193	6	—
+9	vulkan-utility-libraries	Product	NOT_SHIPPED					—
+10	vulkan-validation-layers	Product	NOT_SHIPPED					—
+11	org.tizen.webserver	Product	SHIPPED	org.tizen.webserver-0.4-1.src.rpm	org.tizen.webserver,org.tizen.webserver_popup	1596	1595	—
+12	libiri	Base	SHIPPED	libiri-1.1-1.18.src.rpm	libiri	3	0	—
+13	libgcrypt	Base	SHIPPED	libgcrypt-1.11.0-1.18.src.rpm	libgcrypt	648	647	—
+14	mmi	Product	NOT_SHIPPED					—
+15	mmi-plugins-default	Product	NOT_SHIPPED					—
+16	org.tizen.rct-app	Product	NOT_SHIPPED					—
+17	org.tizen.reminder	Product	SHIPPED	org.tizen.reminder-0.2-1.src.rpm	org.tizen.reminder	12	1	—
+18	rct-service	Product	NOT_SHIPPED					—
+19	reminder-api	Product	SHIPPED	reminder-api-0.2-1.src.rpm	reminder-api	133	5	—
+20	reminder-service	Product	SHIPPED	reminder-service-0.2-1.src.rpm	reminder-service	44	2	—
+21	tvs-api	Product	SHIPPED	tvs-api-0.5.18-1.src.rpm	tvs-api,tvs-api-ipc	701	8	prefix hit tvs-api-lite has source tvs-api-lite-0.5.18-1.src.rpm
+22	tvs-api-native	Product	SHIPPED	tvs-api-native-0.4.0-1.src.rpm	tvs-api-native	608	17	—
+23	tvs-chms	Product	SHIPPED	tvs-chms-0.2.0-1.src.rpm	tvs-chms	226	7	—
+24	tvs-core	Product	ALIAS_REVIEW					Doc 05 alias candidate libtvs-core; exact spec mapping under review
+25	tvs-dbms	Product	SHIPPED	tvs-dbms-0.2.2-1.src.rpm	tvs-dbms	101	3	—
+26	tvs-dvb-chms	Product	SHIPPED	tvs-dvb-chms-0.2.0-1.src.rpm	tvs-dvb-chms	54	2	—
+27	tvs-dvbbase-chms	Product	SHIPPED	tvs-dvbbase-chms-0.2.0-1.src.rpm	tvs-dvbbase-chms	24	1	—
+28	tvs-ewbs	Product	SHIPPED	tvs-ewbs-0.1-1.src.rpm	tvs-ewbs	61	2	—
+29	tvs-ht	Product	SHIPPED	tvs-ht-0.1.1-1.src.rpm	tvs-ht	240	8	—
+30	tvs-iss	Product	SHIPPED	tvs-iss-0.3.1-1.src.rpm	tvs-iss	417	9	—
+31	tvs-list-app	Product	NOT_SHIPPED					—
+32	tvs-nrt	Product	SHIPPED	tvs-nrt-0.4.1-1.src.rpm	tvs-nrt	69	3	—
+33	tvs-util	Product	SHIPPED	tvs-util-0.1.1-1.src.rpm	tvs-util	384	11	—
+34	ug_rct	Product	NOT_SHIPPED					Doc 05 alias candidate ug-rct; exact spec mapping under review

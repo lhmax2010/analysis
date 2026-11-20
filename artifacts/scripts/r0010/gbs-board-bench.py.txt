@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Build the fixed target benchmark in an isolated GBS root and verify its ARM ELF."""
+import argparse
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import runpy
+import subprocess
+import tempfile
+from types import SimpleNamespace
+
+
+SPEC = """Name: pm-board-microbench
+Version: 1
+Release: 1
+Summary: KantSU2E measurement benchmark
+License: MIT
+BuildRequires: clang
+BuildRequires: glibc-devel
+
+%description
+Fixed target measurement benchmark.
+
+%prep
+%build
+printf 'PM_BENCH_COMPILER %%s\n' "$(command -v armv7l-tizen-linux-gnueabi-clang)"
+armv7l-tizen-linux-gnueabi-clang -O2 -static -std=c11 -Wall -Wextra -Werror bench.c -o microbench
+%install
+mkdir -p %{buildroot}/usr/bin
+install -m 0755 microbench %{buildroot}/usr/bin/pm-board-microbench
+%files
+/usr/bin/pm-board-microbench
+"""
+
+
+def main():
+    a=argparse.ArgumentParser(description=__doc__)
+    for arg in ("tools","capture","c_source","olevel","gbs_lib","stager_lib","thumb_lib","scan_lib","bundle_lib"):
+        a.add_argument(arg,type=Path)
+    args=a.parse_args()
+    o=runpy.run_path(str(args.olevel))
+    tools=o["native_path"](args.tools)
+    if not tools.name.startswith("pm0010-board.") or tools.parent!=o["TEMP"]:
+        raise ValueError("expected a round 0010 board tools directory")
+    if (tools/"microbench").exists() or (tools/"microbench.sha256").exists():
+        raise ValueError("existing benchmark; use the staged hashes or prepare a new directory")
+    gbs=SimpleNamespace(**runpy.run_path(str(args.gbs_lib)))
+    thumb=runpy.run_path(str(args.thumb_lib))
+    stager=runpy.run_path(str(args.stager_lib))
+    sc=runpy.run_path(str(args.scan_lib))
+    bundle=runpy.run_path(str(args.bundle_lib))
+    with bundle["locks"]():
+        product,buildconf,_=o["capture_identity"](args.capture)
+        gbs.live_product(product)
+        work=Path(tempfile.mkdtemp(prefix="pm0010-gbs-board-bench.",dir=gbs.NATIVE))
+        os.environ["TMPDIR"]=str(work)
+        gbs.available(work,24,12)
+        print("GBS_BENCH_WORKDIR",work,flush=True)
+        project=work/"source"
+        package=project/"packaging"
+        package.mkdir(parents=True)
+        (package/"pm-board-microbench.spec").write_text(SPEC)
+        (project/"bench.c").write_bytes(args.c_source.read_bytes())
+        gbs.local_git(project,work)
+        root=work/"GBS-ROOT"
+        data=gbs.pinned(gbs.ROOT/"config/gbs_vd_llvm_11.16_qb37627297.conf",stager["CONFIG"]).read_bytes()
+        config=work/"gbs.conf"
+        config.write_bytes(o["configure_gbs"](gbs,data,root,product))
+        thumb["run_gbs"](gbs,work,project,"pm-board-microbench.spec",config,buildconf,root,True,False)
+        candidates=[p for p in (root/"local/repos").rglob("pm-board-microbench-1-*.armv7l.rpm")
+                    if o["rpm_query"](p,"%{NAME}")=="pm-board-microbench"]
+        (rpm,)=candidates
+        proc=subprocess.run(["rpm2cpio",str(rpm)],capture_output=True,timeout=60,check=True)
+        (elf,)=[blob for name,blob in sc["cpio_entries"](io.BytesIO(proc.stdout)) if name=="/usr/bin/pm-board-microbench"]
+        result=sc["classify"](elf)
+        if result is None or result["kind"] not in ("EXEC","DYN"):
+            raise ValueError("GBS benchmark is not an ARM32 loadable ELF")
+        path=tools/"microbench"
+        with path.open("xb") as f:
+            f.write(elf)
+        digest=hashlib.sha256(elf).hexdigest()
+        (tools/"microbench.sha256").write_text(digest+"  microbench\n")
+        receipt={"gbs_log":str(work/"gbs.log"),"rpm":str(rpm),"rpm_sha256":o["file_hash"](rpm),
+                 "source_sha256":o["file_hash"](args.c_source),"microbench_sha256":digest}
+        (tools/"microbench-provenance.json").write_text(json.dumps(receipt,indent=2)+"\n")
+        print("GBS_BENCH_READY",path,digest)
+
+
+if __name__=="__main__":
+    try:
+        main()
+    except (OSError,ValueError,KeyError,subprocess.SubprocessError) as error:
+        raise SystemExit("GBS_BENCH_BLOCKED "+" ".join(str(error).splitlines())[:500])
