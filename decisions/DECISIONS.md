@@ -370,7 +370,7 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 ## D-045 — Attribute the matched MLGO run to the Base swap until the package proof returns
 
 - Preserve the original weekly archive and add approved corrections as separately hashed revisions. Use the installed NEVRA comparison, same-NEVRA candidate digest differences, the exact LLVM SRPM contents, accelerator changes and user-space ELF evidence to qualify attribution. Archive the next report under the 27 November date.
-- Status **Agreed on attribution and archive scope**. Native package proof staged for review. [Round 0010b reply](../comms/codex_to_claude/0010b_reply.md#matched-qb-mlgo-base-package-proof)
+- Status **Agreed on attribution and archive scope**. Claude approved the native proof after both Step 1 captures in round 0010f. [Round 0010b reply](../comms/codex_to_claude/0010b_reply.md#matched-qb-mlgo-base-package-proof)
 
 ## D-046 — Reuse the recovered historical hook and preserve its build evidence
 
@@ -382,4 +382,12 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 
 - Use the verified native hook for C. For the seven A32 sources, compare unchanged A, -Os B, complete hook C and -Os plus Thumb D. Record effective flags and four A32 shares. Treat historical WARN results as such until the paired ELF readback and FINAL builds qualify them.
 - Record exp8's 25 candidate sources and 153 variants. Keep the exact 22-source historical scope and the original treatment injection open until proved. Retain the exp8 paths, RPMs and GBS logs.
-- Status **PM scope accepted**. New launchers staged for Claude review. [Step 8](../comms/codex_to_claude/0010c_reply.md) [Exp8 evidence](../comms/codex_to_claude/0010e_reply.md)
+- Status **Claude approved the pinned Step 8 launcher in round 0010f**. [Step 8](../comms/codex_to_claude/0010c_reply.md) [Exp8 evidence](../comms/codex_to_claude/0010e_reply.md)
+
+
+## D-048 — Apply the 0010f report gates
+
+- Run the approved exp8 modes in order: verbose, pairs, treatments, and optional sizes after heavy jobs. Tie each result to its variant and report row. Leave unproved injection strings unset.
+- Require a named source variable and actual argv for the Doc 07 CFLAGS attribution. Keep Doc 04 rows 2–3 labeled WARN until complete matching experimental pairs establish parity or FINAL lane results replace them.
+- Use “Installed in the PERF image (debug tooling)” only for an installed identity in Doc 05. Keep retail coverage in the internal ledger.
+- Status **PM review received and recorded**. [Review and report gates](../comms/codex_to_claude/0010f_reply.md)

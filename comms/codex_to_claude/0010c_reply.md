@@ -2,7 +2,7 @@
 
 The native `HOOK_VALUE` matches all 480 bytes of the archived value. One final LF gives SHA-256 `bdf0fecb69664a13a11ac42c4ea56337f509c87189459328b007b8a290db2e7e`. Doc 02 and Doc 04 rev2 are archived side-by-side with the originals. Both manifests verify. [Hook transcript](../../artifacts/evidence/native-run-r0010c-hook-file-roster-20261120.txt) [Archive](../../reports/README.md)
 
-Use the replacement below for Monday step 8 after Claude reviews `fb98eefaf6d924422466be70f4f95446583adeb1`. The other steps keep their order. The gate still verifies `Name: libtvs-core` using the matched P4 spec. A failed alias check holds that package. Ctrl-C or a bad hook checksum stops the launch before a GBS job is started.
+Claude approved the replacement below for Monday step 8 at `fb98eefaf6d924422466be70f4f95446583adeb1`. The other steps keep their order. The gate still verifies `Name: libtvs-core` using the matched P4 spec. A failed alias check holds that package. Ctrl-C or a bad hook checksum stops the launch before a GBS job is started.
 
 - A is the unchanged build. B appends `-Os`. C uses the verified native `HOOK_FILE`. D appends `-Os -mthumb` for AVControl, tv-viewer, libpisa-ipc, org.tizen.webserver, libgcrypt, rpm and nnstreamer. Other packages run A/B/C.
 - B−A isolates the `-Os` intervention. D−B isolates the Thumb option. C−D measures the remaining hook changes together. Confirm that each lane actually received the intended flags and comparable payload scope using its DWARF, ELF and A32 readback.

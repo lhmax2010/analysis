@@ -42,7 +42,7 @@ The JSON records each package set and the observed tokens. When the original inj
 
 ## Native readback for verbose logs, WARN/FINAL and per-variant sizes
 
-After review, use this one launcher with `EXP8_MODE=verbose` (default) first, then `treatments`, `pairs`, or `sizes`. `pairs` compares AVControl and libpisa-ipc `forceL` against `final2` at each matched ELF path. It reports both `.text` SHA-256 and full ELF SHA-256 and checks the RPM-owner/source and ELF sets. Doc 04 rows 2–3 stay labeled WARN history until this result. Matching pairs would support using the figures as historical proxies for C. A measured FINAL rebuild is the direct check for tv-viewer and webappservice.
+Claude approved this launcher in 0010f. Run the same command in this order: `verbose`, `pairs`, `treatments`, then optional `sizes` after the heavy jobs. [Result gates](0010f_reply.md#exp8-execution-and-report-links) `pairs` compares AVControl and libpisa-ipc `forceL` against `final2` at each matched ELF path. It reports both `.text` SHA-256 and full ELF SHA-256 and checks the RPM-owner/source and ELF sets. Doc 04 rows 2–3 stay labeled WARN history until this result. Matching pairs would support using the figures as historical proxies for C. A measured FINAL rebuild is the direct check for tv-viewer and webappservice.
 
 `sizes` also sums `.text` and SHF_ALLOC bytes per retained ARM payload variant. Those totals cover the retained release RPMs and include alloc sections such as NOBITS. The original report numbers require its exact image file list and byte units. The readback flags errors and missing coverage and keeps the raw path-level details for the selected pair. No compile or installation.
 

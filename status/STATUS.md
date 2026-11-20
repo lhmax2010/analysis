@@ -1,5 +1,11 @@
-# Status — 2026-11-20, round 0010e
+# Status — 2026-11-20, round 0010f
 
+
+## Round 0010f
+
+- Claude accepted the 0010b–0010e commits and the pinned Step 8 and MLGO Base proof commands. Run the proof after both Step 1 captures. Doc 02 keeps Base-swap attribution until evidence supports a narrower claim.
+- Use exp8 verbose, pairs and treatments in that order. Sizes is optional after heavy jobs. Doc 07 source attribution, Doc 04 rows 2–3 and the R2–R6 injection values stay pending those returns.
+- Doc 05 row 18 is verified on PERF. Row 17 awaits a matching installed identity for mic-bootstrap. Retail coverage stays an internal evidence gap. [Approved run order and report gates](../comms/codex_to_claude/0010f_reply.md)
 
 ## Rounds 0010c–0010e
 
@@ -8,7 +14,7 @@
 
 ## Round 0010b
 
-- Claude accepted round 0010 at 18e939a, verified its launcher pins and kept Monday steps 1–10 in order. The new launcher changes await Claude review.
+- Claude accepted round 0010 at 18e939a, verified its launcher pins and kept Monday steps 1–10 in order. Round 0010f records Claude’s acceptance of these pins.
 - The original 20 November archive still verifies. Doc 02 rev2 records Base-swap attribution and has its own manifest. A compact proof for the matched captures is staged. The native SRPM/digest comparison and board A/B are pending.
 - Lane C has the recovered expanded 11 November hook. It includes the Thumb and hardening flags. R1–R7 remains gated by the exact 22-source roster. Preserve the z901 experimental directories and GBS logs. Step 8 checks the tvs-core alias against the pinned P4 spec.
 - The retained A32 cohort has seven DWARF-supported -marm rows and five Bluetooth candidates without matching -marm evidence. Crosswalk samples are pinned for two GBS captures. The exact rank 1–211 readback and retail-roster evidence remain open. [Round 0010b reply](../comms/codex_to_claude/0010b_reply.md)

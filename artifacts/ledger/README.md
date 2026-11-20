@@ -22,3 +22,13 @@ Run the marker stage described in [reply 0002](../../comms/codex_to_claude/0002_
 - rpm-payload-plan: [01](rpm-payload-plan.csv), [02](rpm-payload-plan-part-02.csv), [03](rpm-payload-plan-part-03.csv), [04](rpm-payload-plan-part-04.csv), [05](rpm-payload-plan-part-05.csv), [06](rpm-payload-plan-part-06.csv), [07](rpm-payload-plan-part-07.csv), [08](rpm-payload-plan-part-08.csv)
 
 - [QuickBuild 37627297 export launcher](qb37627297-export.sh.txt)
+
+
+## Doc 05 — PERF installation evidence
+
+| Doc 05 row | Package | Evidence for the retained PERF image | Retail |
+|---|---|---|---|
+| 17 | mic-bootstrap | Historical repository ELF evidence. No binary name or SOURCERPM match in the 2,342 installed identities. Positive PERF wording awaits a matching installed identity. | Unverified |
+| 18 | sys-tools | Installed as sys-tools-0-0.armv7l. | Unverified |
+
+The HQ wording for a verified installation is “Installed in the PERF image (debug tooling)”. [Installed record](installed-rpms-20261117-part-06.csv#L314) [Historical repository scan](../historical-reports/hq-compiler-options-lto.md#L185) [Round 0010f](../../comms/codex_to_claude/0010f_reply.md#doc-05-rows-1718)
