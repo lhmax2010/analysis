@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""Compare frozen shipped ELF pairs; optionally run abidiff in retained GBS."""
+import argparse
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+
+WORKSPACE=Path("/home1/chengkai/vd-tree/workspace")
+TARGETS={"liballshare-core","nagsam-mw","org.tizen.tv.swu","ug-hbbtv-efl"}
+
+
+def hash_file(path):
+    sha=hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda:stream.read(1024**2),b""):
+            sha.update(chunk)
+    return sha.hexdigest()
+
+
+def checked(path, sha):
+    p=Path(path)
+    resolved=p.resolve(strict=True)
+    if not resolved.is_relative_to(WORKSPACE) or p.is_symlink() or not p.is_file():
+        raise ValueError("expected retained payload in workspace: "+path)
+    if hash_file(p)!=sha:
+        raise ValueError("payload hash mismatch: "+path)
+    return p
+
+
+def readelf(path,*flags):
+    return subprocess.check_output(["readelf",*flags,str(path)],text=True,errors="replace",timeout=60)
+
+
+def metadata(path):
+    symbols=set()
+    for line in readelf(path,"-W","--dyn-syms").splitlines():
+        fields=line.split()
+        if len(fields)>=8 and fields[0].endswith(":") and fields[6]!="UND" and fields[4] in {"GLOBAL","WEAK","UNIQUE"}:
+            # Include binding/type/visibility and symbol version in the export identity.
+            symbols.add((fields[3],fields[4],fields[5],fields[7]))
+    dyn=readelf(path,"-Wd")
+    return {"exports":symbols,
+            "soname":re.findall(r"\(SONAME\).*\[(.*?)\]",dyn),
+            "needed":re.findall(r"\(NEEDED\).*\[(.*?)\]",dyn),
+            "versions":sorted(set(re.findall(r"\bName:\s+(\S+)",readelf(path,"-WV"))))}
+
+
+def build_id(path):
+    values=set(re.findall(r"Build ID:\s+([a-f0-9]+)",readelf(path,"-Wn")))
+    return next(iter(values)) if len(values)==1 else None
+
+
+def compare(left,right):
+    a,b=metadata(left),metadata(right)
+    result={"removed":sorted(a["exports"]-b["exports"]),"added":sorted(b["exports"]-a["exports"])}
+    for key in ("soname","needed","versions"):
+        result[key]=[a[key],b[key]] if a[key]!=b[key] else []
+    return result
+
+
+def abidiff(pair,row,root,work,index):
+    if root is None:
+        return "GBS_ABIDIFF_NOT_REQUESTED"
+    exe=root/"usr/bin/abidiff"
+    if not exe.is_file():
+        return "GBS_ABIDIFF_MISSING"
+    debug=[]
+    for name,elf in zip(("gcc","llvm"),pair):
+        if not row.get(name+"_debug"):
+            return "DEBUGINFO_UNAVAILABLE"
+        data=checked(row[name+"_debug"],row[name+"_debug_sha256"])
+        identity=build_id(elf)
+        if not identity or identity!=build_id(data):
+            return "DEBUGINFO_BUILD_ID_MISMATCH"
+        debug.append((identity,data))
+    scratch=(root/"tmp").resolve(strict=True)
+    if not scratch.is_relative_to(root):
+        raise ValueError("GBS /tmp leaves the build root")
+    with tempfile.TemporaryDirectory(prefix="pm0010-abidiff.",dir=scratch) as run:
+        staged=Path(run)
+        staged.chmod(0o755)
+        for lane, elf, (identity, detached) in zip(("gcc","llvm"),pair,debug):
+            binary=staged/(lane+".elf")
+            info=staged/lane/".build-id"/identity[:2]/(identity[2:]+".debug")
+            info.parent.mkdir(parents=True)
+            for src,dst in ((elf,binary),(detached,info)):
+                shutil.copyfile(src,dst)
+                dst.chmod(0o644)
+        local="/"+str(staged.relative_to(root))
+        log=work/f"abidiff-{index}.log"
+        command=["sudo","-n","chroot",str(root),"/usr/bin/env","ABIGAIL_THREAD_POOL_SIZE=2",
+                 "/usr/bin/abidiff","--debug-info-dir1",local+"/gcc","--debug-info-dir2",local+"/llvm",
+                 local+"/gcc.elf",local+"/llvm.elf"]
+        with log.open("w") as stream:
+            code=subprocess.run(command,stdout=stream,stderr=subprocess.STDOUT,timeout=600).returncode
+        return f"ABIDIFF_EXIT_{code}"
+
+
+def main():
+    ap=argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("pairs",type=Path,help="TSV package/path/gcc/llvm SHA-verified inputs")
+    ap.add_argument("--gbs-root",type=Path)
+    args=ap.parse_args()
+    pairs=args.pairs.resolve(strict=True)
+    if not pairs.is_relative_to(WORKSPACE):
+        ap.error("pairs manifest must be in workspace")
+    root=args.gbs_root.resolve(strict=True) if args.gbs_root else None
+    if root and (not root.is_relative_to(WORKSPACE) or "GBS-ROOT" not in root.parts or not (root/"usr/bin").is_dir()):
+        ap.error("abidiff requires the retained GBS sandbox root")
+    rows=list(csv.DictReader(pairs.open(newline=""),delimiter="\t"))
+    if not rows or any(r["package"] not in TARGETS for r in rows):
+        ap.error("expected exact first-phase package pairs")
+    work=Path(tempfile.mkdtemp(prefix="pm0010-lto-abi.",dir=WORKSPACE/"temp"))
+    results=[]
+    for index,row in enumerate(rows,1):
+        path=row["path"]
+        rec={"package":row["package"],"path":path}
+        try:
+            pair=tuple(checked(row[lane],row[lane+"_sha256"]) for lane in ("gcc","llvm"))
+            rec.update(compare(*pair))
+            rec["abidiff"]=abidiff(pair,row,root,work,index)
+        except (OSError,ValueError,subprocess.SubprocessError) as exc:
+            rec.update(error=str(exc)[:350])
+        results.append(rec)
+    output=work/"abi-results.json"
+    output.write_text(json.dumps(results,indent=2)+"\n")
+    for row in results[:90]:
+        print("ABI",row["package"],row["path"],"removed/added",len(row.get("removed",[])),len(row.get("added",[])),
+              "changed_dynamic",sum(bool(row.get(k)) for k in ("soname","needed","versions")),
+              row.get("abidiff",row.get("error","")))
+        if row.get("removed"):
+            print("ABI_REMOVED_PREVIEW",json.dumps(row["removed"][:5]))
+    print("ABI_RESULT",len(results),hash_file(output),output)
+
+
+if __name__=="__main__":
+    main()
