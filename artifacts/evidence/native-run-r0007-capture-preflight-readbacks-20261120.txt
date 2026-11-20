@@ -1,0 +1,328 @@
+chengkai@risc-v-Alienware-Aurora-R16:src$ export CAPTURE=1
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0007-tools.XXXXXX")
+  export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1
+  get() {
+    local path=$1 pin=$2 sha=$3
+    local target="$d/${path##*/}"
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$target"
+    printf '%s  %s\n' "$sha" "$target" | sha256sum -c -
+  }
+  get 'artifacts/scripts/r0007/qb-retain.py.txt' 'adb0ba7ae9531169cc03c1a789d06b16ea9bd879' 'a2f8e7ef82b1c330e1d50239f07e3454c2440d1dff8d2773d950fddaf488c2fe'
+  get 'artifacts/scripts/r0005/image-repo-lib.py.txt' 'd3cea65aac76d438b82b55a2857a5ee18546edad' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'
+  url=${PRODUCT_URL:-http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/}
+  job=${QB_ID:-37654439}
+  python3 -B -u "$d/qb-retain.py.txt" "$d/image-repo-lib.py.txt" probe --product-url "$url"
+  if [[ "${CAPTURE:-0}" == 1 ]]; then
+    python3 -B -u "$d/qb-retain.py.txt" "$d/image-repo-lib.py.txt" capture "$job" "$url"
+  fi
+)
+unset CAPTURE
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.u1W34i/qb-retain.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.u1W34i/image-repo-lib.py.txt: OK
+HEAD 200 - http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/
+HEAD 200 4028 http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/repos/product/armv7l/packages/repodata/repomd.xml
+HEAD 200 1778887419 http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/images/T-KSU2EJAKUC-0101-PERF/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2_T-KSU2EJAKUC-0101-PERF.tar.gz
+CAPTURE_DIR /home1/chengkai/vd-tree/workspace/qb-evidence/37654439-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2
+CAPTURED 1778887419 a809c4fb597ac42ea0479e80bc6fa972e45a8a061ea64f0358dca6b988bf7d67 TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2_T-KSU2EJAKUC-0101-PERF.tar.gz
+CAPTURE_KERNEL_SELECTED 4
+CAPTURED 19160638 678423e0fafe83712e7ecd42c6329860d25de7b648c4e171f610127d20e94c8f 678423e0fafe8371-tztv-kernel-perf-1-1.armv7l.rpm
+CAPTURED 23711992 2cf2389fb1d7f8d0e42fd97366c184f558fa8ca60ba7b4e79197ed2c58fc3503 2cf2389fb1d7f8d0-tztv-kernel-1-1.armv7l.rpm
+CAPTURED 489337589 bf0e94ab9876a730a8077a53d1e78dcf17681e9534842c9a484bbd7b384cb2dc bf0e94ab9876a730-tztv-kernel-devel-1-1.armv7l.rpm
+CAPTURED 16121294 8ecc5c63d43cc69fe017ed7ab112464f122534956f1723fe1979cc3e9ec99bd0 8ecc5c63d43cc69f-tztv-kernel-release-1-1.armv7l.rpm
+BUILD_CONF TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2 0e352a449b343c796351a49bf6a49e94c65cdf9d107969680a606912b2a416e7
+CONFIG_REVIEW TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2 397 Preinstall: gcc-warning-build-env
+CONFIG_REVIEW TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2 398 RunScripts: gcc-warning-build-env
+CONFIG_REVIEW TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2 502 %gcc_warning_incompatible_pkgs -
+CONFIG_REVIEW_COUNT TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2 3
+CAPTURE_LEDGER 5880 KERNEL_RPMS 4 191102988f2a10760aef4a7f9f825b1dc999c8e00d47b7ac9dc68e4f51a199d8 /home1/chengkai/vd-tree/workspace/qb-evidence/37654439-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/identity.json
+CAPTURE_COMPLETE PERF_ARCHIVE_NOT_VALIDATED_AS_USB_IMAGE
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0007-tools.XXXXXX")
+  export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1
+  get() {
+    local path=$1 pin=$2 sha=$3
+    local target="$d/${path##*/}"
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$target"
+    printf '%s  %s\n' "$sha" "$target" | sha256sum -c -
+  }
+  get 'artifacts/scripts/r0007/qb-retain.py.txt' 'adb0ba7ae9531169cc03c1a789d06b16ea9bd879' 'a2f8e7ef82b1c330e1d50239f07e3454c2440d1dff8d2773d950fddaf488c2fe'
+  get 'artifacts/scripts/r0005/image-repo-lib.py.txt' 'd3cea65aac76d438b82b55a2857a5ee18546edad' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'
+  python3 -B -u "$d/qb-retain.py.txt" "$d/image-repo-lib.py.txt" preflight
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.3RPGkC/qb-retain.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.3RPGkC/image-repo-lib.py.txt: OK
+HEAD 200 3171 http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/armv7l/packages/repodata/repomd.xml
+HEAD 200 3171 http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/x86_64/packages/repodata/repomd.xml
+HEAD 200 3170 http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261118.1/repos/base/armv7l/packages/repodata/repomd.xml
+HEAD 200 3171 http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261118.1/repos/base/x86_64/packages/repodata/repomd.xml
+INPUT_PIN True c76e060a0cfcbfed72f292ec9d4e840d46a8ee795dde461297732f4561552ffe /home1/chengkai/vd-tree/config/gbs_vd_llvm_11.16_qb37627297.conf
+INPUT_PIN True 72a982165c14e8a1da251aebf509ac37bb817e08e8c911ed7dd7dabe64f7e322 /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf
+INPUT_PIN True 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf
+INPUT_PIN True bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3 /home1/chengkai/vd-tree/manifest/tizen10.0_base_urls_1114_noprelink.txt
+INPUT_PIN True c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736 /home1/chengkai/vd-tree/manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt
+--- gbs_vd_llvm_11.16_qb37627297.conf
+
++++ gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf
+
+@@ -2,11 +2,11 @@
+
+ profile = profile.qb1111
+
+ [repo.base_standard]
+-url=http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/
++url=http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261118.1/
+
+ [repo.product_NikeM]
+ url=http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/
+
+ [profile.qb1111]
+ repos = repo.product_NikeM, repo.base_standard
+-buildroot = /home1/chengkai/p4fix_build/gbs-root-qb37627297
++buildroot = /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/gbs-root
+GBS_DIFF_ONLY_BASE_RAW False
+GBS_DIFF_ONLY_BASE_AFTER_LOCAL_ROOT_NORMALIZATION True
+BUILD_CONF official-product 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03
+CONFIG_REVIEW official-product 397 Preinstall: gcc-warning-build-env
+CONFIG_REVIEW official-product 398 RunScripts: gcc-warning-build-env
+CONFIG_REVIEW official-product 502 %gcc_warning_incompatible_pkgs -
+CONFIG_REVIEW_COUNT official-product 3
+BUILD_CONF official-base b5e6d8e1e00833d2f89c91639d21fa31f675d7c1fe8e2c4e28a0aceb04333284
+CONFIG_REVIEW_COUNT official-base 0
+BUILD_CONF custom-base b5e6d8e1e00833d2f89c91639d21fa31f675d7c1fe8e2c4e28a0aceb04333284
+CONFIG_REVIEW_COUNT custom-base 0
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0007-tools.XXXXXX")
+  export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/adb0ba7ae9531169cc03c1a789d06b16ea9bd879/artifacts/scripts/r0007/native-build-readback.py.txt' -o "$d/nbr.py.txt"
+  printf '%s  %s\n' '89f2c2c067a8cfc17ffcbaff60e0e625dba3339266f0388cfde1cba8fdab4451' "$d/nbr.py.txt" | sha256sum -c -
+  python3 -B -u "$d/nbr.py.txt" "${BUILD_READBACK:-wrappers}"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.eSD9iz/nbr.py.txt: OK
+WRAPPER_FILE gcc 1684 cd4dd6659623589227c046decdd89009e141f01baa1b69c433a0b98662631639
+WRAPPER_LINE gcc #!/bin/sh
+WRAPPER_LINE gcc if echo " "$@"  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror" | grep -q -- "-fsanitize=undefined" && echo "$@" | grep -q "\.gch\>"; then
+WRAPPER_LINE gcc elif ! echo "$@" | grep -q -e __KERNEL__ -e \-nostdlib; then
+WRAPPER_LINE gcc $(readlink -f $0)-real   "$@"  -Wmissing-parameter-type -Wold-style-declaration -Wsign-compare -Woverride-init  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror
+WRAPPER_LINE gcc # -Wl,--tizen-no-force-options is used to tell collect2 to not add force
+WRAPPER_LINE gcc $(readlink -f $0)-real "$@" -Wl,--tizen-no-force-options
+WRAPPER_FILE armv7l-tizen-linux-gnueabi-gcc 1684 cd4dd6659623589227c046decdd89009e141f01baa1b69c433a0b98662631639
+WRAPPER_LINE armv7l-tizen-linux-gnueabi-gcc #!/bin/sh
+WRAPPER_LINE armv7l-tizen-linux-gnueabi-gcc if echo " "$@"  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror" | grep -q -- "-fsanitize=undefined" && echo "$@" | grep -q "\.gch\>"; then
+WRAPPER_LINE armv7l-tizen-linux-gnueabi-gcc elif ! echo "$@" | grep -q -e __KERNEL__ -e \-nostdlib; then
+WRAPPER_LINE armv7l-tizen-linux-gnueabi-gcc $(readlink -f $0)-real   "$@"  -Wmissing-parameter-type -Wold-style-declaration -Wsign-compare -Woverride-init  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror
+WRAPPER_LINE armv7l-tizen-linux-gnueabi-gcc # -Wl,--tizen-no-force-options is used to tell collect2 to not add force
+WRAPPER_LINE armv7l-tizen-linux-gnueabi-gcc $(readlink -f $0)-real "$@" -Wl,--tizen-no-force-options
+WRAPPER_FILE g++ 1622 bb2e17d2a1d30555bc3bca1e0dc846b7d462940a3a6fb7359136deb185d7769c
+WRAPPER_LINE g++ #!/bin/sh
+WRAPPER_LINE g++ if echo " "$@"  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror" | grep -q -- "-fsanitize=undefined" && echo "$@" | grep -q "\.gch\>"; then
+WRAPPER_LINE g++ elif ! echo "$@" | grep -q -e __KERNEL__ -e \-nostdlib; then
+WRAPPER_LINE g++ $(readlink -f $0)-real   "$@"  -Wdeprecated-copy  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror
+WRAPPER_LINE g++ # -Wl,--tizen-no-force-options is used to tell collect2 to not add force
+WRAPPER_LINE g++ $(readlink -f $0)-real "$@" -Wl,--tizen-no-force-options
+WRAPPER_FILE c++ 1622 bb2e17d2a1d30555bc3bca1e0dc846b7d462940a3a6fb7359136deb185d7769c
+WRAPPER_LINE c++ #!/bin/sh
+WRAPPER_LINE c++ if echo " "$@"  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror" | grep -q -- "-fsanitize=undefined" && echo "$@" | grep -q "\.gch\>"; then
+WRAPPER_LINE c++ elif ! echo "$@" | grep -q -e __KERNEL__ -e \-nostdlib; then
+WRAPPER_LINE c++ $(readlink -f $0)-real   "$@"  -Wdeprecated-copy  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror
+WRAPPER_LINE c++ # -Wl,--tizen-no-force-options is used to tell collect2 to not add force
+WRAPPER_LINE c++ $(readlink -f $0)-real "$@" -Wl,--tizen-no-force-options
+WRAPPER_FILE clang.cfg 90 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec
+WRAPPER_LINE clang.cfg -target armv7l-tizen-linux-gnueabi
+WRAPPER_LINE clang.cfg -resource-dir /usr/lib/clang/22
+WRAPPER_LINE clang.cfg -D_FILE_OFFSET_BITS=64
+C_ONLY_WRAPPER_ARGS -Wmissing-parameter-type -Wold-style-declaration -Wsign-compare -Woverride-init
+CXX_ONLY_WRAPPER_ARGS -Wdeprecated-copy
+RPM_QUERY 7 -q gcc-warning-build-env gcc-contrib clang-force-options asan-build-env asan-force-options gcc gcc-c++
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW package gcc-warning-build-env is not installed
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW package gcc-contrib is not installed
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW package clang-force-options is not installed
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW package asan-build-env is not installed
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW package asan-force-options is not installed
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW package gcc is not installed
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW package gcc-c++ is not installed
+RPM_QUERY 1 -qf /usr/bin/gcc-force-options-only
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW error: file /usr/bin/gcc-force-options-only: No such file or directory
+RPM_QUERY 1 -q --scripts gcc-warning-build-env
+RPM_QUERY_ROW error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+RPM_QUERY_ROW package gcc-warning-build-env is not installed
+BUILD_LOG_POLICY_EVIDENCE /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/pm-thumb-defaults-1-1/log.txt 10 [    0s] init_buildsystem --configdir /usr/lib/build/configs --cachedir /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/cache --repository /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/RPMS --repository http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/repos/product/armv7l/packages --repository http://repos.v
+BUILD_LOG_POLICY_EVIDENCE /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/pm-thumb-defaults-1-1/log.txt 13 [    0s] /usr/lib/build/createrepomddeps --cachedir=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/cache http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/repos/product/armv7l/packages
+BUILD_LOG_POLICY_EVIDENCE /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/pm-thumb-defaults-1-1/log.txt 47 [   15s] [27/115] downloading http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/armv7l/packages/armv7l/gcc-warning-build-env-14.2.0-4.1.armv7l.rpm ...
+BUILD_LOG_POLICY_EVIDENCE /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/pm-thumb-defaults-1-1/log.txt 189 [   48s] [47/47] preinstalling gcc-warning-build-env...
+BUILD_LOG_POLICY_EVIDENCE /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/pm-thumb-defaults-1-1/log.txt 197 [   48s] running gcc-warning-build-env postinstall script
+BUILD_LOG_POLICY_EVIDENCE /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs/success/pm-thumb-defaults-1-2/log.txt 140 [    1s] [105/115] keeping gcc-warning-build-env-14.2.0-4.1
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0007-tools.XXXXXX")
+  export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1
+  get() {
+    local path=$1 pin=$2 sha=$3
+    local target="$d/${path##*/}"
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$target"
+    printf '%s  %s\n' "$sha" "$target" | sha256sum -c -
+  }
+  get 'artifacts/scripts/r0007/qb-readback.py.txt' 'adb0ba7ae9531169cc03c1a789d06b16ea9bd879' '3c0ae92f0ba305294c513fae661a9ceefa21055b9272384effbb2e70cfc60f8b'
+  get 'artifacts/scripts/r0005/image-repo-lib.py.txt' 'd3cea65aac76d438b82b55a2857a5ee18546edad' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'
+  get 'artifacts/scripts/r0005/mlgo-elf-sections.py.txt' '3e96bc410252a5b3922c0f51f5ed0218852f4feb' '54a35e35c1844ca4d5cff60e6236d76698fe27f4f582347ed544249c146c34fd'
+  get 'artifacts/ledger/qb37627297-source-pins-20261120.tsv' 'adb0ba7ae9531169cc03c1a789d06b16ea9bd879' 'e7877e499ca148ba17095c72e2ef13c20cfbae17404182294c84d8781d77baaf'
+  python3 -B -u "$d/qb-readback.py.txt" "$d/image-repo-lib.py.txt" "$d/mlgo-elf-sections.py.txt" \
+    "$d/qb37627297-source-pins-20261120.tsv"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.fSvJ7L/qb-readback.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.fSvJ7L/image-repo-lib.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.fSvJ7L/mlgo-elf-sections.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.fSvJ7L/qb37627297-source-pins-20261120.tsv: OK
+WORKDIR "/home1/chengkai/vd-tree/workspace/temp/pm0007-qb-readback.5jqq0yqq"
+BASE_HELPER_INVENTORY ["official", {"arch": "armv7l", "epoch": "0", "name": "asan-build-env", "rel": "4.1", "vcs": null, "ver": "14.2.0"}]
+BASE_HELPER_INVENTORY ["official", {"arch": "armv7l", "epoch": "0", "name": "asan-force-options", "rel": "4.1", "vcs": null, "ver": "14.2.0"}]
+BASE_HELPER_INVENTORY ["official", {"arch": "armv7l", "epoch": "0", "name": "clang-force-options", "rel": "1.1", "vcs": null, "ver": "1.0.0"}]
+BASE_HELPER_INVENTORY ["official", {"arch": "armv7l", "epoch": "0", "name": "gcc-contrib", "rel": "4.1", "vcs": null, "ver": "14.2.0"}]
+BASE_HELPER_INVENTORY ["official", {"arch": "armv7l", "epoch": "0", "name": "gcc-warning-build-env", "rel": "4.1", "vcs": null, "ver": "14.2.0"}]
+BASE_HELPER_INVENTORY ["custom", {"arch": "armv7l", "epoch": "0", "name": "asan-build-env", "rel": "4.1", "vcs": null, "ver": "14.2.0"}]
+BASE_HELPER_INVENTORY ["custom", {"arch": "armv7l", "epoch": "0", "name": "asan-force-options", "rel": "4.1", "vcs": null, "ver": "14.2.0"}]
+BASE_HELPER_INVENTORY ["custom", {"arch": "armv7l", "epoch": "0", "name": "clang-force-options", "rel": "1.1", "vcs": null, "ver": "1.0.0"}]
+BASE_HELPER_INVENTORY ["custom", {"arch": "armv7l", "epoch": "0", "name": "gcc-contrib", "rel": "4.1", "vcs": null, "ver": "14.2.0"}]
+BASE_HELPER_INVENTORY ["custom", {"arch": "armv7l", "epoch": "0", "name": "gcc-warning-build-env", "rel": "4.1", "vcs": null, "ver": "14.2.0"}]
+SOURCE_DELTA ["ABC-test-apps", {"binary_sha256": "c17e3ec14def819bb97d7faea262ae15aea8487095a844a500bf766ee006953e", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["ABC-test-apps", "0", "26.0.1", "1", "armv7l"], "srpm": "ABC-test-apps-26.0.1-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/TESTAUTOMATION/ABC_TEST/TV/ABC-test-apps#14171729"}, {"binary_sha256": "223a94d4f29efffe4d7f89b920815b71ae1be3cf3b7c503d0254c630180a5713", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["ABC-test-apps", "0", "26.0.1", "1", "armv7l"], "srpm": "ABC-test-apps-26.0.1-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/TESTAUTOMATION/ABC_TEST/TV/ABC-test-apps#14171729"}]
+SOURCE_DELTA_FIELDS_DIFFER ["ABC-test-apps", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+SOURCE_DELTA ["chromium-efl", {"binary_sha256": "7adf5030c0e476b126105397db6e8035ee118f98fde02e4e0dc7e4621ff2ea9b", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["chromium-efl", "0", "1.1.130", "1", "armv7l"], "srpm": "chromium-efl-1.1.130-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/COMMON/Profile/platform/framework/web/chromium-efl#14298789"}, {"binary_sha256": "32afe06f704f11357e8afedb3216c20e16e7f7ca0d60a0ca302da6174c4abf18", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["chromium-efl", "0", "1.1.130", "1", "armv7l"], "srpm": "chromium-efl-1.1.130-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/COMMON/Profile/platform/framework/web/chromium-efl#14298789"}]
+SOURCE_DELTA_FIELDS_DIFFER ["chromium-efl", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+SOURCE_DELTA ["connectivity-common-daemon", {"binary_sha256": "a26f1b5431de0974ce2f3ef2e06192edc08f021efe7b97ab54d87b27344b5340", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["connectivity-common-daemon", "0", "25.09.30.0", "0", "armv7l"], "srpm": "connectivity-common-daemon-25.09.30.0-0.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/CONNECTIVITY/ConnectivityApp/ConnectivityCommonDaemon/connectivity-common-daemon#13820902"}, {"binary_sha256": "966811dc038d2832f29fb722acef07cbf251bfdd5a9a3475113f6daa7b56e20b", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["connectivity-common-daemon", "0", "25.09.30.0", "0", "armv7l"], "srpm": "connectivity-common-daemon-25.09.30.0-0.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/CONNECTIVITY/ConnectivityApp/ConnectivityCommonDaemon/connectivity-common-daemon#13820902"}]
+SOURCE_DELTA_FIELDS_DIFFER ["connectivity-common-daemon", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+SOURCE_DELTA ["gst-ffmpeg", {"binary_sha256": "178fa2d339f8a14fc4752cb60ee0c1c9076061421627f8917d0568ebb704d458", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["gst-ffmpeg", "0", "1.45.0.tv", "74", "armv7l"], "srpm": "gst-ffmpeg-1.45.0.tv-74.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/MULTIMEDIA/Mmplayer/gst-ffmpeg#14274649"}, {"binary_sha256": "536f71ba23784763a0d49876ffcc55a054b1d925c104d1babe0affb1348044cf", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["gst-ffmpeg", "0", "1.45.0.tv", "74", "armv7l"], "srpm": "gst-ffmpeg-1.45.0.tv-74.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/MULTIMEDIA/Mmplayer/gst-ffmpeg#14274649"}]
+SOURCE_DELTA_FIELDS_DIFFER ["gst-ffmpeg", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+SOURCE_DELTA ["key-manager-ta", {"binary_sha256": "3b89336baa87d4c2f17c5e7dc35f2dd3a4ef27019ec41052f6413d0d060556c1", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["key-manager-ta", "0", "26.03.04.0", "1", "armv7l"], "srpm": "key-manager-ta-26.03.04.0-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Security/vd-security-key-manager/key-manager-ta#13543938"}, {"binary_sha256": "62ef5369cc67817f89043d84c40c8c4b2b29fcc8304d88c189fb2d3be97e9022", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["key-manager-ta", "0", "26.03.04.0", "1", "armv7l"], "srpm": "key-manager-ta-26.03.04.0-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Security/vd-security-key-manager/key-manager-ta#13543938"}]
+SOURCE_DELTA_FIELDS_DIFFER ["key-manager-ta", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+SOURCE_DELTA ["liballshare-core", {"binary_sha256": "e87f4e576a30aeb13bb85be650c6b82c03ff30d3a458e123dcba356c4579d0c4", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["liballshare-core", "0", "1.5.9", "34", "armv7l"], "srpm": "liballshare-core-1.5.9-34.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/CONVERGENCE/Dlna/liballshare-core#14292509"}, {"binary_sha256": "8e8460e25d42cc5f58e602d9d001fd8b079fee25dcc17dbe982f3cc8c88f7f02", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["liballshare-core", "0", "1.5.9", "34", "armv7l"], "srpm": "liballshare-core-1.5.9-34.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/CONVERGENCE/Dlna/liballshare-core#14292509"}]
+SOURCE_DELTA_FIELDS_DIFFER ["liballshare-core", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+SOURCE_DELTA ["nagsam-mw", {"binary_sha256": "f964544d6f073999084a7e8dc8863aa09f46e2a69b71666748ffb74e5a59cff5", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["nagsam-mw", "0", "26.09.22", "1", "armv7l"], "srpm": "nagsam-mw-26.09.22-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Drm/nagsam-mw#14290200"}, {"binary_sha256": "8b894f122e106f5d9cf26a8111bb43b110f95315a81518f3b449d90c1c401e6c", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["nagsam-mw", "0", "26.09.22", "1", "armv7l"], "srpm": "nagsam-mw-26.09.22-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Drm/nagsam-mw#14290200"}]
+SOURCE_DELTA_FIELDS_DIFFER ["nagsam-mw", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+SOURCE_DELTA ["org.tizen.tv.swu", {"binary_sha256": "54e95a1bf3be6a773a34c0cedc2055328fa2d6cf9240d5971a65a59c748462c2", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["org.tizen.tv.swu", "0", "17.037.0", "1", "armv7l"], "srpm": "org.tizen.tv.swu-17.037.0-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SYSTEM/Sw-upgrade/swu#14299252"}, {"binary_sha256": "29cbb28b201917a3b27d0cdc6e2f538d4c66624b1a591c352302d304d23c5377", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["org.tizen.tv.swu", "0", "17.037.0", "1", "armv7l"], "srpm": "org.tizen.tv.swu-17.037.0-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SYSTEM/Sw-upgrade/swu#14299252"}]
+SOURCE_DELTA_FIELDS_DIFFER ["org.tizen.tv.swu", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+SOURCE_DELTA ["ug-hbbtv-efl", {"binary_sha256": "c37160362eb2b54b3830f453d4f993683264620d43fb9915bd30c8995137e3bb", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["ug-hbbtv-efl", "0", "0.2.2", "1", "armv7l"], "srpm": "ug-hbbtv-efl-0.2.2-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/WCS/HbbTV/hbbtv-app#14294674"}, {"binary_sha256": "378d45c93dab61ead789c8c7328a112952c5b834d9fcc9668b96f36010d4add4", "changelog_first": null, "changelog_sha256": null, "changelog_source": null, "nevra": ["ug-hbbtv-efl", "0", "0.2.2", "1", "armv7l"], "srpm": "ug-hbbtv-efl-0.2.2-1.src.rpm", "vcs": "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/WCS/HbbTV/hbbtv-app#14294674"}]
+SOURCE_DELTA_FIELDS_DIFFER ["ug-hbbtv-efl", {"changelog_sha256": null, "nevra": false, "srpm": false, "vcs": false}]
+QBKERNEL_MODULE_BYTES {"custom": 115, "custom_only": 0, "hash_different": 105, "hash_identical": 10, "official": 115, "official_only": 0}
+SECTION_MODULE_OWNER ["EngineeringMode-driver-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["SZDrv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["SZDrv_core-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["acm-modules-perf", "TEXT_CHANGED", 3]
+SECTION_MODULE_OWNER ["bluetooth_modules-perf", "TEXT_CHANGED", 2]
+SECTION_MODULE_OWNER ["dlog-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["ecryptfs-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["exfat-perf", "TEXT_CHANGED", 2]
+SECTION_MODULE_OWNER ["feature-config-driver-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["lwipc-modules-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["performeter-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["pms_prd-perf", "TEXT_CHANGED", 2]
+SECTION_MODULE_OWNER ["sim-module-perf", "TEXT_CHANGED", 3]
+SECTION_MODULE_OWNER ["smart-deadlock-module-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["trustzone-drivers-perf", "TEXT_CHANGED", 2]
+SECTION_MODULE_OWNER ["tztv-audio-amp-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-eeprom-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-frc-tcon-perf", "TEXT_CHANGED", 5]
+SECTION_MODULE_OWNER ["tztv-hdmi-sw-perf", "TEXT_CHANGED", 2]
+SECTION_MODULE_OWNER ["tztv-jackident-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-kfactory-perf", "TEXT_CHANGED", 2]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-alsa-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-codec-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-demod-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-drm-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-extin-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-gfx-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-gpu-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-hdmi-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-khdmi-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-led-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-logo-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-misc-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-pq-tv-perf", "TEXT_CHANGED", 1]
+SECTION_MODULE_OWNER ["tztv-media-kantsu2e-preinit-tv-perf", "TEXT_CHANGED", 1]
+TEXT_IDENTICAL_WITH_SECTION_BYTE_CHANGE {".comment": 4777, ".rodata": 65}
+CONFIG_CAPTURE ["official-product", "build.xml", "284f1f8d42922522e344dad9a527d9f384a17d1b798ee3a8c955840b06911e1b"]
+CONFIG_CANDIDATE ["official-product", "build.xml", 10, "<id>TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2</id>"]
+CONFIG_CAPTURE ["official-product", "published-build.conf", "98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"]
+CONFIG_CANDIDATE ["official-product", "published-build.conf", 397, "Preinstall: gcc-warning-build-env"]
+CONFIG_CANDIDATE ["official-product", "published-build.conf", 398, "RunScripts: gcc-warning-build-env"]
+CONFIG_CAPTURE ["official-base", "build.xml", "ef53a28afecef19c64d08bd2e29f84d6a1406fb10c7bb593a7d639301b6470a5"]
+CONFIG_CAPTURE ["official-base", "published-build.conf", "b5e6d8e1e00833d2f89c91639d21fa31f675d7c1fe8e2c4e28a0aceb04333284"]
+CONFIG_CAPTURE ["custom-base", "build.xml", "9272e20abc09b6ad0b5cc6c3e716f16f6b1e00121168ea0bfd6cbd276502e10f"]
+CONFIG_CAPTURE ["custom-base", "published-build.conf", "b5e6d8e1e00833d2f89c91639d21fa31f675d7c1fe8e2c4e28a0aceb04333284"]
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0007-tools.XXXXXX")
+  export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1
+  get() {
+    local path=$1 pin=$2 sha=$3
+    local target="$d/${path##*/}"
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$target"
+    printf '%s  %s\n' "$sha" "$target" | sha256sum -c -
+  }
+  get 'artifacts/scripts/r0007/kernel-btf-recover.py.txt' 'adb0ba7ae9531169cc03c1a789d06b16ea9bd879' 'e45401543991acbf187b23a5cfaaea6ae097e704b5d93c0248fd2287426ed5c9'
+  get 'artifacts/scripts/r0006/kernel-btf.py.txt' '2f4f5e513807eb3bc5ceea0752aec7c06b471747' '347ec98d2b1f0996366249530e90c85d00cb76c25094bdd4a0a710e2895e5d55'
+  get 'artifacts/scripts/r0005/mlgo-elf-sections.py.txt' '3e96bc410252a5b3922c0f51f5ed0218852f4feb' '54a35e35c1844ca4d5cff60e6236d76698fe27f4f582347ed544249c146c34fd'
+  cache=()
+  if [[ -d "$PWD/workspace/qb-evidence" ]]; then
+    cache=(--cache-dir "$PWD/workspace/qb-evidence")
+  fi
+  python3 -B -u "$d/kernel-btf-recover.py.txt" "$d/kernel-btf.py.txt" "$d/mlgo-elf-sections.py.txt" "${cache[@]}"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.ZW8sf4/kernel-btf-recover.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.ZW8sf4/kernel-btf.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0007-tools.ZW8sf4/mlgo-elf-sections.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0007-btf.tpekblwz
+QB_BTF_UNAVAILABLE ["official", "no SHA-256-matching cached RPM for tztv-kernel-perf-1-1.armv7l.rpm"]
+GBS_ELF_BTF_UNAVAILABLE ["official", "expected a unique .BTF section in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/vmlinux-sections.txt"]
+GBS_PACKAGED_BTF_MEMBER ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/repos/qb1111/armv7l/RPMS/tztv-kernel-perf-1-1.armv7l.rpm", 3696218, "df9708b73cd2effbecddf6d7796a498debb1f0544bb1e3c5f259f125b8ce1e38"]
+BTF_SPEC [275, "rm -f $RPM_BUILD_ROOT%{_includedir}/kernel_header/linux/arch/arm/boot/compressed/vmlinux"]
+BTF_SPEC [277, "rm -f $RPM_BUILD_ROOT%{_includedir}/kernel_header/linux/arch/arm64/boot/compressed/vmlinux"]
+BTF_SPEC [447, "../../../vd_src/pahole_%{_arch} --btf_encode_detached=vmlinux.btf vmlinux"]
+BTF_SPEC [449, "cp vmlinux.btf $RPM_BUILD_ROOT/lib/modules/$RELEASE_MODE/%{LIN_MAIN_VER}/kernel/vmlinux"]
+BTF_SPEC [451, "tar zcf $RPM_BUILD_ROOT%{_includedir}/$RELEASE_MODE/vmlinux.tgz vmlinux"]
+BTF_SPEC [461, "cp -f $RPM_BUILD_ROOT%{_includedir}/perf/vmlinux.tgz $RPM_BUILD_ROOT%{_prddir_syzkaller}/"]
+BTF_SPEC [513, "cp vd_src/SERET-UL/build/\"$TARGET\"/debug/vdlinux/vmlinux $RPM_BUILD_ROOT/seret/debug/"]
+BTF_SPEC [514, "cp vd_src/SERET-UL/build/\"$TARGET\"/release/vdlinux/vmlinux $RPM_BUILD_ROOT/seret/release/"]
+GBS_ELF_BTF_UNAVAILABLE ["custom", "expected a unique .BTF section in /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/vmlinux-sections.txt"]
+GBS_PACKAGED_BTF_MEMBER ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/repos/qb1111/armv7l/RPMS/tztv-kernel-perf-1-1.armv7l.rpm", 3820843, "f1dde5f6d0a87f545db815a7f7a7eae99ff3e0c709e3c47248bf4cae003def11"]
+BTF_HEADER ["GBS_PACKAGED", "official", {"bytes": 3696218, "endian": "little", "flags": 0, "hdr_len": 24, "magic": 60319, "sha256": "df9708b73cd2effbecddf6d7796a498debb1f0544bb1e3c5f259f125b8ce1e38", "str_len": 1489174, "str_off": 2207020, "type_len": 2207020, "type_off": 0, "version": 1}]
+BTF_HEADER ["GBS_PACKAGED", "custom", {"bytes": 3820843, "endian": "little", "flags": 0, "hdr_len": 24, "magic": 60319, "sha256": "f1dde5f6d0a87f545db815a7f7a7eae99ff3e0c709e3c47248bf4cae003def11", "str_len": 1537871, "str_off": 2282948, "type_len": 2282948, "type_off": 0, "version": 1}]
+BTF_KIND ["GBS_PACKAGED", "INT", 13, 13, 0, 208, 208, 0]
+BTF_KIND ["GBS_PACKAGED", "PTR", 11052, 11055, 3, 132624, 132660, 36]
+BTF_KIND ["GBS_PACKAGED", "ARRAY", 2400, 2400, 0, 57600, 57600, 0]
+BTF_KIND ["GBS_PACKAGED", "STRUCT", 6997, 6997, 0, 612348, 612348, 0]
+BTF_KIND ["GBS_PACKAGED", "UNION", 621, 621, 0, 32112, 32112, 0]
+BTF_KIND ["GBS_PACKAGED", "ENUM", 1514, 1514, 0, 115400, 115400, 0]
+BTF_KIND ["GBS_PACKAGED", "FWD", 76, 76, 0, 912, 912, 0]
+BTF_KIND ["GBS_PACKAGED", "TYPEDEF", 1149, 1149, 0, 13788, 13788, 0]
+BTF_KIND ["GBS_PACKAGED", "VOLATILE", 315, 315, 0, 3780, 3780, 0]
+BTF_KIND ["GBS_PACKAGED", "CONST", 2076, 2077, 1, 24912, 24924, 12]
+BTF_KIND ["GBS_PACKAGED", "RESTRICT", 3, 3, 0, 36, 36, 0]
+BTF_KIND ["GBS_PACKAGED", "FUNC", 37987, 40408, 2421, 455844, 484896, 29052]
+BTF_KIND ["GBS_PACKAGED", "FUNC_PROTO", 22186, 23683, 1497, 750944, 797772, 46828]
+BTF_KIND ["GBS_PACKAGED", "VAR", 203, 203, 0, 3248, 3248, 0]
+BTF_KIND ["GBS_PACKAGED", "DATASEC", 1, 1, 0, 2448, 2448, 0]
+BTF_KIND ["GBS_PACKAGED", "FLOAT", 0, 0, 0, 0, 0, 0]
+BTF_KIND ["GBS_PACKAGED", "DECL_TAG", 0, 0, 0, 0, 0, 0]
+BTF_KIND ["GBS_PACKAGED", "TYPE_TAG", 0, 0, 0, 0, 0, 0]
+BTF_KIND ["GBS_PACKAGED", "ENUM64", 5, 5, 0, 816, 816, 0]
+BTF_HEADER ["QUICKBUILD", "custom", {"bytes": 3820867, "endian": "little", "flags": 0, "hdr_len": 24, "magic": 60319, "sha256": "2aecd204227d918a3a4486883d4f5c3f9f563b5d764a1ceef95e79ea54c6d353", "str_len": 1537871, "str_off": 2282972, "type_len": 2282972, "type_off": 0, "version": 1}]
+BTF_COMPLETION {"gbs_linked_sizes": {}, "qb_lanes": 1}
+chengkai@risc-v-Alienware-Aurora-R16:src$
+

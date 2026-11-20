@@ -1,0 +1,416 @@
+#!/usr/bin/env python3
+"""Measure ARM-mode defaults or build a pinned verbose/paired package inside GBS."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import shutil
+import subprocess
+import tempfile
+from types import SimpleNamespace
+
+DEFAULT_BODY = r'''
+set +e
+export LC_ALL=C
+printf 'THUMB_OPTFLAGS %%s\n' '%{optflags}'
+printf 'THUMB_BUILD_ENV CC=%%s CXX=%%s AR=%%s\n' "${CC:-}" "${CXX:-}" "${AR:-}"
+printf 'THUMB_EXPORTED_CFLAGS %%s\n' "${CFLAGS:-}"
+printf 'THUMB_EXPORTED_CXXFLAGS %%s\n' "${CXXFLAGS:-}"
+printf 'THUMB_EXPORTED_FFLAGS %%s\n' "${FFLAGS:-}"
+
+step() {
+    name=$1
+    shift
+    "$@" >"$name.out" 2>"$name.err"
+    step_rc=$?
+    printf 'THUMB_STEP %%s rc=%%s\n' "$name" "$step_rc"
+    sed -n "1,20s/^/THUMB_STDERR $name /p" "$name.err"
+}
+
+gcc_opts() {
+    label=$1
+    shift
+    step "$label" gcc "$@" -Q --help=target
+    awk -v label="$label" '$1 ~ /^-m(arm$|thumb$|arch=|float-abi=)/ {print "THUMB_GCC_Q", label, $0}' "$label.out"
+}
+
+mapping() {
+    label=$1
+    step "$label.symbols" readelf -sW "$label.o"
+    awk -v label="$label" '/\$[at]([.[:space:]]|$)/ {print "THUMB_OBJECT_MAPPING", label, $NF}' "$label.symbols.out"
+    step "$label.attributes" readelf -A "$label.o"
+    awk -v label="$label" '/Tag_THUMB_ISA_use:|Tag_ARM_ISA_use:/ { print "THUMB_OBJECT_ATTRIBUTE", label, $0 }' "$label.attributes.out"
+}
+
+clang_macros() {
+    label=$1
+    language=$2
+    shift 2
+    step "$label.macros" "$@" -dM -E -x "$language" /dev/null
+    if [ "$step_rc" -ne 0 ]; then
+        mode=ERROR
+    elif grep -q '^#define __thumb2__ ' "$label.macros.out"; then
+        mode=THUMB2
+    elif grep -q '^#define __thumb__ ' "$label.macros.out"; then
+        mode=THUMB
+    elif grep -q '^#define __arm__ ' "$label.macros.out"; then
+        mode=ARM
+    else
+        mode=OTHER_TARGET
+    fi
+    printf 'THUMB_PROBE %%s %%s\n' "$label" "$mode"
+}
+
+compile() {
+    label=$1
+    source=$2
+    shift 2
+    printf 'THUMB_COMPILE_ARGV %%s %%s -c %%s -o %%s\n' "$label" "$*" "$source" "$label.o"
+    step "$label" "$@" -c "$source" -o "$label.o"
+    if [ "$step_rc" -eq 0 ]; then
+        mapping "$label"
+    fi
+}
+
+clang_c() {
+    label=$1
+    shift
+    clang_macros "$label" c "$@"
+    step "$label.driver" "$@" -### -c pm-mode.c
+    awk -v label="$label" '
+      /^Configuration file:|^Target:/ { print "THUMB_DRIVER_TARGET", label, $0 }
+      /"-cc1"/ {
+        printf "THUMB_DRIVER_FLAGS %%s", label
+        for (i=1; i<=NF; i++) {
+          if ($i == "\"-triple\"" || $i == "\"-mimplicit-it\"") { printf " %%s %%s", $i, $(i+1); i++ }
+          else if ($i ~ /thumb-mode|implicit-it/) printf " %%s", $i
+        }
+        print ""
+      }' "$label.driver.err"
+    compile "$label.C" pm-mode.c "$@"
+}
+
+cat >pm-implicit-it.S <<'PM_ASSEMBLY'
+.syntax unified
+.text
+.global pm_it
+.type pm_it, %%function
+#ifdef __thumb__
+.thumb_func
+#endif
+pm_it:
+    cmp r0, #0
+    moveq r0, r1
+    bx lr
+PM_ASSEMBLY
+cat >pm-mode.c <<'PM_C_SOURCE'
+void pm_mode(void);
+void pm_mode(void) {}
+PM_C_SOURCE
+
+target_driver=armv7l-tizen-linux-gnueabi-clang
+step GCC_VERSION gcc -v
+step CLANG_VERSION "$target_driver" --version
+sed -n '1,4s/^/THUMB_CLANG /p' CLANG_VERSION.out
+set -- %{optflags}
+gcc_opts GCC_DEFAULT
+gcc_opts GCC_OPTFLAGS "$@"
+compile GCC_DEFAULT_C pm-mode.c gcc
+
+clang_c CLANG_PLATFORM_DEFAULT "$target_driver"
+clang_c CLANG_PLATFORM_BARE "$target_driver" --no-default-config --target=armv7l-tizen-linux-gnueabi
+clang_c CLANG_PLATFORM_OPTFLAGS "$target_driver" "$@"
+clang_c CLANG_KERNEL_DEFAULT "$target_driver" --target=arm-linux-gnueabi
+clang_c CLANG_KERNEL_BARE "$target_driver" --no-default-config --target=arm-linux-gnueabi
+clang_c CLANG_KERNEL_OPTFLAGS "$target_driver" --target=arm-linux-gnueabi "$@"
+compile CLANG_PLATFORM_ASM_OPTFLAGS pm-implicit-it.S "$target_driver" "$@"
+compile CLANG_KERNEL_ASM_OPTFLAGS pm-implicit-it.S "$target_driver" --target=arm-linux-gnueabi "$@"
+compile CLANG_KERNEL_ASM_IMPLICIT_IT pm-implicit-it.S "$target_driver" --target=arm-linux-gnueabi -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=thumb
+compile CLANG_KERNEL_ASM_NO_IMPLICIT_IT pm-implicit-it.S "$target_driver" --target=arm-linux-gnueabi -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=never
+printf 'THUMB_MATRIX_END\n'
+'''
+
+TRACE_BODY = r'''
+export V=1 KBUILD_VERBOSE=1 VERBOSE=1
+export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1 VERBOSE=1"
+printf 'THUMB_OPTFLAGS %%s\n' '%{optflags}'
+printf 'THUMB_BUILD_PATH %%s\n' "$PATH"
+'''
+
+WRAP_BODY = r'''
+pm_bin="$PWD/.pm-thumb-compiler"
+mkdir -p "$pm_bin"
+pm_compilers="clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++"
+if [ 'PM_LANE' = sample ]; then
+    pm_compilers="$pm_compilers gcc g++ armv7l-tizen-linux-gnueabi-gcc armv7l-tizen-linux-gnueabi-g++"
+fi
+for pm_name in $pm_compilers; do
+    pm_real=$(command -v "$pm_name" || :)
+    test -n "$pm_real" || continue
+    {
+        echo '#!/bin/bash'
+        printf 'real=%%q\n' "$pm_real"
+        printf 'lane=%%q\n' 'PM_LANE'
+        cat <<'PM_WRAPPER'
+set -eu
+compile=0
+source=0
+for arg; do
+    case "$arg" in
+        -c) compile=1 ;;
+        *.c|*.C|*.cc|*.cpp|*.cxx) source=1 ;;
+        *.s|*.S) [[ "$lane" != sample ]] || source=1 ;;
+    esac
+done
+if [[ "$compile" == 1 && "$source" == 1 ]]; then
+    if [[ "$lane" == thumb ]]; then
+        set -- "$@" -mthumb
+    fi
+    printf 'THUMB_INVOKE %%s' "$lane" >&2
+    printf ' %%q' "$real" "$@" >&2
+    printf '\n' >&2
+fi
+exec "$real" "$@"
+PM_WRAPPER
+    } >"$pm_bin/$pm_name"
+    chmod u+x "$pm_bin/$pm_name"
+done
+export PATH="$pm_bin:$PATH"
+'''
+
+
+def stage_defaults(gbs, work):
+    project = work / "default-probe"
+    packaging = project / "packaging"
+    packaging.mkdir(parents=True)
+    (project / "README").write_text("Local GBS target default probe.\n")
+    (packaging / "pm-thumb-defaults.spec").write_text("""Name: pm-thumb-defaults
+Version: 1
+Release: 2
+Summary: Local compiler target option probe
+License: MIT
+Source0: %{name}-%{version}.tar.gz
+BuildRequires: gcc
+BuildRequires: clang
+BuildRequires: binutils
+%description
+Local GBS probe for compiler instruction mode.
+%prep
+%setup -q
+%build
+""" + DEFAULT_BODY + """
+%install
+mkdir -p %{buildroot}/usr/share/pm-thumb-defaults
+install -m 0644 README %{buildroot}/usr/share/pm-thumb-defaults/result
+%files
+/usr/share/pm-thumb-defaults/result
+""")
+    gbs.local_git(project, work)
+    return project, "pm-thumb-defaults.spec"
+
+
+def stage_package(gbs, work, args, lane):
+    checkout = args.source.resolve(strict=True)
+    if not checkout.is_relative_to(gbs.ROOT.resolve()):
+        raise ValueError("package source must be inside vd-tree")
+    if not re.fullmatch(r"[0-9a-f]{40}", args.revision) or not re.fullmatch(r"[\w.+-]+\.spec", args.spec):
+        raise ValueError("provide a full Git commit and a packaging spec basename")
+    project = work / f"source-{lane}"
+    gbs.execute(["git", "-c", "core.hooksPath=/dev/null", "clone", "--no-hardlinks", "--no-checkout", "--",
+                 str(checkout), str(project)], work, work / f"clone-{lane}.log", 1200)
+    gbs.execute(["git", "-c", "core.hooksPath=/dev/null", "checkout", "--detach", args.revision],
+                project, work / f"checkout-{lane}.log", 1200)
+    spec = project / "packaging" / args.spec
+    if spec.is_symlink() or not spec.resolve().is_relative_to(project):
+        raise ValueError("invalid package spec path")
+    old = spec.read_text()
+    body = TRACE_BODY + WRAP_BODY.replace("PM_LANE", lane)
+    updated, count = re.subn(r"(?m)^%build[ \t]*$", lambda _: "%build\n"+body, old)
+    if count != 1:
+        raise ValueError("expected one exact %build section")
+    spec.chmod(spec.stat().st_mode | 0o200)
+    spec.write_text(updated)
+    print("THUMB_SOURCE", lane, args.revision, args.spec, hashlib.sha256(old.encode()).hexdigest())
+    return project, args.spec
+
+
+def run_gbs(gbs, capture, project, spec, config, buildconf, root, include_all, defaults):
+    cpu = ",".join(map(str, sorted(os.sched_getaffinity(0))[:6]))
+    cmd = ["taskset", "-c", cpu, "gbs", "-c", str(config), "build", "-A", "armv7l",
+           "-B", str(root), "-D", str(buildconf), "--threads", "1", "--spec", spec]
+    if include_all:
+        cmd += ["--include-all"]
+    if defaults:
+        cmd += ["--fallback-to-native"]
+    log = capture / "gbs.log"
+    print("GBS_START", shlex.join(cmd), "LOG", log, flush=True)
+    rc = gbs.execute(cmd, project, log, 12*3600, check=False)
+    print("GBS_EXIT", rc)
+    repos = root / "local/repos"
+    failed = sorted(path for path in repos.rglob("*") if path.is_file()
+                    and "logs" in path.parts and "fail" in path.parts
+                    and (not defaults or "pm-thumb-defaults-1-2" in path.parts))
+    candidates = [log, *failed[:4], *sorted(repos.rglob("*build*.log"))[:12]]
+    seen, invocations = set(), set()
+    for file in candidates:
+        if not file.is_file():
+            continue
+        with file.open(errors="replace") as stream:
+            for line in stream:
+                line = re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*", "", line).strip()
+                if line.startswith("THUMB_INVOKE "):
+                    invocations.add(line)
+                elif line.startswith(("THUMB_", "GBS_RPM ")):
+                    seen.add(line)
+    (capture / "thumb-probe.txt").write_text("\n".join(sorted(seen))+"\n")
+    (capture / "compiler-invocations.txt").write_text("\n".join(sorted(invocations))+"\n")
+    priority = ("THUMB_STEP ", "THUMB_PROBE ", "THUMB_OPTFLAGS ", "THUMB_BUILD_ENV",
+                "THUMB_EXPORTED_", "THUMB_GCC_Q", "THUMB_COMPILE_ARGV", "THUMB_DRIVER_FLAGS",
+                "THUMB_OBJECT_MAPPING", "THUMB_OBJECT_ATTRIBUTE", "THUMB_MATRIX_END")
+    ordered = sorted(seen, key=lambda line: (not line.startswith(priority), line))
+    for line in ordered[:170 if defaults else 55]:
+        print(line[:850])
+    if not defaults:
+        print("THUMB_WRAPPED_COMPILE_LINES", len(invocations))
+    for line in sorted(invocations)[:3]:
+        print(line[:900])
+    if rc:
+        for failure in failed[:2] or [log]:
+            with failure.open("rb") as stream:
+                stream.seek(max(0, failure.stat().st_size - 16384))
+                for line in stream.read().decode(errors="replace").splitlines()[-35:]:
+                    print("GBS_FAILURE_LOG", failure.name, line[:700])
+        raise ValueError(f"GBS build failed: {log}")
+    if defaults:
+        required = {"CLANG_PLATFORM_DEFAULT", "CLANG_PLATFORM_OPTFLAGS", "CLANG_KERNEL_DEFAULT"}
+        observed = {fields[1] for line in seen if (fields := line.split())[:1] == ["THUMB_PROBE"]
+                    and len(fields) == 3 and fields[2] in {"ARM", "THUMB", "THUMB2"}}
+        expected_steps = {"GCC_DEFAULT", "GCC_OPTFLAGS", "GCC_DEFAULT_C",
+                          "CLANG_PLATFORM_OPTFLAGS.C", "CLANG_PLATFORM_ASM_OPTFLAGS",
+                          "CLANG_KERNEL_OPTFLAGS.C", "CLANG_KERNEL_ASM_OPTFLAGS"}
+        successful = {fields[1] for line in seen if (fields := line.split())[:1] == ["THUMB_STEP"]
+                      and len(fields) == 3 and fields[2] == "rc=0"}
+        missing = sorted((required - observed) | (expected_steps - successful))
+        if "THUMB_MATRIX_END" not in seen:
+            missing.append("THUMB_MATRIX_END")
+        print("THUMB_MATRIX_STATUS", "INCOMPLETE" if missing else "COMPLETE", *missing)
+    return invocations
+
+
+def measured_elfs(scan, root, package, requested):
+    rpms = []
+    for file in (root / "local/repos").rglob(f"{package}-*.armv7l.rpm"):
+        name = subprocess.check_output(["rpm", "-qp", "--qf", "%{NAME}", str(file)], text=True)
+        if name == package:
+            rpms.append(file)
+    if len(rpms) != 1:
+        raise ValueError(f"expected one built {package} RPM, found {len(rpms)}")
+    found = {}
+    with subprocess.Popen(["rpm2cpio", str(rpms[0])], stdout=subprocess.PIPE) as proc:
+        for path, content in scan.cpio_entries(proc.stdout):
+            for name, binary in scan.elf_items(path, content):
+                if name in requested and (row := scan.classify(binary)) and row["kind"] in {"DYN", "EXEC"}:
+                    found[name] = {**row, "sha256": hashlib.sha256(binary).hexdigest()}
+        while proc.stdout.read(1024*1024):
+            pass
+        if proc.wait() or set(found) != requested:
+            raise ValueError(f"missing exact paired ARM ELF paths: {sorted(requested-set(found))}")
+    return found
+
+
+def compare_pair(work, args, original, variant):
+    total = {lane: dict(code_bytes=0, a32_bytes=0) for lane in ("control", "thumb")}
+    for path in sorted(original):
+        a, b = original[path], variant[path]
+        print("THUMB_PAIRED_ELF", path, a["exec_bytes"], b["exec_bytes"], a["arm_bytes_est"],
+              b["arm_bytes_est"], a["basis"], b["basis"], a["sha256"], b["sha256"])
+        for lane, data in (("control", a), ("thumb", b)):
+            total[lane]["code_bytes"] += data["exec_bytes"]
+            total[lane]["a32_bytes"] += data["arm_bytes_est"]
+    record = dict(package=args.package, source_revision=args.revision, paths=sorted(original), metrics=total)
+    (work / "pair-metrics.json").write_text(json.dumps(record, indent=2)+"\n")
+    print("THUMB_PAIR_METRICS", json.dumps(record, sort_keys=True))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("gbs_lib", type=Path)
+    parser.add_argument("mode", choices=("defaults", "sample", "pair"))
+    parser.add_argument("--source", type=Path)
+    parser.add_argument("--dependency-product-url", required=True)
+    parser.add_argument("--resume", type=Path, help="reuse the official GBS root of a prior defaults probe")
+    parser.add_argument("--revision")
+    parser.add_argument("--spec")
+    parser.add_argument("--package")
+    parser.add_argument("--elf", action="append", default=[])
+    parser.add_argument("--scan-lib", type=Path)
+    parser.add_argument("--cause-ledger", type=Path)
+    args = parser.parse_args()
+    if args.resume and args.mode != "defaults":
+        parser.error("--resume is for defaults only")
+    if args.mode != "defaults" and not all((args.source, args.revision, args.spec)):
+        parser.error("sample and pair require --source, --revision and --spec")
+    if args.mode == "pair" and (not all((args.package, args.elf, args.scan_lib, args.cause_ledger))
+                                 or not re.fullmatch(r"[\w.+-]+", args.package)):
+        parser.error("pair requires --package, --elf, --scan-lib and --cause-ledger")
+    gbs = SimpleNamespace(**runpy.run_path(str(args.gbs_lib)))
+    try:
+        if args.resume:
+            work = args.resume.resolve(strict=True)
+            if (args.resume.is_symlink() or work.parent != gbs.NATIVE.resolve()
+                    or not work.name.startswith("pm0008a-gbs-thumb.")
+                    or not (work / "default-probe/packaging/pm-thumb-defaults.spec").is_file()
+                    or not (work / "official/GBS-ROOT").is_dir()):
+                raise ValueError("resume requires a prior defaults workdir below workspace/temp")
+            capture = Path(tempfile.mkdtemp(prefix="defaults-rerun.", dir=work))
+        else:
+            work = Path(tempfile.mkdtemp(prefix="pm0008a-gbs-thumb.", dir=gbs.NATIVE))
+            capture = work / "official"
+        os.environ["TMPDIR"] = str(work)
+        print("WORKDIR", work, flush=True)
+        print("RUN_CAPTURE", capture, flush=True)
+        gbs.available(work, 45 if args.mode == "pair" else 22, 12)
+        cfg, dist = gbs.configurations(work, reuse_official_root=args.resume is not None,
+                                       product_url=args.dependency_product_url)
+        conf, official_root = cfg["official"]
+        if args.mode == "defaults":
+            project, spec = stage_defaults(gbs, capture if args.resume else work)
+            run_gbs(gbs, capture, project, spec, conf, dist, official_root, False, True)
+        elif args.mode == "sample":
+            project, spec = stage_package(gbs, work, args, "sample")
+            run_gbs(gbs, official_root.parent, project, spec, conf, dist, official_root, True, False)
+        else:
+            ledger = args.cause_ledger.resolve(strict=True)
+            if not ledger.is_relative_to(gbs.ROOT.resolve()):
+                raise ValueError("cause ledger must be inside vd-tree")
+            eligible = {row["path"] for row in json.loads(ledger.read_text()) if row["package"] == args.package
+                        and row["cause"] == "OPTFLAGS_NOT_PASSED"}
+            if not set(args.elf) <= eligible or len(args.elf) > 12:
+                raise ValueError("pair requires up to 12 exact eligible ELF paths from cause (i)")
+            scan = SimpleNamespace(**runpy.run_path(str(args.scan_lib)))
+            captures = {}
+            for lane, root in (("control", official_root), ("thumb", work/"variant/GBS-ROOT")):
+                root.parent.mkdir(exist_ok=True)
+                if lane == "thumb":
+                    gbs.available(work, 22, 12)
+                project, spec = stage_package(gbs, work, args, lane)
+                lane_conf = root.parent/"pair-gbs.conf"
+                lane_conf.write_bytes(conf.read_bytes().replace(str(official_root).encode(), str(root).encode()))
+                lines = run_gbs(gbs, root.parent, project, spec, lane_conf, dist, root, True, False)
+                if not lines or (lane == "thumb" and any(not line.endswith(" -mthumb") for line in lines)):
+                    raise ValueError("no verified mode-forcing compiler calls")
+                captures[lane] = measured_elfs(scan, root, args.package, set(args.elf))
+            compare_pair(work, args, captures["control"], captures["thumb"])
+        print("DONE THUMB_GBS_CAPTURE_REVIEW")
+        return 0
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        print("BLOCKED", " ".join(str(exc).splitlines())[:500])
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

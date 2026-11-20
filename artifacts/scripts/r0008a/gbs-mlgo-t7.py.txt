@@ -1,0 +1,530 @@
+#!/usr/bin/env python3
+"""Build the pinned kernel pair or the actual-archive T7 probe with local GBS."""
+import argparse
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shlex
+import shutil
+import stat
+import subprocess
+import tempfile
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+
+ROOT = Path("/home1/chengkai/vd-tree")
+NATIVE = ROOT / "workspace/temp"
+PRE = NATIVE / "pm0004-mlgo-xllvtyr9"
+P4 = ["p4", "-c", "DEV-IPTV-VC_TOOLCHAIN"]
+DEPOT = "//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/"
+BUILD_CONF_SHA = "98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
+CUSTOM_CONF_SHA = "72a982165c14e8a1da251aebf509ac37bb817e08e8c911ed7dd7dabe64f7e322"
+GIB = 1024 ** 3
+ARCH = "armv7l"
+ARCHIVES = {
+    "/usr/lib/libcapi-base-common.a": ("llvm-product", "capi-base-common-devel-static", "0.4.82-1.armv7l", 1),
+    "/usr/lib/libdw.a": ("llvm-base", "libdw-devel", "0.189-2.54.armv7l", 3),
+    "/usr/lib/libasm.a": ("llvm-base", "libasm-devel", "0.189-2.54.armv7l", 1),
+    "/usr/lib/libelf.a": ("llvm-base", "libelf-devel", "0.189-2.54.armv7l", 1),
+    "/usr/lib/libunwind-arm.a": ("llvm-base", "libunwind-devel", "1.6.2-1.17.armv7l", 1),
+}
+CAPI_SHA = "6924cf7bfc22065a8cb0dc267c8f6398ef2713fd6a9837ee137bdb1016653d6c"
+REL = re.compile(r"R_ARM_[A-Z0-9_]+")
+ADVISORS = ("-enable-ml-inliner=release", "-regalloc-enable-advisor=release")
+FAILED_WORKDIR = "pm0005-gbs-kernel.mtob625f"
+FAILED_SPEC_SHA = "5663f9c9c074f74e69a57bec9fb3dcc595512985a778814e311e0658e2b12cc5"
+CONFIG_SHA = "11c224a1247eeb20c72efc6548808a564b0766321c2b0570dc20d18d965f4caf"
+INSTRUMENT = r'''
+export V=1 KBUILD_VERBOSE=1
+export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1"
+printf 'GBS_KERNEL_PATH %%s\n' "$PATH"
+rpm -q clang llvm clang-accel-x86_64-armv7l --qf 'GBS_RPM %%{NAME} %%{EPOCHNUM} %%{VERSION} %%{RELEASE} %%{ARCH}\n' || :
+for pm_tool in "$(command -v clang || :)" "$(command -v armv7l-tizen-linux-gnueabi-clang || :)" /emul/usr/bin/clang; do
+    test -n "$pm_tool" && test -f "$pm_tool" || continue
+    pm_elf=$(readlink -f "$pm_tool") || continue
+    printf 'GBS_TOOL %%s -> %%s\n' "$pm_tool" "$pm_elf"
+    if command -v readelf >/dev/null; then
+        readelf -h "$pm_elf" 2>/dev/null | sed -n '/Machine:/s/^/GBS_TOOL_ELF /p' || :
+    fi
+    sha256sum "$pm_elf" | sed 's/^/GBS_TOOL_SHA256 /'
+    rpm -qf "$pm_elf" --qf 'GBS_TOOL_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :
+done
+'''
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for block in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def pinned(path, expected):
+    actual = sha(path)
+    if actual != expected:
+        raise ValueError(f"pinned bytes differ for {path.name}: {actual}")
+    return path
+
+
+def execute(argv, cwd, log, timeout, check=True):
+    with log.open("wb") as out:
+        status = subprocess.run(argv, cwd=cwd, stdout=out, stderr=subprocess.STDOUT, timeout=timeout).returncode
+    if status and check:
+        raise ValueError(f"{argv[0]} exit {status}, see {log}")
+    return status
+
+
+OLD_PRODUCT = "http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/"
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError(f"Product index redirected: HTTP {code} {req.full_url}")
+
+
+def live_product(url):
+    if not url:
+        raise ValueError("supply --dependency-product-url with a live immutable QB Product URL")
+    parts = urlsplit(url)
+    if (parts.scheme not in {"http", "https"} or parts.netloc != "repos.vd.sec.samsung.net"
+            or parts.query or parts.fragment or not re.fullmatch(
+                r"/priv/(?:[0-9]+\.){3}[0-9]+:81/PRV/builds/b[0-9]+/[0-9]+/artifacts/"
+                r"TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_[0-9]{8}\.[0-9]+/", parts.path)):
+        raise ValueError("invalid immutable Product URL")
+    req = Request(url + "repos/product/armv7l/packages/repodata/repomd.xml", method="HEAD")
+    with build_opener(ProxyHandler({}), NoRedirect()).open(req, timeout=15) as response:
+        if response.status != 200:
+            raise ValueError(f"Product repo is unavailable: HTTP {response.status}")
+    print("GBS_DEPENDENCY_PRODUCT_LIVE", url, flush=True)
+    return url
+
+
+def rewrite_product(data, url):
+    old = OLD_PRODUCT.encode()
+    if data.count(old) != 1:
+        raise ValueError("expected one pinned old Product URL")
+    return data.replace(old, url.encode(), 1)
+
+
+def configurations(work, reuse_official_root=False, *, product_url, custom_product_url=None):
+    selected = {"official": live_product(product_url),
+                "custom": live_product(custom_product_url) if custom_product_url else product_url}
+    control = ROOT / "config/gbs_vd_llvm_11.16_qb37627297.conf"
+    custom = pinned(PRE / "gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf", CUSTOM_CONF_SHA)
+    conf = pinned(PRE / "product/published-build.conf", BUILD_CONF_SHA)
+    def normalize(data, token, root):
+        base = re.compile(rb"(_" + token + rb"/)")
+        if len(base.findall(data)) != 1:
+            raise ValueError(f"missing unique Base token {token!r}")
+        data, n = re.subn(rb"(?m)^(buildroot\s*=\s*)[^\r\n]+",
+                          lambda m: m[1] + root, data)
+        if n != 1 or b"TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/" not in data:
+            raise ValueError("GBS configuration does not have the pinned Product and one root")
+        return base.sub(b"_BASE_PIN/", data), data
+    configs = {}
+    for lane, path, token in (("official", control, b"20261113\.1"), ("custom", custom, b"20261118\.1")):
+        folder = work / lane
+        folder.mkdir(exist_ok=True)
+        root = folder / "GBS-ROOT"
+        reusing = reuse_official_root and lane == "official" and root.is_dir()
+        if folder.is_symlink() or (root.exists() and not reusing) or root.is_symlink():
+            raise ValueError(f"resume requires an unused GBS root: {root}")
+        normal, data = normalize(path.read_bytes(), token, str(root).encode())
+        if lane == "official":
+            baseline = normal.replace(str(root).encode(), b"ROOT")
+        elif baseline != normal.replace(str(root).encode(), b"ROOT"):
+            raise ValueError("QB GBS configurations differ beyond Base URL and buildroot")
+        data = rewrite_product(data, selected[lane])
+        print("GBS_DEPENDENCY_PRODUCT_SELECTED", lane, selected[lane], flush=True)
+        local = folder / "gbs.conf"
+        if local.is_symlink() or (local.exists() and local.read_bytes() != data):
+            raise ValueError(f"retained staged config differs: {local}")
+        if not local.exists():
+            if reusing:
+                raise ValueError(f"retained GBS root has no original config: {local}")
+            local.write_bytes(data)
+        configs[lane] = local, root
+        print("GBS_INPUT", lane, path, sha(path), "STAGED", local, sha(local), flush=True)
+    print("GBS_BUILD_CONF", conf, BUILD_CONF_SHA, "P4_CHANGE", 14452507, flush=True)
+    return configs, conf
+
+
+def local_git(source, work):
+    git = ["git", "-c", "core.hooksPath=/dev/null"]
+    for name, args in (
+            ("init", ["init", "-q"]),
+            ("add", ["add", "-f", "--", "."]),
+            ("commit", ["-c", "user.name=GBS staging", "-c", "user.email=gbs@localhost", "commit", "-qm", "Local GBS source"])):
+        execute(git + args, source, work / ("git-" + name + ".log"), 1200)
+
+
+def stage_kernel(work, resume=False):
+    src = work / "vdlinux"
+    desc = work / "shelf.log"
+    if resume:
+        if src.is_symlink() or not src.is_dir() or not (work / "base-print.log").is_file():
+            raise ValueError("resume requires the retained source and P4 result logs")
+    else:
+        src.mkdir()
+        execute(P4 + ["login", "-s"], ROOT, work / "p4-login.log", 30)
+        execute(P4 + ["describe", "-S", "-s", "14427407"], ROOT, desc, 60)
+    raw = desc.read_text(errors="replace")
+    if not re.search(r"(?m)^Change\s+14427407\b", raw):
+        raise ValueError("wrong shelf description")
+    files = [(depot, action) for depot, action in re.findall(r"(?m)^\.\.\. (//[^\n]+?)#\d+\s+(\S+)", raw)
+             if depot.startswith(DEPOT)]
+    if not files:
+        raise ValueError("no vdlinux files in shelf")
+    if not resume:
+        execute(P4 + ["print", "-q", "-o", str(src / "..."), DEPOT + "...@14293732"],
+                ROOT, work / "base-print.log", 7200)
+    elif len(files) != 24:
+        raise ValueError("retained shelf differs from recorded 24-file vdlinux overlay")
+    for i, (depot, action) in enumerate(files):
+        relative = PurePosixPath(depot.removeprefix(DEPOT))
+        dest = src / relative
+        if relative.is_absolute() or ".." in relative.parts or not dest.parent.resolve().is_relative_to(src):
+            raise ValueError(f"unsafe shelf path {relative}")
+        removed = action in {"delete", "move/delete"}
+        if resume:
+            exists = dest.exists() or dest.is_symlink()
+            if exists == removed or (not removed and not (work / f"shelf-print-{i}.log").is_file()):
+                raise ValueError(f"retained shelf action or log mismatch: {relative}")
+            continue
+        dest.unlink(missing_ok=True)
+        if not removed:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            execute(P4 + ["print", "-q", "-o", str(dest), depot + "@=14427407"],
+                    ROOT, work / f"shelf-print-{i}.log", 180)
+    pinned(src / "linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig", CONFIG_SHA)
+    spec = src / "packaging/tztv-kernel.spec"
+    if spec.is_symlink() or not spec.is_file():
+        raise ValueError("expected a regular staged kernel spec")
+    if resume:
+        pinned(spec, FAILED_SPEC_SHA)
+        print("GBS_SOURCE_REUSED", src, "14293732 + 14427407", "overlays", len(files), "P4_FETCH_SKIPPED", flush=True)
+    old = spec.read_text()
+    lines = re.findall(r"(?m)^%build[ \t]*$", old)
+    if len(lines) != 1 or (src / ".git").exists():
+        raise ValueError("cannot stage the pinned kernel packaging layout")
+    print("GBS_SOURCE 14293732 + 14427407", "overlays", len(files),
+          "spec_sha256", sha(spec), flush=True)
+    updated = re.sub(r"(?m)^%build[ \t]*$", lambda _: "%build\n" + INSTRUMENT, old)
+    original = work / "tztv-kernel.spec.before-trace"
+    if not original.exists():
+        shutil.copyfile(spec, original)
+    elif sha(original) != sha(spec):
+        raise ValueError("retained pre-trace spec disagrees with staged spec")
+    spec.chmod(stat.S_IMODE(spec.stat().st_mode) | stat.S_IWUSR)
+    spec.write_text(updated)
+    print("GBS_TRACE_ONLY_SPEC_SHA256", sha(spec), flush=True)
+    local_git(src, work)
+    return src
+
+
+def stage_t7(work, probe, members):
+    src = work / "t7-probe"
+    packaging = src / "packaging"
+    packaging.mkdir(parents=True)
+    shutil.copyfile(probe, src / "probe.sh")
+    counts = dict.fromkeys(ARCHIVES, 0)
+    with members.open(newline="") as stream, (src / "cases.tsv").open("w") as output:
+        for row in csv.DictReader(stream):
+            path = row["path"]
+            if path not in ARCHIVES:
+                continue
+            repo, pkg, identity, _ = ARCHIVES[path]
+            if (row["repository"], row["package"], row["identity"]) != (repo, pkg, identity):
+                continue
+            if row["status"] != "REVIEW_RELOCATIONS" or "clang" not in row["producer_markers"].lower():
+                continue
+            if set(REL.findall(" ".join(row.values()))) != {"R_ARM_TLS_LE32"}:
+                continue
+            member = row["member"].split(":", 1)[-1]
+            digest = row["sha256"]
+            if path.endswith("libcapi-base-common.a") and (member, digest) != ("tizen_error.c.o", CAPI_SHA):
+                continue
+            if not re.fullmatch(r"[\w.+-]+\.o", member) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+                raise ValueError(f"unexpected member identity {path}")
+            counts[path] += 1
+            output.write(f"{path}\t{member}\t{digest}\n")
+    if counts != {path: value[-1] for path, value in ARCHIVES.items()}:
+        raise ValueError(f"retained PIC member candidates do not match evidence: {counts}")
+    (packaging / "pm-t7-probe.spec").write_text("""Name: pm-t7-probe
+Version: 1
+Release: 1
+Summary: Local ARM archive consumer probe
+License: MIT
+Source0: %{name}-%{version}.tar.gz
+BuildRequires: clang
+BuildRequires: binutils
+BuildRequires: glibc-devel
+BuildRequires: capi-base-common-devel-static
+BuildRequires: libdw-devel
+BuildRequires: libasm-devel
+BuildRequires: libelf-devel
+BuildRequires: libunwind-devel
+
+%description
+Local ARM static archive link acceptance evidence.
+
+%prep
+%setup -q
+
+%build
+bash ./probe.sh
+
+%install
+mkdir -p %{buildroot}/usr/share/pm-t7-probe
+cp -a probe/. %{buildroot}/usr/share/pm-t7-probe/
+
+%files
+/usr/share/pm-t7-probe
+""")
+    local_git(src, work)
+    return src
+
+
+def available(work, reserve_disk, reserve_ram):
+    free = shutil.disk_usage(work).free // GIB
+    ram = int(re.search(r"(?m)^MemAvailable:\s+(\d+)", Path("/proc/meminfo").read_text())[1]) // 1024**2
+    print("CAPACITY", "disk_free_gib", free, "ram_available_gib", ram, flush=True)
+    if free < 50 + reserve_disk or ram < 16 + reserve_ram:
+        raise ValueError(f"D-018 headroom needs 50+{reserve_disk} GiB disk and 16+{reserve_ram} GiB RAM")
+
+
+def kernel_rpms(root):
+    return sorted((root / "local/repos").rglob("tztv-kernel-perf-*.rpm"))
+
+
+def summarize_kernel(work, lane, root, log):
+    rows, args, observed, nevras = [], [], set(), set()
+    for source in [log, *sorted((root / "local/repos").rglob("*build*.log"))[:12]]:
+        if not source.is_file():
+            continue
+        with source.open(errors="replace") as stream:
+            for line in stream:
+                if "GBS_RPM " in line:
+                    fields = tuple(line.split("GBS_RPM ", 1)[-1].split())
+                    if (len(fields) == 5 and fields[0] in {"clang", "llvm", "clang-accel-x86_64-armv7l"}
+                            and fields[1].isdecimal() and all(re.fullmatch(r"[\w.+~^-]+", item)
+                                                              for item in fields[2:])):
+                        nevras.add(fields)
+                if any(tag in line for tag in ("GBS_TOOL ", "GBS_TOOL_SHA256 ", "GBS_TOOL_OWNER ", "GBS_TOOL_ELF ")):
+                    observed.add(line.strip())
+                if all(flag in line for flag in ADVISORS) and re.search(r"\bclang(?:-[0-9]+)?\b", line) and " -c " in line:
+                    args.append(line.strip())
+    for source in root.glob("**/rpmbuild/BUILD/**/.*.o.cmd"):
+        if not source.is_file() or source.is_symlink():
+            continue
+        if source.name not in {".core.o.cmd", ".page_alloc.o.cmd", ".fork.o.cmd"}:
+            continue
+        for line in source.read_text(errors="replace").splitlines():
+            if line.startswith(("savedcmd_", "cmd_")) and all(flag in line for flag in ADVISORS):
+                args.append(line)
+    for line in sorted(observed)[:18]:
+        print("KERNEL", lane, line[:430])
+    for fields in sorted(nevras):
+        print("KERNEL", lane, "INSTALLED_RPM", *fields)
+        name, _, version, rel, arch = fields
+        seen = set()
+        for path in sorted(root.rglob(f"{name}-{version}-{rel}.{arch}.rpm")):
+            if path.is_file() and not path.is_symlink():
+                digest = sha(path)
+                if digest not in seen:
+                    seen.add(digest)
+                    print("KERNEL", lane, "CACHED_RPM_SHA256", path.name, digest)
+        if not seen:
+            print("KERNEL", lane, "CACHED_RPM_SHA256_UNAVAILABLE", name, version, rel, arch)
+    args = list(dict.fromkeys(args))
+    (work / lane / "effective-argv.txt").write_text("\n".join(args) + "\n")
+    print("KERNEL", lane, "LINES_BOTH_RELEASE_ADVISORS", len(args))
+    for line in args[:3]:
+        print("KERNEL", lane, "ARGV", line[:1000])
+    rpms = []
+    for file in kernel_rpms(root):
+        name = subprocess.check_output(["rpm", "-qp", "--qf", "%{NAME}", str(file)], text=True)
+        if name == "tztv-kernel-perf":
+            rpms.append(file)
+    if len(rpms) == 1:
+        dump = subprocess.check_output(["rpm", "-qp", "--dump", str(rpms[0])], text=True)
+        for line in dump.splitlines():
+            parts = line.rsplit(maxsplit=10)
+            if len(parts) != 11:
+                continue
+            name, size = parts[:2]
+            if re.search(r"/(?:zImage|uImage|Image)(?:[-.][^/]*)?$|\.ko(?:\.(?:gz|xz|zst))?$", name):
+                rows.append((name, int(size)))
+    else:
+        print("KERNEL", lane, "PERF_RPM_COUNT", len(rpms))
+    modules = {name: size for name, size in rows if re.search(r"\.ko(?:\.(?:gz|xz|zst))?$", name)}
+    images = {name: size for name, size in rows if name not in modules}
+    for name, size in sorted(images.items()):
+        print("KERNEL", lane, "IMAGE_BYTES", name, size)
+    if not images:
+        for filename in ("zImage", "uImage", "Image"):
+            for image in sorted(root.glob(f"**/rpmbuild/BUILD/**/{filename}"))[:12]:
+                if image.is_file() and not image.is_symlink():
+                    key = image.as_posix().split("/rpmbuild/BUILD/", 1)[-1]
+                    images["BUILD_TREE:" + key] = image.stat().st_size
+                    print("KERNEL", lane, "BUILD_TREE_IMAGE_BYTES", key, image.stat().st_size)
+    print("KERNEL", lane, "MODULES_COUNT_BYTES", len(modules), sum(modules.values()))
+    vmlinux = [p for p in root.glob("**/rpmbuild/BUILD/**/vmlinux") if p.is_file() and not p.is_symlink()]
+    if len(vmlinux) > 1:
+        perf = [p for p in vmlinux if "perf" in "/".join(p.parts).lower()]
+        if len(perf) == 1:
+            vmlinux = perf
+    sections = {}
+    if len(vmlinux) == 1:
+        headers = subprocess.check_output(["readelf", "-SW", str(vmlinux[0])], text=True)
+        (work / lane / "vmlinux-sections.txt").write_text(headers)
+        for name, size in re.findall(r"(?m)^\s*\[\s*\d+\]\s+(\S+)\s+\S+\s+[0-9a-f]+\s+[0-9a-f]+\s+([0-9a-f]+)\b", headers):
+            sections[name] = int(size, 16)
+        print("KERNEL", lane, "VMLINUX", vmlinux[0], "SECTIONS", len(sections))
+    else:
+        print("KERNEL", lane, "VMLINUX_REVIEW_COUNT", len(vmlinux))
+    (work / lane / "metrics.json").write_text(json.dumps(
+        dict(images=images, modules=modules, sections=sections, advisor_argv_entries=len(args)), indent=2) + "\n")
+    return dict(images=images, modules=modules, sections=sections, argv=len(args))
+
+
+def capacity_args(mode):
+    return (55, 16) if mode == "kernel" else (12, 6)
+
+
+def compare_metrics(left, right):
+    for key in ("images", "modules", "sections"):
+        a, b = left[key], right[key]
+        if not a or not b:
+            print("DELTA_REVIEW", key, "MISSING_LANE_METRICS")
+            continue
+        changed = sorted(set(a) | set(b), key=lambda name: (-abs(b.get(name, 0) - a.get(name, 0)), name))
+        print("DELTA_TOTAL_BYTES", key, sum(a.values()), sum(b.values()), sum(b.values()) - sum(a.values()))
+        for name in changed[:(12 if key == "modules" else 18)]:
+            print("DELTA_BYTES", key, name, a.get(name, "-"), b.get(name, "-"))
+
+
+def find_consumers(work, archives):
+    pattern = re.compile(r"(?:lib(?:capi-base-common|dw|asm|elf|unwind-arm)\.a|(?<!\S)-l(?:capi-base-common|dw|asm|elf|unwind-arm)\b)")
+    visited, inspected_bytes = 0, 0
+    hits = []
+    bounded = False
+    def folders():
+        for base in archives:
+            yield from os.walk(base)
+    for folder, dirs, files in folders():
+        dirs[:] = [d for d in dirs if not d.startswith(".git") and d not in {"node_modules", "proc", "dev", "sys"}]
+        for name in files:
+            path = Path(folder) / name
+            if not (name.endswith((".log", ".map", ".cmd", ".spec", ".pc", ".cmake")) or name in {"CMakeLists.txt", "meson.build", "Makefile"}):
+                continue
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 128 * 1024**2:
+                continue
+            if visited >= 8000 or inspected_bytes + path.stat().st_size > GIB:
+                bounded = True
+                break
+            visited += 1
+            inspected_bytes += path.stat().st_size
+            with path.open(errors="replace") as file:
+                for i, line in enumerate(file, 1):
+                    if pattern.search(line):
+                        kind = "EXPLICIT_ARCHIVE" if ".a" in line else "SEARCH_PATH_UNRESOLVED"
+                        output = "SHARED" if re.search(r"(^|[ ,\t])-shared\b", line) else "PIE" if re.search(r"(^|[ ,\t])-pie\b", line) else "OUTPUT_REVIEW"
+                        hits.append((str(path), i, kind, output, line.strip()[:600]))
+        if bounded:
+            break
+    (work / "consumer-candidates.json").write_text(json.dumps(hits, indent=2) + "\n")
+    print("CONSUMER_SCOPE", "files", visited, "bytes", inspected_bytes, "hits", len(hits), "bounded", bounded)
+    for hit in hits[:45]:
+        print("CONSUMER_CANDIDATE", *hit)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("mode", choices=("kernel", "pic"))
+    parser.add_argument("--probe", type=Path)
+    parser.add_argument("--dependency-product-url", required=True)
+    parser.add_argument("--custom-dependency-product-url", help="optional different live Product repo for custom kernel lane")
+    parser.add_argument("--consumer-dir", type=Path, action="append", default=[])
+    parser.add_argument("--resume", type=Path, help="reuse the recorded pre-build kernel WORKDIR")
+    args = parser.parse_args()
+    if args.custom_dependency_product_url and args.mode != "kernel":
+        parser.error("custom Product URL applies to the paired kernel mode")
+    if args.resume is not None:
+        work = args.resume.resolve(strict=True)
+        if args.mode != "kernel" or work != NATIVE.resolve() / FAILED_WORKDIR:
+            parser.error("--resume only accepts the recorded pre-build kernel WORKDIR")
+    else:
+        work = Path(tempfile.mkdtemp(prefix="pm0008a-gbs-" + args.mode + ".", dir=NATIVE))
+    os.environ["TMPDIR"] = str(work)
+    print("WORKDIR", work, flush=True)
+    try:
+        available(work, *capacity_args(args.mode))
+        cfg, buildconf = configurations(work, product_url=args.dependency_product_url,
+                                        custom_product_url=args.custom_dependency_product_url)
+        if args.mode == "kernel":
+            source, spec, lanes = stage_kernel(work, resume=args.resume is not None), "tztv-kernel.spec", ("official", "custom")
+        else:
+            if args.probe is None:
+                raise ValueError("--probe is required for the PIC GBS probe")
+            dirs = [p.resolve(strict=True) for p in (args.consumer_dir or [NATIVE])]
+            if any(not p.is_dir() or not p.is_relative_to(ROOT) for p in dirs):
+                raise ValueError("consumer evidence directories must be inside vd-tree")
+            source = stage_t7(work, args.probe, NATIVE / "pm0002/pic-results/members.csv")
+            spec, lanes = "pm-t7-probe.spec", ("official",)
+            find_consumers(work, dirs)
+        cpu = ",".join(map(str, sorted(os.sched_getaffinity(0))[:6]))
+        measures = {}
+        for lane in lanes:
+            if lane != lanes[0]:
+                available(work, 25, 16)
+            config, root = cfg[lane]
+            log = work / lane / "gbs.log"
+            command = ["taskset", "-c", cpu, "gbs", "-c", str(config), "build", "-A", ARCH,
+                       "-B", str(root), "-D", str(buildconf), "--threads", "1", "--spec", spec]
+            if args.mode == "pic":
+                command.append("--fallback-to-native")
+            print("GBS_START", lane, shlex.join(command), "CWD", source, "LOG", log, flush=True)
+            status = execute(command, source, log, 12 * 3600, check=False)
+            print("GBS_EXIT", lane, status)
+            if args.mode == "kernel":
+                measures[lane] = summarize_kernel(work, lane, root, log)
+            else:
+                logs = [log, *sorted((root / "local/repos").rglob("*build*.log"))[:12]]
+                seen = set()
+                for file in logs:
+                    if not file.is_file():
+                        continue
+                    with file.open(errors="replace") as stream:
+                        for line in stream:
+                            line = re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*", "", line)
+                            if line.startswith(("T7_RESULT", "T7_MEMBER", "T7_RUNTIME", "LINK_DIAG", "ELF_EVIDENCE")):
+                                seen.add(line.strip())
+                primary = sorted(line for line in seen if line.startswith(("T7_RESULT", "T7_RUNTIME", "T7_MEMBER")))
+                supplemental = sorted(seen.difference(primary))
+                for line in (primary + supplemental)[:190]:
+                    print(line[:480])
+                print("T7_UNIQUE_EVIDENCE_LINES", len(seen))
+                if not any(line.startswith("T7_RESULT") and "GNU_NATIVE" in line for line in seen):
+                    raise ValueError("GBS log did not contain in-root T7 link outcomes")
+            if status:
+                with log.open("rb") as stream:
+                    stream.seek(max(0, log.stat().st_size - 16384))
+                    for line in stream.read().decode(errors="replace").splitlines()[-12:]:
+                        print("GBS_END_LOG", line[:460])
+                raise ValueError(f"GBS build failed for {lane}: {log}")
+        if measures:
+            compare_metrics(measures["official"], measures["custom"])
+        print("DONE GBS_CAPTURE_REVIEW")
+        return 0
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        print("BLOCKED", " ".join(str(exc).splitlines())[:450], flush=True)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

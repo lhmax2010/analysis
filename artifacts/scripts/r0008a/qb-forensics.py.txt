@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+"""Read retained QB configuration and pin package-level diagnostic inputs."""
+
+import argparse
+from collections import defaultdict, deque
+import difflib
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import subprocess
+import tempfile
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+ROOT = Path("/home1/chengkai/vd-tree")
+TEMP = ROOT/"workspace/temp"
+PRE = TEMP/"pm0004-mlgo-xllvtyr9"
+COMPARE = TEMP/"pm0005-image-compare.zrtxkrwn"
+CAP = ROOT/"workspace/qb-evidence/37654439-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2"
+CONFIG_SHAS = ("98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03",
+               "0e352a449b343c796351a49bf6a49e94c65cdf9d107969680a606912b2a416e7")
+CAP_PIN = "191102988f2a10760aef4a7f9f825b1dc999c8e00d47b7ac9dc68e4f51a199d8"
+LEDGER_PIN = "0a1b971f5b4f76f38f60f87cd6bcb3c6d6c8c213cdfb3b37534d914012774d44"
+SHELF_PIN = "c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736"
+SHELF = ROOT/"manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt"
+NAMES = {"ABC-test-apps", "chromium-efl", "connectivity-common-daemon", "gst-ffmpeg", "key-manager-ta",
+         "liballshare-core", "nagsam-mw", "org.tizen.tv.swu", "ug-hbbtv-efl"}
+P4 = ["p4","-c","DEV-IPTV-VC_TOOLCHAIN"]
+MLGO = re.compile(r"enable-ml-inliner|regalloc-enable-advisor|CONFIG_MLGO|(?:mlgo|inliner-size)-model", re.I)
+
+
+def emit(tag, value):
+    print(tag,json.dumps(value,ensure_ascii=True,sort_keys=True),flush=True)
+
+
+def check(path, expected):
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != expected:
+        raise ValueError(f"SHA-256 mismatch for {path}")
+    return data
+
+
+def capture():
+    return json.loads(check(CAP/"identity.json",CAP_PIN))
+
+
+def config(work, page):
+    identity = capture()
+    checked = [check(path,digest) for path,digest in
+               zip((PRE/"product/published-build.conf", CAP/"published-build.conf"),CONFIG_SHAS)]
+    configs = []
+    for lane, folder in (("official",PRE/"product"),("custom",CAP)):
+        xml = folder/"build.xml"
+        expected = identity["files"]["build.xml"] if lane=="custom" else "284f1f8d42922522e344dad9a527d9f384a17d1b798ee3a8c955840b06911e1b"
+        meta = ET.fromstring(check(xml,expected))
+        emit("QB_BUILD_XML",[lane,meta.findtext("id"),meta.findtext("buildconf_version"),meta.findtext("base_repo")])
+    for content in checked:
+        configs.append(content.decode().splitlines())
+    def exclusions(lines):
+        return set().union(*(set(line.split()[1:]) for line in lines
+                             if re.match(r"^%lto_uncompatible_pkgs\s",line)))
+    original,updated=map(exclusions,configs)
+    emit("QB_LTO_EXCLUSION_DELTA",{"added_in_custom":sorted(updated-original),"removed_in_custom":sorted(original-updated)})
+    diff = list(difflib.unified_diff(*configs,fromfile="1117.2",tofile="1118.2",lineterm=""))
+    dest = work/"build.conf.diff"
+    dest.write_text("\n".join(diff)+"\n")
+    for line in diff[(page-1)*100:page*100]:
+        print(line)
+    if len(diff)>page*100:
+        emit("QB_CONFIG_MORE_PAGE",page+1)
+    base_url = re.compile(r"http://repos\.vd\.sec\.samsung\.net/obs220/tizen-rsa/tizen-10\.0-base-dev-llvm/"
+                          r"standard/tizen-10\.0-base-dev-llvm-standard_202611(?:13|18)\.1/")
+    normalized = [[base_url.sub("<BASE_URL>",line) for line in lines] for lines in configs]
+    emit("QB_CONFIG_EQUAL_EXCEPT_BASE_URL_OR_EOL",normalized[0]==normalized[1])
+    emit("QB_CONFIG_OTHER_LINES",[(x[:500]) for x in diff if len(x)>1 and x[0] in "+-" and
+         x[1:2] not in "+-" and re.search(r"lto_uncompatible_pkgs|force-options|gcc-warning-build-env|sanitiz",x,re.I)][:20])
+    emit("QB_CONFIG_DIFF",[str(dest),len(diff)])
+
+
+def xml_metadata(lib, raw, packed, base):
+    primary = ET.fromstring(raw).find(f'{lib["REP"]}data[@type="primary"]')
+    ck = primary.find(lib["REP"]+"checksum")
+    algorithm = ck.get("type")
+    if hashlib.new("sha1" if algorithm=="sha" else algorithm,packed).hexdigest()!=ck.text.strip():
+        raise ValueError("retained primary metadata digest mismatch")
+    com,rpm=lib["COM"],lib["RPM"]
+    rows=[]
+    for package in ET.fromstring(lib["unpack"](packed)).findall(com+"package"):
+        arch=package.findtext(com+"arch")
+        if arch not in {"armv7l","noarch"}:
+            continue
+        version=package.find(com+"version")
+        fmt=package.find(com+"format")
+        def entries(group):
+            node=fmt.find(rpm+group)
+            return [entry.attrib for entry in node] if node is not None else []
+        href=urljoin(base,package.find(com+"location").get("href"))
+        checksum=package.find(com+"checksum")
+        if not href.startswith(base) or checksum.get("type")!="sha256":
+            raise ValueError("unexpected package payload URL or SHA-256 tag")
+        name=package.findtext(com+"name")
+        rows.append(dict(name=name,arch=arch,version=tuple(version.get(k,"0") for k in ("epoch","ver","rel")),
+                         sha=checksum.text.strip(),url=href,srpm=fmt.findtext(rpm+"sourcerpm"),
+                         vcs=version.get("vcs") or fmt.findtext(rpm+"vcs"),
+                         req=entries("requires"),prov=entries("provides"),
+                         files=[item.text for item in fmt.findall(com+"file") if item.text]))
+    return rows
+
+
+def bases(lib):
+    lanes={}
+    for lane,snapshot in (("official","20261113.1"),("custom","20261118.1")):
+        repo=lib["PREFIX"]+snapshot+"/repos/base/armv7l/packages/"
+        folder=PRE/lane
+        lanes[lane]=xml_metadata(lib,(folder/"armv7l-repomd.xml").read_bytes(),
+                                 (folder/"armv7l-primary.download").read_bytes(),repo)
+    return lanes
+
+
+def products(lib, ledger):
+    identity=capture()
+    lanes={}
+    for lane in ("official","custom"):
+        if lane=="official":
+            ref=next(row["official"][1][2] for row in ledger if row["package"][0]=="tztv-kernel-perf")
+            base=ref.split("/repos/product/")[0]+"/repos/product/armv7l/packages/"
+            folder=COMPARE/"official"
+            files=[(folder/name).read_bytes() for name in ("product-repomd.xml","product-primary.download")]
+        else:
+            base=identity["product"]+"repos/product/armv7l/packages/"
+            files=[check(CAP/name,identity["files"][name]) for name in ("repomd.xml","primary.download")]
+        lanes[lane]=xml_metadata(lib,*files,base)
+    return lanes
+
+
+def inventory_index(items):
+    index=defaultdict(list)
+    for match in items:
+        keys={match["name"], *match["files"], *(row["name"] for row in match["prov"])}
+        for key in keys:
+            index[key].append(match)
+    return index
+
+
+def closure(direct, indexes):
+    queue=deque(direct)
+    visited, base, unresolved=set(),set(),set()
+    while queue:
+        cap=queue.popleft()
+        if cap in visited or cap.startswith("rpmlib("):
+            continue
+        visited.add(cap)
+        if len(visited)>5000:
+            unresolved.add("<closure limit>")
+            break
+        product, base_providers = indexes
+        choices, origin = (product[cap],"Product") if cap in product else (base_providers.get(cap,[]),"Base")
+        if len(choices)!=1:
+            unresolved.add(cap)
+        if origin=="Base":
+            base.update((row["name"],row["arch"],row["sha"]) for row in choices)
+        if len(choices)==1:
+            queue.extend(dep["name"] for dep in choices[0]["req"])
+    return base, unresolved
+
+
+def p4_read(*args, allow_missing=False):
+    result=subprocess.run(P4+list(args),cwd=ROOT,capture_output=True,text=True,encoding="utf-8",errors="replace",timeout=120)
+    if allow_missing and not result.stdout.strip() and re.search(r"no such file\(s\)|file\(s\) not in client view",result.stderr,re.I):
+        return ""
+    if result.returncode or result.stderr.strip():
+        raise ValueError("P4 " + (result.stderr or result.stdout)[:400].strip())
+    return result.stdout
+
+
+def source_context(vcs, manifest, output):
+    match=re.fullmatch(r"(//TIZEN/[^#@\s]+)#([0-9]+)",vcs or "")
+    if not match:
+        raise ValueError("no exact Product VCS pin")
+    depot,cl=match.groups()
+    depot=depot.rstrip("/")
+    choices={}
+    for suffix in ("/packaging/*.spec","/packaging/*.inc","/*"):
+        raw=p4_read("files",depot+suffix+"@"+cl,allow_missing=True)
+        for item,rev,action in re.findall(r"(?m)^(//[^\n]+?)#([0-9]+) - ([\w/]+) change",raw):
+            relative=item.removeprefix(depot+"/")
+            if action in {"delete","move/delete"} or item==relative:
+                continue
+            if relative.startswith("packaging/") or re.fullmatch(r"Makefile(?:\..*)?|CMakeLists\.txt|meson\.build|configure\.ac|.*\.gyp",relative):
+                choices[item]="#"+rev
+    for line in manifest.splitlines():
+        scope, sep, shelf=line.strip().rpartition("@")
+        if not sep or scope!=depot+"/..." or not shelf.isdecimal():
+            continue
+        desc=p4_read("describe","-S","-s",shelf)
+        for item,action in re.findall(r"(?m)^\.\.\. (//[^\n]+?)#\d+\s+(\S+)",desc):
+            rec=item.removeprefix(depot+"/")
+            if item!=rec and (item in choices or re.fullmatch(r"packaging/[^/]+\.(?:spec|inc|patch)",rec)):
+                if action in {"delete","move/delete"}:
+                    choices.pop(item,None)
+                else:
+                    choices[item]="@="+shelf
+    if not any(name.endswith(".spec") for name in choices):
+        raise ValueError("no source packaging spec found")
+    requires,flags=[],[]
+    for i,(file,pin) in enumerate(sorted(choices.items(),key=lambda item: (not item[0].endswith(".spec"),item[0]))[:30]):
+        source=p4_read("print","-q",file+pin)
+        (output/f"{i:02}-{Path(file).name}").write_text(source)
+        merged=re.sub(r"\\\n"," ",source)
+        requires.extend(re.findall(r"(?mi)^\s*BuildRequires:\s*([^\n#]+)",merged))
+        flags.extend([file,pin,j,line.strip()[:240]] for j,line in enumerate(source.splitlines(),1) if MLGO.search(line))
+    return requires,flags[:24]
+
+
+def dependency_names(lines):
+    names, unresolved=set(),set()
+    for line in lines:
+        for item in str.split(line,","):
+            item=item.strip()
+            if not item:
+                continue
+            if "%" in item or item.startswith("("):
+                unresolved.add(item)
+                continue
+            cap,*rest=item.split()
+            if rest:
+                unresolved.add(item)
+            names.add(cap)
+    return names,unresolved
+
+
+def payload_paths(path):
+    return subprocess.check_output(["rpm","-qpl",str(path)],text=True,stderr=subprocess.PIPE,
+                                   errors="replace",timeout=30).splitlines()
+
+
+def package_row(rows, name):
+    matches=[row for row in rows if row["name"]==name and row["arch"]=="armv7l"]
+    if len(matches)!=1:
+        raise ValueError(f"expected one armv7l {name} in snapshot, found {len(matches)}")
+    return matches[0]
+
+
+def rpm_file(lib,row,folder):
+    return lib["cached_rpm"]((row["url"],row["sha"]),folder)
+
+
+def helpers(lib, base, elf, work):
+    paths={"/usr/bin/clang-force-options","/usr/bin/clang-unforce-options",
+           "/usr/lib/rpm/macros.clang_force","/usr/lib/rpm/macros.d/macros.clang_force"}
+    for lane in ("official","custom"):
+        row=package_row(base[lane],"clang-force-options")
+        folder=work/lane
+        folder.mkdir()
+        path=rpm_file(lib,row,folder)
+        emit("CLANG_FORCE_RPM",[lane,row["version"],row["sha"],row["srpm"]])
+        with elf["cpio_members"](path) as members:
+            for name,kind,_,size,source in members:
+                if name in paths and kind==0o100000 and size<=65536:
+                    data=source.read(size)
+                    (folder/Path(name).name).write_bytes(data)
+                    emit("CLANG_FORCE_PAYLOAD",[lane,name,hashlib.sha256(data).hexdigest()])
+                    for i,line in enumerate(data.decode(errors="replace").splitlines(),1):
+                        if re.search(r"clang_force_|clang[+]*\.cfg|clang-(un)?force-options|RPM_EC|CCC_OVERRIDE",line):
+                            emit("CLANG_FORCE_LINE",[i,line[:380]])
+                else:
+                    elf["copy_bytes"](source,size)
+        scriptlets=subprocess.check_output(["rpm","-qp","--scripts",str(path)],text=True,stderr=subprocess.PIPE,timeout=20)
+        (folder/"scriptlets.txt").write_text(scriptlets)
+        for line in scriptlets.splitlines()[:12]:
+            emit("CLANG_FORCE_SCRIPTLET",[lane,line[:380]])
+
+
+def member_symbols(elf,rpm,paths,folder):
+    evidence=[]
+    requested=set(paths)
+    with elf["cpio_members"](rpm) as members:
+        for path,kind,_,size,stream in members:
+            if path not in requested or kind!=0o100000 or not 0<size<=128*1024**2:
+                elf["copy_bytes"](stream,size)
+                continue
+            local=folder/"elf-probe.bin"
+            with local.open("wb") as out:
+                elf["copy_bytes"](stream,size,dest=out)
+            with local.open("rb") as inp:
+                if inp.read(4)!=b"\x7fELF":
+                    continue
+            comment=elf["readelf"](local,"--string-dump=.comment")
+            sym=elf["readelf"](local,"-Ws")
+            counts,defs={},set()
+            in_symtab=False
+            for line in sym.splitlines():
+                if line.startswith("Symbol table "):
+                    in_symtab="'.symtab'" in line
+                if not in_symtab or not re.match(r"^\s*\d+:",line):
+                    continue
+                bits=line.split()
+                if len(bits)>7 and bits[6].isdigit():
+                    counts[bits[3]]=counts.get(bits[3],0)+1
+                    if bits[4] in {"GLOBAL","WEAK"}:
+                        defs.add(bits[7].split("@",1)[0])
+            evidence.append(dict(path=path,comment=comment.splitlines()[1:24],symtab_defined_types=counts,
+                                 global_symbols=sorted(defs)))
+            local.unlink()
+    return evidence
+
+
+def archive_symbols(elf,rpm,folder):
+    definitions=set()
+    archives=[]
+    with elf["cpio_members"](rpm) as members:
+        for path,kind,_,size,stream in members:
+            if not path.endswith(".a") or kind!=0o100000 or not 0<size<=128*1024**2:
+                elf["copy_bytes"](stream,size)
+                continue
+            archive=folder/"symbols.a"
+            with archive.open("wb") as out:
+                elf["copy_bytes"](stream,size,dest=out)
+            try:
+                symbols=elf["readelf"](archive,"-Ws")
+                for line in symbols.splitlines():
+                    fields=line.split()
+                    if len(fields)>7 and re.fullmatch(r"\d+:",fields[0]) and fields[6].isdigit() and fields[4] in {"GLOBAL","WEAK"}:
+                        definitions.add(fields[7].split("@",1)[0])
+                archives.append(path)
+            finally:
+                archive.unlink()
+    return definitions,archives
+
+
+def package_forensics(lib,base,elf,work,args):
+    ledger=[json.loads(x) for x in check(COMPARE/"packages.jsonl",LEDGER_PIN).splitlines()]
+    prod=products(lib,ledger)
+    indexes={lane:(inventory_index(prod[lane]),inventory_index(base[lane])) for lane in base}
+    inventories={}
+    for lane,rows in base.items():
+        inv=defaultdict(set)
+        for row in rows:
+            inv[(row["name"],row["arch"])].add((row["version"],row["sha"]))
+        inventories[lane]=inv
+    left,right=inventories["official"], inventories["custom"]
+    changed_inventory={key for key in left.keys()|right.keys() if left.get(key)!=right.get(key)}
+    packages={row["package"][0]:row for row in ledger if row["package"][0] in NAMES and row["package"][1]=="armv7l"}
+    by_hash={lane:{entry["sha"]:entry for entry in prod[lane]} for lane in prod}
+    spec_context={}
+    archive_sets={}
+    for dep in args.archive_provider:
+        try:
+            folder=work/(dep+"-archive")
+            folder.mkdir()
+            archive_sets[dep]=archive_symbols(elf,rpm_file(lib,package_row(base["custom"],dep),folder),folder)
+            emit("BASE_ARCHIVE_PROVIDER", [dep,archive_sets[dep][1][:20],len(archive_sets[dep][0])])
+        except (OSError,ValueError,subprocess.SubprocessError) as exc:
+            emit("BASE_ARCHIVE_PROVIDER_UNAVAILABLE",[dep,str(exc)[:220]])
+    try:
+        p4_read("login","-s")
+        manifest=check(SHELF,SHELF_PIN).decode()
+    except (OSError,ValueError,subprocess.SubprocessError) as exc:
+        emit("P4_CONTEXT_UNAVAILABLE",str(exc))
+        manifest=None
+    for name,row in sorted(packages.items()):
+        folder=work/name
+        folder.mkdir()
+        older,newer=(by_hash[lane].get(row[lane][1][0]) for lane in ("official","custom"))
+        if not older or not newer:
+            emit("PACKAGE_PRIMARY_UNAVAILABLE",name)
+            continue
+        report={"source_identity_matches": all(older[k]==newer[k] for k in ("version","srpm","vcs"))}
+        if manifest is not None:
+            try:
+                direct,flags=source_context(older["vcs"],manifest,folder)
+                names,conditional=dependency_names(direct)
+                a,pa=closure(names,indexes["official"])
+                b,pb=closure(names,indexes["custom"])
+                changed=sorted({(n,arch) for n,arch,_ in a|b} & changed_inventory)
+                membership=sorted({(n,arch) for n,arch,_ in a}^{(n,arch) for n,arch,_ in b})
+                report.update(direct=direct,unexpanded=sorted(conditional),mlgo_source_context=flags,
+                              changed_base_candidates=changed,base_closure_membership_delta=membership,
+                              unresolved_capabilities=sorted(pa|pb))
+                emit("BASE_CLOSURE_CANDIDATES",[name,len(changed),len(pa|pb),len(conditional),
+                     [row for row in changed if re.search(r"devel|static|^llvm|^clang",row[0])][:20]])
+                emit("MLGO_SOURCE_MATCHES",[name,flags[:5],"may be conditional; effective argv required"])
+                report["changed_archive_payload_candidates"]=[]
+                candidates=sorted({n for n,arch in changed if arch=="armv7l" and re.search(r"devel|static|^llvm|^clang",n)})
+                for dep in candidates[:3]:
+                    try:
+                        provider=package_row(base["custom"],dep)
+                        cache=work/"rpm-cache"
+                        cache.mkdir(exist_ok=True)
+                        archives=[item for item in payload_paths(rpm_file(lib,provider,cache)) if item.endswith(".a")]
+                        report["changed_archive_payload_candidates"].append([dep,archives])
+                    except (OSError,ValueError,subprocess.SubprocessError) as exc:
+                        report["changed_archive_payload_candidates"].append([dep,str(exc)[:180]])
+                if report["changed_archive_payload_candidates"]:
+                    emit("CHANGED_BASE_ARCHIVE_LABELS",[name,[(d,len(a) if isinstance(a,list) else None,a[:5] if isinstance(a,list) else a)
+                               for d,a in report["changed_archive_payload_candidates"]]])
+            except (OSError,ValueError,subprocess.SubprocessError) as exc:
+                report["source_context_error"]=str(exc)
+                emit("PACKAGE_SOURCE_UNAVAILABLE",[name,str(exc)[:260]])
+        if name in {"ABC-test-apps","liballshare-core","org.tizen.tv.swu"}:
+            try:
+                rpm=rpm_file(lib,newer,folder)
+                wanted=["/opt/usr/apps/acm-test-app/bin/acm-test-app"] if name=="ABC-test-apps" else [
+                         p for p,(x,y) in row["elf_delta"].items() if y and "!" not in p][:5]
+                rows=member_symbols(elf,rpm,wanted,folder)
+                report["custom_elf"]=rows
+                for item in rows:
+                    emit("CUSTOM_ELF_SYMBOLS",[name,item["path"],item["comment"][:9],item["symtab_defined_types"],
+                          item["global_symbols"][:10]])
+                    for dep,(names,archives) in archive_sets.items():
+                        shared=sorted(names & set(item["global_symbols"]))
+                        emit("STATIC_SYMBOL_NAME_OVERLAP",[name,item["path"],dep,len(shared),shared[:10],
+                             "candidate; archive provenance requires the actual link map"])
+                if args.official_gbs_root:
+                    nv=row["official"][0]
+                    filename=f"{nv[0]}-{nv[2]}-{nv[3]}.{nv[4]}.rpm"
+                    matches=[p for p in args.official_gbs_root.rglob(filename) if p.is_file() and not p.is_symlink()]
+                    if matches:
+                        official=matches[0]
+                        result=member_symbols(elf,official,wanted,folder)
+                        for item in result:
+                            emit("OFFICIAL_LOCAL_GBS_COMMENT",[name,item["path"],str(official),
+                                 lib["file_sha"](official),item["comment"][:10]])
+                        report["official_local_gbs"]=result
+                    else:
+                        emit("OFFICIAL_LOCAL_GBS_ELF_UNAVAILABLE",name)
+            except (OSError,ValueError,subprocess.SubprocessError) as exc:
+                emit("CUSTOM_SYMBOLS_UNAVAILABLE",[name,str(exc)[:220]])
+        spec_context[name]=report
+    (work/"package-forensics.json").write_text(json.dumps(spec_context,indent=2)+"\n")
+    emit("PACKAGE_FORENSICS_SCOPE","Repository dependency candidates and conditional recipe clues. Actual GBS install/link logs required.")
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action",choices=("config","helpers","packages"))
+    parser.add_argument("repo",type=Path)
+    parser.add_argument("elf",type=Path)
+    parser.add_argument("--page",type=int,default=1)
+    parser.add_argument("--archive-provider",action="append",default=[])
+    parser.add_argument("--official-gbs-root",type=Path)
+    args=parser.parse_args()
+    if (len(args.archive_provider)>3 or len(set(args.archive_provider))!=len(args.archive_provider)
+            or any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+-]*",name) for name in args.archive_provider)):
+        parser.error("provide up to three distinct Base package names for --archive-provider")
+    if args.official_gbs_root:
+        args.official_gbs_root=args.official_gbs_root.resolve(strict=True)
+        if not args.official_gbs_root.is_relative_to(TEMP.resolve()) or not args.official_gbs_root.is_dir():
+            parser.error("--official-gbs-root must be a retained directory below workspace/temp")
+    if args.page<1:
+        parser.error("--page must be at least 1")
+    work=Path(tempfile.mkdtemp(prefix="pm0008a-qb-forensics.",dir=TEMP))
+    emit("WORKDIR",str(work))
+    if args.action=="config":
+        config(work,args.page)
+        return
+    lib=runpy.run_path(str(args.repo))
+    elf=runpy.run_path(str(args.elf))
+    base=bases(lib)
+    if args.action=="helpers":
+        helpers(lib,base,elf,work)
+    else:
+        package_forensics(lib,base,elf,work,args)
+
+
+if __name__=="__main__":
+    try:
+        main()
+    except (OSError,ValueError,KeyError,AttributeError,ET.ParseError,subprocess.SubprocessError) as exc:
+        raise SystemExit("QB_FORENSICS_BLOCKED " + str(exc)[:500])
