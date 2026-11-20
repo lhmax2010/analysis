@@ -97,7 +97,7 @@ These fixes change runtime behaviour where the old code was wrong; each place is
 
 ## 2. Packages not using the global optimisation level
 
-The global level is `-O2` in the GCC image and `-Os` in the LLVM image. A package that sets its own `-O` after the global flags keeps that level in both images. In the GCC image this is usually invisible, because `-O2` is the same as the global level. In the LLVM image such a package is not optimised for size.
+The nominal GCC lane uses `-O2` and `-fstack-protector-strong`, while the sampled LLVM optflags use `-Os` and `-fstack-protector`. Package options can win in exempt or unwrapped builds. For affected GCC builds, the force-options wrapper appends `-O2`, `-fstack-protector-strong` and `-mthumb` after the package options. Confirm the effective options per package before interpreting a GCC/Clang size or performance comparison. [Historical wrapper and exemption analysis](optimization-analysis-part-01.md#L285) [Retained GBS wrapper](../evidence/native-run-r0007-gcc-force-wrapper-20261120.txt)
 
 ### 2.1 Base packages (from the armv7l build logs: `-O` of every compile command)
 
@@ -147,7 +147,7 @@ Points for HQ's decision:
 - `%lto_armrel32_pkgs`: 58 packages;
 - `%lto_pkgs`: 15 packages.
 
-For most of the packages in these lists the LLVM image is smaller: `.text` is 10-35 % below the GCC image, mainly because of `-Os`. A few grow noticeably and will be analysed one by one:
+For most of the packages in these lists the LLVM image is smaller: `.text` is 10-35 % below the GCC image, with `-Os` one plausible contributor alongside effective GCC and Clang hardening, ISA and LTO flags. A few grow noticeably and will be analysed one by one:
 
 | Package | List | GCC: LTO ELF / all, .text KB, .dynsym+.dynstr KB | LLVM: same | .text | .dynsym+.dynstr |
 |---|---|---|---|---|---|

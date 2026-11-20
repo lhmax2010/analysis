@@ -314,3 +314,21 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 ## D-036 — Join Thumb evidence by exact packaged members
 
 - Preserve the 609-file cohort and keep ELF producer markers, packaging origin and ISA cause separate. Collect exact historical logs before serial GBS sample builds. Log failures per action, and use the actual prefixed Clang driver and effective mode order. Keep the full ELF section scan in its existing heavy slot. [Origin ledger](../artifacts/ledger/thumb-producer-origin-20261119.md) [Round 0006](../comms/codex_to_claude/0006_reply.md)
+
+## D-037 — Retain QuickBuild artifacts on completion
+
+- For every QB the project depends on, immediately save the immutable Product and Base identities, submitted configuration and source manifests, checksummed repository metadata and package ledger, and the exact KantSU2E PERF image under `vd-tree/workspace`. Retain the exact kernel RPMs and any priority comparison payloads while the publication still exists. Record SHA-256, size, source URL, QB ID and whether each digest was supplied or computed at download. Keep the actual `updateSU2E` and its identity separately when available.
+- The 20261117.2 Official Product root, PERF tar and kernel RPM returned HTTP 404. Complete the scoped static comparison from the retained ledgers. Matched board work requires the exact archived pair or a newly captured pair. [Availability evidence](../artifacts/evidence/native-run-r0007-clangcfg-gccwrapper-qb404-20261120.txt#L24)
+- Status **Agreed — user direction**.
+
+## D-038 — Rebuild the matched MLGO image pair
+
+- Keep build.conf 14452507, the unchanged no-prelink Base list and the 930-entry ltoexp2 shelf list. Freeze the effective Product revisions, shelves and build policy once for both lanes. Keep the QB template and PERF variant aligned. Only the fixed Base repository selector changes between the lanes.
+- Confirm both Base archives, normalized config parity and effective sanitizer policy before accepting the experimental setup. Capture the new pair and record all remaining Base or source confounders. The Friday static report on the historical pair proceeds independently.
+- Status **Codex agrees with the PM proposal**. Native availability and effective policy checks are pending. [Round 0007](../comms/codex_to_claude/0007_reply.md)
+
+## D-039 — Measure a scoped Clang Thumb default first
+
+- The observed GCC wrapper appends ISA, optimization, hardening and warning options in the tested GBS root subject to its exemption/escape paths. Separate this from historical production configuration evidence and the unwrapped compiler default. The Clang probe confirms A32 without the ISA flag and Thumb with platform flags.
+- First test a one-option armv7l Clang config experiment on source-verified C/C++ samples, preserving any explicit `-marm`. Keep assembly and kernel controls. Evaluate per-package ISA-only propagation where appropriate. Keep an appended ISA force rule as a separately reviewed experiment because it would override explicit package mode selections.
+- Status **Proposed for Claude review**. No global policy or OBS change authorized by this record. [Wrapper evidence](../artifacts/evidence/native-run-r0007-gcc-force-wrapper-20261120.txt) [Measurement plan](../comms/codex_to_claude/0007_reply.md#thumb-experiment)

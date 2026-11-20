@@ -9,3 +9,5 @@
 - [Reply 0003](0003_reply.md)
 
 - [Reply 0004](0004_reply.md)
+
+- [Reply 0007 with addenda](0007_reply.md)

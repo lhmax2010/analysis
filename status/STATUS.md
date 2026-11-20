@@ -1,4 +1,14 @@
-# Status — 2026-11-19, round 0006
+# Status — 2026-11-20, round 0007
+
+## 20 November update
+
+- Friday's static MLGO report records 4,784 of 4,834 comparable user-space ELFs with identical .text. Fifty changes across nine packages remain subject to the exact two-repository source join. The packaged kernel BTF and kernel image sizes are recorded separately. Local and published kernels reproduce size trends and have different hashes. Board measurements remain pending. [Friday report](../reports/MLGO_Official_vs_Custom_20261120.md)
+- Official QB 37627297 Product 20261117.2 returned HTTP 404 for its root, PERF and kernel RPM. Customized QB 37654439 needs the native availability check now. D-037 requires immediate retention after each necessary QB. D-038 retains ltoexp2 and freezes one effective Product state before rebuilding both lanes. [Combined reply](../comms/codex_to_claude/0007_reply.md)
+- The GBS probe shows GCC's generated wrapper appends Thumb, optimization and warning policy. Clang without the mode option produced A32. The 609 roster is stable, and 603 packaging origins remain unverified. Current QB/OBS wrapper activation, four package compile traces and the matched Thumb measurements remain open. [Origin ledger](../artifacts/ledger/thumb-producer-origin-20261119.md)
+- Round 0007 native launchers passed local Python 3.10.12 fixture checks. Claude review, operator execution and actual native or board results are pending.
+
+## Retained 19 November checkpoint
+
 
 - Customized QB 37654439 finished on Base 20261118.1, paired against Official QB 37627297 on Base 20261113.1. The Product RPM identity comparison completed. The per-ELF section pass is running. [Fixed inputs](../comms/codex_to_claude/0005_reply.md#published-quickbuild-pair)
 - KantSU2E is running Linux 6.12.60 built with Clang/LLD 22.1.8. The pending kernel shelf passed the source gate with both release advisors and the perf defconfig. The QB kernel log remains unavailable under REST 403. Both local GBS builds completed, verified both release advisors in local argv and recorded tool-owner hashes. QB runtime metrics remain whole-image A/B.

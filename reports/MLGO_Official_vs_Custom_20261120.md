@@ -1,6 +1,6 @@
 # Official versus Customized MLGO — kernel comparison record
 
-The Friday, 20 November report uses the completed KantSU2E QuickBuild pair. The native Product RPM comparison is complete. ELF section qualification and board measurements remain pending.
+The Friday, 20 November report uses the completed KantSU2E QuickBuild pair. The native Product RPM comparison is complete. The user-space ELF section comparison is complete. Source attribution and board measurements remain pending.
 
 The 11 November image report recorded release MLGO in the Linux kernel and byte-identical outputs in the sampled user-space control after disabling ML inlining. For this image pair the kernel is the primary measurement and user space is the identity control. The current board boots Linux 6.12.60 built by Clang/LLD 22.1.8, with tztv-kernel-perf installed. The planned shelf list selects the vdlinux change that records both advisor switches. The post-login source gate passed. Actual QB argv and compiler-install records remain unavailable through the current REST account. Use the source and image criteria below to interpret the Base comparison. [Kernel evidence](../artifacts/evidence/kernel-mlgo-source-chain-20261117.txt)
 
@@ -9,7 +9,7 @@ The 11 November image report recorded release MLGO in the Linux kernel and byte-
 | Official | `37627297` | `20261113.1` | `TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2` |
 | Customized | `37654439` | `20261118.1`, pinned LLVM rev12 | `TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2` |
 
-The operator reported QB 37654439 finished and completed the pinned Product comparison using its fixed repository. These results are the primary Friday evidence for kernel, modules and user-space payloads. The approved board measurements use the full flash images from these same two QuickBuild runs. Compare the two actual GBS config files separately to confirm input parity outside the two repository URLs and local buildroot. [Fixed repositories and config check](../comms/codex_to_claude/0005_reply.md#published-quickbuild-pair)
+The operator reported QB 37654439 finished and completed the pinned Product comparison using its fixed repository. These results are the primary Friday evidence for kernel, modules and user-space payloads. The Official publication is now unavailable. Complete the static report from retained evidence. Matched board measurements require a recovered, byte-identified image pair or a fresh synchronized pair with frozen Product sources. [Fixed repositories and config check](../comms/codex_to_claude/0005_reply.md#published-quickbuild-pair)
 
 | Metric | Procedure | Result |
 |---|---|---|
@@ -17,7 +17,7 @@ The operator reported QB 37654439 finished and completed the pinned Product comp
 | Boot | Five matched cold boots per lane; same board, firmware and Home-ready marker | Pending |
 | Kernel microbenchmarks | Preselect runnable syscall, scheduling/context-switch and memory probes; five blocked runs per lane after a warm-up, fixed CPU affinity, frequency policy and load | Pending |
 | Normal-memory 4K | Three matched runs per lane; identical stream/player/firmware, CPU and dropped or late frames, stalls and new regression signatures | Pending |
-| User-space identity | SHA-256 by installed path and package owner on identical scope; list added, removed and byte-different ELF, with Build IDs for triage. Correlate with non-LLVM inventory delta and rebuilt package records. Treat every unexplained difference as a confounder. | 2,289 RPMs differ, 50 match, 3 unresolved. ELF section qualification pending. |
+| User-space identity | SHA-256 by installed path and package owner on identical scope; list added, removed and byte-different ELF, with Build IDs for triage. Correlate with non-LLVM inventory delta and rebuilt package records. Treat every unexplained difference as a confounder. | 2,289 RPMs differ, 50 match, 3 unresolved. Of 4,834 comparable user-space ELF .text sections, 4,784 match and 50 differ across nine packages. |
 
 Keep each run and both exact artifacts. Preserve rollback before flashing. Report median, IQR, interval and all absolute regression events. Capture compiler/version, model evidence and any kernel source/config/link-mode difference alongside the result. User-space identity concerns file bytes. It does not imply equal runtime behavior after a kernel change.
 
@@ -37,7 +37,8 @@ Upstream LLVM 22.1.8 raises an error when the requested inliner cannot be initia
 | zImage | 5,326,464 | 5,326,496 | +32 | 5,222,304 | 5,222,024 | −280 | −104,160 (−1.96%) |
 | 115 modules | 6,507,334 | 6,567,110 | +59,776 | 6,487,666 | 6,547,762 | +60,096 | −19,668 (−0.30%) |
 
-Equal uImage lengths await the local SHA-256 join to the published member. In the 12 module paths present in both previews, the Official QB offset is +512 bytes for nine and +576 bytes for three, while the Customized offset is +512 bytes for all twelve. That pattern is consistent with fixed-size packaging additions such as signatures. Strip or signing details and the full 115-path distribution require inspection of the packaged bytes or sign step. The published module delta is 320 bytes smaller in magnitude than the local delta. [GBS module rows](../artifacts/evidence/native-run-r0005-gbs-kernel-thumb-20261118.txt#L145) [Published module rows](../artifacts/evidence/native-run-r0005-image-compare-20261118.txt#L17)
+**Size-reproduced across the local GBS and published QuickBuild lanes.** In each lane the QuickBuild and GBS uImage lengths match and their hashes differ. Both zImages and both raw BTF members also differ in hash. The 115-module joins have size offsets of +512 or +576 bytes (Official 101/14, Customized 96/19). Fixed-size signing or packaging records are plausible for module offsets. No signing step or byte-level join yet establishes the cause. Build timestamps, build IDs and compression settings are separate hypotheses for the images. [Retained hash and module joins](../artifacts/evidence/native-run-r0006-fullscan-thumbprobe-20261119.txt#L369)
+
 
 ### Local GBS linked vmlinux sections
 
@@ -79,9 +80,38 @@ The deduplicated name/arch overlap is **177 of 2,342**. Category counts overlap.
 
 **Source-level gate passed.** The pending vdlinux shelf 14427407 selects Base Clang and LLVM under `_toolchain clang`, sets `LLVM=1 LLVM_IAS=1`, and enables `CONFIG_MLGO=y` in the KantSU2E perf defconfig. Makefile lines 1065–1070 add `-mllvm -enable-ml-inliner=release` and `-mllvm -regalloc-enable-advisor=release` to `KBUILD_CFLAGS` under `CONFIG_MLGO_INLINER` and `CONFIG_MLGO_REGALLOC`, respectively. The QuickBuild kernel log remains unavailable after REST HTTP 403. The local two-root GBS replay verifies advisor argv and records the resolved tool files. The actual QB invocation remains unavailable. [Native source gate](../artifacts/evidence/native-run-r0005-20261118.txt#L22)
 
-**The user-space byte-identity criterion failed for this image pair.** Of 2,342 Official installed package identities resolved against the published repositories, 2,289 RPMs differed, 50 were identical and 3 were unresolved. The comparer flagged 2,279 package rows as potential user-space confounders. The flags include ELF changes, other payload changes and differences outside the expected Base delta. This screening establishes which packages need review. The ELF-section audit will quantify how often executable bytes and other runtime sections changed. If there are broad code changes or unresolved differences in workload dependencies, report board measurements as whole-image A/B observations. The data currently support that qualified interpretation. [Native image comparison](../artifacts/evidence/native-run-r0005-image-compare-20261118.txt)
+**Report the board work as a whole-image A/B.** The screened roster has 2,342 Official installed package identities. The published RPM audit returned 2,289 different, 50 identical and three unresolved. The detailed ELF comparison visited 1,783 packages with selected ELF or kernel changes. It does not cover every ELF shipped or installed in either image. [RPM comparison](../artifacts/evidence/native-run-r0005-image-compare-20261118.txt) [Full section scan](../artifacts/evidence/native-run-r0006-fullscan-thumbprobe-20261119.txt#L275)
 
-Reconcile candidate-only and removed packages against the actual board inventories. Verify workload-relevant non-ELF inputs and dependencies even when changed packages are in the expected Base delta. Use local compiler argv as supporting provenance. Keep model-only causal claims contingent on controlling other build inputs, dependencies and the effective compiler/linker path. [Round 0005 independent review](KantSU2E_MLGO_Board_Day_0005.md#independent-review-of-mlgo-attribution)
+| Detailed scan result | Count |
+|---|---:|
+| User-space ELF .text identical | 4,784 |
+| User-space ELF .text changed | 50 |
+| Comparable user-space ELF .text rows | 4,834 |
+| Comparable .text byte identity | 98.97% |
+| Metadata-only candidates | 4,715 |
+| Other executable-section changes | 45 |
+| ELF added / removed, excluded from .text denominator | 12 / 12 |
+| Earlier unresolved RPM identities | 3 |
+
+The 50 paths sit in nine packages outside the non-LLVM Base delta. Their aggregate .text changed from 18,909,078 to 20,288,252 bytes (+1,379,174, +7.29%). Four packages contribute all positive growth (+1,379,302 bytes) and gst-ffmpeg offsets 128 bytes. The other four changed contents at the same size. The retained Official RPM pin join is based on the exact Product primary metadata checksum. The Customized NEVRA, source revision or changelog delta still needs the native ledger join. The current results allow localized source, compiler, build flag or link-input causes. [Official source pins](../artifacts/ledger/qb37627297-source-pins-20261120.tsv) [Readback](../comms/codex_to_claude/0007_reply.md#native-launchers-for-claude-review)
+
+| Package | Changed ELFs | Official .text bytes | Customized .text bytes | Delta | Official source version / depot CL |
+|---|---:|---:|---:|---:|---|
+| org.tizen.tv.swu | 14 | 9,197,846 | 10,365,020 | +1,167,174 | 17.037.0-1 / 14299252 |
+| liballshare-core | 5 | 1,221,288 | 1,355,828 | +134,540 | 1.5.9-34 / 14292509 |
+| nagsam-mw | 15 | 4,170,896 | 4,239,066 | +68,170 | 26.09.22-1 / 14290200 |
+| ug-hbbtv-efl | 11 | 3,274,764 | 3,284,182 | +9,418 | 0.2.2-1 / 14294674 |
+| gst-ffmpeg | 1 | 663,328 | 663,200 | −128 | 1.45.0.tv-74 / 14274649, also check the input shelf |
+| connectivity-common-daemon | 1 | 224,832 | 224,832 | 0 | 25.09.30.0-0 / 13820902, also check the input shelf |
+| chromium-efl | 1 | 75,732 | 75,732 | 0 | 1.1.130-1 / 14298789 |
+| key-manager-ta | 1 | 66,888 | 66,888 | 0 | 26.03.04.0-1 / 13543938 |
+| ABC-test-apps | 1 | 13,504 | 13,504 | 0 | 26.0.1-1 / 14171729 |
+
+The separate ABC sample `/opt/usr/apps/acm-test-app/bin/acm-test-app` has matching .text and a .rodata section record change. Across the scan there are 111 .rodata and 4,827 .comment section record changes. The audit can count record changes from byte hashes or section layout fields. Comparing exact bytes and strings for the ABC sample requires both original RPMs or their verified cached copies. Timestamp, version strings and compiler signatures remain hypotheses. Preserve non-code content changes and candidate-only additions for workload dependency review. [Section scan](../artifacts/evidence/native-run-r0006-fullscan-thumbprobe-20261119.txt#L280)
+
+The 60 changed and two identical module .text rows came from the comparison of other packages that ship .ko files. The section scanner only added the raw BTF target from `tztv-kernel-perf`. The 115 modules owned by that RPM have a separate member size and SHA-256 ledger. Their .text breakdown requires a targeted exact-RPM read. Counts from the two populations cannot be subtracted. [Section selection implementation](../artifacts/scripts/r0005/mlgo-elf-sections.py.txt#L414)
+
+Local GBS substantiates both release advisor flags with matched source and build configuration. Clang, accelerator and Base dependency payloads differ. The experiment measures the toolchain/Base swap with the kernel as the primary endpoint. Evidence for a model-only effect requires a further comparison that changes only the models. Board performance and memory also require a verified PERF sanitizer configuration and the actual result of a matched run. [Comparison scope and recovery plan](../comms/codex_to_claude/0007_reply.md)
 
 
 ## Published kernel payload sizes
@@ -102,4 +132,4 @@ Individual modules changed in both directions. The QuickBuild `tztv-kernel-perf`
 | BTF strings | 1,489,174 | 1,537,871 | +48,697 (+3.27%) |
 | Total | 3,696,242 | 3,820,867 | +124,625 (+3.37%) |
 
-**BTF kind counts pending.** More FUNC/FUNC_PROTO records could explain some growth, but the header lengths alone do not establish record counts or their cause. The local ELF's .symtab, .strtab and .debug_frame increased separately. Those sections are absent from the raw BTF file. The kernel boot image can shrink while rootfs metadata grows. Upstream 6.12 also links allocatable .BTF into the running kernel image when CONFIG_DEBUG_INFO_BTF is enabled. Confirm that option, the local .BTF size delta and any exact blob match through the pinned native decoder. The published rootfs file's size does not establish resident RAM or whether a tool opens that file versus reading kernel-exported BTF. Actual VD tooling load and lifetime remain unmeasured. [Kernel v6.12 link procedure](https://github.com/torvalds/linux/blob/v6.12/scripts/link-vmlinux.sh#L100-L123) [Native decoder](../comms/codex_to_claude/0006_reply.md#packaged-btf)
+**BTF kind counts pending.** More FUNC/FUNC_PROTO records could explain some growth, but the header lengths alone do not establish record counts or their cause. The local ELF's .symtab, .strtab and .debug_frame increased separately. Those sections are absent from the raw BTF file. The kernel boot image can shrink while rootfs metadata grows. Upstream 6.12 also links allocatable .BTF into the running kernel image when CONFIG_DEBUG_INFO_BTF is enabled. Confirm that option and the local linked .BTF size delta through the pinned recovery decoder. It obtains QuickBuild BTF kind counts only from exact cached, saved or still-published RPM bytes, or an exact reconstruction that matches the recorded SHA-256. The published rootfs file's size does not establish resident RAM or whether a tool opens that file versus reading kernel-exported BTF. Actual VD tooling load and lifetime remain unmeasured. [Kernel v6.12 link procedure](https://github.com/torvalds/linux/blob/v6.12/scripts/link-vmlinux.sh#L100-L123) [Native decoder](../comms/codex_to_claude/0006_reply.md#packaged-btf)
