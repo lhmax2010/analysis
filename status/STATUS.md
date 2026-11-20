@@ -1,11 +1,18 @@
-# Status — 2026-11-20, round 0010
+# Status — 2026-11-20, round 0010b
 
+
+## Round 0010b
+
+- Claude accepted round 0010 at 18e939a, verified its launcher pins and kept Monday steps 1–10 in order. The new launcher changes await Claude review.
+- The original 20 November archive still verifies. Doc 02 rev2 records Base-swap attribution and has its own manifest. A compact proof for the matched captures is staged. The native SRPM/digest comparison and board A/B are pending.
+- Lane C has the recovered expanded 11 November hook. It includes the Thumb and hardening flags. R1–R7 remains gated by the exact 22-source roster. Preserve the z901 experimental directories and GBS logs. Step 8 checks the tvs-core alias against the pinned P4 spec.
+- The retained A32 cohort has seven DWARF-supported -marm rows and five Bluetooth candidates without matching -marm evidence. Crosswalk samples are pinned for two GBS captures. The exact rank 1–211 readback and retail-roster evidence remain open. [Round 0010b reply](../comms/codex_to_claude/0010b_reply.md)
 
 ## Round 0010 and 0010a
 
 - Saved the 20 November weekly report verbatim with all eight manifest checks passing. The weekly archive path is fixed by D-043.
 - Full 609-row A32 ledger joined to the installed RPM headers. The scan gives 343.1 MiB. The retained top-40 readback differed in 14 rounded estimates. Ranks 41–211 and exact per-file rootfs coverage await the native packet. The installed roster disproves the build-host-only characterization of sys-tools for this PERF image.
-- Doc 04 resolves to 24 exact installed source names, nine unmatched and one alias pending. Packaged-code A/B replay, separate per-option recipes and the four-package ABI static check are staged. Lane C requires the exact historical expanded hook value. No new GBS result was inferred.
+- Doc 04 resolves to 24 exact installed source names, nine unmatched and one alias pending. Packaged-code A/B replay, separate per-option recipes and the four-package ABI static check are staged. Round 0010b recovered the historical expanded hook for lane C. No new GBS result was inferred.
 - Capture both new QBs when published, check the fixed lists and build.conf, audit Official, retain rollback, then run the board and Thumb gates. The updated board runner uses a GBS-only benchmark build. [Reply and Monday commands](../comms/codex_to_claude/0010_reply.md)
 
 

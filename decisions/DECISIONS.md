@@ -365,4 +365,15 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 
 - Map Doc 04 by installed RPM header SOURCERPM. Use the same sources and locked Official environment for A/B/C. A is unchanged, B only appends `-Os`, and C replays the verified historical hook when available. Compare ELF sizes and DWARF producer flags, and maintain libgcrypt's intentional low-level production cases. Default Thumb remains the separate EXP-T1 measurement.
 - Keep the top-211 historical report values traceable and qualify remaining evidence with the exact native scan. Treat family-wide causes and measurements as pending until verified.
-- Status **Staged for Claude review**. [Round 0010 reply](../comms/codex_to_claude/0010_reply.md)
+- Status **Accepted for round 0010**. [Round 0010 reply](../comms/codex_to_claude/0010_reply.md)
+
+## D-045 — Attribute the matched MLGO run to the Base swap until the package proof returns
+
+- Preserve the original weekly archive and add approved corrections as separately hashed revisions. Use the installed NEVRA comparison, same-NEVRA candidate digest differences, the exact LLVM SRPM contents, accelerator changes and user-space ELF evidence to qualify attribution. Archive the next report under the 27 November date.
+- Status **Agreed on attribution and archive scope**. Native package proof staged for review. [Round 0010b reply](../comms/codex_to_claude/0010b_reply.md#matched-qb-mlgo-base-package-proof)
+
+## D-046 — Reuse the recovered historical hook and preserve its build evidence
+
+- Keep the recovered single-line expanded hook as the historical lane C input. It carries Thumb and other policy changes alongside -Os. Continue using separately controlled runs for the individual effects. Require the reconciled 22-source roster before R1–R7. Preserve the z901 experiment directories and GBS package logs in storage cleanup.
+- Confirm the tvs-core alias with the matching shelved or submitted spec in Monday step 8. Keep the exact A32 rank/basis and retail inclusion pending their respective evidence. Test the two selected Crosswalk packages independently before assigning a common build-rule cause.
+- Status **Historical hook recovered**. Native alias scan and launcher review pending. [Round 0010b reply](../comms/codex_to_claude/0010b_reply.md)

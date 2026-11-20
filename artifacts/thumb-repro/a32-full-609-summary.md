@@ -23,7 +23,7 @@ Ranks 1–211 reproduce archived Doc 07 and retain its reported share precision.
 
 The values from the 0010a -O summary and Doc 07 have different scopes. The former sums the loadable executable sections across the RPM and the latter prints individually floored file estimates. The native per-file export is the remaining independent check for ranks 41–211, including exact mode basis and identity. Doc 07 uses decimal MB in its introductory total and MiB for class totals. All class and family totals in this working table use MiB.
 
-The eight cause classes remain evidence tiers for follow-up. The Clang category is an A32 candidate category based largely on markers, with actual mode flags and object origin still pending. GCC/assembly/prebuilt/wrapper exceptions require producer and package records. For the 11 existing `Explicit -marm` labels, 5 do not have a positive path-and-owner match in the retained-board producer table. Their existing Doc 07 attribution remains provisional.
+The eight cause classes remain evidence tiers for follow-up. The Clang category is an A32 candidate category based largely on markers, with actual mode flags and object origin still pending. GCC/assembly/prebuilt/wrapper exceptions require producer and package records. Across all 12 explicit -marm labels, seven have qualifying path-and-owner DWARF producer evidence. Six are in the top 211 (13, 14, 36, 38, 58, 59) and one is in the tail (361). The five Bluetooth paths below lack a qualifying -marm producer match in the retained table. Their existing Doc 07 attribution remains provisional.
 
 - Rank 5 bluetooth-impl-sec-oal `/prd/usr/lib/libbluetooth.so`.
 - Rank 20 bluetooth-impl-sec-oal `/prd/usr/lib/libleaudio.so`.
