@@ -1,0 +1,50 @@
+PM0010C START 2026-11-20T22:22:02+08:00
+== hook variant per log (FINAL = no warning flags; WARN = with -Wall/-Wshadow): variant | mtime | path
+V FINAL | 11-12T22:10 | workspace/temp/z901/exp8/libpisa-ipc/final2/gbs.log
+V FINAL | 11-12T22:10 | workspace/temp/z901/exp8/libpisa-ipc/final2/log.txt
+V WARN | 11-12T21:42 | workspace/temp/z901/exp8/libpisa-ipc/final/gbs.log
+V WARN | 11-12T21:42 | workspace/temp/z901/exp8/libpisa-ipc/final/log.txt
+V WARN | 11-12T21:01 | workspace/temp/z901/exp8/libpisa-ipc/forceL/gbs.log
+V WARN | 11-12T21:01 | workspace/temp/z901/exp8/libpisa-ipc/forceL/log.txt
+V FINAL | 11-12T22:11 | workspace/temp/z901/exp8/org.tizen.AVControl/final2/gbs.log
+V FINAL | 11-12T22:11 | workspace/temp/z901/exp8/org.tizen.AVControl/final2/log.txt
+V WARN | 11-12T21:37 | workspace/temp/z901/exp8/org.tizen.AVControl/final/gbs.log
+V WARN | 11-12T21:37 | workspace/temp/z901/exp8/org.tizen.AVControl/final/log.txt
+V WARN | 11-12T21:02 | workspace/temp/z901/exp8/org.tizen.AVControl/forceL/gbs.log
+V WARN | 11-12T21:02 | workspace/temp/z901/exp8/org.tizen.AVControl/forceL/log.txt
+V WARN | 11-12T21:06 | workspace/temp/z901/exp8/org.tizen.tv-viewer/forceL/gbs.log
+V WARN | 11-12T21:06 | workspace/temp/z901/exp8/org.tizen.tv-viewer/forceL/log.txt
+V WARN | 11-12T21:03 | workspace/temp/z901/exp8/org.tizen.webappservice/forceL/gbs.log
+V WARN | 11-12T21:03 | workspace/temp/z901/exp8/org.tizen.webappservice/forceL/log.txt
+V FINAL | 11-12T22:11 | workspace/temp/z901/exp8/tvs-si/final2/gbs.log
+V FINAL | 11-12T22:11 | workspace/temp/z901/exp8/tvs-si/final2/log.txt
+V WARN | 11-12T21:37 | workspace/temp/z901/exp8/tvs-si/final/gbs.log
+V WARN | 11-12T21:37 | workspace/temp/z901/exp8/tvs-si/final/log.txt
+V FINAL | 11-12T22:11 | workspace/temp/z901/gbs-root-r8-L1/local/repos/z901qb/armv7l/logs/success/tvs-si-0.1.1-1/log.txt
+V FINAL | 11-12T22:11 | workspace/temp/z901/gbs-root-r8-L2/local/repos/z901qb/armv7l/logs/success/org.tizen.AVControl-0.2.0-1/log.txt
+V FINAL | 11-12T22:10 | workspace/temp/z901/gbs-root-r8-L3/local/repos/z901qb/armv7l/logs/success/libpisa-ipc-2.10.11-1/log.txt
+V WARN | 11-12T21:37 | workspace/temp/z901/gbs-root-r8-L4/local/repos/z901qb/armv7l/logs/success/org.tizen.AVControl-0.2.0-1/log.txt
+== distinct FINAL values (count | sha256 of value)
+FV 18 | 4a87173b03427d85 | 480 chars
+HOOK_FILE /home1/chengkai/vd-tree/workspace/temp/pm0010c-nov11-hook-final.txt
+HOOK_SHA256 bdf0fecb69664a13a11ac42c4ea56337f509c87189459328b007b8a290db2e7e
+HOOK_VALUE # +-O2 +-g2 +-pipe +-Wp,-D_FORTIFY_SOURCE=2 +-fexceptions +-fstack-protector-strong +-fmessage-length=0 +-Wl,-z,relro,--as-needed +--param=ssp-buffer-size=4 +-mcpu=cortex-a53 +-mtune=cortex-a53 +-march=armv8-a+crc +-mlittle-endian +-mfpu=neon-vfpv4 +-mfloat-abi=softfp +-mthumb +-Wp,-D__SOFTFP__ +-Wl,-O1 +-Wl,--hash-style=gnu +-Wa,-mimplicit-it=thumb +-fno-common +-fsigned-char +-Os +-Wno-unknown-warning-option +-Wno-cast-function-type-strict +-Wno-unused-command-line-argument
+HOOK_HAS_MTHUMB 1  HOOK_HAS_OS 1
+== z901 experiment dirs: exp | package dirs
+E exp | openusd remote-management
+E exp8 | abseil-cpp app-installers aurum avoc-daemon boost dali2-adaptor freetype2 grpc icu libpisa-ipc native-home openusd org.tizen.AVControl org.tizen.mbr-daemon org.tizen.tv-viewer org.tizen.webappservice pkgmgr-info protobuf qte-bm security-manager soc-ai-acl tee_test_suite trustzone-nwd tvs-si webauthn
+== z901 GBS roots: root | built packages (success / fail)
+R gbs-root | S: openusd org.tizen.remote-management z901-probe | F: org.tizen.remote-management
+R gbs-root-gcc | S: org.tizen.remote-management z901-probe-gcc | F:
+R gbs-root-qb1110 | S: z901-probe8 | F:
+R gbs-root-r8-G1 | S: org.tizen.AVControl | F:
+R gbs-root-r8-G2 | S: org.tizen.tv-viewer | F:
+R gbs-root-r8-L1 | S: tvs-si | F:
+R gbs-root-r8-L2 | S: org.tizen.AVControl | F:
+R gbs-root-r8-L3 | S: libpisa-ipc | F:
+R gbs-root-r8-L4 | S: org.tizen.AVControl | F:
+== all z901 package names seen in success/fail logs (count | names)
+N 9 | libpisa-ipc openusd org.tizen.AVControl org.tizen.remote-management org.tizen.tv-viewer tvs-si z901-probe z901-probe8 z901-probe-gcc
+PM0010C DONE 2026-11-20T22:22:03+08:00
+d5bcc2d8f2f698a63cca572f228dca65fa4a0e62313ab12d0d6ea70e27c148fb  workspace/temp/pm0010c-hook-roster-20261120-222202.txt
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$

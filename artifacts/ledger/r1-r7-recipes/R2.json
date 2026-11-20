@@ -1,0 +1,171 @@
+{
+  "id": "R2",
+  "status": "PENDING_EXACT_INJECTION",
+  "baseline": null,
+  "treatment": null,
+  "reported_result_packages": [
+    "grpc",
+    "pkgmgr-info",
+    "security-manager",
+    "tee_test_suite",
+    "trustzone-nwd",
+    "webauthn"
+  ],
+  "archived_variants": [
+    {
+      "package": "abseil-cpp",
+      "variant": "vih",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "-flto(24) -mthumb(20) -ffat-lto-objects(18) -fvisibility-inlines-hidden(14)"
+    },
+    {
+      "package": "aurum",
+      "variant": "vih",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "-flto(18) -mthumb(16) -ffat-lto-objects(12) -fvisibility-inlines-hidden(8) -fvisibility=hidden(2)"
+    },
+    {
+      "package": "boost",
+      "variant": "vih",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": ""
+    },
+    {
+      "package": "freetype2",
+      "variant": "vihL",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-mthumb(188) -fvisibility-inlines-hidden(188) -flto(188) -ffat-lto-objects(182) -fstack-protector-strong(178) -fvisibility=hidden(174)"
+    },
+    {
+      "package": "grpc",
+      "variant": "vih",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(20) -flto(18) -ffat-lto-objects(12) -fvisibility-inlines-hidden(8)"
+    },
+    {
+      "package": "grpc",
+      "variant": "vihL",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(16) -fvisibility-inlines-hidden(16) -flto(12) -ffat-lto-objects(6)"
+    },
+    {
+      "package": "grpc",
+      "variant": "vihO",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(3510) -fvisibility-inlines-hidden(3510) -flto(12) -ffat-lto-objects(6)"
+    },
+    {
+      "package": "icu",
+      "variant": "vih",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": ""
+    },
+    {
+      "package": "native-home",
+      "variant": "vih",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "-mthumb(24) -fvisibility-inlines-hidden(20) -ffat-lto-objects(20) -flto(18)"
+    },
+    {
+      "package": "openusd",
+      "variant": "vih",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-flto(22) -mthumb(20) -ffat-lto-objects(16) -fvisibility-inlines-hidden(12)"
+    },
+    {
+      "package": "openusd",
+      "variant": "vihL",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-mthumb(16) -flto(16) -ffat-lto-objects(10)"
+    },
+    {
+      "package": "org.tizen.mbr-daemon",
+      "variant": "vih",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "-flto(18) -mthumb(16) -ffat-lto-objects(12) -fvisibility-inlines-hidden(8)"
+    },
+    {
+      "package": "pkgmgr-info",
+      "variant": "vih",
+      "rpm_count": 9,
+      "log": "y",
+      "observation": "-flto(460) -fvisibility-inlines-hidden(458) -mthumb(456) -ffat-lto-objects(454) -fvisibility=hidden(416) -fstack-protector-strong(416) --gc-sections(4)"
+    },
+    {
+      "package": "protobuf",
+      "variant": "vih",
+      "rpm_count": 12,
+      "log": "y",
+      "observation": "-flto(18) -mthumb(16) -ffat-lto-objects(12) -fvisibility-inlines-hidden(8)"
+    },
+    {
+      "package": "protobuf",
+      "variant": "vihO",
+      "rpm_count": 12,
+      "log": "y",
+      "observation": "-fvisibility-inlines-hidden(1746) -mthumb(894) -flto(894) -ffat-lto-objects(888) -fvisibility=hidden(852)"
+    },
+    {
+      "package": "security-manager",
+      "variant": "vih",
+      "rpm_count": 14,
+      "log": "y",
+      "observation": "-fvisibility-inlines-hidden(434) -flto(412) -mthumb(408) -ffat-lto-objects(406) -fvisibility=default(106) -fvisibility=hidden(82)"
+    },
+    {
+      "package": "soc-ai-acl",
+      "variant": "vih",
+      "rpm_count": 3,
+      "log": "y",
+      "observation": "-fstack-protector-strong(4478) -mthumb(4386) -flto(18) -ffat-lto-objects(12) -fvisibility-inlines-hidden(8)"
+    },
+    {
+      "package": "tee_test_suite",
+      "variant": "vih",
+      "rpm_count": 8,
+      "log": "y",
+      "observation": "-fvisibility-inlines-hidden(728) -mthumb(614) -fvisibility=hidden(72) -fstack-protector-strong(68)"
+    },
+    {
+      "package": "trustzone-nwd",
+      "variant": "vih",
+      "rpm_count": 3,
+      "log": "y",
+      "observation": "-flto(24) -mthumb(20) -ffat-lto-objects(18) -fvisibility-inlines-hidden(14) -fstack-protector-strong(6)"
+    },
+    {
+      "package": "tvs-si",
+      "variant": "vih",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(24) -fvisibility-inlines-hidden(24) -fsigned-char(8)"
+    },
+    {
+      "package": "tvs-si",
+      "variant": "vihL",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(20) -fsigned-char(8)"
+    },
+    {
+      "package": "webauthn",
+      "variant": "vih",
+      "rpm_count": 13,
+      "log": "y",
+      "observation": "-fvisibility-inlines-hidden(114) -flto(114) -mthumb(110) -ffat-lto-objects(108) -fvisibility=hidden(86) -fvisibility=default(20)"
+    }
+  ],
+  "notes": "Observed tokens are from merged log counts. Keep baseline/treatment unset until command context proves injection and position."
+}

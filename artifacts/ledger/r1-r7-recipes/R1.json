@@ -1,0 +1,99 @@
+{
+  "id": "R1",
+  "status": "VERIFIED_HISTORICAL_HOOK",
+  "baseline": "",
+  "treatment": "# +-O2 +-g2 +-pipe +-Wp,-D_FORTIFY_SOURCE=2 +-fexceptions +-fstack-protector-strong +-fmessage-length=0 +-Wl,-z,relro,--as-needed +--param=ssp-buffer-size=4 +-mcpu=cortex-a53 +-mtune=cortex-a53 +-march=armv8-a+crc +-mlittle-endian +-mfpu=neon-vfpv4 +-mfloat-abi=softfp +-mthumb +-Wp,-D__SOFTFP__ +-Wl,-O1 +-Wl,--hash-style=gnu +-Wa,-mimplicit-it=thumb +-fno-common +-fsigned-char +-Os +-Wno-unknown-warning-option +-Wno-cast-function-type-strict +-Wno-unused-command-line-argument",
+  "reported_result_packages": [
+    "libpisa-ipc",
+    "org.tizen.AVControl",
+    "org.tizen.tv-viewer",
+    "org.tizen.webappservice"
+  ],
+  "archived_variants": [
+    {
+      "package": "grpc",
+      "variant": "final",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(16) -fvisibility-inlines-hidden(16) -flto(12) -ffat-lto-objects(6)"
+    },
+    {
+      "package": "libpisa-ipc",
+      "variant": "final",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-fstack-protector-strong(196) -mthumb(16) -fvisibility-inlines-hidden(12) -flto(12) -fvisibility=hidden(6) -ffat-lto-objects(6) -fsigned-char(4) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "libpisa-ipc",
+      "variant": "final2",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-fstack-protector-strong(196) -mthumb(16) -fvisibility-inlines-hidden(12) -flto(12) -fvisibility=hidden(6) -ffat-lto-objects(6) -fsigned-char(4) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "libpisa-ipc",
+      "variant": "forceL",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-fstack-protector-strong(196) -mthumb(16) -flto(12) -fvisibility=hidden(6) -ffat-lto-objects(6) -fsigned-char(4) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "openusd",
+      "variant": "final",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-mthumb(16) -flto(16) -ffat-lto-objects(10)"
+    },
+    {
+      "package": "org.tizen.AVControl",
+      "variant": "final",
+      "rpm_count": 3,
+      "log": "y",
+      "observation": "-mthumb(16) -fvisibility-inlines-hidden(12) -flto(12) -ffat-lto-objects(6) -fstack-protector-strong(4) -fsigned-char(4) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "org.tizen.AVControl",
+      "variant": "final2",
+      "rpm_count": 3,
+      "log": "y",
+      "observation": "-mthumb(16) -fvisibility-inlines-hidden(12) -flto(12) -ffat-lto-objects(6) -fstack-protector-strong(4) -fsigned-char(4) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "org.tizen.AVControl",
+      "variant": "forceL",
+      "rpm_count": 3,
+      "log": "y",
+      "observation": "-mthumb(16) -flto(12) -ffat-lto-objects(6) -fstack-protector-strong(4) -fsigned-char(4) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "org.tizen.tv-viewer",
+      "variant": "forceL",
+      "rpm_count": 6,
+      "log": "y",
+      "observation": "-mthumb(24) -flto(20) -ffat-lto-objects(14) -fsigned-char(12) -fstack-protector-strong(6) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "org.tizen.webappservice",
+      "variant": "forceL",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(24) -flto(20) -ffat-lto-objects(14) -fstack-protector-strong(12) -fsigned-char(12) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "tvs-si",
+      "variant": "final",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "-mthumb(26) -fsigned-char(14) -fstack-protector-strong(4) CCC_OVERRIDE_OPTIONS(4)"
+    },
+    {
+      "package": "tvs-si",
+      "variant": "final2",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(24) -fsigned-char(12) -fstack-protector-strong(4) CCC_OVERRIDE_OPTIONS(4)"
+    }
+  ],
+  "notes": "Use the four measured packages, plus separately marked controls. The verbatim hook only proves final2 variants."
+}

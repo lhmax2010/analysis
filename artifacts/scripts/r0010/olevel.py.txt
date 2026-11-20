@@ -22,6 +22,8 @@ WORKSPACE = Path("/home1/chengkai/vd-tree/workspace")
 TEMP = WORKSPACE/"temp"
 PRIORITY = ("org.tizen.AVControl", "org.tizen.tv-viewer", "org.tizen.webappservice",
             "libpisa-ipc", "org.tizen.webserver", "libgcrypt", "rpm", "nnstreamer")
+ISA_LANE = frozenset({"org.tizen.AVControl", "org.tizen.tv-viewer", "libpisa-ipc",
+                      "org.tizen.webserver", "libgcrypt", "rpm", "nnstreamer"})
 BASE = "20261113.1"
 CONFIG = "98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
 SHELVES = "c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736"
@@ -111,7 +113,7 @@ def research_recipe(path, digest, rows):
         raise ValueError("research requires the reconciled 22-source historical roster")
     baseline,treatment=(recipe.get(k,"") for k in ("baseline","treatment"))
     for options in (baseline,treatment):
-        if "\n" in options or not all(op=="#" or re.fullmatch(r"\+-[^\s%]+|O(?:s|z|[0-3g])",op)
+        if not isinstance(options,str) or "\n" in options or not all(op=="#" or re.fullmatch(r"\+-[^\s%]+|O(?:s|z|[0-3g])",op)
                                          for op in options.split()):
             raise ValueError("research option lists must be expanded Clang driver edits")
     if treatment==baseline or not treatment:
@@ -386,6 +388,8 @@ def run_package(gbs, lib, stager, thumb, scan, args, settings, row, matches, rec
     spec.chmod(spec.stat().st_mode|0o200)
     research=settings["research"]
     options={key:research[key] for key in ("A","B")} if research else {"A":None,"B":"+-Os","C":settings["hook"]}
+    if not research and row["doc_source"] in ISA_LANE:
+        options["D"]="# +-Os +-mthumb"
     names={r["name"] for r in matches}
     for label in options:
         if label=="C" and not settings["hook"]:
@@ -415,7 +419,7 @@ def run_package(gbs, lib, stager, thumb, scan, args, settings, row, matches, rec
             record.pop("active",None)
             write()
     if "A" in record["lanes"]:
-        for label in ("B","C"):
+        for label in ("B","C","D"):
             if label in record["lanes"]:
                 old={(r["rpm"],r["path"]) for r in rows_from_metrics(folder/"A/metrics.json")}
                 new={(r["rpm"],r["path"]) for r in rows_from_metrics(folder/label/"metrics.json")}
@@ -439,6 +443,7 @@ def readback(directory):
         raise ValueError("expected round 0010 optimization workdir")
     state=json.loads((work/"progress.json").read_text())
     lines=["O progress "+state["phase"]+" Base "+BASE+" build.conf@14452507",
+           "O schema text A/B/C/D | text delta vs A B/C/D | alloc A/B/C/D | A32 share A/B/C/D | DWARF A/B/C/D",
            "O image columns are .text and executable-section bytes from separate evidence scopes."]
     if state.get("research"):
         for lane in ("A","B"):
@@ -452,7 +457,7 @@ def readback(directory):
         lines.append("GCC_SCAN_MISSING")
     for row in state["packages"]:
         lanes=row["lanes"]
-        keys=("A","B","C")
+        keys=("A","B","C","D")
         def val(k,field):
             return lanes[k]["total"][field] if k in lanes else None
         def delta(k):
@@ -474,7 +479,7 @@ def readback(directory):
         if row.get("active"):
             statuses.append("ACTIVE_"+row["active"])
         lines.append("O "+row["name"]+" | "+" | ".join(
-            [fmt(val(k,"text")) for k in keys]+[delta("B"),delta("C")]+
+            [fmt(val(k,"text")) for k in keys]+[delta(k) for k in ("B","C","D")]+
             [fmt(val(k,"alloc")) for k in keys]+["/".join(share(k) for k in keys),
              "/".join(levels(k) for k in keys), ", ".join(statuses) or "RECORDED",
              "image_code/a32_KiB="+("/".join(row["image"]) if all(row["image"]) else "-"),

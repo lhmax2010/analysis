@@ -1,0 +1,50 @@
+{
+  "id": "R4-50",
+  "status": "PENDING_EXACT_INJECTION",
+  "baseline": null,
+  "treatment": null,
+  "reported_result_packages": [
+    "app-installers",
+    "avoc-daemon",
+    "dali2-adaptor",
+    "openusd"
+  ],
+  "archived_variants": [
+    {
+      "package": "app-installers",
+      "variant": "thr50",
+      "rpm_count": 6,
+      "log": "y",
+      "observation": "-flto(742) inline-threshold=50(394) -mthumb(374) -ffat-lto-objects(370) --gc-sections(366)"
+    },
+    {
+      "package": "avoc-daemon",
+      "variant": "thr50",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "inline-threshold=50(82) -mthumb(52) -fsigned-char(48) -flto(48)"
+    },
+    {
+      "package": "dali2-adaptor",
+      "variant": "thr50",
+      "rpm_count": 10,
+      "log": "y",
+      "observation": "inline-threshold=50(978) -mthumb(960) -flto(960) -ffat-lto-objects(954) -fvisibility-inlines-hidden(932) -ffunction-sections(932) -fdata-sections(932) -fvisibility=hidden(912) --gc-sections(30)"
+    },
+    {
+      "package": "openusd",
+      "variant": "thr50",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "inline-threshold=50(1140) -mthumb(1112) -flto(1112) -ffat-lto-objects(1106)"
+    },
+    {
+      "package": "org.tizen.webappservice",
+      "variant": "thr50",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-fstack-protector-strong(656) inline-threshold=50(620) -mthumb(606) -flto(606) -ffat-lto-objects(600) -fsigned-char(590)"
+    }
+  ],
+  "notes": "Observed tokens are from merged log counts. Keep baseline/treatment unset until command context proves injection and position."
+}

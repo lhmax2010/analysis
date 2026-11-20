@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+"""Read retained November GBS logs and RPM payloads without building or installing anything."""
+
+import argparse
+from collections import Counter
+import csv
+import hashlib
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import subprocess
+import tempfile
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+WALK = ("org.tizen.AVControl", "org.tizen.tv-viewer", "dali2-adaptor", "protobuf")
+WARN = ("org.tizen.AVControl", "libpisa-ipc")
+PAGE = 140
+DRIVER = re.compile(r"(?:[A-Za-z0-9_.+-]+-)?clang(?:\+\+)?(?:-\d+(?:\.\d+)*)?$")
+SOURCE = re.compile(r"\.(?:c|C|cxx|cc|cpp|S|s)$")
+OPT = re.compile(r"-O(?:[0-3szg]|fast)?$")
+BUILD = re.compile(r"\b(?:CMAKE_(?:C|CXX)_FLAGS\w*|CXXFLAGS|CFLAGS|CPPFLAGS|LDFLAGS|CCC_OVERRIDE_OPTIONS|"
+                   r"set\s*\([^)]*COMPILE_OPTIONS|add_compile_options|target_compile_options|%optflags|%\{optflags\})")
+FOCUS = re.compile(r"CCC_OVERRIDE_OPTIONS|-flto=thin|inline(?:hint-|-)?threshold|enable-machine-outliner|"
+                   r"-fvisibility-inlines-hidden|-fuse-ld=lld|--icf=safe|pack-relative-relocs")
+PREFIX = re.compile(r"^\s*(?:(?:\[\s*\d+(?:\.\d+)?s\]|\[\d+/\d+\]|libtool:\s*compile:|\+)\s*)+")
+SAFE_NAME = re.compile(r"[A-Za-z0-9_.+-]+")
+
+
+def compile_argv(line):
+    body = PREFIX.sub("", line).strip()
+    try:
+        args = shlex.split(body)
+    except ValueError:
+        return None
+    if len(args) > 3 and args[0] == "cd" and args[2] == "&&":
+        args = args[3:]
+    if "&&" in args:
+        args = args[:args.index("&&")]
+    for n, arg in enumerate(args):
+        if not DRIVER.fullmatch(Path(arg).name):
+            continue
+        allowed = all(Path(item).name in {"env", "ccache", "sccache", "distcc", "icecc"}
+                      or re.fullmatch(r"[A-Za-z_]\w*=.*", item) for item in args[:n])
+        tail = args[n:]
+        if allowed and "-c" in tail and not ({"-###", "-E", "-M", "-MM"} & set(tail)) \
+                and any(SOURCE.search(arg) for arg in tail[1:]):
+            return tuple(tail)
+        return None
+    return None
+
+
+def log_files(directory):
+    return [p for name in ("log.txt", "gbs.log") if (p := directory / name).is_file() and not p.is_symlink()]
+
+
+def verbose(z901, out):
+    details = []
+    for package in WALK:
+        folder = z901 / package / "verbose"
+        calls, origin, proof = {}, [], []
+        response = 0
+        logs = log_files(folder)
+        for log in logs[:1]:
+            with log.open(errors="replace") as stream:
+                for number, line in enumerate(stream, 1):
+                    location = f"{log.relative_to(z901)}:{number}"
+                    argv = compile_argv(line)
+                    if argv:
+                        calls.setdefault(argv, location)
+                    elif "@CMakeFiles" in line and "-c " in line:
+                        response += 1
+                    elif BUILD.search(line):
+                        origin.append(f"FLAG_ORIGIN_CANDIDATE {location} {line.strip()[:900]}")
+        counts = Counter()
+        samples = {}
+        for argv, location in calls.items():
+            modes = [arg for arg in argv[1:] if arg in {"-mthumb", "-marm"}]
+            opt = [arg for arg in argv[1:] if OPT.fullmatch(arg)]
+            rsp = any(arg.startswith("@") for arg in argv[1:])
+            flags = ("RESPONSE_FILE" if rsp else (modes[-1] if modes else "UNSPECIFIED"),
+                     opt[-1] if opt else "UNSPECIFIED",
+                     "HAS_MTHUMB" if "-mthumb" in modes else "NO_MTHUMB")
+            counts[flags] += 1
+            samples.setdefault(flags, (argv, location))
+            proof.append(f"ARGV {location} {shlex.join(argv)}")
+        out.append(f"VERBOSE {package} log_count={len(logs)} unique_clang_compile_argv={len(calls)} "
+                   f"possible_unparsed_response_lines={response}")
+        for flags, count in sorted(counts.items()):
+            out.append(f"VERBOSE_COUNT {package} {' '.join(flags)} {count}")
+        for argv, loc in samples.values():
+            out.append(f"VERBOSE_SAMPLE {loc} {shlex.join(argv)[:3200]}")
+        out.extend(origin[:5])
+        details.extend(proof)
+        details.extend(origin[5:])
+    out.extend(details)
+
+
+def treatment_logs(z901, out, ledger):
+    for row in ledger:
+        if row["experiment_id"] not in {"R1","R2","R3","R4-50","R4-25","R5","R6-lld","R6-icf","baseline"}:
+            continue
+        folder = z901.parent / row["dir"]
+        if not folder.resolve().is_relative_to(z901.resolve()):
+            raise ValueError("variant escaped the exp8 tree")
+        choices = {}
+        exits = {}
+        for log in log_files(folder):
+            with log.open(errors="replace") as stream:
+                for index, line in enumerate(stream, 1):
+                    location = f"{log.relative_to(z901.parent)}:{index}"
+                    if re.search(r"Bad exit status|^.*(?:build failed|Build succeeded|BUILD_(?:EXIT|FAIL))", line, re.I):
+                        exits.setdefault(log.name, f"BUILD_STATUS_LINE {location} {line.strip()[:900]}")
+                    tokens = FOCUS.findall(line)
+                    if not tokens:
+                        continue
+                    kind = "ENV_OR_SPEC" if BUILD.search(line) else "ARGV" if compile_argv(line) else "LOG"
+                    for flag in set(tokens):
+                        choices.setdefault((kind, flag), f"INJECTION_{kind} {location} {line.strip()[:4000]}")
+        out.append(f"TREATMENT {row['dir']} {len(choices)} option/context hits")
+        out.extend(exits.values())
+        out.extend(choices[key] for key in sorted(choices))
+
+
+def rpm_files(directory):
+    return sorted(p for p in directory.rglob("*.rpm") if p.is_file() and not p.is_symlink()
+                  and p.resolve().is_relative_to(directory.resolve()) and not p.name.endswith((".src.rpm",".nosrc.rpm")))
+
+
+def rpm_metrics(scan, directory):
+    files, headers, errors = {}, {}, []
+    for rpm in rpm_files(directory):
+        fmt = r"%{NAME}\t%{ARCH}\t%{SOURCERPM}\n"
+        try:
+            name, arch, source = subprocess.check_output(["rpm","-qp","--qf",fmt,str(rpm)],
+                                                          text=True, timeout=45).strip().split("\t")
+            if arch not in {"armv7l","noarch"} or name.endswith(("-debuginfo","-debugsource")):
+                continue
+            if (name, arch) in headers:
+                raise ValueError(f"duplicate binary identity {name}.{arch}")
+            headers[name,arch] = source
+            with subprocess.Popen(["rpm2cpio", str(rpm)], stdout=subprocess.PIPE) as proc:
+                try:
+                    for path, blob in scan["cpio_entries"](proc.stdout):
+                        for item, elf in scan["elf_items"](path, blob):
+                            info = scan["classify"](elf)
+                            if not info or info["kind"] not in {"EXEC","DYN"}:
+                                continue
+                            sections = scan["secs_of"](elf)
+                            text = [(sh[4],sh[5]) for section,sh in sections if section==".text"]
+                            has_text = len(text) == 1 and sum(text[0]) <= len(elf)
+                            start, size = text[0] if has_text else (0,0)
+                            key = name, arch, item
+                            if key in files:
+                                raise ValueError(f"duplicate ELF path {item}")
+                            files[key] = (size, sum(sh[5] for _,sh in sections if sh[2]&2),
+                                          hashlib.sha256(memoryview(elf)[start:start+size]).hexdigest() if has_text else "-",
+                                          hashlib.sha256(elf).hexdigest())
+                    while proc.stdout.read(1024**2):
+                        pass
+                except BaseException:
+                    proc.kill()
+                    raise
+                if proc.wait() != 0:
+                    raise ValueError("rpm2cpio failed")
+        except (ValueError, OSError, subprocess.SubprocessError) as exc:
+            errors.append(f"{rpm.name} {' '.join(str(exc).splitlines())[:400]}")
+    return files, headers, errors
+
+
+def rpm_report(scan, z901, out, ledger, wide):
+    read = {}
+    def load(package, variant):
+        key = package, variant
+        if key not in read:
+            read[key] = rpm_metrics(scan, z901 / package / variant)
+        return read[key]
+    detail = []
+    for package in WARN:
+        warn, whead, werrs = load(package, "forceL")
+        final, fhead, ferrs = load(package, "final2")
+        common = warn.keys() & final.keys()
+        unequal = sum(warn[key][2] != final[key][2] for key in common)
+        full = sum(warn[key][3] != final[key][3] for key in common)
+        unknown = sum("-" in (warn[key][2], final[key][2]) for key in common)
+        status = ("INCOMPLETE" if not common or werrs or ferrs or warn.keys()!=final.keys() or whead!=fhead or unknown
+                  else "TEXT_DIFFERS" if unequal else "TEXT_IDENTICAL")
+        out.append(f"WARN_FINAL {package} {status} paired={len(common)} text_diff={unequal} "
+                   f"elf_sha_diff={full} missing_text={unknown} WARN_only={len(warn.keys()-final.keys())} "
+                   f"FINAL_only={len(final.keys()-warn.keys())}")
+        for err in werrs + ferrs:
+            detail.append(f"PAYLOAD_ERROR {package} {err}")
+        for name in sorted(whead.keys() | fhead.keys()):
+            detail.append(f"PAIR_HEADER {package} {name} {whead.get(name)} -> {fhead.get(name)}")
+        for key in sorted(warn.keys() | final.keys()):
+            detail.append(f"PAIR_ELF {package} {' '.join(key)} WARN={warn.get(key)} FINAL={final.get(key)}")
+    if wide:
+        for row in ledger:
+            package, variant = row["dir"].split("/")[1:]
+            files, headers, errors = load(package, variant)
+            out.append(f"VARIANT_SIZE {package} {variant} rpms={len(headers)} elfs={len(files)} "
+                       f"text={sum(v[0] for v in files.values())} alloc={sum(v[1] for v in files.values())} "
+                       f"status={'PARTIAL' if errors else 'MEASURED' if files else 'NO_LOADABLE_ARM_ELF'}")
+            detail.extend(f"PAYLOAD_ERROR {package}/{variant} {err}" for err in errors)
+    out.extend(detail)
+
+
+def readback(report, page):
+    report = report.resolve(strict=True)
+    if report.parent.parent != TEMP.resolve() or not report.parent.name.startswith("pm0010e-exp8.") or page < 0:
+        raise ValueError("unexpected exp8 readback path or page")
+    raw = report.read_bytes()
+    lines = raw.decode().splitlines()
+    if page * PAGE >= len(lines):
+        raise ValueError("page exceeds retained report")
+    print("REPORT", report, hashlib.sha256(raw).hexdigest())
+    print("PAGE", page, "LAST_PAGE", (len(lines)-1)//PAGE)
+    print(*lines[page*PAGE:(page+1)*PAGE], sep="\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--page", nargs=2, metavar=("REPORT","NUMBER"))
+    parser.add_argument("--ledger", type=Path)
+    parser.add_argument("--scan", type=Path)
+    parser.add_argument("--mode", choices=("verbose","treatments","pairs","sizes"), default="verbose")
+    args = parser.parse_args()
+    if args.page:
+        readback(Path(args.page[0]), int(args.page[1]))
+        return
+    if args.mode in {"sizes","treatments"} and not args.ledger:
+        parser.error("--ledger is required for this mode")
+    if args.mode in {"pairs","sizes"} and not args.scan:
+        parser.error("--scan is required for RPM readback")
+    z901 = TEMP / "z901/exp8"
+    if z901.resolve(strict=True)!=z901:
+        raise ValueError("unexpected exp8 symlink")
+    work = Path(tempfile.mkdtemp(dir=TEMP,prefix="pm0010e-exp8."))
+    os.environ["TMPDIR"] = str(work)
+    ledger = []
+    if args.ledger:
+        with args.ledger.open(newline="") as file:
+            ledger = list(csv.DictReader(file, delimiter="\t"))
+        if any(len(row["dir"].split("/")) != 3 or not row["dir"].startswith("exp8/") or
+               any(not SAFE_NAME.fullmatch(part) or part in {".",".."} for part in row["dir"].split("/"))
+               for row in ledger):
+            raise ValueError("invalid exp8 ledger path")
+    out = []
+    if args.mode=="verbose":
+        verbose(z901, out)
+    elif args.mode=="treatments":
+        treatment_logs(z901, out, ledger)
+    else:
+        rpm_report(runpy.run_path(str(args.scan)), z901, out, ledger, args.mode == "sizes")
+    report = work / "result.txt"
+    report.write_text("\n".join(" ".join(line.splitlines()) for line in out)+"\n")
+    readback(report, 0)
+
+
+if __name__=="__main__":
+    try:
+        main()
+    except (ValueError,OSError,subprocess.SubprocessError) as exc:
+        raise SystemExit("EXP8_READBACK_BLOCKED " + " ".join(str(exc).splitlines())[:500])

@@ -1,0 +1,50 @@
+{
+  "id": "R6-lld",
+  "status": "PENDING_EXACT_INJECTION",
+  "baseline": null,
+  "treatment": null,
+  "reported_result_packages": [
+    "avoc-daemon",
+    "freetype2",
+    "grpc",
+    "openusd"
+  ],
+  "archived_variants": [
+    {
+      "package": "avoc-daemon",
+      "variant": "lld",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-fuse-ld=lld(474) -mthumb(470) -fsigned-char(466) -flto(466)"
+    },
+    {
+      "package": "dali2-adaptor",
+      "variant": "lld",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "-flto(22) -mthumb(20) -ffat-lto-objects(16) -fuse-ld=lld(12) -fvisibility-inlines-hidden(4) -ffunction-sections(4) -fdata-sections(4) --gc-sections(2)"
+    },
+    {
+      "package": "freetype2",
+      "variant": "lld",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-flto(194) -mthumb(192) -fuse-ld=lld(190) -ffat-lto-objects(188) -fstack-protector-strong(178) -fvisibility=hidden(174)"
+    },
+    {
+      "package": "grpc",
+      "variant": "lld",
+      "rpm_count": 5,
+      "log": "y",
+      "observation": "-mthumb(20) -flto(18) -ffat-lto-objects(12) -fuse-ld=lld(8)"
+    },
+    {
+      "package": "openusd",
+      "variant": "lld",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "-flto(22) -mthumb(20) -ffat-lto-objects(16) -fuse-ld=lld(12)"
+    }
+  ],
+  "notes": "Observed tokens are from merged log counts. Keep baseline/treatment unset until command context proves injection and position."
+}

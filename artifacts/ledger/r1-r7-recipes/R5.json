@@ -1,0 +1,48 @@
+{
+  "id": "R5",
+  "status": "PENDING_EXACT_INJECTION",
+  "baseline": null,
+  "treatment": null,
+  "reported_result_packages": [
+    "dali2-adaptor",
+    "openusd"
+  ],
+  "archived_variants": [
+    {
+      "package": "avoc-daemon",
+      "variant": "outliner",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "enable-machine-outliner(166) -mthumb(62) -fsigned-char(58) -flto(58)"
+    },
+    {
+      "package": "dali2-adaptor",
+      "variant": "outliner",
+      "rpm_count": 10,
+      "log": "y",
+      "observation": "enable-machine-outliner(24) -flto(22) -mthumb(20) -ffat-lto-objects(16) -fvisibility-inlines-hidden(4) -ffunction-sections(4) -fdata-sections(4) --gc-sections(2)"
+    },
+    {
+      "package": "freetype2",
+      "variant": "outliner",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "enable-machine-outliner(378) -flto(194) -mthumb(192) -ffat-lto-objects(188) -fstack-protector-strong(178) -fvisibility=hidden(174)"
+    },
+    {
+      "package": "grpc",
+      "variant": "outliner",
+      "rpm_count": 0,
+      "log": "y",
+      "observation": "-mthumb(20) -flto(18) enable-machine-outliner(16) -ffat-lto-objects(12)"
+    },
+    {
+      "package": "openusd",
+      "variant": "outliner",
+      "rpm_count": 4,
+      "log": "y",
+      "observation": "enable-machine-outliner(24) -flto(22) -mthumb(20) -ffat-lto-objects(16)"
+    }
+  ],
+  "notes": "Observed tokens are from merged log counts. Keep baseline/treatment unset until command context proves injection and position."
+}
