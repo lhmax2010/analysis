@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Inventory the retained z901 research experiment and GBS package records."""
+
+import argparse
+import hashlib
+import os
+from pathlib import Path
+import re
+import tempfile
+from datetime import datetime
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+PAGE = 90
+RUN = re.compile(r"(?:exp|gbs-root[-_.]?r)([1-7])(?=$|[-_.])", re.I)
+PACKAGE = re.compile(r"(.+)-([0-9][^-]*)-([^-]+)$")
+
+
+def leaf_sources(root):
+    local = root / "local/repos"
+    for repo in sorted(local.glob("*/armv7l/logs")):
+        for status in ("success", "fail"):
+            for leaf in sorted((repo / status).glob("*")):
+                log = leaf / "log.txt"
+                if leaf.is_symlink() or log.is_symlink() or not log.is_file():
+                    continue
+                yield status, leaf, log
+
+
+def digest(path):
+    sha = hashlib.sha256()
+    with path.open("rb") as file:
+        for block in iter(lambda: file.read(1024**2), b""):
+            sha.update(block)
+    return sha.hexdigest()
+
+
+def inventory(z901):
+    runs, legacy, paths, candidates = [], [], [], set()
+    for root in sorted(z901.iterdir()):
+        if root.is_symlink() or not root.is_dir():
+            continue
+        name = root.name
+        selected = RUN.match(name)
+        if re.match(r"exp[0-9]", name, re.I):
+            children = sorted(p.name for p in root.iterdir() if p.is_dir() and not p.is_symlink())
+            paths.append(f"EXPERIMENT {name} {len(children)} " + " ".join(children))
+            if selected:
+                candidates.update(children)
+        if not name.lower().startswith("gbs-root"):
+            continue
+        for status, leaf, log in leaf_sources(root):
+            match = PACKAGE.fullmatch(leaf.name)
+            candidate = match[1] if match else "UNPARSED"
+            timestamp = datetime.fromtimestamp(log.stat().st_mtime).isoformat(timespec="seconds")
+            line = f"GBS_LOG {timestamp} {name} {status} {candidate} {digest(log)} {log.relative_to(z901)}"
+            if selected:
+                runs.append(line)
+                if match:
+                    candidates.add(candidate)
+            else:
+                legacy.append(line)
+    return [f"CANDIDATE_NAMES {len(candidates)} " + " ".join(sorted(candidates)),
+            f"GBS_LOG_ROWS R1_R7={len(runs)} other={len(legacy)}",
+            "SCOPE names inferred from experiment directories and GBS log keys; verify against report and exact SRPM inputs",
+            *paths, *runs, *legacy]
+
+
+def readback(path, page):
+    report = path.resolve(strict=True)
+    if not report.is_relative_to(TEMP.resolve()) or page < 0:
+        raise ValueError("expected a workspace report and a nonnegative page")
+    lines = report.read_text().splitlines()
+    if page * PAGE >= len(lines):
+        raise ValueError("page outside report")
+    print("REPORT", report, digest(report))
+    print("PAGE", page, "LAST_PAGE", (len(lines) - 1) // PAGE)
+    print(*lines[page * PAGE:(page + 1) * PAGE], sep="\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--page", nargs=2, metavar=("REPORT", "NUMBER"))
+    args = parser.parse_args()
+    if args.page:
+        readback(Path(args.page[0]), int(args.page[1]))
+        return
+    z901 = TEMP / "z901"
+    if z901.is_symlink() or not z901.is_dir():
+        raise ValueError("missing original z901 directory")
+    work = Path(tempfile.mkdtemp(prefix="pm0010b-nov11-roster.", dir=TEMP))
+    os.environ["TMPDIR"] = str(work)
+    report = work / "roster-evidence.txt"
+    report.write_text("\n".join(inventory(z901)) + "\n")
+    readback(report, 0)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError) as error:
+        raise SystemExit("NOV11_ROSTER_BLOCKED " + " ".join(str(error).splitlines())[:500])

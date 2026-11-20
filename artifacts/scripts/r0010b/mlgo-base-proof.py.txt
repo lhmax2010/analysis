@@ -1,0 +1,399 @@
+#!/usr/bin/env python3
+"""Compare the published Base inputs and the installed RPMs in two retained PERF captures."""
+
+import argparse
+from collections import defaultdict
+import csv
+import difflib
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import stat
+import subprocess
+import tarfile
+import tempfile
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+ROOT = Path("/home1/chengkai/vd-tree/workspace")
+PRE = ROOT / "temp/pm0004-mlgo-xllvtyr9"
+LANES = {"official": ("20261113.1", "9.1", "2.4"), "custom": ("20261118.1", "11.1", "2.5")}
+ACCEL = "clang-accel-x86_64-armv7l"
+HEADER = r"%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\t%{SOURCERPM}\n"
+PAGE = 108
+BUILD_CONF = "98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
+ACCEL_SHA = {
+    "official": "578adff57d04e594e8063abf6c12f030767de4550e39b6acdee16163cfca8f75",
+    "custom": "07f8b37696495c8770f5af3aa13719ce98107c3a858614c432519f64151115b5",
+}
+
+
+def local(path):
+    resolved = Path(path).resolve(strict=True)
+    if not resolved.is_relative_to(ROOT.resolve()):
+        raise ValueError(f"input outside workspace: {path}")
+    return resolved
+
+
+def metadata(lib, base, arch, directory):
+    repo = f"{base}repos/base/{arch}/packages/"
+    raw = (directory / f"{arch}-repomd.xml").read_bytes()
+    data = (directory / f"{arch}-primary.download").read_bytes()
+    com, rep, rpm = lib["COM"], lib["REP"], lib["RPM"]
+    primary = ET.fromstring(raw).find(f'{rep}data[@type="primary"]')
+    checksum = primary.find(rep + "checksum")
+    algorithm = checksum.get("type")
+    if hashlib.new("sha1" if algorithm == "sha" else algorithm, data).hexdigest() != checksum.text.strip():
+        raise ValueError(f"primary checksum mismatch: {repo}")
+    rows = {}
+    for item in ET.fromstring(lib["unpack"](data)).findall(com + "package"):
+        version = item.find(com + "version")
+        key = (item.findtext(com + "name"), version.get("epoch", "0"),
+               version.get("ver"), version.get("rel"), item.findtext(com + "arch"))
+        digest = item.find(com + "checksum")
+        url = urljoin(repo, item.find(com + "location").get("href"))
+        if not url.startswith(base) or digest.get("type") != "sha256":
+            raise ValueError(f"unexpected metadata for {key}")
+        value = (digest.text.strip(), item.findtext(f"{com}format/{rpm}sourcerpm", default=""), url)
+        if key in rows and rows[key] != value:
+            raise ValueError(f"conflicting metadata for {key}")
+        rows[key] = value
+    return rows
+
+
+def source_inputs(path):
+    if path is None:
+        return {}
+    with local(path).open(newline="") as file:
+        rows = {}
+        for row in csv.DictReader(file, delimiter="\t"):
+            key = (row["lane"], row["kind"])
+            if key in rows:
+                raise ValueError("duplicate source input " + repr(key))
+            rows[key] = (local(row["path"]), row["sha256"])
+    return rows
+
+
+def verified_rpm(lib, key, lane, kind, rows, overrides, directory):
+    identity = key[0] + "-" + key[2] + "-" + key[3] + "." + key[4]
+    if (lane, kind) in overrides:
+        path, digest = overrides[lane, kind]
+        if not re.fullmatch(r"[0-9a-f]{64}", digest) or lib["file_sha"](path) != digest:
+            raise ValueError(f"retained RPM digest mismatch: {identity}")
+        if key in rows and digest != rows[key][0]:
+            raise ValueError(f"retained RPM differs from published metadata: {identity}")
+        origin = "operator-retained digest" if key not in rows else "published digest"
+    else:
+        digest, _, url = rows[key]
+        path = lib["cached_rpm"]((url, digest), directory)
+        origin = "published digest"
+    if kind == "accel" and digest != ACCEL_SHA[lane]:
+        raise ValueError(f"accelerator differs from the verified Base digest: {identity}")
+    fmt = HEADER.removesuffix(r"\n") + r"\t%{SOURCEPACKAGE}\n"
+    actual = subprocess.check_output(["rpm", "-qp", "--qf", fmt, str(path)], text=True, timeout=60)
+    name, epoch, version, release, arch, source, source_package = actual.rstrip("\n").split("\t")
+    # A source RPM header retains the build architecture; rpm-md lists it as src.
+    is_source = source_package == "1"
+    header_key = (name, epoch, version, release, "src" if is_source else arch)
+    if header_key != key or (is_source and source not in {"", "(none)"}):
+        raise ValueError(f"RPM header mismatch: {identity}")
+    return path, f"RPM {lane} {kind} {identity} {digest} ({origin}) SRPM={source}"
+
+
+def cpio_members(stream):
+    def read(size):
+        blob = stream.read(size)
+        if len(blob) != size:
+            raise ValueError("truncated cpio payload")
+        return blob
+
+    members, specs = {}, {}
+    while True:
+        hdr = read(110)
+        if hdr[:6] not in {b"070701", b"070702"}:
+            raise ValueError("unsupported RPM cpio header")
+        nums = [int(hdr[i:i+8], 16) for i in range(6, 110, 8)]
+        size, namesize = nums[6], nums[11]
+        if not 1 <= namesize <= 4096:
+            raise ValueError("invalid cpio name size")
+        raw = read(namesize)
+        if not raw.endswith(b"\0"):
+            raise ValueError("unterminated cpio name")
+        name = raw[:-1].decode().removeprefix("./")
+        read(-(110 + namesize) % 4)
+        if name == "TRAILER!!!":
+            break
+        if not stat.S_ISREG(nums[1]) or name in members or "/" in name or name in ("", ".", ".."):
+            raise ValueError(f"unexpected SRPM member: {name}")
+        if name.endswith(".spec"):
+            if size > 4 * 1024**2:
+                raise ValueError("spec exceeds size limit")
+            data = read(size)
+            specs[name] = data.decode(errors="replace")
+            digest = hashlib.sha256(data).hexdigest()
+        else:
+            sha = hashlib.sha256()
+            left = size
+            while left:
+                block = read(min(left, 1024**2))
+                sha.update(block)
+                left -= len(block)
+            digest = sha.hexdigest()
+        members[name] = (size, digest, nums[1] & 0o7777)
+        read(-size % 4)
+    return members, specs
+
+
+def rpm_payload(path):
+    with subprocess.Popen(["rpm2cpio", str(path)], stdout=subprocess.PIPE) as proc:
+        try:
+            result = cpio_members(proc.stdout)
+            while proc.stdout.read(1024**2):
+                pass
+        except BaseException:
+            proc.kill()
+            raise
+        if proc.wait() != 0:
+            raise ValueError("rpm2cpio failed")
+    return result
+
+
+def changelog(path):
+    return subprocess.check_output(["rpm", "-qp", "--changelog", str(path)], text=True, timeout=60).splitlines()
+
+
+def verify_capture(perf, directory, snapshot):
+    identity, qb, archive, digest = perf["captured"](local(directory))
+    files = identity["files"]
+    for name in ("build.xml", "rpm-identities.tsv", "published-build.conf"):
+        if perf["sha"](directory / name) != files[name]:
+            raise ValueError(f"capture ledger hash mismatch for {name}")
+    build = ET.parse(directory / "build.xml").getroot()
+    if not build.findtext("base_repo", "").endswith("_" + snapshot + "/"):
+        raise ValueError(f"QB {qb} does not use Base {snapshot}")
+    if (not build.findtext("buildconf_version", "").endswith("TIZEN_KantSU2E_Clang_build.conf@14452507")
+            or files["published-build.conf"] != BUILD_CONF):
+        raise ValueError(f"QB {qb} is not the matched build.conf@14452507 capture")
+    return qb, archive, digest, files["published-build.conf"]
+
+
+def image_roster(perf, archive, directory):
+    image = directory / "platform.img"
+    with tarfile.open(archive, "r|gz") as bundle:
+        for name, member in perf["flat_members"](bundle):
+            if name == image.name:
+                if shutil.disk_usage(directory).free - member.size < perf["RESERVE"]:
+                    raise ValueError("capacity does not cover platform image plus reserve")
+                with bundle.extractfile(member) as inp, image.open("xb") as out:
+                    shutil.copyfileobj(inp, out, 1024**2)
+                break
+        else:
+            raise ValueError("captured PERF contains no platform.img")
+    with image.open("rb") as file:
+        magic = file.read(4)
+        if magic == b"\x3a\xff\x26\xed":
+            block, total = int.from_bytes(file.read(12)[8:12], "little"), int.from_bytes(file.read(4), "little")
+    if magic == b"\x3a\xff\x26\xed":
+        if not block or not total or shutil.disk_usage(directory).free - block * total < perf["RESERVE"]:
+            raise ValueError("capacity does not cover sparse conversion plus reserve")
+        raw = directory / "platform.raw"
+        subprocess.run(["simg2img", str(image), str(raw)], check=True, timeout=900)
+        image = raw
+    with image.open("rb") as file:
+        file.seek(1080)
+        if file.read(2) != b"\x53\xef":
+            raise ValueError("platform image is not ext2/3/4")
+    errors = []
+    for n, location in enumerate(("/usr/lib/sysimage/rpm", "/var/lib/rpm", "/var/lib/rpmdb")):
+        db = directory / f"rpmdb-{n}"
+        db.mkdir()
+        dump = subprocess.run(["debugfs", "-R", f"rdump {location} {db}", str(image)],
+                              text=True, capture_output=True, timeout=300)
+        errors.append(dump.stderr.strip().replace("\n", " ")[:300])
+        for leaf in (db / Path(location).name, db):
+            for filename, backend in (("rpmdb.sqlite", "sqlite"), ("Packages", "bdb_ro"), ("Packages.db", "ndb")):
+                if not (leaf / filename).is_file():
+                    continue
+                cmd = ["rpm", "--define", f"_db_backend {backend}", "--dbpath", str(leaf), "-qa", "--qf", HEADER]
+                result = subprocess.run(cmd, text=True, capture_output=True, timeout=120)
+                if result.returncode == 0 and result.stdout and not result.stderr.strip():
+                    return result.stdout
+                errors.append(result.stderr.strip().replace("\n", " ")[:300])
+    raise ValueError("cannot query captured platform RPM DB, supply same-QB rpm -qa export; " + " | ".join(errors))
+
+
+def installed(text):
+    rows = defaultdict(set)
+    for line in text.splitlines():
+        values = line.split("\t")
+        if len(values) != 6 or not all(values) or not values[1].isdigit():
+            raise ValueError("unexpected installed RPM row; expected name, epoch, version, release, arch, SRPM")
+        name, epoch, version, release, arch, srpm = values
+        rows[name, arch].add((epoch, version, release, srpm))
+    if not rows:
+        raise ValueError("installed roster is empty")
+    return rows
+
+
+def comparison(before, after, official_base, custom_base, official_product, custom_product):
+    def details(key, rows, base, product):
+        name, arch = key
+        parts = []
+        for epoch, version, release, srpm in sorted(rows.get(key, ())):
+            identity = name, epoch, version, release, arch
+            locations = []
+            if identity in base and base[identity][1] == srpm:
+                locations.append("Base@" + base[identity][0][:12])
+            if (identity, srpm) in product:
+                locations.append("Product@" + product[identity, srpm][:12])
+            parts.append(f'{epoch}:{version}-{release}({srpm};{"+".join(locations) or "UNRESOLVED"})')
+        return ",".join(parts) or "—"
+
+    results = []
+    for key in sorted(before.keys() | after.keys()):
+        old, new = before.get(key, set()), after.get(key, set())
+        if {r[:3] for r in old} != {r[:3] for r in new}:
+            results.append("NEVRA " + " ".join(key) + " " + details(key, before, official_base, official_product)
+                           + " -> " + details(key, after, custom_base, custom_product))
+            continue
+        if old != new:
+            results.append("SAME_NEVRA_SOURCE " + " ".join(key) + " " +
+                           details(key, before, official_base, official_product) + " -> " +
+                           details(key, after, custom_base, custom_product))
+        for epoch, version, release, srpm in sorted(old & new):
+            ident = key[0], epoch, version, release, key[1]
+            a = official_base.get(ident)
+            b = custom_base.get(ident)
+            p, q = official_product.get((ident, srpm)), custom_product.get((ident, srpm))
+            old_digests = {value for value in (a[0] if a and a[1] == srpm else None, p) if value}
+            new_digests = {value for value in (b[0] if b and b[1] == srpm else None, q) if value}
+            if old_digests != new_digests:
+                results.append("SAME_NEVRA_PUBLICATION " + " ".join(ident) + " " +
+                               ",".join(sorted(old_digests)) + " -> " + ",".join(sorted(new_digests)))
+    return results
+
+
+def readback(report, page):
+    lines = local(report).read_text().splitlines()
+    start = page * PAGE
+    if page < 0 or start >= len(lines):
+        raise ValueError("page outside report")
+    print("REPORT", report, hashlib.sha256(local(report).read_bytes()).hexdigest())
+    print("PAGE", page, "LAST_PAGE", (len(lines) - 1) // PAGE)
+    print(*lines[start:start+PAGE], sep="\n")
+
+
+def run(args):
+    perf, lib = (runpy.run_path(str(path)) for path in (args.perf, args.repo))
+    work = Path(tempfile.mkdtemp(prefix="pm0010b-mlgo-base.", dir=ROOT / "temp"))
+    os.environ["TMPDIR"] = str(work)
+    print("WORKDIR", work, flush=True)
+    overrides = source_inputs(args.rpms)
+    rosters, bases, products, sources, logs, configs, warnings, evidence = {}, {}, {}, {}, {}, {}, [], []
+    with perf["locks"]():
+        for lane, (snapshot, llvm_release, accel_release) in LANES.items():
+            directory = work / lane
+            directory.mkdir()
+            capture = local(getattr(args, lane))
+            qb, archive, digest, configs[lane] = verify_capture(perf, capture, snapshot)
+            evidence.append(f"CAPTURE {lane} {qb} Base={snapshot} PERF_SHA256={digest} CONFIG={configs[lane]}")
+            base = lib["PREFIX"] + snapshot + "/"
+            for arch in ("armv7l", "x86_64"):
+                entries = metadata(lib, base, arch, PRE / lane)
+                if arch == "armv7l":
+                    bases[lane] = entries
+                    rows = dict(entries)
+                else:
+                    rows.update(entries)
+            source_key = ("llvm", "0", "22.1.8", llvm_release, "src")
+            if source_key not in rows and (lane, "llvm") not in overrides:
+                src_cache = directory / "source-metadata"
+                src_cache.mkdir()
+                try:
+                    rows.update(lib["inventory"](base, "src", src_cache))
+                except (OSError, ValueError, AttributeError, subprocess.SubprocessError) as exc:
+                    warnings.append(f"SRC_METADATA {lane} {exc}")
+            for kind, key in (("llvm", source_key), ("accel", (ACCEL, "0", "0.4", accel_release, "armv7l"))):
+                try:
+                    path, proof = verified_rpm(lib, key, lane, kind, rows, overrides, directory)
+                    evidence.append(proof)
+                    if kind == "llvm":
+                        payload = rpm_payload(path)
+                        if not payload[1]:
+                            raise ValueError("no spec in pinned LLVM source RPM")
+                        sources[lane] = payload
+                    else:
+                        logs[lane] = changelog(path)
+                except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+                    warnings.append(f"RPM_REQUIRED {lane} {kind} {exc}")
+            with (capture / "rpm-identities.tsv").open(newline="") as file:
+                product = {}
+                for row in csv.DictReader(file, delimiter="\t"):
+                    key = (tuple(row[field] for field in ("name", "epoch", "version", "release", "arch")), row["srpm"])
+                    if key in product and product[key] != row["sha256"]:
+                        raise ValueError(f"ambiguous Product header {key}")
+                    product[key] = row["sha256"]
+                products[lane] = product
+            try:
+                roster = getattr(args, lane + "_roster")
+                blob = local(roster).read_bytes() if roster else image_roster(perf, archive, directory).encode()
+                (directory / "installed.tsv").write_bytes(blob)
+                rosters[lane] = installed(blob.decode())
+                evidence.append(f"INSTALLED {lane} count={sum(map(len, rosters[lane].values()))} "
+                                f"sha256={hashlib.sha256(blob).hexdigest()} "
+                                f"origin={'operator-supplied same-QB export' if roster else 'captured platform RPM DB'}")
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                warnings.append(f"INSTALLED_REQUIRED {lane} {exc}")
+    details, declarations = [], []
+    if len(sources) == 2:
+        old, ospec = sources["official"]
+        new, nspec = sources["custom"]
+        for name in sorted(old.keys() | new.keys(), key=lambda n: (old.get(n) == new.get(n), n)):
+            state = "SAME" if old.get(name) == new.get(name) else "DIFF"
+            details.append(f"SRPM_MEMBER {state} {name} {old.get(name)} -> {new.get(name)}")
+        for name in sorted(ospec.keys() | nspec.keys()):
+            before, after = ospec.get(name, ""), nspec.get(name, "")
+            details += list(difflib.unified_diff(before.splitlines(), after.splitlines(),
+                                                f"official/{name}", f"custom/{name}", lineterm=""))
+            for lane, spec in (("official", before), ("custom", after)):
+                declarations += [f"SPEC_DECLARATION {lane} {line}" for line in spec.splitlines()
+                            if re.match(r"\s*(Source|Patch)\d*\s*:", line, re.I)]
+    if len(logs) == 2:
+        details += list(difflib.unified_diff(logs["official"], logs["custom"], "accel-2.4 changelog",
+                                             "accel-2.5 changelog", lineterm=""))
+    changes = comparison(rosters["official"], rosters["custom"], bases["official"], bases["custom"],
+                         products["official"], products["custom"]) if len(rosters) == 2 else []
+    evidence += [f"INSTALLED_NEVRA_DIFFS {sum(line.startswith('NEVRA ') for line in changes)}"
+                 if len(rosters) == 2 else "INSTALLED_NEVRA_DIFFS UNAVAILABLE",
+                 f"PUBLISHED_SAME_NEVRA_DIFFS {sum(line.startswith('SAME_NEVRA_PUBLICATION ') for line in changes)}",
+                 "SCOPE publication hashes are not proof of which payload supplied each installed RPM",
+                 f"REVIEW_STATUS {'READY_FOR_MANUAL_DIFF_REVIEW' if not any(w.startswith(('RPM_REQUIRED', 'INSTALLED_REQUIRED')) for w in warnings) else 'INCOMPLETE'}"]
+    report = work / "base-proof.txt"
+    report.write_text("\n".join(" ".join(line.splitlines()) for line in
+                                evidence + warnings + details + declarations + changes) + "\n")
+    readback(report, 0)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--page", nargs=2, metavar=("REPORT", "NUMBER"))
+    for name in ("perf", "repo", "rpms", "official", "custom", "official-roster", "custom-roster"):
+        parser.add_argument("--" + name, type=Path)
+    args = parser.parse_args()
+    if args.page:
+        readback(Path(args.page[0]), int(args.page[1]))
+    else:
+        if not all((args.perf, args.repo, args.official, args.custom)):
+            parser.error("supply --perf, --repo, --official and --custom, or run --page")
+        run(args)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (KeyError, OSError, ValueError, subprocess.SubprocessError) as error:
+        raise SystemExit("MLGO_PROOF_BLOCKED " + " ".join(str(error).splitlines())[:700])

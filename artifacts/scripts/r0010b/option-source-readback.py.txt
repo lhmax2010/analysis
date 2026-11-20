@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+"""Resolve the tvs-core spec alias or collect Crosswalk build evidence from a matched Official capture."""
+
+import argparse
+import csv
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import subprocess
+import tempfile
+from types import SimpleNamespace
+
+SAMPLES = {
+    "webapi-plugins": ("libtizen_mediacontroller.so", "mediacontroller"),
+    "webapi-network-pepper-plugin": ("libwebapis_network.so", "network"),
+}
+CHOSEN = {"libtvs-core", "libtvs-core-apps"}
+VCS = re.compile(r"(//TIZEN/[^\s#@]+)#(\d+|vbs-[A-Za-z0-9_.-]+)")
+SPEC_PATH = re.compile(r"(?m)^\s*Name\s*:\s*(\S+)")
+
+
+def p4(gbs, *args):
+    process = subprocess.run(gbs.P4 + list(args), cwd=gbs.ROOT, capture_output=True, text=True, timeout=90)
+    if process.returncode or process.stderr.strip():
+        raise ValueError("P4 " + args[0] + " " + (process.stderr.strip() or process.stdout.strip())[:450])
+    return process.stdout
+
+
+def resolve_alias(gbs, olevel, stager, lib, manifest, rows, inventory, work, output):
+    row, = [r for r in rows if r["status"] == "ALIAS_REVIEW" and r["doc_source"] == "tvs-core"]
+    candidates = [rpm for rpm in inventory if rpm["name"] in CHOSEN and rpm["arch"] in {"armv7l", "noarch"}
+                  and olevel["srpm_name"](rpm["srpm"]) == "libtvs-core"]
+    srpm, = {rpm["srpm"] for rpm in candidates}
+    if len(candidates) != len(CHOSEN) or {rpm["name"] for rpm in candidates} != CHOSEN:
+        raise ValueError("matched Official RPM ledger does not establish both libtvs-core binary identities")
+    values = {rpm["vcs"] for rpm in candidates if rpm["vcs"] not in {"", "(none)"}}
+    p4(gbs, "login", "-s")
+    if not values:
+        rpm = next(item for item in candidates if item["name"] == "libtvs-core")
+        archive = lib["cached_rpm"]((rpm["url"], rpm["sha256"]), work)
+        source, vcs = olevel["rpm_query"](archive, r"%{SOURCERPM}\n%{VCS}\n").splitlines()
+        if source != srpm:
+            raise ValueError("published binary header and captured SRPM disagree")
+        values.add(vcs)
+    vcs, = values
+    match = VCS.fullmatch(vcs)
+    if not match or not match[1].endswith("/tvs-core"):
+        raise ValueError(f"expected immutable P4 tvs-core VCS, got {vcs!r}")
+    depot, revision = match.groups()
+    listing = p4(gbs, "files", depot + "/packaging/*.spec@" + revision)
+    specs = {}
+    for name, action in re.findall(r"(?m)^(//[^\n]+)#\d+ - (\S+) change \d+ ", listing):
+        if action not in {"delete", "move/delete", "purge"}:
+            specs[name] = name + "@" + revision
+    for cl in stager["shelf_changes"](manifest.read_text(), depot):
+        changes = p4(gbs, "describe", "-S", "-s", cl)
+        if not re.search(r"(?m)^Change " + cl + r"\b", changes):
+            raise ValueError(f"shelf identity mismatch for {cl}")
+        for name, action in re.findall(r"(?m)^\.\.\. (//[^\n]+?)#\d+\s+(\S+)", changes):
+            if not re.fullmatch(re.escape(depot) + r"/packaging/[^/]+\.spec", name):
+                continue
+            if action in {"delete", "move/delete"}:
+                specs.pop(name, None)
+            elif action in {"add", "branch", "edit", "integrate", "move/add"}:
+                specs[name] = name + "@=" + cl
+            else:
+                raise ValueError(f"unsupported spec shelf action: {action}")
+    if not 1 <= len(specs) <= 12:
+        raise ValueError(f"unexpected packaging spec count: {len(specs)}")
+    evidence = []
+    for idx, filespec in enumerate(sorted(specs.values()), 1):
+        spec = p4(gbs, "print", "-q", filespec)
+        out = work / f"spec-{idx}.txt"
+        out.write_text(spec)
+        for i, line in enumerate(spec.splitlines(), 1):
+            match = SPEC_PATH.match(line)
+            if match and match[1] == "libtvs-core":
+                evidence.append((filespec, i, line.strip(), lib["file_sha"](out)))
+                break
+    if len(evidence) != 1:
+        raise ValueError(f"need one exact spec Name: libtvs-core, found {len(evidence)}")
+    (filespec, line, value, digest), = evidence
+    if output.exists():
+        raise ValueError("resolved roster already exists")
+    row.update(doc_source="libtvs-core", repository="Product", status="SHIPPED", source_rpms=srpm,
+               binary_rpms=",".join(sorted(CHOSEN)), readback_note=f"tvs-core alias proved by {filespec}:{line}")
+    with output.open("x", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=rows[0], delimiter="\t", lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    print("ALIAS_VERIFIED", filespec, line, value, digest)
+    print("ALIAS_RPMS", srpm, *sorted(CHOSEN))
+    print("ROSTER", output, lib["file_sha"](output))
+
+
+def build_files(root):
+    for directory, dirs, files in os.walk(root, followlinks=False):
+        dirs[:] = sorted(d for d in dirs if d not in {".git", "node_modules"})
+        for name in sorted(files):
+            file = Path(directory) / name
+            if (name.endswith((".gyp", ".gypi", ".cmake", ".spec", ".gn", ".gni")) or
+                    name in {"CMakeLists.txt", "Makefile", "meson.build"}) and not file.is_symlink():
+                yield file
+
+
+def include_evidence(root, stem, family):
+    """Record literal include/reference edges with their source locations for review."""
+    files = list(build_files(root))
+    lines = {}
+    for file in files:
+        if file.stat().st_size <= 1024**2:
+            lines[file] = file.read_text(errors="replace").splitlines()
+    edges, matches = [], []
+    references = re.compile(r"""['"]([^'"\n]+\.(?:gypi?|cmake|gni))['"]|\binclude\s*\(\s*([^\s)'"]+)""")
+    for file, body in lines.items():
+        for n, line in enumerate(body, 1):
+            if stem in line or family in line.lower():
+                matches.append((file, n, line))
+            for item in references.finditer(line):
+                ref = item[1] or item[2]
+                target = (file.parent / ref).resolve()
+                edges.append((file, n, ref, target if target in lines else None))
+    relevant = {file for file, _, _ in matches}
+    for _ in range(len(lines)):
+        added = {a for a, _, _, b in edges if b in relevant} | {b for a, _, _, b in edges if a in relevant and b}
+        if added <= relevant:
+            break
+        relevant.update(added)
+    output = [f"RULE_MATCH {f.relative_to(root)}:{n} {line.strip()}" for f, n, line in matches]
+    output += [f"RULE_REFERENCE {f.relative_to(root)}:{n} {ref} -> "
+               f"{target.relative_to(root) if target else 'UNRESOLVED_OR_EXTERNAL'}"
+               for f, n, ref, target in edges if f in relevant or f.suffix == ".spec"]
+    return output
+
+
+def argv_evidence(directory, calls, family):
+    matched = []
+    for line in sorted(calls):
+        args = shlex.split(line)
+        sources = [part for part in args if re.search(r"\.(?:c|cc|cpp|cxx|C|s|S)$", part)]
+        if any(family in part.lower() for part in sources):
+            matched.append(line)
+    if matched:
+        print("CROSSWALK_ARGV_CANDIDATE", matched[0][:3200])
+        print("CROSSWALK_ARGV_STATUS", len(matched), "candidates. Confirm object membership using build graph")
+    else:
+        print("CROSSWALK_ARGV_STATUS NO_MATCHING_WRAPPED_COMPILE")
+    print("FULL_ARGV", directory / "compiler-invocations.txt")
+
+
+def run_crosswalk(args, gbs, olevel, stager, lib, product, buildconf, manifest, inventory, work):
+    name = args.sample
+    stem, family = SAMPLES[name]
+    candidates = [record for record in inventory if record["arch"] in {"armv7l", "noarch"}
+                  and record["name"] == name and olevel["srpm_name"](record["srpm"]) == name]
+    if len(candidates) != 1:
+        raise ValueError(f"expected a unique matched Product pin for {name}")
+    gbs.available(work, 24, 12 if args.build else 0)
+    if args.build:
+        gbs.live_product(product)
+    source, spec = olevel["source_for"](gbs, lib, stager, {"doc_source": name, "repository": "Product"},
+                                       candidates, manifest, {}, work)
+    lines = include_evidence(source, stem, family)
+    report = work / "include-evidence.txt"
+    report.write_text("\n".join(lines) + "\n")
+    print("CROSSWALK_RULES", len(lines), report, lib["file_sha"](report))
+    for line in lines[:25]:
+        print(line[:700])
+    print("CROSSWALK_SCOPE", stem, "static references require confirmation against the active compile and link graph")
+    if not args.build:
+        return
+    thumb = runpy.run_path(str(args.thumb))
+    config = gbs.pinned(gbs.ROOT / "config/gbs_vd_llvm_11.16_qb37627297.conf", stager["CONFIG"])
+    root = work / "GBS-ROOT"
+    conf = work / "gbs.conf"
+    conf.write_bytes(olevel["configure_gbs"](gbs, config.read_bytes(), root, product))
+    instrument = thumb["TRACE_BODY"] + thumb["WRAP_BODY"].replace("PM_LANE", "sample")
+    data, count = re.subn(r"(?m)^%build[ \t]*$", lambda _: "%build\n" + instrument, spec.read_text())
+    if count != 1:
+        raise ValueError("expected one unqualified %build section in the pinned spec")
+    spec.chmod(spec.stat().st_mode | 0o200)
+    spec.write_text(data)
+    gbs.local_git(source, work)
+    calls = thumb["run_gbs"](gbs, work, source, spec.name, conf, buildconf, root, True, False)
+    argv_evidence(work, calls, family)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ("capture", "olevel", "gbs", "stager", "repo"):
+        parser.add_argument("--" + name, type=Path, required=True)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--roster", type=Path)
+    group.add_argument("--sample", choices=SAMPLES)
+    for name in ("out", "thumb", "perf"):
+        parser.add_argument("--" + name, type=Path)
+    parser.add_argument("--build", action="store_true")
+    args = parser.parse_args()
+    if args.roster and not args.out:
+        parser.error("--roster requires --out")
+    if args.sample and (not args.perf or (args.build and not args.thumb)):
+        parser.error("--sample requires --perf, and --build also requires --thumb")
+    gbs = SimpleNamespace(**runpy.run_path(str(args.gbs)))
+    olevel, stager, lib = (runpy.run_path(str(f)) for f in (args.olevel, args.stager, args.repo))
+    product, buildconf, inventory = olevel["capture_identity"](args.capture)
+    manifest = gbs.pinned(gbs.ROOT / "manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt", stager["SHELVES"])
+    work = Path(tempfile.mkdtemp(prefix="pm0010b-option-source.", dir=gbs.NATIVE))
+    os.environ["TMPDIR"] = str(work)
+    print("WORKDIR", work, flush=True)
+    if args.roster:
+        output = olevel["native_path"](args.out.parent) / args.out.name
+        rows = olevel["rows_from"](olevel["native_path"](args.roster))
+        resolve_alias(gbs, olevel, stager, lib, manifest, rows, inventory, work, output)
+    else:
+        with runpy.run_path(str(args.perf))["locks"]():
+            run_crosswalk(args, gbs, olevel, stager, lib, product, buildconf, manifest, inventory, work)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        raise SystemExit("OPTION_SOURCE_BLOCKED " + " ".join(str(exc).splitlines())[:700])

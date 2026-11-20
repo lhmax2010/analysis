@@ -1,0 +1,32 @@
+PM0010B START 2026-11-20T22:02:26+08:00
+HIT_FILES 28
+== build.conf / spec files defining the hook (path | sha256 | lines)
+F ./workspace/temp/o957/specs/clang-contrib/clang-contrib.spec | a1a2502395bf775fdd304d170f62cfaebc607fa8152f3ddafa46ec1e73b4b713
+F ./workspace/temp/q858/spec/clang-contrib@clang-contrib.spec | a1a2502395bf775fdd304d170f62cfaebc607fa8152f3ddafa46ec1e73b4b713
+== distinct expanded CCC_OVERRIDE_OPTIONS values in build logs (count | value)
+      9 CCC_OVERRIDE_OPTIONS='# +-O2 +-g2 +-pipe +-Wp,-D_FORTIFY_SOURCE=2 +-fexceptions +-fstack-protector-strong +-fmessage-length=0 +-Wl,-z,relro,--as-needed +--param=ssp-buffer-size=4 +-mcpu=cortex-a53 +-mtune=cortex-a53 +-march=armv8-a+crc +-mlittle-endian +-mfpu=neon-vfpv4 +-mfloat-abi=softfp +-mthumb +-Wp,-D__SOFTFP__ +-Wl,-O1 +-Wl,--hash-style=gnu +-Wa,-mimplicit-it=thumb +-fno-common +-fsigned-char +-Os +-Wno-unknown-warning-option +-Wno-cast-function-type-strict +-Wno-unused-command-line-argument'
+      9 CCC_OVERRIDE_OPTIONS=# +-O2 +-g2 +-pipe +-Wp,-D_FORTIFY_SOURCE=2 +-fexceptions +-fstack-protector-strong +-fmessage-length=0 +-Wl,-z,relro,--as-needed +--param=ssp-buffer-size=4 +-mcpu=cortex-a53 +-mtune=cortex-a53 +-march=armv8-a+crc +-mlittle-endian +-mfpu=neon-vfpv4 +-mfloat-abi=softfp +-mthumb +-Wp,-D__SOFTFP__ +-Wl,-O1 +-Wl,--hash-style=gnu +-Wa,-mimplicit-it=thumb +-fno-common +-fsigned-char +-Os +-Wno-unknown-warning-option +-Wno-cast-function-type-strict +-Wno-unused-command-line-argument'
+      8 CCC_OVERRIDE_OPTIONS=# +-Os +-g2 +-pipe +-Wall +-Wp,-D_FORTIFY_SOURCE=2 +-fexceptions +-fstack-protector-strong +-Wformat-security +-Wformat +-fmessage-length=0 +-Wno-implicit-fallthrough +-Wl,-z,relro,--as-needed +--param=ssp-buffer-size=4 +-mcpu=cortex-a53 +-mtune=cortex-a53 +-march=armv8-a+crc +-mlittle-endian +-mfpu=neon-vfpv4 +-mfloat-abi=softfp +-mthumb +-Wp,-D__SOFTFP__ +-Wl,-O1 +-Wl,--hash-style=gnu +-Wa,-mimplicit-it=thumb +-Wshadow +-fno-common +-fsigned-char +-Wclobbered +-Wcast-function-type +-Wmissing-field-initializers +-Wshift-negative-value +-Wdeprecated-copy +-Wmissing-parameter-type +-Wold-style-declaration +-Wsign-compare +-Woverride-init +-Wno-unknown-warning-option +-Wno
+      8 CCC_OVERRIDE_OPTIONS='# +-Os +-g2 +-pipe +-Wall +-Wp,-D_FORTIFY_SOURCE=2 +-fexceptions +-fstack-protector-strong +-Wformat-security +-Wformat +-fmessage-length=0 +-Wno-implicit-fallthrough +-Wl,-z,relro,--as-needed +--param=ssp-buffer-size=4 +-mcpu=cortex-a53 +-mtune=cortex-a53 +-march=armv8-a+crc +-mlittle-endian +-mfpu=neon-vfpv4 +-mfloat-abi=softfp +-mthumb +-Wp,-D__SOFTFP__ +-Wl,-O1 +-Wl,--hash-style=gnu +-Wa,-mimplicit-it=thumb +-Wshadow +-fno-common +-fsigned-char +-Wclobbered +-Wcast-function-type +-Wmissing-field-initializers +-Wshift-negative-value +-Wdeprecated-copy +-Wmissing-parameter-type +-Wold-style-declaration +-Wsign-compare +-Woverride-init +-Wno-unknown-warning-option +-Wn
+      7 CCC_OVERRIDE_OPTIONS='# +-Os +-g2 +-pipe +-Wall +-Wp,-D_FORTIFY_SOURCE=2 +-fexceptions +-fstack-protector-strong +-Wformat-security +-Wformat +-fmessage-length=0 +-Wno-implicit-fallthrough +-Wl,-z,relro,--as-needed +--param=ssp-buffer-size=4 +-mcpu=cortex-a53 +-mtune=cortex-a53 +-march=armv8-a+crc +-mlittle-endian +-mfpu=neon-vfpv4 +-mfloat-abi=softfp +-mthumb +-Wp,-D__SOFTFP__ +-Wl,-O1 +-Wl,--hash-style=gnu +-Wa,-mimplicit-it=thumb +-Wshadow +-fno-common +-fsigned-char +-Wcast-function-type +-Wmissing-field-initializers +-Wshift-negative-value +-Wdeprecated-copy +-Wsign-compare +-Woverride-init +-Wno-unknown-warning-option +-Wno-unused-command-line-argument'
+      7 CCC_OVERRIDE_OPTIONS=# +-Os +-g2 +-pipe +-Wall +-Wp,-D_FORTIFY_SOURCE=2 +-fexceptions +-fstack-protector-strong +-Wformat-security +-Wformat +-fmessage-length=0 +-Wno-implicit-fallthrough +-Wl,-z,relro,--as-needed +--param=ssp-buffer-size=4 +-mcpu=cortex-a53 +-mtune=cortex-a53 +-march=armv8-a+crc +-mlittle-endian +-mfpu=neon-vfpv4 +-mfloat-abi=softfp +-mthumb +-Wp,-D__SOFTFP__ +-Wl,-O1 +-Wl,--hash-style=gnu +-Wa,-mimplicit-it=thumb +-Wshadow +-fno-common +-fsigned-char +-Wcast-function-type +-Wmissing-field-initializers +-Wshift-negative-value +-Wdeprecated-copy +-Wsign-compare +-Woverride-init +-Wno-unknown-warning-option +-Wno-unused-command-line-argument'
+== GBS roots using the hook: root | packages with a log (first 40 names)
+== log files with the hook, newest 15 (mtime | path | sha256)
+G 11-12T22:11 | ./workspace/temp/z901/exp8/tvs-si/final2/log.txt | 108c2a1b16ec4ac9
+G 11-12T22:11 | ./workspace/temp/z901/exp8/tvs-si/final2/gbs.log | c215b867843d1399
+G 11-12T22:11 | ./workspace/temp/z901/gbs-root-r8-L1/local/repos/z901qb/armv7l/logs/success/tvs-si-0.1.1-1/log.txt | 108c2a1b16ec4ac9
+G 11-12T22:11 | ./workspace/temp/z901/exp8/org.tizen.AVControl/final2/log.txt | e8e340714925a42e
+G 11-12T22:11 | ./workspace/temp/z901/exp8/org.tizen.AVControl/final2/gbs.log | 928f3b50da9f5610
+G 11-12T22:11 | ./workspace/temp/z901/gbs-root-r8-L2/local/repos/z901qb/armv7l/logs/success/org.tizen.AVControl-0.2.0-1/log.txt | e8e340714925a42e
+G 11-12T22:10 | ./workspace/temp/z901/exp8/libpisa-ipc/final2/log.txt | 16c2922ef0cb0662
+G 11-12T22:10 | ./workspace/temp/z901/exp8/libpisa-ipc/final2/gbs.log | 3d2b40335882108e
+G 11-12T22:10 | ./workspace/temp/z901/gbs-root-r8-L3/local/repos/z901qb/armv7l/logs/success/libpisa-ipc-2.10.11-1/log.txt | 16c2922ef0cb0662
+G 11-12T21:42 | ./workspace/temp/z901/exp8/libpisa-ipc/final/log.txt | 4a2fd8a7855bb569
+G 11-12T21:42 | ./workspace/temp/z901/exp8/libpisa-ipc/final/gbs.log | 6c11e62d3d781aa6
+G 11-12T21:37 | ./workspace/temp/z901/exp8/org.tizen.AVControl/final/log.txt | d689b379eee9c568
+G 11-12T21:37 | ./workspace/temp/z901/exp8/org.tizen.AVControl/final/gbs.log | 60de4b8be374dec1
+G 11-12T21:37 | ./workspace/temp/z901/gbs-root-r8-L4/local/repos/z901qb/armv7l/logs/success/org.tizen.AVControl-0.2.0-1/log.txt | d689b379eee9c568
+G 11-12T21:37 | ./workspace/temp/z901/exp8/tvs-si/final/log.txt | 72ca39fff06240f1
+PM0010B DONE 2026-11-20T22:04:12+08:00
+f92a132ddc47cf14423c825ad2a062b2a1574654517c60646eb3654bafe1d671  workspace/temp/pm0010b-hook-roster-20261120-220226.txt
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
