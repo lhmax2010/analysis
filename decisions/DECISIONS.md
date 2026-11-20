@@ -377,3 +377,9 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Keep the recovered single-line expanded hook as the historical lane C input. It carries Thumb and other policy changes alongside -Os. Continue using separately controlled runs for the individual effects. Require the reconciled 22-source roster before R1–R7. Preserve the z901 experiment directories and GBS package logs in storage cleanup.
 - Confirm the tvs-core alias with the matching shelved or submitted spec in Monday step 8. Keep the exact A32 rank/basis and retail inclusion pending their respective evidence. Test the two selected Crosswalk packages independently before assigning a common build-rule cause.
 - Status **Historical hook recovered**. Native alias scan and launcher review pending. [Round 0010b reply](../comms/codex_to_claude/0010b_reply.md)
+
+## D-047 — Measure the Thumb option separately from the complete hook
+
+- Use the verified native hook for C. For the seven A32 sources, compare unchanged A, -Os B, complete hook C and -Os plus Thumb D. Record effective flags and four A32 shares. Treat historical WARN results as such until the paired ELF readback and FINAL builds qualify them.
+- Record exp8's 25 candidate sources and 153 variants. Keep the exact 22-source historical scope and the original treatment injection open until proved. Retain the exp8 paths, RPMs and GBS logs.
+- Status **PM scope accepted**. New launchers staged for Claude review. [Step 8](../comms/codex_to_claude/0010c_reply.md) [Exp8 evidence](../comms/codex_to_claude/0010e_reply.md)

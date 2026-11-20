@@ -98,73 +98,7 @@ The first locator missed the lowercase `gbs-root-*` names. Its R8 paths show AVC
 
 ## Step 8 — Optimization replay
 
-The alias candidate is backed by `libtvs-core` and `libtvs-core-apps` with source RPM `libtvs-core-0.2.5-1.src.rpm`. The alias gate reads the matched Official VCS and spec, applies the corresponding pinned shelf edits at the spec level and requires a literal `Name: libtvs-core`. It prints the file spec, line, hash and generated roster digest. The checked-in row stays provisional until this evidence returns. An alias-only launch stops on failure. The remaining scoped packages can continue. [Perforce file revisions](https://help.perforce.com/helix-core/server-apps/cmdref/current/content/CmdRef/p4_files.html) [Perforce shelf selectors](https://help.perforce.com/helix-core/server-apps/cmdref/current/content/CmdRef/filespecs.html)
-
-**Native server.** Run with valid P4 and sudo tickets. The alias gate usually takes under two minutes, one reader, small scratch use and P4 reads. A missing VCS causes a digest-pinned download of the exact published binary header. GBS remains serial, roughly 20–120 minutes per package, up to six pinned cores and 24 GiB per retained lane plus reserve, with VD dependency traffic. Use `O_PACKAGE` for one source and `O_WORKDIR` for readback. A custom `HOOK_FILE` requires its matching `HOOK_SHA256`. A research recipe still needs the reviewed roster and recipe inputs.
-
-```bash
-(
-  set -euo pipefail
-  cd /home1/chengkai/vd-tree
-  d=$(mktemp -d "$PWD/workspace/temp/pm0010b-tools.XXXXXX")
-  export TMPDIR="$d"
-  get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
-  }
-  get '97a50bcacc7402d8297b25a47b1f2117b40c6d72' 'artifacts/scripts/r0010/olevel.py.txt' '7ea4a4c99204ae9a280e83d46a1e3de2b7ff721ce7a8079294e36393401259bf'
-  get '07883080780af09b3f195ac6efaba639b0ab7bb8' 'artifacts/ledger/olevel-sources-20261120.tsv' '788481656fce951e1434ee44df0acb40c83c44551d2fb590b381664e14151346'
-  get 'd3cea65aac76d438b82b55a2857a5ee18546edad' 'artifacts/scripts/r0005/image-repo-lib.py.txt' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'
-  get '988001a92e58e272390553aea4a27e34e6a87d82' 'artifacts/scripts/r0008a/gbs-mlgo-t7.py.txt' '1089c21b3b4bf4205bd13ba64cace371c57a7d4ec86376877f3b2d069f551a9c'
-  get '988001a92e58e272390553aea4a27e34e6a87d82' 'artifacts/scripts/r0008a/thumb-qb-sample.py.txt' 'b7a725e9c5e68072b9f5388a35df91494874f13f67a00fb7426a3067e04a3579'
-  get '988001a92e58e272390553aea4a27e34e6a87d82' 'artifacts/scripts/r0008a/gbs-thumb.py.txt' '928cff87ac0cb501a6d0575da5f1d80157bd02918d2378a5e061c2262cf11a92'
-  get 'ea24f17d8d8f7b245c36d040381880839165d1c5' 'artifacts/scripts/r0004/image_mode_scan.py.txt' '1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75'
-  get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-bundle.py.txt' '4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b'
-  get '988001a92e58e272390553aea4a27e34e6a87d82' 'artifacts/scripts/r0008a/qb-forensics.py.txt' '6bc8e1bbff0a98ff7096ea7ad1806f777fa63aec04c0b9dc2a92fe256294dd82'
-  get 'cfde38f9e4c6041069d28adc8b9da35894df0de9' 'artifacts/scripts/r0010b/option-source-readback.py.txt' 'fa0369c1e891ff37e290511843a4ffc8f9723536bb5c4c26ccc361b373411f6d'
-  get 'cfde38f9e4c6041069d28adc8b9da35894df0de9' 'artifacts/ledger/nov11-clang-hook-expanded.txt' 'bdf0fecb69664a13a11ac42c4ea56337f509c87189459328b007b8a290db2e7e'
-  if [[ -n "${O_WORKDIR:-}" ]]; then
-    python3 -B -u "$d/olevel.py.txt" readback "$O_WORKDIR"
-  else
-    args=()
-    if [[ -n "${O_PACKAGE:-}" ]]; then args+=(--package "$O_PACKAGE"); fi
-    if [[ -z "${O_RESEARCH_RECIPE:-}" ]]; then
-      HOOK_FILE=${HOOK_FILE:-"$d/nov11-clang-hook-expanded.txt"}
-      HOOK_SHA256=${HOOK_SHA256:-"bdf0fecb69664a13a11ac42c4ea56337f509c87189459328b007b8a290db2e7e"}
-      args+=(--hook "$HOOK_FILE" --hook-sha "$HOOK_SHA256")
-    fi
-    if [[ -n "${SOURCE_RPM_TSV:-}" ]]; then args+=(--source-rpms "$SOURCE_RPM_TSV"); fi
-    if [[ -n "${GCC_TEXT_CSV:-}" ]]; then args+=(--gcc-text-csv "$GCC_TEXT_CSV"); fi
-    if [[ "${O_PRIORITY_C_ONLY:-0}" == 1 ]]; then args+=(--priority-c-only); fi
-    roster=$d/olevel-sources-20261120.tsv
-    if [[ -n "${O_RESEARCH_RECIPE:-}" ]]; then
-      roster=${O_RESEARCH_ROSTER:?set the reviewed separate source roster}
-      printf '%s  %s\n' "${O_RESEARCH_ROSTER_SHA256:?}" "$roster" | sha256sum -c -
-      args+=(--recipe "$O_RESEARCH_RECIPE" --recipe-sha "${O_RESEARCH_RECIPE_SHA256:?}")
-    else
-      resolved="$d/olevel-sources-verified.tsv"
-      if python3 -B -u "$d/option-source-readback.py.txt" --capture "${OFFICIAL_CAPTURE:?}" \
-          --olevel "$d/olevel.py.txt" --repo "$d/image-repo-lib.py.txt" --gbs "$d/gbs-mlgo-t7.py.txt" \
-          --stager "$d/thumb-qb-sample.py.txt" --roster "$roster" --out "$resolved"; then
-        roster="$resolved"
-        if [[ "${O_PACKAGE:-}" == tvs-core ]]; then args[1]=libtvs-core; fi
-      elif [[ "${O_PACKAGE:-}" == tvs-core || "${O_PACKAGE:-}" == libtvs-core ]]; then
-        exit 1
-      else
-        printf 'ALIAS_REVIEW remains open; continuing the other scoped rows\n'
-      fi
-    fi
-    sudo -v
-    nohup python3 -B -u "$d/olevel.py.txt" run "${OFFICIAL_CAPTURE:?}" "$roster" \
-      "$d/image-repo-lib.py.txt" "$d/gbs-mlgo-t7.py.txt" "$d/thumb-qb-sample.py.txt" \
-      "$d/gbs-thumb.py.txt" "$d/image_mode_scan.py.txt" "$d/perf-bundle.py.txt" "$d/qb-forensics.py.txt" \
-      "${args[@]}" >"$d/start.log" 2>&1 </dev/null &
-    printf 'O_JOB %s LOG %s\n' "$!" "$d/start.log"
-    printf 'Read launch status with sed -n 1,12p %q\n' "$d/start.log"
-  fi
-)
-```
+Use the [updated Step 8 launcher](0010c_reply.md) with the four-lane measurement and verified native hook.
 
 ## Crosswalk representatives for the sampling gate
 

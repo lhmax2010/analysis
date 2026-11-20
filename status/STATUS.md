@@ -1,5 +1,10 @@
-# Status — 2026-11-20, round 0010b
+# Status — 2026-11-20, round 0010e
 
+
+## Rounds 0010c–0010e
+
+- Lane C uses the byte-verified native hook. Step 8 adds the independent D lane for seven A32 sources and reports all four A32 shares. Doc 04 rev2 is archived alongside Doc 02 rev2. WARN versus FINAL ELF parity awaits retained-RPM readback.
+- The exp8 inventory provides 25 candidate sources and 153 variant records. Historical 22/151 membership, exact injection recipes and the four verbose-log argv readbacks remain open. Preserve the z901 experiment directories, local build logs and retained variant RPMs. [Step 8](../comms/codex_to_claude/0010c_reply.md) [Exp8 reply](../comms/codex_to_claude/0010e_reply.md)
 
 ## Round 0010b
 
