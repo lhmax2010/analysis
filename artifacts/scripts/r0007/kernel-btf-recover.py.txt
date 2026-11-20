@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Read exact cached QB BTF and separately identify and decode local GBS BTF."""
+
+import argparse
+from collections import defaultdict
+from pathlib import Path
+import json
+import runpy
+import struct
+import subprocess
+import tempfile
+
+LOCAL = {
+    "official": "df9708b73cd2effbecddf6d7796a498debb1f0544bb1e3c5f259f125b8ce1e38",
+    "custom": "f1dde5f6d0a87f545db815a7f7a7eae99ff3e0c709e3c47248bf4cae003def11",
+}
+LENGTHS = {"official": (2207044, 1489174), "custom": (2282972, 1537871)}
+
+
+def inspect(elf, path, name, limit):
+    data = None
+    with elf["cpio_members"](path) as members:
+        for member, mode, _, size, stream in members:
+            if member != name:
+                elf["copy_bytes"](stream, size)
+                continue
+            if data is not None or mode != 0o100000 or not 0 < size <= limit:
+                raise ValueError("expected one regular bounded BTF member")
+            data = stream.read(size)
+            if len(data) != size:
+                raise ValueError("truncated BTF member")
+    if data is None:
+        raise ValueError("BTF member is missing")
+    return data
+
+
+def gbs_blob(elf, source, lane):
+    repo = source["GBS"]/lane/"GBS-ROOT/local/repos"
+    for path in sorted(repo.rglob("tztv-kernel-perf-*.armv7l.rpm")):
+        if path.is_symlink():
+            continue
+        data = inspect(elf, path, source["PATH"], source["MAX_BTF"])
+        if source["sha"](data) == LOCAL[lane]:
+            return data, path
+    raise ValueError("no GBS perf RPM with the recorded member hash")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("btf_library", type=Path)
+    parser.add_argument("elf_library", type=Path)
+    parser.add_argument("--cache-dir", type=Path, action="append", default=[])
+    parser.add_argument("--fetch", action="store_true", help="allow exact published kernel RPM refetch")
+    args = parser.parse_args()
+    source = runpy.run_path(str(args.btf_library))
+    elf = runpy.run_path(str(args.elf_library))
+    out = source["emit"]
+    ledger = elf["COMPARISON"]
+    if elf["sha_file"](ledger) != source["LEDGER_SHA"]:
+        raise ValueError("retained published ledger checksum changed")
+    (row,) = [item for item in elf["rows_from"](ledger) if item["package"][0] == "tztv-kernel-perf"]
+    cache = elf["cache_index"](args.cache_dir)
+    work = Path(tempfile.mkdtemp(prefix="pm0007-btf.", dir=source["TEMP"]))
+    print("WORKDIR", work, flush=True)
+    results = defaultdict(dict)
+    linked = {}
+    for lane, members in zip(("official", "custom"), row["kernel"]):
+        info = members[source["PATH"]]
+        raw = None
+        try:
+            raw = source["packaged"](elf, row[lane], info, work, cache, args.fetch)
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            out("QB_BTF_UNAVAILABLE", [lane, str(exc)[:300]])
+        try:
+            size, digest = source["local_section"](lane)
+            linked[lane] = size
+            out("GBS_ELF_BTF", [lane, size, digest])
+        except (OSError, ValueError) as exc:
+            out("GBS_ELF_BTF_UNAVAILABLE", [lane, str(exc)[:300]])
+        try:
+            data, rpm = gbs_blob(elf, source, lane)
+            out("GBS_PACKAGED_BTF_MEMBER", [lane, str(rpm), len(data), source["sha"](data)])
+            if raw is None:
+                type_len, str_len = LENGTHS[lane]
+                header = struct.pack("<HBBIIIII", 0xEB9F, 1, 0, 24, 0, type_len, type_len, str_len)
+                reconstruction = header + data
+                if len(reconstruction) == info["bytes"] and source["sha"](reconstruction) == info["sha256"]:
+                    raw = reconstruction
+                    out("QB_BTF_RECOVERED_EXACT", lane)
+            try:
+                results["GBS_PACKAGED"][lane] = source["decode"](data)
+            except ValueError as exc:
+                out("GBS_PACKAGED_BTF_DECODE_UNAVAILABLE", [lane, data[:12].hex(), str(exc)])
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            out("GBS_PACKAGED_BTF_UNAVAILABLE", [lane, str(exc)[:300]])
+        if raw is not None:
+            results["QUICKBUILD"][lane] = source["decode"](raw)
+        spec = source["GBS"]/"vdlinux/packaging/tztv-kernel.spec"
+        if lane == "official" and spec.is_file():
+            for item in [(i, line.strip()) for i, line in enumerate(spec.read_text(errors="replace").splitlines(), 1)
+                         if any(word in line.lower() for word in ("btf", "pahole", "vmlinux", "sign-file"))][:24]:
+                out("BTF_SPEC", item)
+    for cohort, lanes in sorted(results.items()):
+        for lane, (header, _, _) in lanes.items():
+            out("BTF_HEADER", [cohort, lane, header])
+        if len(lanes) == 2:
+            _, a_counts, a_sizes = lanes["official"]
+            _, b_counts, b_sizes = lanes["custom"]
+            for kind in source["KINDS"][1:]:
+                out("BTF_KIND", [cohort, kind, a_counts[kind], b_counts[kind], b_counts[kind]-a_counts[kind],
+                                 a_sizes[kind], b_sizes[kind], b_sizes[kind]-a_sizes[kind]])
+    if len(linked) == 2:
+        out("GBS_ELF_BTF_DELTA", linked["custom"] - linked["official"])
+    (work/"btf-results.json").write_text(json.dumps(dict(results), indent=2) + "\n")
+    out("BTF_COMPLETION", {"qb_lanes": len(results["QUICKBUILD"]), "gbs_linked_sizes": linked})
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        raise SystemExit(f"BTF_RECOVERY_BLOCKED {exc}")

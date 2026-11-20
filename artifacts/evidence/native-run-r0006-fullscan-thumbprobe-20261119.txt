@@ -1,0 +1,715 @@
+chengkai@risc-v-Alienware-Aurora-R16:config$ k=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official
+echo "== -mthumb lines by directory"
+grep -E ' -mthumb( |$)' "$k/gbs.log" | grep -oE -- '-Wp,-MMD,[^ ]+' | sed -e 's/-Wp,-MMD,//' -e 's#/[^/]*$##' | sort | uniq -c | sort -rn | head -20
+echo "== lines with both -marm and -mthumb"
+grep -cE -- ' -marm .* -mthumb( |$)| -mthumb .* -marm( |$)' "$k/gbs.log"
+echo "== kernel .config"
+sudo find "$k/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1" -maxdepth 8 -name .config 2>/dev/null | head -3 | sudo xargs -r grep -H -E 'CONFIG_THUMB2_KERNEL|CONFIG_ARM_THUMB=|CONFIG_MLGO'
+== -mthumb lines by directory
+== lines with both -marm and -mthumb
+0
+== kernel .config
+[sudo] password for chengkai:
+/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/debug/vdlinux/.config:CONFIG_ARM_THUMB=y
+/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/debug/vdlinux/.config:# CONFIG_THUMB2_KERNEL is not set
+chengkai@risc-v-Alienware-Aurora-R16:config$
+chengkai@risc-v-Alienware-Aurora-R16:src$ w=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official
+k=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official
+find "$w/GBS-ROOT/local/repos" -path '*/logs/fail/*' -type f | while read -r f; do echo "== $f"; tail -n 60 "$f"; done
+grep -ohE -- ' -m(arm|thumb)( |$)' "$k/gbs.log" | sort | uniq -c
+find "$k/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1" -maxdepth 4 -name .config 2>/dev/null | head -3 | xargs -r grep -H -E 'CONFIG_THUMB2_KERNEL|CONFIG_ARM_THUMB=|CONFIG_MLGO'
+== /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/pm-thumb-defaults-1-1/log.txt
+[   58s] + '[' 0 -ne 0 ']'
+[   58s] + cd pm-thumb-defaults-1
+[   58s] + /bin/chmod -Rf a+rX,u+w,g-w,o-w .
+[   58s] + exit 0
+[   58s] Executing(%build): /bin/sh -e /var/tmp/rpm-tmp.k8rwOk
+[   58s] + umask 022
+[   58s] + cd /home/abuild/rpmbuild/BUILD
+[   58s] + CFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g'
+[   58s] + export CFLAGS
+[   58s] + CXXFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g'
+[   58s] + export CXXFLAGS
+[   58s] + FFLAGS=
+[   58s] + export FFLAGS
+[   58s] + FCFLAGS=
+[   58s] + export FCFLAGS
+[   58s] + CFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto'
+[   58s] + export CFLAGS
+[   58s] + CXXFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto'
+[   58s] + export CXXFLAGS
+[   58s] + FFLAGS=' -flto'
+[   58s] + export FFLAGS
+[   58s] + case " $CFLAGS " in
+[   58s] + CFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects'
+[   58s] + CXXFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects'
+[   58s] + FFLAGS=' -flto -ffat-lto-objects'
+[   58s] + export CFLAGS CXXFLAGS FFLAGS
+[   58s] + cd pm-thumb-defaults-1
+[   58s] + ref=/usr/lib/rpm
+[   58s] + mints=0
+[   58s] + case $(uname -m) in
+[   58s] ++ uname -m
+[   58s] + for s in guess sub
+[   58s] ++ find -maxdepth 8 -name config.guess
+[   58s] + for s in guess sub
+[   58s] ++ find -maxdepth 8 -name config.sub
+[   58s] + export AR=llvm-ar RANLIB=llvm-ranlib
+[   58s] + AR=llvm-ar
+[   58s] + RANLIB=llvm-ranlib
+[   58s] + export CC=armv7l-tizen-linux-gnueabi-clang CXX=armv7l-tizen-linux-gnueabi-clang++
+[   58s] + CC=armv7l-tizen-linux-gnueabi-clang
+[   58s] + CXX=armv7l-tizen-linux-gnueabi-clang++
+[   58s] + set -eu
+[   58s] + export LC_ALL=C
+[   58s] + LC_ALL=C
+[   58s] + printf 'THUMB_OPTFLAGS %s\n' '-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g'
+[   58s] THUMB_OPTFLAGS -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g
+[   58s] + gcc -v
+[   58s] + awk '/Target:|Configured with:|gcc version/ {print "THUMB_GCC_V", $0}' gcc-v.log
+[   58s] THUMB_GCC_V Target: armv7l-tizen-linux-gnueabi
+[   58s] THUMB_GCC_V Configured with: ../configure --prefix=/usr --infodir=/usr/share/info --mandir=/usr/share/man --libdir=/usr/lib --libexecdir=/usr/lib --enable-languages=c,c++,fortran --enable-checking=release --disable-libssp --disable-bootstrap --disable-libvtv --enable-plugin --disable-libgcj --with-slibdir=/usr/lib --with-system-zlib --with-sysroot=/ --enable-__cxa_atexit --enable-libstdcxx-allocator=new --enable-version-specific-runtime-libs --enable-linker-build-id --without-system-libunwind --enable-threads=posix --disable-multilib --disable-cet --enable-lto --enable-libcc1 --enable-libgfortran --with-arch=armv7-a --with-tune=cortex-a8 --disable-sjlj-exceptions --with-bugurl=http://bugs.tizen.org/ --with-pkgversion='Tizen GCC 14.2.0 20240801 1.77' --target=armv7l-tizen-linux-gnueabi --host=armv7l-tizen-linux-gnueabi --build=armv7l-tizen-linux-gnueabi
+[   58s] THUMB_GCC_V gcc version 14.2.0 (Tizen GCC 14.2.0 20240801 1.77)
+[   58s] + gcc -Q --help=target -c -x c /dev/null -o /dev/null
+[   58s] error: Bad exit status from /var/tmp/rpm-tmp.k8rwOk (%build)
+[   58s]
+[   58s]
+[   58s] RPM build errors:
+[   58s]     Bad exit status from /var/tmp/rpm-tmp.k8rwOk (%build)
+[   58s]
+[   58s] risc-v-Alienware-Aurora-R16 failed "build pm-thumb-defaults.spec" at Thu Nov 19 07:02:02 UTC 2026.
+[   58s]
+   1884  -marm
+    302  -mthumb
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/thumb-causes.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/4fd539751c65cea70d4540f33a132731015383f8/artifacts/scripts/r0005/thumb-causes.py.txt' -o "$f"
+  printf '%s  %s\n' 'a81862133875a77c1b63e3e7eaf6b77bb4f9c812fa409056499e4641d57a929b' "$f" | sha256sum -c -
+  python3 -B "$f"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.D0SHKk/thumb-causes.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-thumb-causes.22c0n6da
+SCAN_SUMMARY_SHA256 283ec04c4463a204043abf0c2c277813af88c67fa43a0c84301eb43935edcf90
+CAUSE OPTFLAGS_NOT_PASSED 0 0
+CAUSE EXPLICIT_MARM 0 0
+CAUSE ASM_ARM 0 0
+CAUSE PREBUILT 2 11788716
+CAUSE RUST 0 0
+CAUSE GLIBC_MARM 0 0
+CAUSE UNRESOLVED 607 347957491
+TOP_A32 52346922 UNRESOLVED vd_memps /usr/lib/bpftrace/libLLVM.so.19.1
+TOP_A32 50147206 UNRESOLVED vd_memps /usr/lib/bpftrace/libclang-cpp.so.19.1
+TOP_A32 28215466 UNRESOLVED vd_memps /usr/lib/bpftrace/libclang.so.19.1
+TOP_A32 23730825 UNRESOLVED nodejs /usr/bin/node
+TOP_A32 10218829 UNRESOLVED bluetooth-impl-sec-oal /prd/usr/lib/libbluetooth.so
+TOP_A32 10062652 PREBUILT argot /usr/apps/.preload-tpk/com.samsung.tizen.argot-0.6.1-armv7l.tpk!bin/argot
+TOP_A32 9086160 UNRESOLVED tvp-tv /opt/usr/apps/ieme/Ddrm/libFPS.so
+TOP_A32 8345411 UNRESOLVED gst-ffmpeg /usr/local/lib/libavcodec.so
+TOP_A32 6364630 UNRESOLVED nnstreamer-tensorflow2-lite /usr/lib/nnstreamer/filters/libnnstreamer_filter_tensorflow2-lite.so
+TOP_A32 6361353 UNRESOLVED inference-engine-tflite /usr/lib/libinference-engine-tflite.so
+TOP_A32 5168720 UNRESOLVED libav-common /usr/lib/libavcodec_common.so.55.52.102
+TOP_A32 4693514 UNRESOLVED org.tizen.tv-viewer /usr/apps/org.tizen.tv-viewer/bin/tv-viewer
+TOP_A32 4439374 UNRESOLVED bluetooth-impl-sec-oal /prd/usr/lib/libbluetooth_rtk.default.so
+TOP_A32 4115578 UNRESOLVED bluetooth-impl-sec-oal /prd/usr/lib/libbluetooth_mtk.default.so
+TOP_A32 3960983 UNRESOLVED vd_memps /usr/bin/bpftrace32
+TOP_A32 3894429 UNRESOLVED sensor-hal-accelerometer-sensor /usr/lib/sensor/libsensor-hal-accelerometer-sensor.so
+TOP_A32 3258762 UNRESOLVED pisa-service /usr/apps/.preload-rw-tpk/com.samsung.tv.pisa-service-31.11.126-arm.tpk!res/awf_for_andy/partner/palsdk/encrypt_addon.tizen.node
+TOP_A32 3039347 UNRESOLVED qte-bm /usr/lib/BM/qt5.5.1/lib/libQt5Widgets.so.5.5.1
+TOP_A32 2773987 UNRESOLVED qte-bm /usr/lib/BM/qt5.5.1/lib/libQt5Core.so.5.5.1
+TOP_A32 2725743 UNRESOLVED bluetooth-impl-sec-oal /prd/usr/lib/libleaudio.so
+TOP_A32 2719168 UNRESOLVED qte-bm /usr/lib/BM/qt5.5.1/lib/libQt5Gui.so.5.5.1
+TOP_A32 2390739 UNRESOLVED rpm /usr/lib/librpm.so.3.1.0
+TOP_A32 2254544 UNRESOLVED service-enabler /var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.knox-matrix-6.0.22-10.0-arm.tpk!lib/libkmx-chain-manager.so
+TOP_A32 1777268 UNRESOLVED org.tizen.mbr-daemon /usr/bin/mbr-daemon
+TOP_A32 1726064 PREBUILT argot /usr/bin/argot
+TOP_A32 1674971 UNRESOLVED com.samsung.tv.slive-daemon /usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libavcodec_common.so.55
+TOP_A32 1565911 UNRESOLVED ncnn /usr/lib/libncnn.so
+TOP_A32 1515489 UNRESOLVED org.tizen.webserver /usr/apps/org.tizen.webserver/bin/liblighttpd.so
+TOP_A32 1462177 UNRESOLVED pisa-service /usr/apps/.preload-rw-tpk/com.samsung.tv.pisa-service-31.11.126-arm.tpk!bin/adagent-service
+TOP_A32 1381054 UNRESOLVED sys-tools /usr/bin/target_view/python3/bin/python3.5m
+TOP_A32 1379181 UNRESOLVED playready /usr/lib/libplayready.so.0.1.0
+TOP_A32 1352258 UNRESOLVED com.samsung.tv.cobalt-perf /usr/apps/com.samsung.tv.cobalt/bin/crashpad_handler
+TOP_A32 1345598 UNRESOLVED com.samsung.tv.cobalt-perf /usr/apps/com.samsung.tv.cobalt/bin_gold/cobalt_launcher
+TOP_A32 1325686 UNRESOLVED com.samsung.tv.cobalt-perf /usr/apps/com.samsung.tv.cobalt/bin/cobalt_launcher
+TOP_A32 1309428 UNRESOLVED com.samsung.tv.cobalt-perf /usr/apps/com.samsung.tv.cobalt/bin_gold/crashpad_handler
+TOP_A32 1264546 UNRESOLVED widevine-cdm /opt/usr/apps/Ddrm/WidevineCdm/lib/libwvcdmleve3.so.0.1.1
+TOP_A32 1254233 UNRESOLVED playready-test /opt/usr/apps/playready/playready_test
+TOP_A32 1253134 UNRESOLVED widevine-cdm /opt/usr/apps/Ddrm/WidevineCdm/lib/libwvcdm.so.0.1.1
+TOP_A32 1227050 UNRESOLVED multiprofile-service /usr/apps/.preload-rw-tpk/com.samsung.tv.multiprofile-service-126.26.09212-arm.tpk!bin/multiprofile-serviceapp
+TOP_A32 1212169 UNRESOLVED org.tizen.tts-engine-neural /usr/apps/.preload-rw-tpk/org.tizen.tts-engine-neural-27.26.09282-arm.tpk!lib/libSMT_engine_sh.so
+PACKAGE_PAGE 1 OF 3
+PACKAGE SZDrv_tools {"UNRESOLVED": 2}
+PACKAGE SlimFitCam-FW-Update {"UNRESOLVED": 1}
+PACKAGE SlimFitCam4k-FW-Update {"UNRESOLVED": 1}
+PACKAGE WebProduct {"UNRESOLVED": 1}
+PACKAGE account-extra-service {"UNRESOLVED": 1}
+PACKAGE ais-control-settings {"UNRESOLVED": 2}
+PACKAGE amd {"UNRESOLVED": 1}
+PACKAGE app-svc {"UNRESOLVED": 1}
+PACKAGE app2sd {"UNRESOLVED": 1}
+PACKAGE app2usb-plugin-tv {"UNRESOLVED": 2}
+PACKAGE argot {"PREBUILT": 2}
+PACKAGE atsc3uhdcp {"UNRESOLVED": 3}
+PACKAGE aurum {"UNRESOLVED": 3}
+PACKAGE aurum-bootstrap {"UNRESOLVED": 1}
+PACKAGE bluetooth-frwk {"UNRESOLVED": 1}
+PACKAGE bluetooth-frwk-service {"UNRESOLVED": 2}
+PACKAGE bluetooth-impl-sec-oal {"UNRESOLVED": 13}
+PACKAGE bm_graphic_ui {"UNRESOLVED": 1}
+PACKAGE boost-atomic {"UNRESOLVED": 1}
+PACKAGE boost-chrono {"UNRESOLVED": 1}
+PACKAGE boost-filesystem {"UNRESOLVED": 1}
+PACKAGE boost-iostreams {"UNRESOLVED": 1}
+PACKAGE boost-locale {"UNRESOLVED": 1}
+PACKAGE boost-program-options {"UNRESOLVED": 1}
+PACKAGE boost-random {"UNRESOLVED": 1}
+PACKAGE boost-regex {"UNRESOLVED": 1}
+PACKAGE boost-serialization {"UNRESOLVED": 2}
+PACKAGE boost-test {"UNRESOLVED": 2}
+PACKAGE boost-thread {"UNRESOLVED": 1}
+PACKAGE capi-csa-api-tv {"UNRESOLVED": 1}
+PACKAGE capi-multiprofile-tv {"UNRESOLVED": 1}
+PACKAGE capi-network-wifi {"UNRESOLVED": 2}
+PACKAGE capi-rdm-handler-manager {"UNRESOLVED": 1}
+PACKAGE chromium-efl {"UNRESOLVED": 2}
+PACKAGE cms-service {"UNRESOLVED": 2}
+PACKAGE com.samsung.ep-plateau-agent-service {"UNRESOLVED": 1}
+PACKAGE com.samsung.ep.coba-hotel-native {"UNRESOLVED": 1}
+PACKAGE com.samsung.tizen.perception-engine {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.TVGuardAgent {"UNRESOLVED": 3}
+PACKAGE com.samsung.tv.antenna-selection {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.aria-engine {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.bixbycapsuleviewer {"UNRESOLVED": 2}
+PACKAGE com.samsung.tv.bmp {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.broadcastingmenu {"UNRESOLVED": 6}
+PACKAGE com.samsung.tv.coba-setting-native {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.coba-source-native {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.coba.adagent {"UNRESOLVED": 2}
+PACKAGE com.samsung.tv.cobalt-perf {"UNRESOLVED": 4}
+PACKAGE com.samsung.tv.ghdaemon {"UNRESOLVED": 4}
+PACKAGE com.samsung.tv.ghservice {"UNRESOLVED": 2}
+PACKAGE com.samsung.tv.kmx-setting-app {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.slive-daemon {"UNRESOLVED": 7}
+PACKAGE com.samsung.tv.subm-service {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.termsclient {"UNRESOLVED": 1}
+PACKAGE com.samsung.tv.uem-client {"UNRESOLVED": 3}
+PACKAGE com.samsung.tv.utterance-recommender-service {"UNRESOLVED": 2}
+PACKAGE com.samsung.tv.vif {"UNRESOLVED": 1}
+PACKAGE content-service-framework {"UNRESOLVED": 2}
+PACKAGE cordova-api {"UNRESOLVED": 2}
+PACKAGE coreapp-api {"UNRESOLVED": 1}
+PACKAGE couponpromotion-pepper-plugin {"UNRESOLVED": 1}
+PACKAGE csft-service {"UNRESOLVED": 3}
+PACKAGE dbus {"UNRESOLVED": 9}
+PACKAGE dbus-libs {"UNRESOLVED": 1}
+PACKAGE dbus-libs-extension-kdbus {"UNRESOLVED": 1}
+PACKAGE deviced {"UNRESOLVED": 3}
+PACKAGE drm-muse-proxy {"UNRESOLVED": 1}
+PACKAGE drm-service {"UNRESOLVED": 2}
+PACKAGE eden-webapi-plugins {"UNRESOLVED": 3}
+PACKAGE efl-config {"UNRESOLVED": 1}
+PACKAGE ep-hotel-menu-provider {"UNRESOLVED": 1}
+PACKAGE feature-config-daemon {"UNRESOLVED": 1}
+PACKAGE fkp {"UNRESOLVED": 1}
+PACKAGE gawk {"UNRESOLVED": 1}
+PACKAGE giflib {"UNRESOLVED": 2}
+PACKAGE glibc {"UNRESOLVED": 22}
+PACKAGE glibc-locale {"UNRESOLVED": 45}
+PACKAGE gst-ffmpeg {"UNRESOLVED": 6}
+PACKAGE gst-ffmpeg-atsc3 {"UNRESOLVED": 2}
+PACKAGE gst-plugins-dash {"UNRESOLVED": 4}
+PACKAGE gst-plugins-hls {"UNRESOLVED": 1}
+PACKAGE gst-plugins-httpdemux {"UNRESOLVED": 1}
+PACKAGE gst-plugins-ss {"UNRESOLVED": 1}
+PACKAGE gst-plugins-tizen-tv-sec {"UNRESOLVED": 1}
+PACKAGE gst-rtsp-server-vd {"UNRESOLVED": 2}
+PACKAGE gstreamer-plugins-pvr {"UNRESOLVED": 2}
+PACKAGE gstreamer-plugins-smsrc {"UNRESOLVED": 6}
+PACKAGE gstreamer-plugins-tv {"UNRESOLVED": 15}
+PACKAGE hal-api-common {"UNRESOLVED": 2}
+PACKAGE hal-api-device {"UNRESOLVED": 2}
+PACKAGE hal-api-tbm {"UNRESOLVED": 1}
+PACKAGE hal-api-tdm {"UNRESOLVED": 1}
+PACKAGE hdcp {"UNRESOLVED": 1}
+PACKAGE inference-engine-tflite {"UNRESOLVED": 1}
+PACKAGE key-manager-ta-serialization {"UNRESOLVED": 1}
+PACKAGE lib-ndp-pq-interface-tv {"UNRESOLVED": 1}
+PACKAGE libCSI-debugmenu {"UNRESOLVED": 2}
+PACKAGE libServicePlatform-debugmenu {"UNRESOLVED": 1}
+PACKAGE libav-common {"UNRESOLVED": 2}
+PACKAGE libbrotlicommon {"UNRESOLVED": 1}
+SAMPLE_PLAN inference-engine-tflite nnstreamer-tensorflow2-lite deviced gst-plugins-dash libgcrypt gst-ffmpeg libpisa-ipc vdfs webapi-plugins nodejs com.samsung.tv.cobalt-perf glibc
+SAMPLE_PACKAGES_WITH_LOGS 0 WITH_ARGV_CANDIDATES 0
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/mlgo-elf-sections.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/3e96bc410252a5b3922c0f51f5ed0218852f4feb/artifacts/scripts/r0005/mlgo-elf-sections.py.txt' -o "$f"
+  printf '%s  %s\n' '54a35e35c1844ca4d5cff60e6236d76698fe27f4f582347ed544249c146c34fd' "$f" | sha256sum -c -
+  python3 -B "$f" --kernel-only --fetch
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.U6LRrO/mlgo-elf-sections.py.txt: OK
+WORKDIR "/home1/chengkai/vd-tree/workspace/temp/pm0005-elf-sections.00j1c7f3"
+INPUT {"fetch": true, "kernel_only": true, "ledger": "/home1/chengkai/vd-tree/workspace/temp/pm0005-image-compare.zrtxkrwn/packages.jsonl", "original_statuses": {"DIFFERS": 2289, "IDENTICAL": 50, "UNRESOLVED": 3}, "rpms_in_local_cache": 0, "sha256": "0a1b971f5b4f76f38f60f87cd6bcb3c6d6c8c213cdfb3b37534d914012774d44"}
+VMLINUX_FILE ["/lib/modules/perf/6.12.60/kernel/vmlinux", "official", {"bytes": 3696242, "debug_sections": 0, "description": "data", "elf_header": {}, "format": "UNRECOGNIZED", "has_symtab": false, "magic_hex": "9feb0100180000000000000044ad210044ad210016b916000100000009000004", "sections_total": 0, "sha256": "a4cf6f3bd33433e035f348c78b2600fe9e5595bd3aab7a4525cf3ea2d87e810d"}]
+VMLINUX_FILE ["/lib/modules/perf/6.12.60/kernel/vmlinux", "custom", {"bytes": 3820867, "debug_sections": 0, "description": "data", "elf_header": {}, "format": "UNRECOGNIZED", "has_symtab": false, "magic_hex": "9feb01001800000000000000dcd52200dcd522004f7717000100000009000004", "sections_total": 0, "sha256": "2aecd204227d918a3a4486883d4f5c3f9f563b5d764a1ceef95e79ea54c6d353"}]
+SUMMARY {"TARGET_PACKAGES": 1, "VMLINUX_SECTIONS_UNAVAILABLE": 1}
+DETAILS "/home1/chengkai/vd-tree/workspace/temp/pm0005-elf-sections.00j1c7f3/sections.jsonl"
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/mlgo-elf-sections.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/3e96bc410252a5b3922c0f51f5ed0218852f4feb/artifacts/scripts/r0005/mlgo-elf-sections.py.txt' -o "$f"
+  printf '%s  %s\n' '54a35e35c1844ca4d5cff60e6236d76698fe27f4f582347ed544249c146c34fd' "$f" | sha256sum -c -
+  python3 -B "$f" --fetch
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.U9xnrb/mlgo-elf-sections.py.txt: OK
+WORKDIR "/home1/chengkai/vd-tree/workspace/temp/pm0005-elf-sections.414uc2ph"
+INPUT {"fetch": true, "kernel_only": false, "ledger": "/home1/chengkai/vd-tree/workspace/temp/pm0005-image-compare.zrtxkrwn/packages.jsonl", "original_statuses": {"DIFFERS": 2289, "IDENTICAL": 50, "UNRESOLVED": 3}, "rpms_in_local_cache": 0, "sha256": "0a1b971f5b4f76f38f60f87cd6bcb3c6d6c8c213cdfb3b37534d914012774d44"}
+VMLINUX_FILE ["/lib/modules/perf/6.12.60/kernel/vmlinux", "official", {"bytes": 3696242, "debug_sections": 0, "description": "data", "elf_header": {}, "format": "UNRECOGNIZED", "has_symtab": false, "magic_hex": "9feb0100180000000000000044ad210044ad210016b916000100000009000004", "sections_total": 0, "sha256": "a4cf6f3bd33433e035f348c78b2600fe9e5595bd3aab7a4525cf3ea2d87e810d"}]
+VMLINUX_FILE ["/lib/modules/perf/6.12.60/kernel/vmlinux", "custom", {"bytes": 3820867, "debug_sections": 0, "description": "data", "elf_header": {}, "format": "UNRECOGNIZED", "has_symtab": false, "magic_hex": "9feb01001800000000000000dcd52200dcd522004f7717000100000009000004", "sections_total": 0, "sha256": "2aecd204227d918a3a4486883d4f5c3f9f563b5d764a1ceef95e79ea54c6d353"}]
+PROGRESS_PACKAGES 250
+PROGRESS_PACKAGES 500
+PROGRESS_PACKAGES 750
+PROGRESS_PACKAGES 1000
+PROGRESS_PACKAGES 1250
+PROGRESS_PACKAGES 1500
+PROGRESS_PACKAGES 1750
+TOP_TEXT_CHANGED_PACKAGE [["org.tizen.tv.swu", "armv7l"], 14, 9197846, 10365020, 1167174]
+TOP_TEXT_CHANGED_PACKAGE [["nagsam-mw", "armv7l"], 15, 4170896, 4239066, 68170]
+TOP_TEXT_CHANGED_PACKAGE [["ug-hbbtv-efl", "armv7l"], 11, 3274764, 3284182, 9418]
+TOP_TEXT_CHANGED_PACKAGE [["liballshare-core", "armv7l"], 5, 1221288, 1355828, 134540]
+TOP_TEXT_CHANGED_PACKAGE [["gst-ffmpeg", "armv7l"], 1, 663328, 663200, -128]
+TOP_TEXT_CHANGED_PACKAGE [["connectivity-common-daemon", "armv7l"], 1, 224832, 224832, 0]
+TOP_TEXT_CHANGED_PACKAGE [["chromium-efl", "armv7l"], 1, 75732, 75732, 0]
+TOP_TEXT_CHANGED_PACKAGE [["key-manager-ta", "armv7l"], 1, 66888, 66888, 0]
+TOP_TEXT_CHANGED_PACKAGE [["ABC-test-apps", "armv7l"], 1, 13504, 13504, 0]
+USERSPACE_CHANGED_SECTION [".note.gnu.build-id", 4834]
+USERSPACE_CHANGED_SECTION [".comment", 4827]
+USERSPACE_CHANGED_SECTION [".gnu_debuglink", 4541]
+USERSPACE_CHANGED_SECTION [".rodata", 111]
+USERSPACE_CHANGED_SECTION [".text", 50]
+USERSPACE_CHANGED_SECTION [".data", 49]
+USERSPACE_CHANGED_SECTION [".dynsym", 49]
+USERSPACE_CHANGED_SECTION [".dynstr", 47]
+USERSPACE_CHANGED_SECTION [".ARM.exidx", 46]
+USERSPACE_CHANGED_SECTION [".dynamic", 46]
+USERSPACE_CHANGED_SECTION [".eh_frame", 46]
+USERSPACE_CHANGED_SECTION [".ARM.extab", 45]
+USERSPACE_CHANGED_SECTION [".fini", 45]
+USERSPACE_CHANGED_SECTION [".gnu.hash", 44]
+USERSPACE_CHANGED_SECTION [".gnu.version_r", 44]
+USERSPACE_CHANGED_SECTION [".got", 44]
+USERSPACE_CHANGED_SECTION [".ARM.attributes", 43]
+USERSPACE_CHANGED_SECTION [".data.rel.ro", 43]
+USERSPACE_CHANGED_SECTION [".fini_array", 43]
+USERSPACE_CHANGED_SECTION [".gnu.version", 43]
+USERSPACE_CHANGED_SECTION [".init", 43]
+USERSPACE_CHANGED_SECTION [".init_array", 43]
+USERSPACE_CHANGED_SECTION [".plt", 43]
+USERSPACE_CHANGED_SECTION [".rel.dyn", 43]
+USERSPACE_CHANGED_SECTION [".rel.plt", 43]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/acm-test-app/bin/acm-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/adagent-native-test-app/bin/adagent-native-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/audio-settings-test-app/bin/audio-settings-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/hbbtv-test-app/bin/hbbtv-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/karaoke-test-app/bin/karaoke-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/network-test-app/bin/network-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/photo-player-type-a-test-app/bin/photo-player-type-a-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/platform-monitor-service/bin/platform-monitor-service", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/ssc-test-app/bin/ssc-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/tv-settings-app/bin/tv-settings-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/tvkey-test-app/bin/tvkey-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/opt/usr/apps/video-player-test-app/bin/video-player-test-app", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/usr/apps/.preload-rw-tpk/hbbtv-test-app-0.0.1.tpk!/bin/hbbtv-test-app", [".comment", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["ABC-test-apps", "armv7l"], "/usr/bin/wifi_test_app", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/bin/issue_report_agent", [".comment", ".gnu_debuglink", ".note.gnu.build-id", ".rodata"], "OTHER_CHANGE_OR_UNEXPLAINED"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/apps/AT-HUB/bin/emergency-log-transmitter", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/bin/ArtifactManager", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/bin/HSMClient", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/bin/PinScenario", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/bin/PolicyManager", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/bin/TagDebug", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/bin/emergencyLogTransmitterRun", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/bin/hsm-event-send", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+TEXT_IDENTICAL_SECTION_SAMPLE [["AT-HUB-perf", "armv7l"], "/usr/lib/libAT-HUB.so", [".comment", ".gnu_debuglink", ".note.gnu.build-id"], "METADATA_ONLY_CANDIDATE"]
+SUMMARY {"KERNEL_MODULE_TEXT_CHANGED": 60, "KERNEL_MODULE_TEXT_IDENTICAL": 2, "ORIGINAL_PACKAGE_UNRESOLVED": 3, "TARGET_PACKAGES": 1783, "USERSPACE_ELF_ADDED": 12, "USERSPACE_ELF_REMOVED": 12, "USERSPACE_METADATA_ONLY_CANDIDATE": 4715, "USERSPACE_OTHER_EXEC_CHANGED": 45, "USERSPACE_PACKAGES_WITH_TEXT_CHANGES": 9, "USERSPACE_TEXT_CHANGED": 50, "USERSPACE_TEXT_CHANGED_CUSTOM_BYTES": 20288252, "USERSPACE_TEXT_CHANGED_OFFICIAL_BYTES": 18909078, "USERSPACE_TEXT_CHANGED_OUTSIDE_BASE_DELTA": 50, "USERSPACE_TEXT_IDENTICAL": 4784, "VMLINUX_SECTIONS_UNAVAILABLE": 1}
+DETAILS "/home1/chengkai/vd-tree/workspace/temp/pm0005-elf-sections.414uc2ph/sections.jsonl"
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0005-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/perf-inner-tar.sh.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/3e96bc410252a5b3922c0f51f5ed0218852f4feb/artifacts/scripts/r0005/perf-inner-tar.sh.txt' -o "$f"
+  printf '%s  %s\n' 'b31f14648d75dd5e5f48732151dd7ad1d55a0e49635e8271594e98d532833988' "$f" | sha256sum -c -
+  bash "$f" official
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0005-tools.okk4TH/perf-inner-tar.sh.txt: OK
+OUTER http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/images/T-KSU2EJAKUC-0101-PERF/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2_T-KSU2EJAKUC-0101-PERF.tar.gz
+INNER T-KSU2EJAKUC-0101-PERF-202611171009.tar
+curl: (22) The requested URL returned error: 404
+
+gzip: stdin: unexpected end of file
+tar: Child returned status 1
+tar: Error is not recoverable: exiting now
+tar: This does not look like a tar archive
+tar: Exiting with failure status due to previous errors
+INNER_MEMBER_COUNT 0
+UPDATESU2E_MEMBER_COUNT 0
+chengkai@risc-v-Alienware-Aurora-R16:src$
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0006-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/kernel-replay-readback.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/2f4f5e513807eb3bc5ceea0752aec7c06b471747/artifacts/scripts/r0006/kernel-replay-readback.py.txt' -o "$f"
+  printf '%s  %s\n' 'f934a9b710b962232423a900c5316ab6180105c9af90d960e4adadb6bc0da39c' "$f" | sha256sum -c -
+  python3 -B "$f" --no-thumb-tail
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.e0yYAE/kernel-replay-readback.py.txt: OK
+KERNEL_CONFIG ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/debug/busybox-1.36.1/.config", []]
+KERNEL_CONFIG ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/debug/vdlinux/.config", ["CONFIG_ARM_THUMB=y", "# CONFIG_THUMB2_KERNEL is not set"]]
+KERNEL_CONFIG ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/release/toybox-0.8.12/.config", []]
+KERNEL_CONFIG ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/release/vdlinux/.config", ["CONFIG_ARM_THUMB=y", "# CONFIG_THUMB2_KERNEL is not set"]]
+KERNEL_MAKEFILE ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/Makefile", 147, "ifeq ($(CONFIG_THUMB2_KERNEL),y)"]
+KERNEL_MAKEFILE ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/Makefile", 149, "AFLAGS_ISA\t:=$(CFLAGS_ISA) -Wa$(comma)-mthumb"]
+KERNEL_MAKEFILE ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/Makefile", 150, "CFLAGS_ISA\t+=-mthumb"]
+KERNEL_MAKEFILE ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/Makefile", 152, "CFLAGS_ISA\t:=$(call cc-option,-marm,) $(AFLAGS_NOWARN)"]
+KERNEL_ARGV_ISA ["official", "arm-linux-gnueabi", [], 7100, ["scripts/mod/empty.c"]]
+LOCAL_KERNEL_RPM ["official", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/repos/qb1111/armv7l/RPMS/tztv-kernel-perf-1-1.armv7l.rpm", "8"]
+MODULES_QB_MINUS_GBS ["official", {"512": 101, "576": 14}, {"different": 115}, 0, 0]
+KERNEL_QB_AND_GBS ["official", "/lib/modules/perf/6.12.60/kernel/vmlinux", 3696242, 3696218, "a4cf6f3bd33433e035f348c78b2600fe9e5595bd3aab7a4525cf3ea2d87e810d", "df9708b73cd2effbecddf6d7796a498debb1f0544bb1e3c5f259f125b8ce1e38", "SHA_DIFFERENT"]
+KERNEL_QB_AND_GBS ["official", "/perf/uImage", 11348968, 11348968, "ea5de3dc9564680179e541d6dfebc2d90d817400d91898bc2778694f8f0bdb0b", "07c9469ab1c61f01fa0b3df623023fd9eddbe9d5eb06d66e987c0bc8f66e3f01", "SHA_DIFFERENT"]
+KERNEL_QB_AND_GBS ["official", "/perf/zImage", 5326496, 5326464, "ffe3362976fefd1d22e76895a03837f3993e6e173d72ba8467183e9ac5c9b4bf", "1843e4b2bbb127044777bdec48ebc39811f428de02b4a40d1834339bf4bf9278", "SHA_DIFFERENT"]
+KERNEL_CONFIG ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/debug/busybox-1.36.1/.config", []]
+KERNEL_CONFIG ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/debug/vdlinux/.config", ["CONFIG_ARM_THUMB=y", "# CONFIG_THUMB2_KERNEL is not set"]]
+KERNEL_CONFIG ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/release/toybox-0.8.12/.config", []]
+KERNEL_CONFIG ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/release/vdlinux/.config", ["CONFIG_ARM_THUMB=y", "# CONFIG_THUMB2_KERNEL is not set"]]
+KERNEL_MAKEFILE ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/Makefile", 147, "ifeq ($(CONFIG_THUMB2_KERNEL),y)"]
+KERNEL_MAKEFILE ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/Makefile", 149, "AFLAGS_ISA\t:=$(CFLAGS_ISA) -Wa$(comma)-mthumb"]
+KERNEL_MAKEFILE ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/Makefile", 150, "CFLAGS_ISA\t+=-mthumb"]
+KERNEL_MAKEFILE ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/Makefile", 152, "CFLAGS_ISA\t:=$(call cc-option,-marm,) $(AFLAGS_NOWARN)"]
+KERNEL_ARGV_ISA ["custom", "arm-linux-gnueabi", [], 7100, ["scripts/mod/empty.c"]]
+LOCAL_KERNEL_RPM ["custom", "/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/repos/qb1111/armv7l/RPMS/tztv-kernel-perf-1-1.armv7l.rpm", "8"]
+MODULES_QB_MINUS_GBS ["custom", {"512": 96, "576": 19}, {"different": 115}, 0, 0]
+KERNEL_QB_AND_GBS ["custom", "/lib/modules/perf/6.12.60/kernel/vmlinux", 3820867, 3820843, "2aecd204227d918a3a4486883d4f5c3f9f563b5d764a1ceef95e79ea54c6d353", "f1dde5f6d0a87f545db815a7f7a7eae99ff3e0c709e3c47248bf4cae003def11", "SHA_DIFFERENT"]
+KERNEL_QB_AND_GBS ["custom", "/perf/uImage", 11085240, 11085240, "28a984973276ce05ea03199191f065007e57573b26f892d39230d073aa89baa1", "d1d2cedc0d27a7526003f67e5501b08a0714ec125dbdbba78bc52077eea8ab17", "SHA_DIFFERENT"]
+KERNEL_QB_AND_GBS ["custom", "/perf/zImage", 5222024, 5222304, "356b5f86768d7800f1282a9982d80058bf5a903ba5471d8b91969cb7ab780c22", "d071e547f04f31a217313aefaa0b68b832c8566c5c83bb4e51f3bc7ce9ada068", "SHA_DIFFERENT"]
+IMAGE_MODE_KERNEL_MEMBERSHIP {"arm_predominant": 609, "loadable": 5166, "module_REL": 180}
+chengkai@risc-v-Alienware-Aurora-R16:src$ k=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official
+echo "== -mthumb lines by directory"
+grep -E ' -mthumb( |$)' "$k/gbs.log" | grep -oE -- '-Wp,-MMD,[^ ]+' | sed -e 's/-Wp,-MMD,//' -e 's#/[^/]*$##' | sort | uniq -c | sort -rn | head -20
+echo "== lines with both -marm and -mthumb"
+grep -cE -- ' -marm .* -mthumb( |$)| -mthumb .* -marm( |$)' "$k/gbs.log"
+echo "== kernel .config"
+sudo find "$k/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1" -maxdepth 8 -name .config 2>/dev/null | head -3 | sudo xargs -r grep -H -E 'CONFIG_THUMB2_KERNEL|CONFIG_ARM_THUMB=|CONFIG_MLGO'
+== -mthumb lines by directory
+== lines with both -marm and -mthumb
+0
+== kernel .config
+[sudo] password for chengkai:
+/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/debug/vdlinux/.config:CONFIG_ARM_THUMB=y
+/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/vd_src/SERET-UL/build/KANTSU2E/debug/vdlinux/.config:# CONFIG_THUMB2_KERNEL is not set
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0006-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/thumb-provenance.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/2f4f5e513807eb3bc5ceea0752aec7c06b471747/artifacts/scripts/r0006/thumb-provenance.py.txt' -o "$f"
+  printf '%s  %s\n' '4a8b4377b3fb0c1915b4163c98bf3e1d46aa475b80d8419053b722ee758f9b5d' "$f" | sha256sum -c -
+  python3 -B "$f"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.meiwvv/thumb-provenance.py.txt: OK
+THUMB_ORIGIN_CLASS ["GCC", "PREBUILT_BUNDLED_SPEC", 4, 134670577]
+THUMB_ORIGIN_CLASS ["GCC", "UNVERIFIED_ARCHIVE_MEMBER", 45, 19464219]
+THUMB_ORIGIN_CLASS ["GCC", "UNVERIFIED_DIRECT", 96, 32887706]
+THUMB_ORIGIN_CLASS ["GCC", "UNVERIFIED_DIRECT_APP", 12, 8406385]
+THUMB_ORIGIN_CLASS ["GCC+Clang", "UNVERIFIED_ARCHIVE_MEMBER", 28, 12754943]
+THUMB_ORIGIN_CLASS ["GCC+Clang", "UNVERIFIED_DIRECT", 391, 112311176]
+THUMB_ORIGIN_CLASS ["GCC+Clang", "UNVERIFIED_DIRECT_APP", 26, 16133622]
+THUMB_ORIGIN_CLASS ["GCC+Rust", "PREBUILT_EXTERNAL_PRODUCER", 2, 11788716]
+THUMB_ORIGIN_CLASS ["GCC+Rust", "UNVERIFIED_DIRECT", 2, 1194261]
+THUMB_ORIGIN_CLASS ["none", "UNVERIFIED_ARCHIVE_MEMBER", 1, 1043976]
+THUMB_ORIGIN_CLASS ["none", "UNVERIFIED_DIRECT_APP", 2, 9090626]
+THUMB_SAMPLE ["inference-engine-tflite", 1, "inference-engine-tflite-0.0.9-0.src.rpm", "PRODUCT", "/usr/lib/libinference-engine-tflite.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["nnstreamer-tensorflow2-lite", 1, "nnstreamer-2.4.4-0.src.rpm", "PRODUCT", "/usr/lib/nnstreamer/filters/libnnstreamer_filter_tensorflow2-lite.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["deviced", 3, "deviced-1.0.3-1.src.rpm", "PRODUCT", "/usr/bin/deviced", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["gst-plugins-dash", 4, "gst-plugins-dash-0.1-1.src.rpm", "PRODUCT", "/usr/lib/libdash.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["libgcrypt", 1, "libgcrypt-1.11.0-1.18.src.rpm", "BASE", "/usr/lib/libgcrypt.so.20.5.0", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["gst-ffmpeg", 6, "gst-ffmpeg-1.45.0.tv-74.src.rpm", "PRODUCT", "/usr/local/lib/libavcodec.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["libpisa-ipc", 6, "libpisa-ipc-2.10.11-1.src.rpm", "PRODUCT", "/usr/lib/libpisa-ipc.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["vdfs", 4, "vdfs-0004-3.src.rpm", "PRODUCT", "/prd/usr/bin/mkfs.vdfs", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["webapi-plugins", 34, "webapi-plugins-2.92-0.src.rpm", "PRODUCT", "/usr/lib/tizen-extensions-crosswalk/libtizen_mediacontroller.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["nodejs", 1, "nodejs-21.3.0-0.src.rpm", "PRODUCT", "/usr/bin/node", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["com.samsung.tv.cobalt-perf", 4, "com.samsung.tv.cobalt-25.lts.30.1034943-1.src.rpm", "PRODUCT", "/usr/apps/com.samsung.tv.cobalt/bin/crashpad_handler", ["UNVERIFIED_DIRECT_APP"]]
+THUMB_SAMPLE ["glibc", 22, "glibc-2.40-1.111.src.rpm", "BASE", "/lib/libc.so.6", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["glibc-locale", 45, "glibc-2.40-1.111.src.rpm", "BASE", "/usr/lib/gconv/ISO-2022-JP.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["bluetooth-impl-sec-oal", 13, "bluetooth-impl-sec-26.09.29-1.src.rpm", "PRODUCT", "/prd/usr/lib/libbluetooth.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["qte-bm", 8, "qte-bm-5.5.1-1.src.rpm", "PRODUCT", "/usr/lib/BM/qt5.5.1/lib/libQt5Widgets.so.5.5.1", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["tvp-tv", 3, "tvp-tv-26.09.25.0-1.src.rpm", "PRODUCT", "/opt/usr/apps/ieme/Ddrm/libFPS.so", ["UNVERIFIED_DIRECT_APP"]]
+THUMB_SAMPLE ["libav-common", 2, "libav-common-0.1.0+tv-1.src.rpm", "PRODUCT", "/usr/lib/libavcodec_common.so.55.52.102", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["pisa-service", 5, "pisa-service-31.11.1-1.src.rpm", "PRODUCT", "/usr/apps/.preload-rw-tpk/com.samsung.tv.pisa-service-31.11.126-arm.tpk!res/awf_for_andy/partner/palsdk/encrypt_addon.tizen.node", ["UNVERIFIED_ARCHIVE_MEMBER"]]
+THUMB_SAMPLE ["org.tizen.tv-viewer", 2, "org.tizen.tv-viewer-0.3.8-1.src.rpm", "PRODUCT", "/usr/apps/org.tizen.tv-viewer/bin/tv-viewer", ["UNVERIFIED_DIRECT_APP"]]
+THUMB_SAMPLE ["com.samsung.tv.slive-daemon", 7, "com.samsung.tv.slive-daemon-2.9.999-1.src.rpm", "PRODUCT", "/usr/apps/.preload-rw-tpk/com.samsung.tv.slive-daemon-2.9.99927-arm.tpk!lib/libavcodec_common.so.55", ["UNVERIFIED_ARCHIVE_MEMBER"]]
+THUMB_SAMPLE ["service-enabler", 9, "service-enabler-6.0.39-1.src.rpm", "PRODUCT", "/var/tmp/ses_dir/.preload-rw-tpk/dev-com.samsung.tizen.knox-matrix-6.0.22-10.0-arm.tpk!lib/libkmx-chain-manager.so", ["UNVERIFIED_ARCHIVE_MEMBER"]]
+THUMB_SAMPLE ["sensor-hal-accelerometer-sensor", 1, "sensor-hal-accelerometer-sensor-1.0.0-0.src.rpm", "PRODUCT", "/usr/lib/sensor/libsensor-hal-accelerometer-sensor.so", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["sys-tools", 66, "sys-tools-0-0.src.rpm", "PRODUCT", "/usr/bin/target_view/python3/bin/python3.5m", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["rpm", 13, "rpm-4.14.1.1-1.65.src.rpm", "BASE", "/usr/lib/librpm.so.3.1.0", ["UNVERIFIED_DIRECT"]]
+THUMB_SAMPLE ["widevine-cdm", 2, "widevine-27.19.7-1.src.rpm", "PRODUCT", "/opt/usr/apps/Ddrm/WidevineCdm/lib/libwvcdmleve3.so.0.1.1", ["UNVERIFIED_DIRECT_APP"]]
+THUMB_ORIGIN_TOTAL 609
+THUMB_ORIGIN_TSV ["/home1/chengkai/vd-tree/workspace/temp/pm0006-thumb-provenance.falwvtry/producer-origin.tsv", "69ec7585af5a356771290b77cad73460f6adaad94baec879ebeecf4950f0125a"]
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0006-tools.XXXXXX")
+  export TMPDIR="$d"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/2f4f5e513807eb3bc5ceea0752aec7c06b471747/artifacts/scripts/r0006/obs-glibc-buildlog.py.txt' -o "$d/obs-glibc-buildlog.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/d3cea65aac76d438b82b55a2857a5ee18546edad/artifacts/scripts/r0005/obs-provenance.py.txt' -o "$d/obs-provenance.py.txt"
+  printf '%s  %s\n' '337c1e2a3d50315d854f5e0cef2c7812096c46f9dad20bb0398b7c715b258545' "$d/obs-glibc-buildlog.py.txt" 'bfb617a6cdb738a675e6d6f2636dea9d55d1bfbae445e23658e33a492b6bcbc5' "$d/obs-provenance.py.txt" | sha256sum -c -
+  python3 -B "$d/obs-glibc-buildlog.py.txt" "$d/obs-provenance.py.txt"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.2NjHXK/obs-glibc-buildlog.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.2NjHXK/obs-provenance.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0006-obs-glibc.civqbdow
+OBS_GLIBC_LOG_UNAVAILABLE HTTPError: HTTP Error 404: glibc-2.40-1.111.armv7l.rpm  No such file or directory | OBS: glibc-2.40-1.111.armv7l.rpm: No such file or directory
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0006-tools.XXXXXX")
+  export TMPDIR="$d"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/2f4f5e513807eb3bc5ceea0752aec7c06b471747/artifacts/scripts/r0006/kernel-btf.py.txt' -o "$d/kernel-btf.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/3e96bc410252a5b3922c0f51f5ed0218852f4feb/artifacts/scripts/r0005/mlgo-elf-sections.py.txt' -o "$d/mlgo-elf-sections.py.txt"
+  printf '%s  %s\n' '347ec98d2b1f0996366249530e90c85d00cb76c25094bdd4a0a710e2895e5d55' "$d/kernel-btf.py.txt" '54a35e35c1844ca4d5cff60e6236d76698fe27f4f582347ed544249c146c34fd' "$d/mlgo-elf-sections.py.txt" | sha256sum -c -
+  python3 -B "$d/kernel-btf.py.txt" "$d/mlgo-elf-sections.py.txt" --fetch
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.I1Purz/kernel-btf.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.I1Purz/mlgo-elf-sections.py.txt: OK
+WORKDIR "/home1/chengkai/vd-tree/workspace/temp/pm0006-kernel-btf.oajka5_4"
+Traceback (most recent call last):
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.I1Purz/kernel-btf.py.txt", line 159, in <module>
+    main()
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.I1Purz/kernel-btf.py.txt", line 128, in main
+    data = packaged(lib, row[lane], members[PATH], work, cache, args.fetch)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.I1Purz/kernel-btf.py.txt", line 71, in packaged
+    with lib["rpm_input"](record, cache, work, fetch) as rpm:
+  File "/home1/chengkai/.pyenv/versions/3.10.12/lib/python3.10/contextlib.py", line 135, in __enter__
+    return next(self.gen)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.I1Purz/mlgo-elf-sections.py.txt", line 89, in rpm_input
+    subprocess.run(
+  File "/home1/chengkai/.pyenv/versions/3.10.12/lib/python3.10/subprocess.py", line 526, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['curl', '-fsS', '--noproxy', 'repos.vd.sec.samsung.net', '--connect-timeout', '10', '--max-time', '900', '--max-filesize', '1073741824', '-o', '/home1/chengkai/vd-tree/workspace/temp/pm0006-kernel-btf.oajka5_4/download.rpm', 'http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/repos/product/armv7l/packages/armv7l/tztv-kernel-perf-1-1.armv7l.rpm']' returned non-zero exit status 22.
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0006-tools.XXXXXX")
+  export TMPDIR="$d"
+  rev=2f4f5e513807eb3bc5ceea0752aec7c06b471747
+  get() {
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/artifacts/scripts/r0005/$1" -o "$d/$1"
+    printf '%s  %s\n' "$2" "$d/$1" | sha256sum -c -
+  }
+  get gbs-thumb.py.txt da7e0b2a6d37ab40b4e627b6435da5ce59a42988b9b1877fbc9e35666e6571e7
+  get gbs-mlgo-t7.py.txt 56631f2d16f90fbde476c1f976de92ca463115d67b6485b731408ba4d48ff788
+  args=(defaults --resume "$PWD/workspace/temp/pm0005-gbs-thumb.urkj5m2l")
+  sudo -v
+  mkdir -p "$PWD/workspace/temp"/pm000{4,5}-native-lock
+  flock -n "$PWD/workspace/temp/pm0004-native-lock/heavy.lock" \
+    flock -n "$PWD/workspace/temp/pm0005-native-lock/heavy.lock" \
+    python3 -B -u "$d/gbs-thumb.py.txt" "$d/gbs-mlgo-t7.py.txt" "${args[@]}"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.srUa38/gbs-thumb.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0006-tools.srUa38/gbs-mlgo-t7.py.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l
+RUN_CAPTURE /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/defaults-rerun.k048q2pw
+CAPACITY disk_free_gib 175 ram_available_gib 72
+GBS_INPUT official /home1/chengkai/vd-tree/config/gbs_vd_llvm_11.16_qb37627297.conf c76e060a0cfcbfed72f292ec9d4e840d46a8ee795dde461297732f4561552ffe STAGED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/gbs.conf 6441e690d6f76570602320cd5b847c657e37beaf2ba154a53a090fb6c19cd0dc
+GBS_INPUT custom /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf 72a982165c14e8a1da251aebf509ac37bb817e08e8c911ed7dd7dabe64f7e322 STAGED /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/custom/gbs.conf 31bcffa4fbe14b3e72fb8adef425f683f3c345787191e945ac33bc6580f1726c
+GBS_BUILD_CONF /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 P4_CHANGE 14452507
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf --threads 1 --spec pm-thumb-defaults.spec --fallback-to-native LOG /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/defaults-rerun.k048q2pw/gbs.log
+GBS_EXIT 0
+THUMB_BUILD_ENV CC=armv7l-tizen-linux-gnueabi-clang CXX=armv7l-tizen-linux-gnueabi-clang++ AR=llvm-ar
+THUMB_COMPILE_ARGV CLANG_KERNEL_ASM_IMPLICIT_IT armv7l-tizen-linux-gnueabi-clang --target=arm-linux-gnueabi -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=thumb -c pm-implicit-it.S -o CLANG_KERNEL_ASM_IMPLICIT_IT.o
+THUMB_COMPILE_ARGV CLANG_KERNEL_ASM_NO_IMPLICIT_IT armv7l-tizen-linux-gnueabi-clang --target=arm-linux-gnueabi -march=armv8-a+crc -mthumb -Wa,-mimplicit-it=never -c pm-implicit-it.S -o CLANG_KERNEL_ASM_NO_IMPLICIT_IT.o
+THUMB_COMPILE_ARGV CLANG_KERNEL_ASM_OPTFLAGS armv7l-tizen-linux-gnueabi-clang --target=arm-linux-gnueabi -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -c pm-implicit-it.S -o CLANG_KERNEL_ASM_OPTFLAGS.o
+THUMB_COMPILE_ARGV CLANG_KERNEL_BARE.C armv7l-tizen-linux-gnueabi-clang --no-default-config --target=arm-linux-gnueabi -c pm-mode.c -o CLANG_KERNEL_BARE.C.o
+THUMB_COMPILE_ARGV CLANG_KERNEL_DEFAULT.C armv7l-tizen-linux-gnueabi-clang --target=arm-linux-gnueabi -c pm-mode.c -o CLANG_KERNEL_DEFAULT.C.o
+THUMB_COMPILE_ARGV CLANG_KERNEL_OPTFLAGS.C armv7l-tizen-linux-gnueabi-clang --target=arm-linux-gnueabi -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -c pm-mode.c -o CLANG_KERNEL_OPTFLAGS.C.o
+THUMB_COMPILE_ARGV CLANG_PLATFORM_ASM_OPTFLAGS armv7l-tizen-linux-gnueabi-clang -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -c pm-implicit-it.S -o CLANG_PLATFORM_ASM_OPTFLAGS.o
+THUMB_COMPILE_ARGV CLANG_PLATFORM_BARE.C armv7l-tizen-linux-gnueabi-clang --no-default-config --target=armv7l-tizen-linux-gnueabi -c pm-mode.c -o CLANG_PLATFORM_BARE.C.o
+THUMB_COMPILE_ARGV CLANG_PLATFORM_DEFAULT.C armv7l-tizen-linux-gnueabi-clang -c pm-mode.c -o CLANG_PLATFORM_DEFAULT.C.o
+THUMB_COMPILE_ARGV CLANG_PLATFORM_OPTFLAGS.C armv7l-tizen-linux-gnueabi-clang -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -c pm-mode.c -o CLANG_PLATFORM_OPTFLAGS.C.o
+THUMB_COMPILE_ARGV GCC_DEFAULT_C gcc -c pm-mode.c -o GCC_DEFAULT_C.o
+THUMB_DRIVER_FLAGS CLANG_KERNEL_BARE "-triple" "armv4t-unknown-linux-gnueabi"
+THUMB_DRIVER_FLAGS CLANG_KERNEL_DEFAULT "-triple" "armv4t-unknown-linux-gnueabi"
+THUMB_DRIVER_FLAGS CLANG_KERNEL_OPTFLAGS "-triple" "thumbv8a-unknown-linux-gnueabi" "-arm-implicit-it=thumb"
+THUMB_DRIVER_FLAGS CLANG_PLATFORM_BARE "-triple" "armv7-tizen-linux-gnueabi"
+THUMB_DRIVER_FLAGS CLANG_PLATFORM_DEFAULT "-triple" "armv7-tizen-linux-gnueabi"
+THUMB_DRIVER_FLAGS CLANG_PLATFORM_OPTFLAGS "-triple" "thumbv8a-tizen-linux-gnueabi" "-arm-implicit-it=thumb"
+THUMB_EXPORTED_CFLAGS -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects
+THUMB_EXPORTED_CXXFLAGS -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects
+THUMB_EXPORTED_FFLAGS  -flto -ffat-lto-objects
+THUMB_MATRIX_END
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_ASM_IMPLICIT_IT   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_ASM_IMPLICIT_IT   Tag_THUMB_ISA_use: Thumb-2
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_ASM_OPTFLAGS   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_ASM_OPTFLAGS   Tag_THUMB_ISA_use: Thumb-2
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_BARE.C   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_BARE.C   Tag_THUMB_ISA_use: Thumb-1
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_DEFAULT.C   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_DEFAULT.C   Tag_THUMB_ISA_use: Thumb-1
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_OPTFLAGS.C   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_KERNEL_OPTFLAGS.C   Tag_THUMB_ISA_use: Thumb-2
+THUMB_OBJECT_ATTRIBUTE CLANG_PLATFORM_ASM_OPTFLAGS   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_PLATFORM_ASM_OPTFLAGS   Tag_THUMB_ISA_use: Thumb-2
+THUMB_OBJECT_ATTRIBUTE CLANG_PLATFORM_BARE.C   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_PLATFORM_BARE.C   Tag_THUMB_ISA_use: Thumb-2
+THUMB_OBJECT_ATTRIBUTE CLANG_PLATFORM_DEFAULT.C   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_PLATFORM_DEFAULT.C   Tag_THUMB_ISA_use: Thumb-2
+THUMB_OBJECT_ATTRIBUTE CLANG_PLATFORM_OPTFLAGS.C   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE CLANG_PLATFORM_OPTFLAGS.C   Tag_THUMB_ISA_use: Thumb-2
+THUMB_OBJECT_ATTRIBUTE GCC_DEFAULT_C   Tag_ARM_ISA_use: Yes
+THUMB_OBJECT_ATTRIBUTE GCC_DEFAULT_C   Tag_THUMB_ISA_use: Thumb-2
+THUMB_OBJECT_MAPPING CLANG_KERNEL_ASM_IMPLICIT_IT $t
+THUMB_OBJECT_MAPPING CLANG_KERNEL_ASM_OPTFLAGS $t
+THUMB_OBJECT_MAPPING CLANG_KERNEL_BARE.C $a
+THUMB_OBJECT_MAPPING CLANG_KERNEL_DEFAULT.C $a
+THUMB_OBJECT_MAPPING CLANG_KERNEL_OPTFLAGS.C $t
+THUMB_OBJECT_MAPPING CLANG_PLATFORM_ASM_OPTFLAGS $t
+THUMB_OBJECT_MAPPING CLANG_PLATFORM_BARE.C $a
+THUMB_OBJECT_MAPPING CLANG_PLATFORM_DEFAULT.C $a
+THUMB_OBJECT_MAPPING CLANG_PLATFORM_OPTFLAGS.C $t
+THUMB_OBJECT_MAPPING GCC_DEFAULT_C $t
+THUMB_OPTFLAGS -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g
+THUMB_PROBE CLANG_KERNEL_BARE ARM
+THUMB_PROBE CLANG_KERNEL_DEFAULT ARM
+THUMB_PROBE CLANG_KERNEL_OPTFLAGS THUMB2
+THUMB_PROBE CLANG_PLATFORM_BARE ARM
+THUMB_PROBE CLANG_PLATFORM_DEFAULT ARM
+THUMB_PROBE CLANG_PLATFORM_OPTFLAGS THUMB2
+THUMB_STEP CLANG_KERNEL_ASM_IMPLICIT_IT rc=0
+THUMB_STEP CLANG_KERNEL_ASM_IMPLICIT_IT.attributes rc=0
+THUMB_STEP CLANG_KERNEL_ASM_IMPLICIT_IT.symbols rc=0
+THUMB_STEP CLANG_KERNEL_ASM_NO_IMPLICIT_IT rc=1
+THUMB_STEP CLANG_KERNEL_ASM_OPTFLAGS rc=0
+THUMB_STEP CLANG_KERNEL_ASM_OPTFLAGS.attributes rc=0
+THUMB_STEP CLANG_KERNEL_ASM_OPTFLAGS.symbols rc=0
+THUMB_STEP CLANG_KERNEL_BARE.C rc=0
+THUMB_STEP CLANG_KERNEL_BARE.C.attributes rc=0
+THUMB_STEP CLANG_KERNEL_BARE.C.symbols rc=0
+THUMB_STEP CLANG_KERNEL_BARE.driver rc=0
+THUMB_STEP CLANG_KERNEL_BARE.macros rc=0
+THUMB_STEP CLANG_KERNEL_DEFAULT.C rc=0
+THUMB_STEP CLANG_KERNEL_DEFAULT.C.attributes rc=0
+THUMB_STEP CLANG_KERNEL_DEFAULT.C.symbols rc=0
+THUMB_STEP CLANG_KERNEL_DEFAULT.driver rc=0
+THUMB_STEP CLANG_KERNEL_DEFAULT.macros rc=0
+THUMB_STEP CLANG_KERNEL_OPTFLAGS.C rc=0
+THUMB_STEP CLANG_KERNEL_OPTFLAGS.C.attributes rc=0
+THUMB_STEP CLANG_KERNEL_OPTFLAGS.C.symbols rc=0
+THUMB_STEP CLANG_KERNEL_OPTFLAGS.driver rc=0
+THUMB_STEP CLANG_KERNEL_OPTFLAGS.macros rc=0
+THUMB_STEP CLANG_PLATFORM_ASM_OPTFLAGS rc=0
+THUMB_STEP CLANG_PLATFORM_ASM_OPTFLAGS.attributes rc=0
+THUMB_STEP CLANG_PLATFORM_ASM_OPTFLAGS.symbols rc=0
+THUMB_STEP CLANG_PLATFORM_BARE.C rc=0
+THUMB_STEP CLANG_PLATFORM_BARE.C.attributes rc=0
+THUMB_STEP CLANG_PLATFORM_BARE.C.symbols rc=0
+THUMB_STEP CLANG_PLATFORM_BARE.driver rc=0
+THUMB_STEP CLANG_PLATFORM_BARE.macros rc=0
+THUMB_STEP CLANG_PLATFORM_DEFAULT.C rc=0
+THUMB_STEP CLANG_PLATFORM_DEFAULT.C.attributes rc=0
+THUMB_STEP CLANG_PLATFORM_DEFAULT.C.symbols rc=0
+THUMB_STEP CLANG_PLATFORM_DEFAULT.driver rc=0
+THUMB_STEP CLANG_PLATFORM_DEFAULT.macros rc=0
+THUMB_STEP CLANG_PLATFORM_OPTFLAGS.C rc=0
+THUMB_STEP CLANG_PLATFORM_OPTFLAGS.C.attributes rc=0
+THUMB_STEP CLANG_PLATFORM_OPTFLAGS.C.symbols rc=0
+THUMB_STEP CLANG_PLATFORM_OPTFLAGS.driver rc=0
+THUMB_STEP CLANG_PLATFORM_OPTFLAGS.macros rc=0
+THUMB_STEP CLANG_VERSION rc=0
+THUMB_STEP GCC_DEFAULT rc=1
+THUMB_STEP GCC_DEFAULT_C rc=0
+THUMB_STEP GCC_DEFAULT_C.attributes rc=0
+THUMB_STEP GCC_DEFAULT_C.symbols rc=0
+THUMB_STEP GCC_OPTFLAGS rc=0
+THUMB_STEP GCC_VERSION rc=0
+THUMB_CLANG InstalledDir: /usr/bin
+THUMB_CLANG Target: armv7l-tizen-linux-gnueabi
+THUMB_CLANG Thread model: posix
+THUMB_CLANG clang version 22.1.8
+THUMB_DRIVER_TARGET CLANG_KERNEL_BARE Target: arm-unknown-linux-gnueabi
+THUMB_DRIVER_TARGET CLANG_KERNEL_DEFAULT Configuration file: /usr/bin/clang.cfg
+THUMB_DRIVER_TARGET CLANG_KERNEL_DEFAULT Target: arm-unknown-linux-gnueabi
+THUMB_DRIVER_TARGET CLANG_KERNEL_OPTFLAGS Configuration file: /usr/bin/clang.cfg
+THUMB_DRIVER_TARGET CLANG_KERNEL_OPTFLAGS Target: arm-unknown-linux-gnueabi
+THUMB_DRIVER_TARGET CLANG_PLATFORM_BARE Target: armv7l-tizen-linux-gnueabi
+THUMB_DRIVER_TARGET CLANG_PLATFORM_DEFAULT Configuration file: /usr/bin/clang.cfg
+THUMB_DRIVER_TARGET CLANG_PLATFORM_DEFAULT Target: armv7l-tizen-linux-gnueabi
+THUMB_DRIVER_TARGET CLANG_PLATFORM_OPTFLAGS Configuration file: /usr/bin/clang.cfg
+THUMB_DRIVER_TARGET CLANG_PLATFORM_OPTFLAGS Target: armv7l-tizen-linux-gnueabi
+THUMB_STDERR CLANG_KERNEL_ASM_NO_IMPLICIT_IT     ^
+THUMB_STDERR CLANG_KERNEL_ASM_NO_IMPLICIT_IT     moveq r0, r1
+THUMB_STDERR CLANG_KERNEL_ASM_NO_IMPLICIT_IT pm-implicit-it.S:10:5: error: predicated instructions must be in IT block
+THUMB_STDERR CLANG_KERNEL_BARE.driver  "/emul/usr/bin/clang-22" "-cc1" "-triple" "armv4t-unknown-linux-gnueabi" "-emit-obj" "-disable-free" "-clear-ast-before-backend" "-disable-llvm-verifier" "-discard-value-names" "-main-file-name" "pm-mode.c" "-mrelocation-model" "pic" "-pic-level" "2" "-pic-is-pie" "-mframe-pointer=all" "-fmath-errno" "-ffp-contract=on" "-fno-rounding-math" "-mconstructor-aliases" "-target-cpu" "arm7tdmi" "-target-feature" "+soft-float-abi" "-target-feature" "-vfp2" "-target-feature" "-vfp2sp" "-target-feature" "-vfp3" "-target-feature" "-vfp3d16" "-target-feature" "-vfp3d16sp" "-target-feature" "-vfp3sp" "-target-feature" "-fp16" "-target-feature" "-vfp4" "-target-feature" "-vfp4d16" "-target-feature" "-vfp4d16sp" "-target-feature" "-vfp4sp" "-target-feature" "-fp-armv8" "-target-feature" "-fp-armv8d16" "-target-feat
+THUMB_STDERR CLANG_KERNEL_BARE.driver  (in-process)
+THUMB_STDERR CLANG_KERNEL_BARE.driver InstalledDir: /usr/bin
+THUMB_STDERR CLANG_KERNEL_BARE.driver Target: arm-unknown-linux-gnueabi
+THUMB_STDERR CLANG_KERNEL_BARE.driver Thread model: posix
+THUMB_STDERR CLANG_KERNEL_BARE.driver clang version 22.1.8
+THUMB_STDERR CLANG_KERNEL_DEFAULT.driver  "/emul/usr/bin/clang-22" "-cc1" "-triple" "armv4t-unknown-linux-gnueabi" "-emit-obj" "-disable-free" "-clear-ast-before-backend" "-disable-llvm-verifier" "-discard-value-names" "-main-file-name" "pm-mode.c" "-mrelocation-model" "pic" "-pic-level" "2" "-pic-is-pie" "-mframe-pointer=all" "-fmath-errno" "-ffp-contract=on" "-fno-rounding-math" "-mconstructor-aliases" "-target-cpu" "arm7tdmi" "-target-feature" "+soft-float-abi" "-target-feature" "-vfp2" "-target-feature" "-vfp2sp" "-target-feature" "-vfp3" "-target-feature" "-vfp3d16" "-target-feature" "-vfp3d16sp" "-target-feature" "-vfp3sp" "-target-feature" "-fp16" "-target-feature" "-vfp4" "-target-feature" "-vfp4d16" "-target-feature" "-vfp4d16sp" "-target-feature" "-vfp4sp" "-target-feature" "-fp-armv8" "-target-feature" "-fp-armv8d16" "-target-f
+THUMB_STDERR CLANG_KERNEL_DEFAULT.driver  (in-process)
+THUMB_STDERR CLANG_KERNEL_DEFAULT.driver Configuration file: /usr/bin/clang.cfg
+THUMB_STDERR CLANG_KERNEL_DEFAULT.driver InstalledDir: /usr/bin
+THUMB_STDERR CLANG_KERNEL_DEFAULT.driver Target: arm-unknown-linux-gnueabi
+THUMB_STDERR CLANG_KERNEL_DEFAULT.driver Thread model: posix
+THUMB_STDERR CLANG_KERNEL_DEFAULT.driver clang version 22.1.8
+THUMB_STDERR CLANG_KERNEL_OPTFLAGS.driver  "/emul/usr/bin/clang-22" "-cc1" "-triple" "thumbv8a-unknown-linux-gnueabi" "-Os" "-emit-obj" "-mllvm" "-arm-implicit-it=thumb" "-disable-free" "-clear-ast-before-backend" "-disable-llvm-verifier" "-discard-value-names" "-main-file-name" "pm-mode.c" "-mrelocation-model" "pic" "-pic-level" "2" "-pic-is-pie" "-mframe-pointer=none" "-fmath-errno" "-ffp-contract=on" "-fno-rounding-math" "-mconstructor-aliases" "-target-cpu" "generic" "-target-feature" "+soft-float-abi" "-target-feature" "+read-tp-tpidruro" "-target-feature" "+vfp2" "-target-feature" "+vfp2sp" "-target-feature" "+vfp3" "-target-feature" "+vfp3d16" "-target-feature" "+vfp3d16sp" "-target-feature" "+vfp3sp" "-target-feature" "+fp16" "-target-feature" "+vfp4" "-target-feature" "+vfp4d16" "-target-feature" "+vfp4d16sp" "-target-feature" "+
+THUMB_STDERR CLANG_KERNEL_OPTFLAGS.driver  (in-process)
+THUMB_STDERR CLANG_KERNEL_OPTFLAGS.driver Configuration file: /usr/bin/clang.cfg
+THUMB_STDERR CLANG_KERNEL_OPTFLAGS.driver InstalledDir: /usr/bin
+THUMB_STDERR CLANG_KERNEL_OPTFLAGS.driver Target: arm-unknown-linux-gnueabi
+THUMB_STDERR CLANG_KERNEL_OPTFLAGS.driver Thread model: posix
+THUMB_STDERR CLANG_KERNEL_OPTFLAGS.driver clang version 22.1.8
+THUMB_STDERR CLANG_PLATFORM_BARE.driver  "/emul/usr/bin/clang-22" "-cc1" "-triple" "armv7-tizen-linux-gnueabi" "-emit-obj" "-disable-free" "-clear-ast-before-backend" "-disable-llvm-verifier" "-discard-value-names" "-main-file-name" "pm-mode.c" "-mrelocation-model" "pic" "-pic-level" "2" "-pic-is-pie" "-mframe-pointer=all" "-fmath-errno" "-ffp-contract=on" "-fno-rounding-math" "-mconstructor-aliases" "-target-cpu" "generic" "-target-feature" "+soft-float-abi" "-target-feature" "+read-tp-tpidruro" "-target-feature" "+vfp2" "-target-feature" "+vfp2sp" "-target-feature" "+vfp3" "-target-feature" "+vfp3d16" "-target-feature" "+vfp3d16sp" "-target-feature" "+vfp3sp" "-target-feature" "-fp16" "-target-feature" "-vfp4" "-target-feature" "-vfp4d16" "-target-feature" "-vfp4d16sp" "-target-feature" "-vfp4sp" "-target-feature" "-fp-armv8" "-target-f
+THUMB_STDERR CLANG_PLATFORM_BARE.driver  (in-process)
+THUMB_STDERR CLANG_PLATFORM_BARE.driver InstalledDir: /usr/bin
+THUMB_STDERR CLANG_PLATFORM_BARE.driver Target: armv7l-tizen-linux-gnueabi
+THUMB_STDERR CLANG_PLATFORM_BARE.driver Thread model: posix
+THUMB_STDERR CLANG_PLATFORM_BARE.driver clang version 22.1.8
+THUMB_STDERR CLANG_PLATFORM_DEFAULT.driver  "/emul/usr/bin/clang-22" "-cc1" "-triple" "armv7-tizen-linux-gnueabi" "-emit-obj" "-disable-free" "-clear-ast-before-backend" "-disable-llvm-verifier" "-discard-value-names" "-main-file-name" "pm-mode.c" "-mrelocation-model" "pic" "-pic-level" "2" "-pic-is-pie" "-mframe-pointer=all" "-fmath-errno" "-ffp-contract=on" "-fno-rounding-math" "-mconstructor-aliases" "-target-cpu" "generic" "-target-feature" "+soft-float-abi" "-target-feature" "+read-tp-tpidruro" "-target-feature" "+vfp2" "-target-feature" "+vfp2sp" "-target-feature" "+vfp3" "-target-feature" "+vfp3d16" "-target-feature" "+vfp3d16sp" "-target-feature" "+vfp3sp" "-target-feature" "-fp16" "-target-feature" "-vfp4" "-target-feature" "-vfp4d16" "-target-feature" "-vfp4d16sp" "-target-feature" "-vfp4sp" "-target-feature" "-fp-armv8" "-targe
+THUMB_STDERR CLANG_PLATFORM_DEFAULT.driver  (in-process)
+THUMB_STDERR CLANG_PLATFORM_DEFAULT.driver Configuration file: /usr/bin/clang.cfg
+THUMB_STDERR CLANG_PLATFORM_DEFAULT.driver InstalledDir: /usr/bin
+THUMB_STDERR CLANG_PLATFORM_DEFAULT.driver Target: armv7l-tizen-linux-gnueabi
+THUMB_STDERR CLANG_PLATFORM_DEFAULT.driver Thread model: posix
+THUMB_STDERR CLANG_PLATFORM_DEFAULT.driver clang version 22.1.8
+THUMB_STDERR CLANG_PLATFORM_OPTFLAGS.driver  "/emul/usr/bin/clang-22" "-cc1" "-triple" "thumbv8a-tizen-linux-gnueabi" "-Os" "-emit-obj" "-mllvm" "-arm-implicit-it=thumb" "-disable-free" "-clear-ast-before-backend" "-disable-llvm-verifier" "-discard-value-names" "-main-file-name" "pm-mode.c" "-mrelocation-model" "pic" "-pic-level" "2" "-pic-is-pie" "-mframe-pointer=none" "-fmath-errno" "-ffp-contract=on" "-fno-rounding-math" "-mconstructor-aliases" "-target-cpu" "generic" "-target-feature" "+soft-float-abi" "-target-feature" "+read-tp-tpidruro" "-target-feature" "+vfp2" "-target-feature" "+vfp2sp" "-target-feature" "+vfp3" "-target-feature" "+vfp3d16" "-target-feature" "+vfp3d16sp" "-target-feature" "+vfp3sp" "-target-feature" "+fp16" "-target-feature" "+vfp4" "-target-feature" "+vfp4d16" "-target-feature" "+vfp4d16sp" "-target-feature" "+
+THUMB_STDERR CLANG_PLATFORM_OPTFLAGS.driver  (in-process)
+THUMB_STDERR CLANG_PLATFORM_OPTFLAGS.driver Configuration file: /usr/bin/clang.cfg
+THUMB_STDERR CLANG_PLATFORM_OPTFLAGS.driver InstalledDir: /usr/bin
+THUMB_STDERR CLANG_PLATFORM_OPTFLAGS.driver Target: armv7l-tizen-linux-gnueabi
+THUMB_STDERR CLANG_PLATFORM_OPTFLAGS.driver Thread model: posix
+THUMB_STDERR CLANG_PLATFORM_OPTFLAGS.driver clang version 22.1.8
+THUMB_STDERR GCC_DEFAULT {standard input}: Assembler messages:
+THUMB_STDERR GCC_DEFAULT {standard input}:10: Error: junk at end of line, first unrecognized character is `-'
+THUMB_STDERR GCC_DEFAULT {standard input}:11: Error: junk at end of line, first unrecognized character is `-'
+THUMB_STDERR GCC_DEFAULT {standard input}:12: Error: junk at end of line, first unrecognized character is `-'
+THUMB_STDERR GCC_DEFAULT {standard input}:13: Error: junk at end of line, first unrecognized character is `-'
+THUMB_STDERR GCC_DEFAULT {standard input}:14: Error: junk at end of line, first unrecognized character is `-'
+THUMB_STDERR GCC_DEFAULT {standard input}:15: Error: junk at end of line, first unrecognized character is `-'
+THUMB_MATRIX_STATUS INCOMPLETE GCC_DEFAULT
+DONE THUMB_GBS_CAPTURE_REVIEW
+chengkai@risc-v-Alienware-Aurora-R16:src$
+

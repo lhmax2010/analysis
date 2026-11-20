@@ -1,0 +1,327 @@
+#!/usr/bin/env python3
+"""Read the two retained Product ledgers, source provenance, and ELF evidence."""
+
+import argparse
+from collections import Counter
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import subprocess
+import tempfile
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+COMPARE = TEMP / "pm0005-image-compare.zrtxkrwn"
+SECTIONS = TEMP / "pm0005-elf-sections.414uc2ph/sections.jsonl"
+PRE = TEMP / "pm0004-mlgo-xllvtyr9"
+PIN = "0a1b971f5b4f76f38f60f87cd6bcb3c6d6c8c213cdfb3b37534d914012774d44"
+PINS_TSV = "e7877e499ca148ba17095c72e2ef13c20cfbae17404182294c84d8781d77baaf"
+NAMES = (
+    "ABC-test-apps", "chromium-efl", "connectivity-common-daemon", "gst-ffmpeg",
+    "key-manager-ta", "liballshare-core", "nagsam-mw", "org.tizen.tv.swu", "ug-hbbtv-efl",
+)
+SAMPLE = "/opt/usr/apps/acm-test-app/bin/acm-test-app"
+SAN = re.compile(r"sanitiz|(?:[auhl]san)(?=[_ :%}\-]|$)|force-options|gcc-warning-build-env|CCC_OVERRIDE_OPTIONS|clang_force_incompatible", re.I)
+HELPERS = {"gcc-warning-build-env", "gcc-contrib", "clang-force-options", "asan-force-options", "asan-build-env"}
+
+
+def emit(label, value):
+    print(label, json.dumps(value, sort_keys=True, ensure_ascii=True), flush=True)
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def primary(lib, folder, kind=None):
+    prefix = "product" if kind in ("PRODUCT", None) else "armv7l"
+    path = folder / (prefix + "-primary.download")
+    if prefix == "armv7l" and not path.is_file():
+        path = COMPARE / folder.name / (prefix + "-primary.download")
+    metadata = ET.fromstring(lib["unpack"](path.read_bytes()))
+    common = lib["COM"]
+    rows = {}
+    for item in metadata.findall(common + "package"):
+        ck = item.find(common + "checksum")
+        ver = item.find(common + "version")
+        if ck is None or ck.get("type") != "sha256" or ver is None:
+            continue
+        format_node = item.find(common + "format")
+        name = item.findtext(common + "name")
+        info = {"name": name, "arch": item.findtext(common + "arch"),
+                "epoch": ver.get("epoch", "0"), "ver": ver.get("ver"), "rel": ver.get("rel"),
+                "vcs": ver.get("vcs") or (format_node.findtext(lib["RPM"] + "vcs") if format_node is not None else "")}
+        rows[(name, ck.text.strip())] = info
+    return rows
+
+
+def verify_ledger(path):
+    if sha(path.read_bytes()) != PIN:
+        raise ValueError("retained comparison ledger SHA-256 mismatch")
+    return [json.loads(row) for row in path.read_text().splitlines()]
+
+
+def published_vcs(record, source_rpm, primary_rows):
+    nevra, (digest, srpm, _) = record
+    entry = primary_rows.get((nevra[0], digest))
+    if not entry or srpm != source_rpm or [entry[k] for k in ("name", "epoch", "ver", "rel", "arch")] != nevra:
+        return None
+    return entry.get("vcs")
+
+
+def other_changelogs(lib, folder, rpm_url, route):
+    prefix = "product" if route == "PRODUCT" else "armv7l"
+    local = folder / (prefix + "-repomd.xml")
+    tree = ET.fromstring(local.read_bytes())
+    info = tree.find(f'{lib["REP"]}data[@type="other"]')
+    if info is None:
+        raise ValueError("snapshot has no other/changelog index")
+    repobase = rpm_url.split("/packages/", 1)[0] + "/packages/"
+    checksum = info.find(lib["REP"] + "checksum")
+    packed = lib["fetch"](urljoin(repobase, info.find(lib["REP"] + "location").get("href")))
+    kind = checksum.get("type")
+    if hashlib.new("sha1" if kind == "sha" else kind, packed).hexdigest() != checksum.text.strip():
+        raise ValueError("other.xml checksum mismatch")
+    index = {}
+    for row in ET.fromstring(lib["unpack"](packed)):
+        digest = row.get("pkgid")
+        index[digest] = [[child.get("date"), child.get("author"), child.text]
+                         for child in row if child.tag.rsplit("}", 1)[-1] == "changelog"]
+    return index
+
+
+def query(rpm, format_str):
+    return subprocess.check_output(["rpm", "-qp", "--qf", format_str, str(rpm)],
+                                   stderr=subprocess.PIPE, text=True, timeout=30)
+
+
+def package_header(elves, row, lane, work, cache, fetch):
+    record = row[lane]
+    with elves["rpm_input"](record, cache, work, fetch) as rpm:
+        raw = query(rpm, r"%{VCS}\n[%{CHANGELOGTIME}\t%{CHANGELOGNAME}\t%{CHANGELOGTEXT}\n]")
+    vcs, _, body = raw.partition("\n")
+    return vcs if vcs and vcs != "(none)" else None, body
+
+
+def exact_member(elves, rpm, path):
+    data = None
+    with elves["cpio_members"](rpm) as members:
+        for name, kind, _, size, source in members:
+            if name == path:
+                if data is not None or kind != 0o100000 or not 0 < size <= 32 * 1024**2:
+                    raise ValueError("expected unique bounded regular example")
+                data = source.read(size)
+                if len(data) != size:
+                    raise ValueError("truncated example")
+            else:
+                elves["copy_bytes"](source, size)
+    if not data:
+        raise ValueError("example ELF missing")
+    return data
+
+
+def section_bytes(elves, content, file, names):
+    file.write_bytes(content)
+    out = {}
+    for row in elves["readelf"](file, "-SW").splitlines():
+        match = elves["SECTION"].match(row)
+        if match and match[2] in names:
+            offset, count = int(match[5], 16), int(match[6], 16)
+            if offset + count > len(content):
+                raise ValueError("invalid example section bounds")
+            out[match[2]] = content[offset:offset + count]
+    return out
+
+
+def sample_data(elves, row, work, cache, fetch):
+    results = {}
+    for i, lane in enumerate(("official", "custom")):
+        with elves["rpm_input"](row[lane], cache, work, fetch) as rpm:
+            content = exact_member(elves, rpm, SAMPLE)
+        if sha(content) != row["elf_delta"][SAMPLE][i]:
+            raise ValueError("example member differs from retained ELF pin")
+        file = work / (lane + "-acm-test-app.elf")
+        results[lane] = section_bytes(elves, content, file, {".text", ".rodata", ".comment"})
+        markers = re.findall(r"(?:\blib(?:clang_rt\.)?asan[^\s\]]*|\b__asan_[A-Za-z0-9_]+)",
+                             elves["readelf"](file, "-Ws") + elves["readelf"](file, "-dW"))
+        emit("SAMPLE_ELF_ASAN_MARKERS", [lane, sorted(set(markers))[:12]])
+    left, right = results.values()
+    for name in (".text", ".rodata", ".comment"):
+        a, b = left.get(name, b""), right.get(name, b"")
+        first = next((idx for idx, pair in enumerate(zip(a, b)) if pair[0] != pair[1]), min(len(a), len(b)))
+        emit("SAMPLE_SECTION", [SAMPLE, name, len(a), len(b), sha(a), sha(b), first if a != b else None])
+        if name == ".text":
+            continue
+        extract = lambda data: Counter(
+            x.decode() for x in re.findall(rb"[ -~]{4,160}", data))
+        a, b = extract(a), extract(b)
+        redact = re.compile(r"(?i)passw|secret|token|authorization|api.?key")
+        for lane, differences in (("official", a-b), ("custom", b-a)):
+            emit("SAMPLE_CHANGED_PRINTABLE", [name, lane,
+                 [[key, count] for key, count in sorted(differences.items()) if not redact.search(key)][:18]])
+
+
+def retained_sections(rows):
+    kernel = next(row for row in rows if row["package"][0] == "tztv-kernel-perf")
+    official, custom = ({path: item for path, item in lane.items() if item["kind"] == "module"}
+                        for lane in kernel["kernel"])
+    common = official.keys() & custom.keys()
+    emit("QBKERNEL_MODULE_BYTES", dict(official=len(official), custom=len(custom),
+        hash_identical=sum(official[p]["sha256"] == custom[p]["sha256"] for p in common),
+        hash_different=sum(official[p]["sha256"] != custom[p]["sha256"] for p in common),
+        official_only=len(official.keys()-custom.keys()), custom_only=len(custom.keys()-official.keys())))
+    modules, different = Counter(), Counter()
+    with SECTIONS.open() as stream:
+        for raw in stream:
+            row = json.loads(raw)
+            if row["family"] == "KERNEL_MODULE":
+                modules[(row["package"][0], row["state"])] += 1
+            if row["family"] != "USERSPACE" or not row["official"] or not row["custom"]:
+                continue
+            if row["state"] != "TEXT_IDENTICAL":
+                continue
+            left, right = (row[lane]["elf"]["sections"] for lane in ("official", "custom"))
+            for key in (".rodata", ".comment"):
+                a = left.get(key, {}).get("sha256")
+                b = right.get(key, {}).get("sha256")
+                if a != b:
+                    different[key] += 1
+    for key, count in sorted(modules.items())[:35]:
+        emit("SECTION_MODULE_OWNER", [*key, count])
+    emit("TEXT_IDENTICAL_WITH_SECTION_BYTE_CHANGE", different)
+
+
+def conf_readback(lib, rows, work, live):
+    sources = [("official-product", PRE/"product"), ("official-base", PRE/"official"), ("custom-base", PRE/"custom")]
+    for label, path in sources:
+        for name in ("build.xml", "published-build.conf"):
+            artifact = path / name
+            if artifact.is_file():
+                content = artifact.read_bytes()
+                emit("CONFIG_CAPTURE", [label, name, sha(content)])
+                hits = [(i, line.strip()) for i, line in enumerate(content.decode(errors="replace").splitlines(), 1)
+                        if SAN.search(line)]
+                for item in hits[:12]:
+                    emit("CONFIG_CANDIDATE", [label, name, item[0], item[1][:450]])
+    if not live:
+        return
+    kernel = next(row for row in rows if row["package"][0] == "tztv-kernel-perf")
+    base = kernel["custom"][1][2].split("/repos/product/", 1)[0] + "/builddata/"
+    data = lib["fetch"](base + "build.xml", 2 * 1024**2)
+    tree = ET.fromstring(data)
+    token = tree.findtext("buildconf")
+    if tree.findtext("id") != "TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2" or not re.fullmatch(r"[0-9a-f]+-build\.conf", token or ""):
+        raise ValueError("Customized publication XML identity mismatch")
+    (work/"custom-product-build.xml").write_bytes(data)
+    content = lib["fetch"](base + token, 3 * 1024**2)
+    (work/"custom-product-build.conf").write_bytes(content)
+    emit("CONFIG_CUSTOM_PRODUCT", [tree.findtext("buildconf_version"), sha(content)])
+    hits = [(i, line) for i, line in enumerate(content.decode(errors="replace").splitlines(), 1)
+            if SAN.search(line)]
+    for i, line in hits[:24]:
+        emit("CUSTOM_PRODUCT_CONFIG_CANDIDATE", [i, line[:450]])
+    emit("CUSTOM_PRODUCT_CONFIG_MATCH_COUNT", len(hits))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("repo_library", type=Path)
+    parser.add_argument("elf_library", type=Path)
+    parser.add_argument("official_pins", type=Path)
+    parser.add_argument("--cache-dir", type=Path, action="append", default=[])
+    parser.add_argument("--live", action="store_true", help="allow pinned archive metadata and selected RPM fetches")
+    parser.add_argument("--sample-elf", action="store_true")
+    args = parser.parse_args()
+    lib = runpy.run_path(str(args.repo_library))
+    elves = runpy.run_path(str(args.elf_library))
+    rows = verify_ledger(COMPARE/"packages.jsonl")
+    if sha(args.official_pins.read_bytes()) != PINS_TSV:
+        raise ValueError("Official pin table SHA-256 mismatch")
+    with args.official_pins.open(newline="") as stream:
+        pins = {(row["package"], row["rpm_sha256"]): row["source_vcs"] for row in csv.DictReader(stream, delimiter="\t")}
+    work = Path(tempfile.mkdtemp(prefix="pm0007-qb-readback.", dir=TEMP))
+    emit("WORKDIR", str(work))
+    os.environ["LC_ALL"] = "C"
+    cache = elves["cache_index"](args.cache_dir)
+    index, other = {}, {}
+    for lane in ("official", "custom"):
+        for route in ("PRODUCT", "BASE"):
+            try:
+                index[lane, route] = primary(lib, COMPARE/lane, route)
+            except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError) as exc:
+                emit("PRIMARY_UNAVAILABLE", [lane, route, str(exc)])
+                index[lane, route] = {}
+        for entry in sorted(index[lane, "BASE"].values(), key=lambda x: (x["name"], x["arch"])):
+            if entry["name"] in HELPERS:
+                emit("BASE_HELPER_INVENTORY", [lane, entry])
+    results = {}
+    for row in sorted(rows, key=lambda x: x["package"]):
+        package, arch = row["package"]
+        if package not in NAMES or arch != "armv7l":
+            continue
+        lanes = []
+        for i, lane in enumerate(("official", "custom")):
+            record = row[lane]
+            nv, (digest, srpm, url) = record
+            route = row["routes"][i]
+            vcs = published_vcs(record, srpm, index.get((lane, route), {}))
+            if lane == "official" and not vcs:
+                vcs = pins.get((package, digest))
+            history, history_origin = None, None
+            if args.live or cache:
+                try:
+                    hvcs, history = package_header(elves, row, lane, work, cache, args.live)
+                    history_origin = "EXACT_RPM_HEADER"
+                    if vcs and hvcs and vcs != hvcs:
+                        emit("RPM_VCS_CONFLICT", [lane, package, vcs, hvcs])
+                        vcs = None
+                    else:
+                        vcs = hvcs or vcs
+                except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                    emit("RPM_HEADER_UNAVAILABLE", [lane, package, str(exc)[:220]])
+            if history is None and args.live and route in ("BASE", "PRODUCT"):
+                if (lane, route) not in other:
+                    try:
+                        other[lane, route] = other_changelogs(lib, COMPARE/lane, url, route)
+                    except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError) as exc:
+                        emit("OTHER_UNAVAILABLE", [lane, route, str(exc)[:220]])
+                        other[lane, route] = {}
+                log = other[lane, route].get(digest)
+                if log is not None:
+                    history_origin = "CHECKSUMMED_REPODATA_OTHER"
+                    history = "".join("\t".join(v or "" for v in item) + "\n" for item in log)
+            if history is not None:
+                (work/f"{lane}-{package}.changelog").write_text(history)
+            lanes.append({"nevra": nv, "binary_sha256": digest, "srpm": srpm, "vcs": vcs,
+                          "changelog_source": history_origin,
+                          "changelog_sha256": sha(history.encode()) if history is not None else None,
+                          "changelog_first": history.split("\n", 1)[0][:360] if history else None})
+        results[package] = lanes
+        emit("SOURCE_DELTA", [package, *lanes])
+        before, after = lanes
+        fields = {key: None if not before[key] or not after[key] else before[key] != after[key]
+                  for key in ("nevra", "srpm", "vcs")}
+        same_history_source = before["changelog_source"] and before["changelog_source"] == after["changelog_source"]
+        fields["changelog_sha256"] = (before["changelog_sha256"] != after["changelog_sha256"]
+                                       if same_history_source else None)
+        emit("SOURCE_DELTA_FIELDS_DIFFER", [package, fields])
+        if args.sample_elf and package == "ABC-test-apps":
+            try:
+                sample_data(elves, row, work, cache, args.live)
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                emit("SECTION_BYTE_SAMPLE_UNAVAILABLE", str(exc)[:420])
+    (work/"source-delta.json").write_text(json.dumps(results, indent=2) + "\n")
+    retained_sections(rows)
+    try:
+        conf_readback(lib, rows, work, args.live)
+    except (OSError, ValueError, ET.ParseError) as exc:
+        emit("CUSTOM_CONFIG_UNAVAILABLE", str(exc)[:320])
+
+
+if __name__ == "__main__":
+    main()

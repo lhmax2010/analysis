@@ -1,0 +1,24 @@
+chengkai@risc-v-Alienware-Aurora-R16:src$ r=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0
+sudo cat "$r/usr/bin/gcc"; echo
+sudo cmp "$r/usr/bin/gcc" "$r/usr/bin/armv7l-tizen-linux-gnueabi-gcc" && echo SAME_WRAPPER
+sudo ls -l --time-style=full-iso "$r"/usr/bin/g++ "$r"/usr/bin/c++ "$r"/usr/bin/cc 2>/dev/null
+[sudo] password for chengkai:
+#!/bin/sh
+if echo " "$@"  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror" | grep -q -- "-fsanitize=undefined" && echo "$@" | grep -q "\.gch\>"; then
+        # UBSan doesn't support precompiled headers. See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66343
+        echo "Precompiled headers currently not supported by UBSan" >&2
+        # Don't instrument kernel modules
+        # Don't instrument with "-nostdlib" linking
+elif ! echo "$@" | grep -q -e __KERNEL__ -e \-nostdlib; then
+        # Use readlink in order to follow symlinks if any
+        $(readlink -f $0)-real   "$@"  -Wmissing-parameter-type -Wold-style-declaration -Wsign-compare -Woverride-init  -O2 -g2 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong -Wformat-security -Wformat -fmessage-length=0 -Wno-implicit-fallthrough --param=ssp-buffer-size=4 -mcpu=cortex-a53 -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wa,-mimplicit-it=thumb -Wshadow -fno-common -fsigned-char -Wclobbered -Wcast-function-type -Wmissing-field-initializers -Wshift-negative-value -Werror
+else
+        # -Wl,--tizen-no-force-options is used to tell collect2 to not add force
+        # options.  It will be removed in collect2.
+        $(readlink -f $0)-real "$@" -Wl,--tizen-no-force-options
+fi
+
+SAME_WRAPPER
+-rwxr-xr-x 1 root root 1622 2026-11-19 15:02:00.620666946 +0800 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/usr/bin/c++
+lrwxrwxrwx 1 root root    3 2026-11-12 23:39:31.000000000 +0800 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/usr/bin/cc -> gcc
+-rwxr-xr-x 1 root root 1622 2026-11-19 15:02:00.578294025 +0800 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/usr/bin/g++

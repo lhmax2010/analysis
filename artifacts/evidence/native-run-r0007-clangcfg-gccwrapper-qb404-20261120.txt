@@ -1,0 +1,28 @@
+chengkai@risc-v-Alienware-Aurora-R16:src$ r=/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0
+echo "== clang.cfg"; sudo ls -l "$r"/usr/bin/*.cfg 2>/dev/null; sudo cat "$r/usr/bin/clang.cfg"
+echo "== gcc binaries"; sudo ls -l "$r/usr/bin/gcc" "$r/usr/bin/armv7l-tizen-linux-gnueabi-gcc" "$r"/emul/usr/bin/gcc* 2>/dev/null; sudo file -L "$r/usr/bin/gcc"
+echo "== gcc specs mentioning thumb/marm"; sudo find "$r/usr/lib/gcc" "$r/emul/usr/lib/gcc" -maxdepth 4 -name specs 2>/dev/null | sudo xargs -r grep -Hn -iE 'thumb|marm'
+echo "== QB artifact availability"
+b=http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2
+for u in "$b/images/T-KSU2EJAKUC-0101-PERF/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2_T-KSU2EJAKUC-0101-PERF.tar.gz" "$b/repos/product/armv7l/packages/armv7l/tztv-kernel-perf-1-1.armv7l.rpm" "$b/"; do printf '%s ' "$(curl -sS -o /dev/null -w '%{http_code}' --noproxy repos.vd.sec.samsung.net --max-time 20 -I "$u")"; echo "$u"; done
+== clang.cfg
+[sudo] password for chengkai:
+lrwxrwxrwx 1 root root  9 Nov 12 20:59 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/usr/bin/clang++.cfg -> clang.cfg
+-rw-r--r-- 1 root root 90 Nov 12 20:59 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/usr/bin/clang.cfg
+-target armv7l-tizen-linux-gnueabi
+-resource-dir /usr/lib/clang/22
+-D_FILE_OFFSET_BITS=64
+== gcc binaries
+-rwxr-xr-x 1 root root 2252912 Nov 12 22:52 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/emul/usr/bin/gcc
+-rwxr-xr-x 1 root root   47440 Nov 12 22:52 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/emul/usr/bin/gcc-ar
+-rwxr-xr-x 1 root root   47440 Nov 12 22:52 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/emul/usr/bin/gcc-nm
+-rwxr-xr-x 1 root root   47448 Nov 12 22:52 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/emul/usr/bin/gcc-ranlib
+-rwxr-xr-x 1 root root    1684 Nov 19 15:02 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/usr/bin/armv7l-tizen-linux-gnueabi-gcc
+-rwxr-xr-x 1 root root    1684 Nov 19 15:02 /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/usr/bin/gcc
+/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/usr/bin/gcc: POSIX shell script, ASCII text executable, with very long lines (575)
+== gcc specs mentioning thumb/marm
+== QB artifact availability
+404 http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/images/T-KSU2EJAKUC-0101-PERF/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2_T-KSU2EJAKUC-0101-PERF.tar.gz
+404 http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/repos/product/armv7l/packages/armv7l/tztv-kernel-perf-1-1.armv7l.rpm
+404 http://repos.vd.sec.samsung.net/priv/168.219.236.62:81/PRV/builds/b658/19350658/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2/
+chengkai@risc-v-Alienware-Aurora-R16:src$

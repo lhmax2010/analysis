@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Read generated wrappers and kernel ISA evidence from retained GBS build roots."""
+
+import argparse
+from collections import Counter
+import hashlib
+from pathlib import Path
+import re
+import subprocess
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+SCRATCH = "GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0"
+PROBE = TEMP/"pm0005-gbs-thumb.urkj5m2l/official"
+KERNEL = TEMP/"pm0005-gbs-kernel.mtob625f"
+MARKERS = ("-mthumb", "-O2", "-Werror", "-Wshadow", "-fstack-protector-strong", "tizen-no-force-options")
+NAMES = ("gcc-warning-build-env", "gcc-contrib", "clang-force-options", "asan-build-env", "asan-force-options", "gcc", "gcc-c++")
+MODE = re.compile(r"(?<!\S)-m(arm|thumb)(?=\s|$)")
+
+
+def rpm(root, *args):
+    result = subprocess.run(["rpm", "--root", str(root), *args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, timeout=30, check=False)
+    print("RPM_QUERY", result.returncode, " ".join(args)[:240])
+    for line in result.stdout.splitlines()[:20]:
+        print("RPM_QUERY_ROW", line[:360])
+
+
+def wrappers():
+    root = PROBE/SCRATCH
+    contents = {}
+    for name in ("gcc", "armv7l-tizen-linux-gnueabi-gcc", "g++", "c++", "clang.cfg"):
+        path = root/"usr/bin"/name
+        if path.is_symlink():
+            print("WRAPPER_SYMLINK", name, path.readlink())
+            continue
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            print("WRAPPER_UNAVAILABLE", name, str(exc))
+            continue
+        contents[name] = data
+        print("WRAPPER_FILE", name, len(data), hashlib.sha256(data).hexdigest())
+        lines = data.decode(errors="replace").splitlines()
+        if name != "clang.cfg":
+            lines = [line.strip() for line in lines if any(mark in line for mark in MARKERS)
+                     or '"$@"' in line or line.startswith("#!")]
+        for line in lines[:12]:
+            print("WRAPPER_LINE", name, line[:1000])
+    if {"gcc", "g++"} <= contents.keys():
+        def appended(name):
+            return next((line.partition('"$@"')[2].split() for line in contents[name].decode().splitlines()
+                         if "-real" in line and "-mthumb" in line), [])
+        c, cxx = appended("gcc"), appended("g++")
+        print("C_ONLY_WRAPPER_ARGS", " ".join(flag for flag in c if flag not in cxx))
+        print("CXX_ONLY_WRAPPER_ARGS", " ".join(flag for flag in cxx if flag not in c))
+    rpm(root, "-q", *NAMES)
+    rpm(root, "-qf", "/usr/bin/gcc-force-options-only")
+    rpm(root, "-q", "--scripts", "gcc-warning-build-env")
+    logs = sorted((root.parent.parent/"repos").glob("**/logs/**/log.txt"))
+    for path in logs[:6]:
+        find_rules(path)
+
+
+def find_rules(path):
+    pattern = re.compile(r"gcc-warning-build-env|clang.force.options|CCC_OVERRIDE_OPTIONS|%gcc_warning_incompatible|\bASAN\b", re.I)
+    with path.open(errors="replace") as stream:
+        hits = ((i, line.strip()) for i, line in enumerate(stream, 1) if pattern.search(line))
+        for i, (number, line) in enumerate(hits):
+            if i >= 5:
+                break
+            print("BUILD_LOG_POLICY_EVIDENCE", str(path), number, line[:500])
+
+
+def isa():
+    for lane in ("official", "custom"):
+        work = KERNEL/lane
+        stats = Counter()
+        examples = {}
+        with (work/"gbs.log").open(errors="replace") as stream:
+            for index, line in enumerate(stream, 1):
+                modes = set(MODE.findall(line))
+                if not modes:
+                    continue
+                signs = "+".join(sorted(modes))
+                fmt = "mmd" if "-Wp,-MMD" in line else "no-mmd"
+                keys = "conftest" if "conftest" in line else "dev-null" if "/dev/null" in line else "other"
+                key = (signs, fmt, keys)
+                stats[key] += 1
+                if key not in examples:
+                    left = MODE.search(line).start()
+                    examples[key] = (index, line.strip()[:280], line[max(0, left-80):left+200].strip())
+        for key, num in sorted(stats.items()):
+            print("ISA_LOG", lane, *key, num, examples[key])
+        with (work/"effective-argv.txt").open(errors="replace") as stream:
+            saved = Counter(tuple(MODE.findall(line)) for line in stream if line.strip())
+        print("SAVED_ARGV_ISA", lane, dict(saved))
+        build = work/SCRATCH/"home/abuild/rpmbuild/BUILD/tztv-kernel-1"
+        configs = sorted(build.glob("**/KANTSU2E/*/vdlinux/.config"))
+        for path in configs[:8]:
+            lines = [line for line in path.read_text(errors="replace").splitlines()
+                     if re.search(r"CONFIG_(?:ARM_THUMB|THUMB2_KERNEL|DEBUG_INFO_BTF|MLGO)", line)]
+            print("KERNEL_VARIANT_CONFIG", lane, str(path.relative_to(build)), lines[:20])
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=("wrappers", "kernel-isa"))
+    try:
+        {"wrappers": wrappers, "kernel-isa": isa}[parser.parse_args().action]()
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise SystemExit(f"BUILD_READBACK_BLOCKED {exc}")

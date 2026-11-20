@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+"""Check fixed QB inputs or retain a PERF archive and its publication ledger."""
+
+import argparse
+import csv
+import difflib
+import fcntl
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import shutil
+import sys
+from urllib.error import URLError
+from urllib.parse import urljoin, urlsplit
+from urllib.request import ProxyHandler, Request, build_opener
+import xml.etree.ElementTree as ET
+
+ROOT = Path("/home1/chengkai/vd-tree")
+TEMP = ROOT / "workspace/temp"
+PRE = TEMP / "pm0004-mlgo-xllvtyr9"
+HOST = "repos.vd.sec.samsung.net"
+BASE = f"http://{HOST}/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_"
+CUSTOM = f"http://{HOST}/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/"
+TARGET = "T-KSU2EJAKUC-0101-PERF"
+PRODUCT_PATH = re.compile(r"/priv/(?:[0-9]+\.){3}[0-9]+:81/PRV/builds/b[0-9]+/[0-9]+/artifacts/(TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_[0-9]{8}\.[0-9]+)/")
+
+
+def product_url(url):
+    parts = urlsplit(url)
+    match = PRODUCT_PATH.fullmatch(parts.path)
+    if parts.scheme not in {"http", "https"} or parts.netloc != HOST or not match or parts.query or parts.fragment:
+        raise ValueError("expected a fixed KantSU2e Product URL ending in /")
+    return match[1]
+
+
+def image_path(url):
+    return f"{url}images/{TARGET}/{product_url(url)}_{TARGET}.tar.gz"
+
+
+def head(lib, url):
+    lib["require_repo"](url)
+    try:
+        opener = build_opener(ProxyHandler({}), lib["NoRedirect"]())
+        with opener.open(Request(url, method="HEAD"), timeout=15) as response:
+            print("HEAD", response.status, response.headers.get("Content-Length", "-"), url, flush=True)
+            return response.status == 200
+    except (URLError, ValueError, TimeoutError) as exc:
+        print("HEAD", getattr(exc, "code", "FAILED"), str(exc), url, flush=True)
+        return False
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def preflight(lib):
+    pins = {
+        ROOT/"config/gbs_vd_llvm_11.16_qb37627297.conf": "c76e060a0cfcbfed72f292ec9d4e840d46a8ee795dde461297732f4561552ffe",
+        PRE/"gbs_vd_llvm_qb37627297_mlgo_20261118.1.conf": "72a982165c14e8a1da251aebf509ac37bb817e08e8c911ed7dd7dabe64f7e322",
+        PRE/"product/published-build.conf": "98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03",
+        ROOT/"manifest/tizen10.0_base_urls_1114_noprelink.txt": "bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3",
+        ROOT/"manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt": "c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736",
+    }
+    available = []
+    for snapshot in ("20261113.1", "20261118.1"):
+        for arch in ("armv7l", "x86_64"):
+            available.append(head(lib, f"{BASE}{snapshot}/repos/base/{arch}/packages/repodata/repomd.xml"))
+    valid = []
+    for path, expected in pins.items():
+        digest = lib["file_sha"](path) if path.is_file() else None
+        print("INPUT_PIN", digest == expected, digest, path)
+        valid.append(digest == expected)
+    first, second = list(pins)[:2]
+    left, right = first.read_bytes(), second.read_bytes()
+    token_a, token_b = (f"{BASE}{stamp}/".encode() for stamp in ("20261113.1", "20261118.1"))
+    def without_local_root(data):
+        normalized, count = re.subn(rb"(?m)^(buildroot[ \t]*=[ \t]*)[^\r\n]+", rb"\g<1><local-root>", data)
+        if count != 1:
+            raise ValueError("expected exactly one local buildroot in each config")
+        return normalized
+
+    base_only = left.count(token_a) == 1 and right == left.replace(token_a, token_b, 1)
+    exact = left.count(token_a) == 1 and without_local_root(right) == without_local_root(left.replace(token_a, token_b, 1))
+    for line in list(difflib.unified_diff(left.decode().splitlines(), right.decode().splitlines(),
+                                          fromfile=first.name, tofile=second.name))[:65]:
+        print(line)
+    print("GBS_DIFF_ONLY_BASE_RAW", base_only)
+    print("GBS_DIFF_ONLY_BASE_AFTER_LOCAL_ROOT_NORMALIZATION", exact)
+    config_checks()
+    return all(available) and all(valid) and exact
+
+
+def config_checks():
+    for lane, artifact in (
+            ("official-product", PRE/"product/published-build.conf"),
+            ("official-base", PRE/"official/published-build.conf"),
+            ("custom-base", PRE/"custom/published-build.conf")):
+        if not artifact.is_file():
+            print("WRAPPER_CONFIG_UNAVAILABLE", lane)
+            continue
+        config_lines(lane, artifact.read_bytes())
+
+
+def config_lines(lane, content):
+    print("BUILD_CONF", lane, sha(content))
+    pattern = re.compile(r"sanitiz|\basan|force-options|gcc-warning-build-env|gcc_warning_incompatible|clang_force_incompatible|CCC_OVERRIDE_OPTIONS", re.I)
+    hits = [(i, line.strip()) for i, line in enumerate(content.decode(errors="replace").splitlines(), 1)
+            if pattern.search(line)]
+    for idx, line in hits[:25]:
+        print("CONFIG_REVIEW", lane, idx, line[:450])
+    print("CONFIG_REVIEW_COUNT", lane, len(hits))
+
+
+def inventory(lib, url, dest):
+    repo = urljoin(url, "repos/product/armv7l/packages/")
+    raw = lib["fetch"](repo + "repodata/repomd.xml", 2 * 1024**2)
+    primary = ET.fromstring(raw).find(f'{lib["REP"]}data[@type="primary"]')
+    check = primary.find(lib["REP"] + "checksum")
+    href = primary.find(lib["REP"] + "location").get("href")
+    primary_url = urljoin(repo, href)
+    if not primary_url.startswith(repo + "repodata/"):
+        raise ValueError("primary metadata outside repository")
+    packed = lib["fetch"](primary_url)
+    algorithm = check.get("type")
+    if hashlib.new("sha1" if algorithm == "sha" else algorithm, packed).hexdigest() != check.text.strip():
+        raise ValueError("published primary checksum mismatch")
+    (dest/"repomd.xml").write_bytes(raw)
+    (dest/"primary.download").write_bytes(packed)
+    rows = []
+    com, rpm = lib["COM"], lib["RPM"]
+    for package in ET.fromstring(lib["unpack"](packed)).findall(com + "package"):
+        version = package.find(com + "version")
+        checksum = package.find(com + "checksum")
+        rpm_url = urljoin(repo, package.find(com + "location").get("href"))
+        if (not rpm_url.startswith(repo) or checksum.get("type") != "sha256"
+                or not re.fullmatch(r"[0-9a-f]{64}", checksum.text.strip())):
+            raise ValueError("unexpected package URL or checksum")
+        rows.append((package.findtext(com+"name"), package.findtext(com+"arch"), version.get("epoch", "0"),
+                     version.get("ver"), version.get("rel"), package.findtext(f"{com}format/{rpm}sourcerpm", ""),
+                     version.get("vcs") or package.findtext(f"{com}format/{rpm}vcs", ""), checksum.text.strip(), rpm_url))
+    if not rows or len({row[:5] for row in rows}) != len(rows):
+        raise ValueError("empty or ambiguous Product identity ledger")
+    with (dest/"rpm-identities.tsv").open("w", newline="") as stream:
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
+        writer.writerow(("name", "arch", "epoch", "version", "release", "srpm", "vcs", "sha256", "url"))
+        writer.writerows(sorted(rows))
+    return rows
+
+
+def save_payload(lib, url, dest, pin=None, limit=8*1024**3, gzip=False, verbose=True):
+    part = dest.with_name(dest.name + ".part")
+    lib["require_repo"](url)
+    opener = build_opener(ProxyHandler({}), lib["NoRedirect"]())
+    try:
+        with opener.open(url, timeout=45) as source, part.open("xb") as output:
+            length = source.headers.get("Content-Length")
+            length = int(length) if length is not None else None
+            budget = min(limit, shutil.disk_usage(dest.parent).free - 50 * 1024**3)
+            if source.status != 200 or budget <= 0 or (length is not None and not 0 < length <= budget):
+                raise ValueError(f"invalid HTTP status/size or insufficient reserved disk space: {url}")
+            if length is None and not pin and source.headers.get("Transfer-Encoding", "").lower() != "chunked":
+                raise ValueError("download lacks framing and checksum")
+            digest, total = hashlib.sha256(), 0
+            for block in iter(lambda: source.read(1024**2), b""):
+                if not total and not block.startswith(b"\x1f\x8b" if gzip else b"\xed\xab\xee\xdb"):
+                    raise ValueError("response magic differs from expected artifact type")
+                total += len(block)
+                if total > budget:
+                    raise ValueError("download exceeds capture capacity")
+                output.write(block)
+                digest.update(block)
+        actual = digest.hexdigest()
+        if not total or (length is not None and total != length) or (pin and actual != pin):
+            raise ValueError(f"artifact size or SHA-256 mismatch: {url}")
+        part.rename(dest)
+    except BaseException:
+        part.unlink(missing_ok=True)
+        raise
+    if verbose:
+        print("CAPTURED", total, actual, dest.name, flush=True)
+    return {"file": dest.name, "sha256": actual, "bytes": total, "url": url,
+            "digest_status": "MATCHED_PIN" if pin else "COMPUTED_ON_DOWNLOAD"}
+
+
+def capture(lib, args):
+    label = product_url(args.product_url)
+    if not re.fullmatch(r"[0-9]{8}", args.qb):
+        raise ValueError("expected the eight-digit QB job ID")
+    if args.image_sha256 and not re.fullmatch("[0-9a-f]{64}", args.image_sha256):
+        raise ValueError("invalid published PERF checksum")
+    target = ROOT/"workspace/qb-evidence"/f"{args.qb}-{label}"
+    if target.parent.resolve() != target.parent or target.is_symlink():
+        raise ValueError("invalid capture destination")
+    target.mkdir(parents=True, exist_ok=False)
+    print("CAPTURE_DIR", target, flush=True)
+    url = args.product_url
+    image = image_path(url)
+    artifacts = [save_payload(lib, image, target/Path(urlsplit(image).path).name, args.image_sha256, gzip=True)]
+    rows = inventory(lib, url, target)
+    kernels = [row for row in rows if row[1] in {"armv7l", "noarch"} and
+               (row[0] == "tztv-kernel-perf" or row[5].startswith("tztv-kernel-"))]
+    if not any(row[0] == "tztv-kernel-perf" for row in kernels):
+        raise ValueError("published tztv-kernel-perf RPM missing from Product ledger")
+    print("CAPTURE_KERNEL_SELECTED", len(kernels), flush=True)
+    kernels.sort(key=lambda row: (row[0] != "tztv-kernel-perf", row[:5]))
+    for i, row in enumerate(kernels):
+        rpm_url = row[-1]
+        artifacts.append(save_payload(lib, rpm_url, target/(row[-2][:16] + "-" + Path(urlsplit(rpm_url).path).name),
+                                      row[-2], limit=2*1024**3, verbose=i < 30))
+    for relative, local in (("builddata/build.xml", "build.xml"),
+                            (f"images/{TARGET}/manifest.json", "perf-manifest.json")):
+        try:
+            (target/local).write_bytes(lib["fetch"](url+relative, 2*1024**2))
+        except (OSError, ValueError) as exc:
+            print("SUPPLEMENT_UNAVAILABLE", relative, str(exc)[:250])
+    xml = target/"build.xml"
+    if xml.is_file():
+        tree = ET.fromstring(xml.read_bytes())
+        token = tree.findtext("buildconf")
+        if tree.findtext("id") == label and re.fullmatch(r"[0-9a-f]+-build\.conf", token or ""):
+            content = lib["fetch"](url+"builddata/"+token, 3*1024**2)
+            (target/"published-build.conf").write_bytes(content)
+            config_lines(label, content)
+        else:
+            print("SUPPLEMENT_UNAVAILABLE publication identity/buildconf")
+    evidence = {"qb_id_operator_supplied": args.qb, "product": url, "rpm_count": len(rows),
+                "payloads": artifacts, "files": {p.name: lib["file_sha"](p) for p in sorted(target.iterdir())}}
+    summary = target/"identity.json"
+    summary.write_text(json.dumps(evidence, indent=2) + "\n")
+    print("CAPTURE_LEDGER", len(rows), "KERNEL_RPMS", len(kernels), lib["file_sha"](summary), summary)
+    print("CAPTURE_COMPLETE PERF_ARCHIVE_NOT_VALIDATED_AS_USB_IMAGE")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("repo_library", type=Path)
+    actions = parser.add_subparsers(dest="action", required=True)
+    probe = actions.add_parser("probe")
+    probe.add_argument("--product-url", default=CUSTOM)
+    actions.add_parser("preflight")
+    save = actions.add_parser("capture")
+    save.add_argument("qb")
+    save.add_argument("product_url")
+    save.add_argument("--image-sha256")
+    args = parser.parse_args()
+    lib = runpy.run_path(str(args.repo_library))
+    if args.action == "probe":
+        product_url(args.product_url)
+        checks = [head(lib, url) for url in (args.product_url,
+                  args.product_url+"repos/product/armv7l/packages/repodata/repomd.xml", image_path(args.product_url))]
+        return 0 if all(checks[1:]) else 2
+    if args.action == "preflight":
+        return 0 if preflight(lib) else 2
+    for step in (4, 5):
+        (TEMP/f"pm000{step}-native-lock").mkdir(exist_ok=True)
+    with (TEMP/"pm0004-native-lock/heavy.lock").open("a") as first, (TEMP/"pm0005-native-lock/heavy.lock").open("a") as second:
+        for lock in (first, second):
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        capture(lib, args)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, KeyError, AttributeError, ET.ParseError) as error:
+        sys.exit("QB_RETENTION_BLOCKED " + " ".join(str(error).splitlines())[:500])
