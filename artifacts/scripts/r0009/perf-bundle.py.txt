@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Verify and stage a flat KantSU2E PERF bundle."""
+
+import argparse
+import fcntl
+import hashlib
+import json
+from contextlib import ExitStack, contextmanager
+from pathlib import Path
+import re
+import shutil
+import tarfile
+
+WORKSPACE = Path("/home1/chengkai/vd-tree/workspace")
+RESERVE = 50 * 1024**3
+TABLES = ("partition.txt", "partition_8G.txt")
+REQUIRED = {"platform.img", "do_not_use.img", "systemrw.img", "factory_peq.img",
+            "dtb.bin", "dtb_RW.bin", "partition.txt", "uImage", "zImage", "version.dat"}
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024**2), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def captured(path):
+    directory = path.resolve(strict=True)
+    if path.is_symlink() or directory.parent != WORKSPACE.resolve() / "qb-evidence":
+        raise ValueError("expected a retained QB capture inside workspace/qb-evidence")
+    ledger = directory / "identity.json"
+    if ledger.is_symlink():
+        raise ValueError("unexpected symlink for capture identity")
+    identity = json.loads(ledger.read_text())
+    qb = str(identity["qb_id_operator_supplied"])
+    if not re.fullmatch(r"[0-9]{8}", qb) or not directory.name.startswith(qb + "-"):
+        raise ValueError("capture directory and QB identity disagree")
+    entry, = (item for item in identity["payloads"] if item["file"].endswith("-PERF.tar.gz"))
+    name = entry["file"]
+    if not re.fullmatch(r"[\w.-]+-PERF\.tar\.gz", name):
+        raise ValueError("invalid archive name")
+    archive = directory / name
+    if archive.is_symlink() or archive.stat().st_size != entry["bytes"]:
+        raise ValueError("archive size or type does not match capture ledger")
+    if not re.fullmatch(r"[a-f0-9]{64}", entry["sha256"]):
+        raise ValueError("invalid archive digest in capture ledger")
+    if identity["files"][name] != entry["sha256"] or sha(archive) != entry["sha256"]:
+        raise ValueError("archive SHA-256 does not match capture ledger")
+    return identity, qb, archive, entry["sha256"]
+
+
+@contextmanager
+def locks():
+    with ExitStack() as stack:
+        for number in (4, 5):
+            directory = WORKSPACE / f"temp/pm000{number}-native-lock"
+            directory.mkdir(exist_ok=True)
+            lock = stack.enter_context((directory / "heavy.lock").open("a"))
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        yield
+
+
+def flat_members(bundle):
+    seen = set()
+    for member in bundle:
+        if member.isdir() and member.name in {".", "./"}:
+            continue
+        name = member.name.removeprefix("./")
+        if not member.isfile() or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,119}", name):
+            raise ValueError(f"unexpected PERF member type or path: {member.name}")
+        if name in seen or len(seen) == 100:
+            raise ValueError(f"duplicate member or member limit exceeded: {name}")
+        seen.add(name)
+        yield name, member
+
+
+def inventory(archive):
+    files, tables = {}, {}
+    with tarfile.open(archive, "r|gz") as bundle:
+        for name, member in flat_members(bundle):
+            files[name] = member.size
+            if name in TABLES:
+                if member.size > 128 * 1024:
+                    raise ValueError(f"oversized partition table: {name}")
+                tables[name] = bundle.extractfile(member).read().decode("utf-8-sig")
+    return files, tables
+
+
+def declared_mounts(directory, identity):
+    path = directory / "perf-manifest.json"
+    expected = identity["files"].get(path.name)
+    if not expected:
+        return {}
+    if path.is_symlink() or path.stat().st_size > 2*1024**2 or sha(path) != expected:
+        raise ValueError("retained PERF manifest failed its checksum or size check")
+    manifest = json.loads(path.read_text())
+    mounts = manifest.get("loop", {}).get("partitions", {})
+    if any(not re.fullmatch(r"/(?:[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*)?", mount)
+           or not re.fullmatch(r"[A-Za-z0-9_.-]+", label) for mount, label in mounts.items()):
+        raise ValueError("invalid partition metadata in retained manifest")
+    return mounts
+
+
+def partition_scope(files, tables, declared):
+    # Flash labels and Linux mount paths are different fields. Retain table lines
+    # that name a payload or a known label, and preserve ambiguities in the audit.
+    roles = {
+        "platform.img": ({"pltf", "pltf_t", "platform", "platform.img"}, "/"),
+        "do_not_use.img": ({"data", "data.img", "do_not_use", "do_not_use.img"}, None),
+        "data.img": ({"data", "data.img", "do_not_use", "do_not_use.img"}, None),
+        "systemrw.img": ({"systemrw", "systemrw.img"}, "/mnt/systemrw"),
+        "factory_peq.img": ({"factory_peq", "factory_peq.img"}, "/factory_peq"),
+        "prd.img": ({"prd_t", "prd", "prd.img", "prd_t.img"}, "/prd"),
+        "prd_t.img": ({"prd_t", "prd", "prd.img", "prd_t.img"}, "/prd"),
+    }
+    matches, scope, warnings = {}, {}, []
+    for name in sorted(n for n in files if n.endswith(".img")):
+        aliases, default = roles.get(name, ({name, name.removesuffix(".img")}, None))
+        lines = []
+        for table, contents in tables.items():
+            for i, line in enumerate(contents.splitlines(), 1):
+                body = line.split("#", 1)[0].strip()
+                tokens = set(re.findall(r"(?<![\w./-])(?:/[A-Za-z0-9_./-]*|[A-Za-z0-9_.-]+)", body.lower()))
+                if tokens & aliases:
+                    mounts = {t for t in tokens if t.startswith("/") and not t.startswith(("/dev/", "/tmp/"))
+                              and not t.endswith(".img") and ".." not in t.split("/")}
+                    lines.append((table, i, line[:220], sorted(mounts)))
+        explicit = {mount for row in lines for mount in row[3]}
+        published = {mount for mount, label in declared.items() if label.lower() in aliases}
+        candidates = explicit | published
+        mount = next(iter(candidates)) if len(candidates) == 1 else default
+        if not lines or len(candidates) > 1 or mount is None:
+            warnings.append([name, "partition-table association or mountpoint unresolved"])
+            mount = "/@partition/" + name
+        matches[name] = lines
+        scope[name] = mount
+    for mount, label in sorted(declared.items()):
+        if mount not in scope.values():
+            warnings.append([mount, f"published mount for {label} has no verified flat image mapping"])
+    return scope, matches, warnings
+
+
+def stage(qb, archive, checksum):
+    files, _ = inventory(archive)
+    required = REQUIRED | {"partition_8G.txt"}
+    if required - files.keys() or "data.img" in files:
+        raise ValueError(f"missing required members or data.img collision: {sorted(required - files.keys())}")
+    parent = WORKSPACE / "usb"
+    if parent.is_symlink():
+        raise ValueError("workspace/usb is a symlink")
+    parent.mkdir(exist_ok=True)
+    free = shutil.disk_usage(parent).free
+    if free < RESERVE + sum(files.values()):
+        raise ValueError("insufficient space for expanded bundle and disk reserve")
+    dest = parent / qb
+    dest.mkdir()
+    try:
+        staging = dest / ".staging"
+        staging.mkdir()
+        with tarfile.open(archive, "r|gz") as bundle:
+            for name, member in flat_members(bundle):
+                path = staging / name
+                with bundle.extractfile(member) as inp, path.open("xb") as out:
+                    shutil.copyfileobj(inp, out, 1024**2)
+                if path.stat().st_size != files[name]:
+                    raise ValueError(f"extracted size mismatch: {name}")
+        (staging / "do_not_use.img").rename(staging / "data.img")
+        (staging / "dtb.bin").unlink()
+        (staging / "dtb_RW.bin").rename(staging / "dtb.bin")
+        rows = [{"name": p.name, "bytes": p.stat().st_size, "sha256": sha(p)}
+                for p in sorted(staging.iterdir())]
+        (dest / "manifest.sha256").write_text("".join(f"{r['sha256']}  {r['name']}\n" for r in rows))
+        (dest / "identity.json").write_text(json.dumps({"qb": qb, "archive_sha256": checksum, "files": rows}, indent=2)+"\n")
+        output = staging.rename(dest / "updateSU2E")
+    except BaseException:
+        shutil.rmtree(dest)
+        raise
+    for row in rows:
+        print("USB_FILE", row["name"], row["bytes"], row["sha256"])
+    print("USB_PREP_READY", output, "MANIFEST", dest / "manifest.sha256")
+    print("USB_WORKSPACE_FREE_BYTES", shutil.disk_usage(dest).free)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("capture", type=Path)
+    args = parser.parse_args()
+    with locks():
+        _, qb, archive, checksum = captured(args.capture)
+        print("USB_ARCHIVE_SHA256", checksum)
+        stage(qb, archive, checksum)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, EOFError, KeyError, ValueError, tarfile.TarError) as error:
+        raise SystemExit("USB_PREP_BLOCKED " + str(error)[:500])

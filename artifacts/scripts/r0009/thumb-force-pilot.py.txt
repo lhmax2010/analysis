@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""Run matched local GBS Thumb-default pilots against a reviewed Official Product."""
+
+import argparse
+from collections import Counter
+from contextlib import redirect_stdout
+import csv
+import difflib
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import subprocess
+import tempfile
+from types import SimpleNamespace
+
+PACKAGES = {
+    "deviced": "/usr/bin/deviced",
+    "gst-plugins-dash": "/usr/lib/libdash.so",
+    "inference-engine-tflite": "/usr/lib/libinference-engine-tflite.so",
+}
+DRIVERS = ("clang", "clang++", "armv7l-tizen-linux-gnueabi-clang", "armv7l-tizen-linux-gnueabi-clang++")
+PROBE = r'''
+for pm_cfg in /usr/bin/clang.cfg /usr/bin/clang++.cfg; do
+    if [ -f "$pm_cfg" ]; then
+        awk '/^# tizen-force-options begin$/ { add=1; next }
+             /^# tizen-force-options end$/ { add=0; next }
+             add { print "T1_CFG", FILENAME, $0 }' "$pm_cfg"
+    fi
+done
+for pm_driver in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++; do
+    if ! command -v "$pm_driver" >/dev/null; then
+        printf 'T1_DRIVER_MISSING %%s\n' "$pm_driver"
+        continue
+    fi
+    case "$pm_driver" in *++) pm_lang=c++ ;; *) pm_lang=c ;; esac
+    for pm_mode in default explicit-arm; do
+        pm_flag=
+        if [ "$pm_mode" = explicit-arm ]; then pm_flag=-marm; fi
+        printf 'T1_DRIVER %%s %%s\n' "$pm_driver" "$pm_mode"
+        "$pm_driver" $pm_flag -dM -E -x "$pm_lang" /dev/null |
+            awk '/^#define (__arm__|__thumb2?__) / { print "T1_MACRO", $2 }'
+        "$pm_driver" $pm_flag -### -c -x "$pm_lang" /dev/null 2>&1 |
+            sed -n '/^Configuration file:/s/^/T1_CONFIG_FILE /p; /"-cc1"/s/^/T1_CC1 /p'
+    done
+done
+'''
+
+
+def trial_config(data, exemptions, flags):
+    if re.search(r"(?m)^%(?:clang_force_options|clang_force_incompatible_pkgs)\b", data):
+        raise ValueError("baseline already defines Clang helper policy")
+    for directive in ("Preinstall", "RunScripts"):
+        pattern = rf"(?m)^({directive}:\s+gcc-warning-build-env)[ \t]*$"
+        data, changed = re.subn(pattern, r"\1 clang-force-options", data)
+        if changed != 1:
+            raise ValueError(f"expected a unique published {directive} rule for gcc-warning-build-env")
+    return data.rstrip("\n") + (
+        f"\n%clang_force_incompatible_pkgs {' '.join(exemptions)}\n"
+        f"%clang_force_options {flags}\n"
+    )
+
+
+def protected_packages(rows):
+    names = {"tztv-kernel", "tztv-kernel-perf"}
+    with rows.open() as stream:
+        for line in stream:
+            row = json.loads(line)
+            if row["family"] == "KERNEL_MODULE":
+                name = row["package"][0]
+                names.update((name, name.removesuffix("-perf")))
+    if len(names) < 3 or any(not re.fullmatch(r"[A-Za-z0-9+_.-]+", name) for name in names):
+        raise ValueError("retained module owner evidence unavailable or malformed")
+    return sorted(names)
+
+
+def target_rows(path):
+    rows, marked, current = {}, {}, None
+    with path.open(errors="replace") as stream:
+        for line in stream:
+            clean = re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*", "", line.strip())
+            if clean.startswith("T1_CFG "):
+                _, cfg, flags = clean.split(maxsplit=2)
+                marked[cfg] = flags
+            elif clean.startswith("T1_DRIVER "):
+                _, driver, mode = clean.split()
+                current = rows.setdefault((driver, mode), {})
+            elif current is not None and clean.startswith("T1_MACRO "):
+                current.setdefault("macros", []).append(clean.split()[1])
+            elif current is not None and clean.startswith("T1_CC1 "):
+                current["cc1"] = shlex.split(clean.removeprefix("T1_CC1 "))
+    return rows, marked
+
+
+def check_modes(control, variant):
+    configurations = {"/usr/bin/clang.cfg": "-mthumb", "/usr/bin/clang++.cfg": "-mthumb"}
+    if control[1] or variant[1] != configurations:
+        raise ValueError(f"unexpected Clang force-options markers: {control[1]}, {variant[1]}")
+    changed_drivers = []
+    for driver in DRIVERS:
+        for mode in ("default", "explicit-arm"):
+            left, right = (lane[0].get((driver, mode), {}) for lane in (control, variant))
+            if "cc1" not in left or "cc1" not in right:
+                raise ValueError(f"missing effective Clang command: {driver} {mode}")
+            largs, rargs = left["cc1"], right["cc1"]
+            ltriple = largs[largs.index("-triple") + 1]
+            rtriple = rargs[rargs.index("-triple") + 1]
+            print("T1_DRIVER_MODE", driver, mode, ltriple, rtriple)
+            if mode == "explicit-arm":
+                if largs != rargs or not rtriple.startswith("arm"):
+                    raise ValueError(f"explicit -marm changed effective argv: {driver}")
+                continue
+            if ltriple.startswith("arm") and rtriple.startswith("thumb") and "__thumb2__" in right.get("macros", []):
+                changed_drivers.append(driver)
+                # Some toolchain modes also add or remove an explicit thumb-mode target feature.
+                def normalized(args):
+                    result = args.copy()
+                    result[result.index("-triple")+1] = "TARGET_ISA"
+                    for i in range(len(result)-2, -1, -1):
+                        if result[i] == "-target-feature" and result[i+1] in ("+thumb-mode", "-thumb-mode"):
+                            del result[i:i+2]
+                    return result
+                if normalized(largs) != normalized(rargs):
+                    raise ValueError(f"default argv changed beyond target ISA: {driver}")
+            elif largs != rargs:
+                raise ValueError(f"unexpected default driver change: {driver}")
+    if not changed_drivers:
+        raise ValueError("no driver switched from A32 to Thumb-2")
+    return changed_drivers
+
+
+def measured_elf(scan, root, package, expected):
+    rpms = []
+    for path in (root/"local/repos").rglob(f"{package}-*.armv7l.rpm"):
+        name = subprocess.check_output(["rpm", "-qp", "--qf", "%{NAME}", str(path)], text=True, timeout=30)
+        if name == package:
+            rpms.append(path)
+    (rpm,) = rpms
+    found = {}
+    with subprocess.Popen(["rpm2cpio", str(rpm)], stdout=subprocess.PIPE) as proc:
+        for path, contents in scan["cpio_entries"](proc.stdout):
+            for path, binary in scan["elf_items"](path, contents):
+                row = scan["classify"](binary)
+                if not row or row["kind"] not in {"EXEC", "DYN"}:
+                    continue
+                sections = scan["secs_of"](binary)
+                text = sum(sh[5] for name, sh in sections if name == ".text")
+                if path in found:
+                    raise ValueError(f"duplicate RPM ELF path: {path}")
+                found[path] = {**row, "text_bytes": text, "sha256": hashlib.sha256(binary).hexdigest()}
+        while proc.stdout.read(1024**2):
+            pass
+        if proc.wait():
+            raise ValueError("rpm2cpio failed")
+    if expected not in found:
+        raise ValueError(f"expected exact ELF path {expected} in {rpm.name}")
+    totals = dict(elf_count=len(found), arm_predominant=sum(row["mode"] in {"ARM","MIXED_ARM"} for row in found.values()),
+                  text_bytes=sum(row["text_bytes"] for row in found.values()),
+                  arm_bytes_est=sum(row["arm_bytes_est"] for row in found.values()))
+    return {"rpm":rpm.name, "anchor":expected, "totals":totals, "files":found}
+
+
+def pilot(args, gbs, sample, thumb, scan, lib, pins, work, name, exemptions, manifest, config, build_conf):
+    folder = work / name
+    folder.mkdir()
+    gbs.available(folder, 24, 12)
+    source, spec = sample["stage"](gbs, lib, pins[name], folder, manifest)
+    data = spec.read_text()
+    trace = thumb["TRACE_BODY"] + PROBE + thumb["WRAP_BODY"].replace("PM_LANE", "sample")
+    data, count = re.subn(r"(?m)^%build[ \t]*$", lambda _: "%build\n"+trace, data)
+    if count != 1:
+        raise ValueError("expected one exact %build section for pilot")
+    spec.chmod(spec.stat().st_mode | 0o200)
+    spec.write_text(data)
+    gbs.local_git(source, folder)
+    measured, driver_rows, definitions = {}, {}, {}
+    for lane, policy in (("control", "%{nil}"), ("thumb", "-mthumb")):
+        lane_root = folder/lane
+        lane_root.mkdir()
+        root = lane_root/"GBS-ROOT"
+        staged, count = re.subn(rb"(?m)^(buildroot\s*=\s*)[^\r\n]+", lambda m: m[1]+str(root).encode(), config)
+        if count != 1:
+            raise ValueError("expected one buildroot")
+        conf = lane_root/"gbs.conf"
+        conf.write_bytes(gbs.rewrite_product(staged, args.dependency_product_url))
+        buildconf = lane_root/"build.conf"
+        definitions[lane] = trial_config(build_conf, exemptions, policy)
+        buildconf.write_text(definitions[lane])
+        gbs.available(lane_root, 24, 12)
+        print("T1_GBS_START", name, lane, "GIB_ESTIMATE", 24, "LOG", lane_root/"gbs.log", flush=True)
+        try:
+            with (lane_root/"launcher.log").open("w") as output, redirect_stdout(output):
+                calls = thumb["run_gbs"](gbs, lane_root, source, spec.name, conf, buildconf, root, True, False)
+        except ValueError:
+            with (lane_root/"launcher.log").open(errors="replace") as stream:
+                for line in [line.strip() for line in stream if "FAILURE_LOG" in line][-12:]:
+                    print(line[:500])
+            raise
+        counts = Counter()
+        for call in calls:
+            words = shlex.split(call)
+            modes = [word for word in words if word in {"-mthumb","-marm"}]
+            counts[modes[-1] if modes else "no_direct_mode"] += 1
+        print("T1_PACKAGE_ARGV", name, lane, json.dumps(counts, sort_keys=True))
+        if not calls:
+            print("T1_PACKAGE_ARGV_UNAVAILABLE", name, lane)
+        measured[lane] = measured_elf(scan, root, name, PACKAGES[name])
+        result = measured[lane]
+        print("T1_ELF", name, lane, json.dumps({"totals":result["totals"], "anchor":result["files"][result["anchor"]]}, sort_keys=True))
+        driver_rows[lane] = target_rows(lane_root/"gbs.log")
+    diff = "".join(difflib.unified_diff(definitions["control"].splitlines(True), definitions["thumb"].splitlines(True),
+                                        fromfile="control", tofile="thumb", n=0))
+    (folder/"build-conf.diff").write_text(diff)
+    drivers = check_modes(driver_rows["control"], driver_rows["thumb"])
+    row = {"package":name, "lanes":measured, "switched_drivers":drivers,
+           "text_delta":measured["thumb"]["totals"]["text_bytes"]-measured["control"]["totals"]["text_bytes"]}
+    (folder/"pilot.json").write_text(json.dumps(row, indent=2)+"\n")
+    print("T1_PACKAGE_COMPLETE", name, "TEXT_DELTA", row["text_delta"], "DRIVERS", *drivers)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ("repo_lib","gbs_lib","thumb_lib","sample_lib","scan_lib","bundle_lib","pins"):
+        parser.add_argument(name, type=Path)
+    parser.add_argument("--dependency-product-url", required=True)
+    parser.add_argument("--kernel-proof", type=Path, required=True)
+    parser.add_argument("--package", choices=tuple(PACKAGES), action="append")
+    args = parser.parse_args()
+    gbs = SimpleNamespace(**runpy.run_path(str(args.gbs_lib)))
+    sample = runpy.run_path(str(args.sample_lib))
+    thumb = runpy.run_path(str(args.thumb_lib))
+    scan = runpy.run_path(str(args.scan_lib))
+    lib = runpy.run_path(str(args.repo_lib))
+    bundle = runpy.run_path(str(args.bundle_lib))
+    proof = args.kernel_proof.resolve(strict=True)
+    if (proof.name != "isa-proof.json" or not proof.parent.name.startswith("pm0009-kernel-isa.")
+            or proof.parent.parent != gbs.NATIVE.resolve()
+            or not json.loads(proof.read_text())["isa_and_argv_complete"]):
+        raise ValueError("supply complete round 0009 PERF mapping and argv readback")
+    with bundle["locks"]():
+        gbs.live_product(args.dependency_product_url)
+        work = Path(tempfile.mkdtemp(prefix="pm0009-thumb-force.", dir=gbs.NATIVE))
+        os.environ["TMPDIR"] = str(work)
+        print("WORKDIR", work, flush=True)
+        gbs.pinned(args.pins, sample["PINS"])
+        with args.pins.open(newline="") as stream:
+            pins = {row["package"]:row for row in csv.DictReader(stream, delimiter="\t")}
+        manifest = gbs.pinned(gbs.ROOT/"manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt", sample["SHELVES"])
+        control = gbs.pinned(gbs.ROOT/"config/gbs_vd_llvm_11.16_qb37627297.conf", sample["CONFIG"]).read_bytes()
+        build_conf = gbs.pinned(gbs.PRE/"product/published-build.conf", gbs.BUILD_CONF_SHA).read_text()
+        exemptions = protected_packages(gbs.NATIVE/"pm0005-elf-sections.414uc2ph/sections.jsonl")
+        print("T1_KERNEL_EXCLUSION", " ".join(exemptions))
+        failures = []
+        for name in dict.fromkeys(args.package or PACKAGES):
+            try:
+                pilot(args, gbs, sample, thumb, scan, lib, pins, work, name, exemptions, manifest, control, build_conf)
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                failures.append(name)
+                print("T1_PACKAGE_BLOCKED", name, " ".join(str(error).splitlines())[:500], flush=True)
+        print("T1_RESULT", "INCOMPLETE" if failures else "COMPLETE", *failures)
+        return 2 if failures else 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        raise SystemExit("T1_BLOCKED " + " ".join(str(error).splitlines())[:500])

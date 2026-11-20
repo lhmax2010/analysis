@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""Read the retained GBS PERF kernel ELF, configuration and compiler traces."""
+
+import argparse
+from collections import Counter, defaultdict
+import gzip
+import hashlib
+import json
+import mmap
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import struct
+import tempfile
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+RUN = TEMP / "pm0005-gbs-kernel.mtob625f"
+PERF = ("KANTSU2E", "image", "perf")
+CONFIG_LINE = re.compile(r"^(?:# )?CONFIG_(?:ARM_THUMB|THUMB2_KERNEL|DEBUG_INFO_BTF|MLGO)(?:[A-Z0-9_]*)(?:=| is not set)")
+ADVISORS = ("-enable-ml-inliner=release", "-regalloc-enable-advisor=release")
+MODE = {"-marm", "-mthumb"}
+TIMESTAMP = re.compile(r"^\[\s*\d+(?:\.\d+)?s\]\s*")
+
+
+def report(tag, value):
+    print(tag, json.dumps(value, sort_keys=True), flush=True)
+
+
+def mapping(data, sections):
+    if not sections or struct.unpack_from("<H", data, 16)[0] != 2:
+        raise ValueError("expected linked ARM32 ET_EXEC PERF vmlinux")
+    executable = {i: sh for i, (_, sh) in enumerate(sections) if sh[1] == 1 and sh[2] & 4 and sh[5]}
+    spans = defaultdict(dict)
+    for _, sym in sections:
+        if sym[1] != 2:
+            continue
+        offset, length, linked, entry = sym[4], sym[5], sym[6], sym[9]
+        if entry != 16 or length % entry or offset + length > len(data) or linked >= len(sections):
+            raise ValueError("malformed ELF symbol table")
+        st = sections[linked][1]
+        lo, hi = st[4], st[4] + st[5]
+        if hi > len(data):
+            raise ValueError("malformed ELF string table")
+        for pos in range(offset, offset + length, entry):
+            name, value, _, _, _, index = struct.unpack_from("<IIIBBH", data, pos)
+            if index not in executable or name >= st[5]:
+                continue
+            p = lo + name
+            prefix = data[p:min(p+3, hi)]
+            if len(prefix) < 3 or prefix[:2] not in (b"$a", b"$t", b"$d") or prefix[2:] not in (b".", b"\0"):
+                continue
+            kind = chr(prefix[1])
+            addr, size = executable[index][3], executable[index][5]
+            if not addr <= value < addr + size:
+                continue
+            if value in spans[index] and spans[index][value] != kind:
+                spans[index][value] = "ambiguous"
+            else:
+                spans[index][value] = kind
+    counts = Counter()
+    for i, sec in executable.items():
+        stop = sec[3] + sec[5]
+        markers = sorted(spans[i].items())
+        counts["unmapped"] += (markers[0][0] if markers else stop) - sec[3]
+        for (start, kind), (end, _) in zip(markers, markers[1:] + [(stop, "")]):
+            counts[kind] += end - start
+    instructions = counts["a"] + counts["t"]
+    if not instructions:
+        raise ValueError("no ARM/Thumb mapping symbols in PERF executable sections")
+    return {"executable_bytes": sum(counts.values()), "arm_bytes": counts["a"], "thumb_bytes": counts["t"],
+            "mapping_data_bytes": counts["d"], "unmapped_bytes": counts["unmapped"],
+            "ambiguous_bytes": counts["ambiguous"], "arm_share_of_mapped_instructions": round(counts["a"]/instructions, 6)}
+
+
+def config_row(data, path):
+    lines = data.decode(errors="replace").splitlines()
+    selected = [line for line in lines if CONFIG_LINE.match(line)]
+    thumb2 = next((line for line in selected if re.match(r"(?:# )?CONFIG_THUMB2_KERNEL(?:=| )", line)), None)
+    return {"path": str(path), "sha256": hashlib.sha256(data).hexdigest(), "thumb2_kernel": thumb2,
+            "lines": selected[:35]}
+
+
+def embedded_config(data, path):
+    start = data.find(b"IKCFG_ST\x1f\x8b")
+    stop = data.find(b"IKCFG_ED", start+8) if start >= 0 else -1
+    if start >= 0 and stop > start and stop-start <= 512*1024:
+        return config_row(gzip.decompress(data[start+8:stop]), f"{path}#IKCONFIG")
+    return None
+
+
+def trace(folder):
+    lines = (folder / "effective-argv.txt").read_text(errors="replace").splitlines()
+    saved = {TIMESTAMP.sub("", line.strip()) for line in lines if line.strip()}
+    raw = set()
+    logs = [folder/"gbs.log", *sorted((folder/"GBS-ROOT/local/repos").rglob("*build*.log"))[:12]]
+    for path in logs:
+        if path.is_file():
+            with path.open(errors="replace") as stream:
+                raw.update(TIMESTAMP.sub("", line.strip()) for line in stream
+                           if all(flag in line for flag in ADVISORS) and " -c " in line)
+    exact = len(saved & raw)
+    prefixes = {line[:1000] for line in raw if len(line) > 1000}
+    counts = Counter()
+    rsp = set()
+    for line in saved:
+        try:
+            words = shlex.split(line)
+        except ValueError:
+            counts["unparseable"] += 1
+            continue
+        modes = [word for word in words if word in MODE]
+        counts[" ".join(modes) or "no_direct_mode_argument"] += 1
+        rsp.update(word for word in words if word.startswith("@"))
+    return {"saved_unique": len(saved), "raw_exact": exact, "saved_prefix_1000": len(saved & prefixes),
+            "saved_len_max": max(map(len, saved), default=0), "saved_over_1000": sum(len(x)>1000 for x in saved),
+            "mode_counts": dict(counts), "response_files": len(rsp), "response_sample": sorted(rsp)[:5],
+            "raw_argv_tail": max(saved & raw, key=len, default="")[-340:],
+            "complete_raw_rows": bool(saved) and exact == len(saved) and not rsp and not counts["unparseable"]}
+
+
+def lane_result(lane, scan):
+    folder = RUN / lane
+    build = folder / "GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD"
+    if not build.is_dir():
+        raise ValueError(f"retained build tree unavailable: {build}")
+    configs, images, permission_errors = [], [], []
+    def unreadable(error):
+        permission_errors.append(str(error))
+    for base, dirs, files in os.walk(build, onerror=unreadable):
+        dirs[:] = [d for d in dirs if d not in {"SERET-UL", ".git"}]
+        path = Path(base)
+        if path.parts[-3:] == PERF and "vmlinux" in files and not (path/"vmlinux").is_symlink():
+            images.append(path/"vmlinux")
+        if ".config" in files and "perf" in path.relative_to(build).parts and not (path/".config").is_symlink():
+            configs.append(path/".config")
+    if len(images) != 1:
+        raise ValueError(f"expected one PERF vmlinux, found {len(images)} under {build}; traversal errors {permission_errors[:3]}")
+    image = images[0]
+    with image.open("rb") as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as data:
+        sections = scan["secs_of"](data)
+        metrics = mapping(data, sections)
+        metrics.update(path=str(image), sha256=hashlib.sha256(data).hexdigest(),
+                       btf_sections={n:s[5] for n,s in sections if n in {".BTF",".BTF.ext"}})
+        embedded = embedded_config(data, image)
+    adjacent = [p for p in configs if p.parent == image.parent]
+    candidate_rows = [config_row(p.read_bytes(), p) for p in sorted(configs)[:20]]
+    exact = config_row(adjacent[0].read_bytes(), adjacent[0]) if adjacent else embedded
+    argv = trace(folder)
+    report("PERF_ISA", [lane, metrics])
+    report("PERF_ARGV_TRUNCATION", [lane, argv])
+    report("PERF_CONFIG_" + ("MATCHED" if exact else "NOT_FOUND"), [lane, exact, len(configs)])
+    for candidate in candidate_rows:
+        report("PERF_CONFIG_CANDIDATE", [lane, candidate])
+    if permission_errors:
+        report("PERF_TRAVERSAL_DIAGNOSTICS", [lane, len(permission_errors), permission_errors[:3]])
+    return {"mapping":metrics, "config":exact, "config_candidates":candidate_rows, "argv":argv}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("scanner", type=Path)
+    args = parser.parse_args()
+    scan = runpy.run_path(str(args.scanner))
+    work = Path(tempfile.mkdtemp(prefix="pm0009-kernel-isa.", dir=TEMP))
+    results, failures = {}, {}
+    for lane in ("official", "custom"):
+        try:
+            results[lane] = lane_result(lane, scan)
+        except (OSError, ValueError, struct.error, EOFError) as error:
+            failures[lane] = str(error)
+            report("PERF_ISA_LANE_BLOCKED", [lane, str(error)[:500]])
+    complete = len(results) == 2 and all(row["argv"]["complete_raw_rows"] for row in results.values())
+    result = work/"isa-proof.json"
+    record = {"lanes": results, "failures": failures, "isa_and_argv_complete": complete,
+              "configs_complete": len(results) == 2 and all((row["config"] or {}).get("thumb2_kernel") for row in results.values())}
+    result.write_text(json.dumps(record, indent=2)+"\n")
+    report("PERF_ISA_RESULT", {"proof": str(result), "isa_and_argv_complete": complete,
+                              "configs_complete": record["configs_complete"]})
+    return 0 if complete else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

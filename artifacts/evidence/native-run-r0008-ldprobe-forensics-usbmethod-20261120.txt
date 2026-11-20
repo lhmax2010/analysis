@@ -1,0 +1,363 @@
+Regarding flash the image, I give an example.
+While the quickbuild successfully complete, we can get the image URL
+http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/
+Then we can download the perf image
+http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/images/T-KSU2EJAKUC-0101-PERF/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2_T-KSU2EJAKUC-0101-PERF.tar.gz
+
+After decompressing the tar.gz to the updateSU2E, then mv the do_not_use.img to data.img, and remove the dtb.bin and mv dtb_RW.bin to dtb.bin
+
+Then you can use the folder to flash the image.
+
+Example:
+```
+chengkai@risc-v-Alienware-Aurora-R16:temp$ tar -zxvf ./TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2_T-KSU2EJAKUC-0101-PERF.tar.gz -C ./updateSU2E
+EMTOKEN.bin
+ddr.init
+ddr.init.elf
+ddr.init.golden
+do_not_use.img
+dtb.bin
+dtb_RW.bin
+factory_peq.img
+file_size.txt
+onboot.bin
+onboot_emmc_b0
+onboot_emmc_b1
+partition.txt
+partition_8G.txt
+platform.img
+prd_info.ini
+secos.bin
+secos_drv.bin
+seret.bin
+seret.bin.golden
+seret.tmp
+sign.bin
+systemrw.img
+toolchain_info.txt
+uImage
+version.dat
+zImage
+chengkai@risc-v-Alienware-Aurora-R16:temp$ cd ./updateSU2E/
+chengkai@risc-v-Alienware-Aurora-R16:updateSU2E$ ls
+ddr.init      ddr.init.golden  dtb.bin     EMTOKEN.bin      file_size.txt  onboot_emmc_b0  partition_8G.txt  platform.img  secos.bin      seret.bin         seret.tmp  systemrw.img        uImage       zImage
+ddr.init.elf  do_not_use.img   dtb_RW.bin  factory_peq.img  onboot.bin     onboot_emmc_b1  partition.txt     prd_info.ini  secos_drv.bin  seret.bin.golden  sign.bin   toolchain_info.txt  version.dat
+chengkai@risc-v-Alienware-Aurora-R16:updateSU2E$ mv do_not_use.img data.img
+chengkai@risc-v-Alienware-Aurora-R16:updateSU2E$ rm -rf dtb.bin
+chengkai@risc-v-Alienware-Aurora-R16:updateSU2E$ mv dtb_RW.bin dtb.bin
+chengkai@risc-v-Alienware-Aurora-R16:updateSU2E$ ls
+data.img  ddr.init.elf     dtb.bin      factory_peq.img  onboot.bin      onboot_emmc_b1    partition.txt  prd_info.ini  secos_drv.bin  seret.bin.golden  sign.bin      toolchain_info.txt  version.dat
+ddr.init  ddr.init.golden  EMTOKEN.bin  file_size.txt    onboot_emmc_b0  partition_8G.txt  platform.img   secos.bin     seret.bin      seret.tmp         systemrw.img  uImage              zImage
+```
+
+Below is the result of the Native Server commands
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0008-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/perf-relocations.py.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/b13cb7b8c63aaa0b6e5b59acfe8b83fb54102c16/artifacts/scripts/r0008/perf-relocations.py.txt' -o "$f"
+  printf '%s  %s\n' '8bb5f9254c525650a078c73decb2da2a4e2f7bc1867c1505310d238981bb29cc' "$f" | sha256sum -c -
+  python3 -B -u "$f" --capture "$PWD/workspace/qb-evidence/37654439-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2" --sample-asan
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0008-tools.kCynTz/perf-relocations.py.txt: OK
+WORKDIR "/home1/chengkai/vd-tree/workspace/temp/pm0008-perf-relocations.n5_hv4uy"
+PERF_PARTITION_SCOPE {"excluded": ["/opt"], "scanned": {"factory_peq": "/factory_peq", "pltf_t": "/", "prd_t": "/prd", "systemrw": "/mnt/systemrw"}}
+PERF_CAPTURE ["37654439", "http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/", "a809c4fb597ac42ea0479e80bc6fa972e45a8a061ea64f0358dca6b988bf7d67"]
+PERF_AUDIT_BLOCKED no named inner image archive in PERF bundle
+chengkai@risc-v-Alienware-Aurora-R16:src$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0008-tools.XXXXXX")
+  export TMPDIR="$d"
+  f="$d/gbs-native-textrel.sh.txt"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/b13cb7b8c63aaa0b6e5b59acfe8b83fb54102c16/artifacts/scripts/r0008/gbs-native-textrel.sh.txt' -o "$f"
+  printf '%s  %s\n' '12d622ae2ea2db9a9b4b1d26b33b3bc96aab9310db75d5076b5e835e89b9a404' "$f" | sha256sum -c -
+  bash "$f"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0008-tools.mwCyMr/gbs-native-textrel.sh.txt: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0008-native-textrel.L4uKk1
+GBS_BUILD_ROOT /home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-thumb.urkj5m2l/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0
+98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03  /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/product/published-build.conf
+CONFIG_LITERAL_MATCHES 0
+b5e6d8e1e00833d2f89c91639d21fa31f675d7c1fe8e2c4e28a0aceb04333284  /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/official/published-build.conf
+CONFIG_LITERAL_MATCHES 0
+b5e6d8e1e00833d2f89c91639d21fa31f675d7c1fe8e2c4e28a0aceb04333284  /home1/chengkai/vd-tree/workspace/temp/pm0004-mlgo-xllvtyr9/custom/published-build.conf
+CONFIG_LITERAL_MATCHES 0
+GBS_ARM_TOOLS /usr/bin/as /usr/bin/ld /usr/bin/readelf
+GBS_LD_VERSION GNU ld (GNU Binutils) 2.43
+GBS_LD_PATH_SHA256 2b5cb60876bd4da4711fe9e7cd6bd92f0ec1c6335695b0a53665b2d936c80f3d  /usr/bin/ld
+binutils-2.43-3.49.armv7l
+package binutils-accel-x86_64-armv7l is not installed
+INPUT_RELOCATION abs 00000000  00000028 R_ARM_V4BX
+INPUT_RELOCATION abs 00000004  00000802 R_ARM_ABS32            00000000   pm_data
+INPUT_RELOCATION rel 00000000  00000028 R_ARM_V4BX
+INPUT_RELOCATION rel 00000004  00000803 R_ARM_REL32            00000000   pm_data
+INPUT_RELOCATION writable 00000000  00000028 R_ARM_V4BX
+INPUT_RELOCATION writable 00000000  00000702 R_ARM_ABS32            00000000   pm_data
+INPUT_RELOCATION mov 00000000  0000072b R_ARM_MOVW_ABS_NC      00000000   pm_data
+INPUT_RELOCATION mov 00000004  0000072c R_ARM_MOVT_ABS         00000000   pm_data
+INPUT_RELOCATION tls 00000000  00000028 R_ARM_V4BX
+INPUT_RELOCATION tls 00000004  0000086c R_ARM_TLS_LE32         00000000   pm_tls
+OUTPUT_RELOCATION shared-DEFAULT-abs  0x00000016 (TEXTREL)                    0x0
+OUTPUT_RELOCATION shared-DEFAULT-abs  0x0000001e (FLAGS)                      TEXTREL
+OUTPUT_RELOCATION shared-DEFAULT-abs 00000160  00000202 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK shared DEFAULT abs rc=0 textrel=1
+NATIVE_LINK shared DEFAULT rel rc=1 textrel=0
+LINK_DIAGNOSTIC /usr/bin/ld: rel.o: relocation R_ARM_REL32 against external or undefined symbol `pm_data' can not be used when making a shared object; recompile with -fPIC
+LINK_DIAGNOSTIC /usr/bin/ld: rel.o(.text+0x4): unresolvable R_ARM_REL32 relocation against symbol `pm_data'
+LINK_DIAGNOSTIC /usr/bin/ld: final link failed
+OUTPUT_RELOCATION shared-DEFAULT-writable 0000200c  00000302 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK shared DEFAULT writable rc=0 textrel=0
+NATIVE_LINK shared DEFAULT mov rc=1 textrel=0
+LINK_DIAGNOSTIC /usr/bin/ld: mov.o: relocation R_ARM_MOVW_ABS_NC against `pm_data' can not be used when making a shared object; recompile with -fPIC
+LINK_DIAGNOSTIC /usr/bin/ld: mov.o(.text+0): unresolvable R_ARM_MOVW_ABS_NC relocation against symbol `pm_data'
+LINK_DIAGNOSTIC /usr/bin/ld: final link failed
+NATIVE_LINK shared DEFAULT tls rc=1 textrel=0
+LINK_DIAGNOSTIC /usr/bin/ld: tls.o(.text+0x4): R_ARM_TLS_LE32 relocation not permitted in shared object
+LINK_DIAGNOSTIC tls.o: in function `pm_entry':
+LINK_DIAGNOSTIC (.text+0x4): dangerous relocation: unsupported relocation
+OUTPUT_RELOCATION shared-notext-abs  0x00000016 (TEXTREL)                    0x0
+OUTPUT_RELOCATION shared-notext-abs  0x0000001e (FLAGS)                      TEXTREL
+OUTPUT_RELOCATION shared-notext-abs 00000160  00000202 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK shared notext abs rc=0 textrel=1
+OUTPUT_RELOCATION shared-notext-writable 0000200c  00000302 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK shared notext writable rc=0 textrel=0
+NATIVE_LINK shared text abs rc=1 textrel=0
+LINK_DIAGNOSTIC /usr/bin/ld: abs.o: warning: relocation against `pm_data' in read-only section `.text'
+LINK_DIAGNOSTIC /usr/bin/ld: read-only segment has dynamic relocations
+OUTPUT_RELOCATION shared-text-writable 0000200c  00000302 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK shared text writable rc=0 textrel=0
+OUTPUT_RELOCATION pie-DEFAULT-abs  0x00000016 (TEXTREL)                    0x0
+OUTPUT_RELOCATION pie-DEFAULT-abs  0x0000001e (FLAGS)                      TEXTREL
+OUTPUT_RELOCATION pie-DEFAULT-abs 0000018c  00000202 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK pie DEFAULT abs rc=0 textrel=1
+NATIVE_LINK pie DEFAULT rel rc=1 textrel=0
+LINK_DIAGNOSTIC /usr/bin/ld: rel.o: relocation R_ARM_REL32 against external or undefined symbol `pm_data' can not be used when making a PIE executable; recompile with -fPIC
+LINK_DIAGNOSTIC /usr/bin/ld: rel.o(.text+0x4): unresolvable R_ARM_REL32 relocation against symbol `pm_data'
+LINK_DIAGNOSTIC /usr/bin/ld: final link failed
+OUTPUT_RELOCATION pie-DEFAULT-writable 0000200c  00000302 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK pie DEFAULT writable rc=0 textrel=0
+NATIVE_LINK pie DEFAULT mov rc=1 textrel=0
+LINK_DIAGNOSTIC /usr/bin/ld: mov.o: relocation R_ARM_MOVW_ABS_NC against `pm_data' can not be used when making a shared object; recompile with -fPIC
+LINK_DIAGNOSTIC /usr/bin/ld: mov.o(.text+0): unresolvable R_ARM_MOVW_ABS_NC relocation against symbol `pm_data'
+LINK_DIAGNOSTIC /usr/bin/ld: final link failed
+NATIVE_LINK pie DEFAULT tls rc=0 textrel=0
+OUTPUT_RELOCATION pie-notext-abs  0x00000016 (TEXTREL)                    0x0
+OUTPUT_RELOCATION pie-notext-abs  0x0000001e (FLAGS)                      TEXTREL
+OUTPUT_RELOCATION pie-notext-abs 0000018c  00000202 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK pie notext abs rc=0 textrel=1
+OUTPUT_RELOCATION pie-notext-writable 0000200c  00000302 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK pie notext writable rc=0 textrel=0
+NATIVE_LINK pie text abs rc=1 textrel=0
+LINK_DIAGNOSTIC /usr/bin/ld: abs.o: warning: relocation against `pm_data' in read-only section `.text'
+LINK_DIAGNOSTIC /usr/bin/ld: read-only segment has dynamic relocations
+OUTPUT_RELOCATION pie-text-writable 0000200c  00000302 R_ARM_ABS32            00000000   pm_data
+NATIVE_LINK pie text writable rc=0 textrel=0
+NATIVE_PIC_FIXTURE_COMPLETE
+NATIVE_LOG_LINES 71
+GBS_FIXTURE_EXIT 0
+chengkai@risc-v-Alienware-Aurora-R16:src$ for FORENSICS_MODE in config helpers; do
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0008a-tools.XXXXXX")
+  export TMPDIR="$d"
+  get() {
+    local rev=$1 file=$2 digest=$3
+    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$file" -o "$d/${file##*/}"
+    printf '%s  %s\n' "$digest" "$d/${file##*/}" | sha256sum -c -
+  }
+  get '988001a92e58e272390553aea4a27e34e6a87d82' 'artifacts/scripts/r0008a/qb-forensics.py.txt' '6bc8e1bbff0a98ff7096ea7ad1806f777fa63aec04c0b9dc2a92fe256294dd82'
+  get 'd3cea65aac76d438b82b55a2857a5ee18546edad' 'artifacts/scripts/r0005/image-repo-lib.py.txt' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'
+  get '3e96bc410252a5b3922c0f51f5ed0218852f4feb' 'artifacts/scripts/r0005/mlgo-elf-sections.py.txt' '54a35e35c1844ca4d5cff60e6236d76698fe27f4f582347ed544249c146c34fd'
+  python3 -B -u "$d/qb-forensics.py.txt" "$FORENSICS_MODE" "$d/image-repo-lib.py.txt" "$d/mlgo-elf-sections.py.txt"
+)
+done
+/home1/chengkai/vd-tree/workspace/temp/pm0008a-tools.AJKlGG/qb-forensics.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0008a-tools.AJKlGG/image-repo-lib.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0008a-tools.AJKlGG/mlgo-elf-sections.py.txt: OK
+WORKDIR "/home1/chengkai/vd-tree/workspace/temp/pm0008a-qb-forensics.qhs40xc_"
+QB_BUILD_XML ["official", "TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261117.2", "//SHARED/[TizenBuild_Prj]/[INT]/buildconf/tizen/TEST/migration/10.0/TV/TIZEN_KantSU2E_Clang_build.conf@14452507", "http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/"]
+QB_BUILD_XML ["custom", "TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2", "//SHARED/[TizenBuild_Prj]/[INT]/buildconf/tizen/TEST/migration/10.0/TV/TIZEN_KantSU2E_Clang_build.conf@14431365", "http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261118.1/"]
+QB_LTO_EXCLUSION_DELTA {"added_in_custom": ["ci-module", "liballshare-core", "nagsam-mw", "org.tizen.tv.swu", "ug-hbbtv-efl"], "removed_in_custom": []}
+--- 1117.2
++++ 1118.2
+@@ -494,7 +494,7 @@
+ # gcc lto (requested by hakbong5.lee)
+ %_with_lto_full_build     1
+ %_with_lto_partial_build  0
+-%lto_uncompatible_pkgs    libtar acr gstreamer-atsc3-pvr-plugins libslive-dbus-proxy libslive-provider com.samsung.tv.slive-daemon tvs-parser tvs-udm acm-core tz-spassservice com.samsung.tv.swu-ui capi-appfw-app-context-manager capi-network-http isf iotivity pulseaudio com.samsung.tv.easysetup-client  gstreamer-plugins-muteplay gstreamer-plugins-smsrc vd-net-config context-aware-service tz-playservice dmp-manager libscl-ui-tv atsc3uhdcp marlin nexguard tee_test_suite antimalware sdp secureime securestorage trustui-framework qte-bm gstreamer-plugins-tv avoc-daemon smart-deadlock org.tizen.RunningApps data-service-api logger webapi-antimalware-pepper-plugin webapi-contentsinfo-pepper-plugin tcmalloc resource-info data-provider-master libscreen_connector storaged rpc-port tts org.tizen.efreerdp isf libwidget_service logger libwidget_viewer com.samsung.ep-plateau-agent capi-ui-autofill ise-default-tv ug-ics-efl nettle libnettle libhogweed org.tizen.applist ug-rct alsa-lib com.samsung.audio.airplay-app com.samsung.tv.airplay-app-2
++%lto_uncompatible_pkgs    libtar acr ci-module gstreamer-atsc3-pvr-plugins libslive-dbus-proxy libslive-provider com.samsung.tv.slive-daemon tvs-parser tvs-udm acm-core tz-spassservice org.tizen.tv.swu com.samsung.tv.swu-ui ug-hbbtv-efl capi-appfw-app-context-manager capi-network-http isf iotivity pulseaudio com.samsung.tv.easysetup-client  gstreamer-plugins-muteplay gstreamer-plugins-smsrc vd-net-config liballshare-core context-aware-service tz-playservice dmp-manager libscl-ui-tv atsc3uhdcp marlin nagsam-mw nexguard tee_test_suite antimalware sdp secureime securestorage trustui-framework qte-bm gstreamer-plugins-tv avoc-daemon smart-deadlock org.tizen.RunningApps data-service-api logger webapi-antimalware-pepper-plugin webapi-contentsinfo-pepper-plugin tcmalloc resource-info data-provider-master libscreen_connector storaged rpc-port tts org.tizen.efreerdp isf libwidget_service logger libwidget_viewer com.samsung.ep-plateau-agent capi-ui-autofill ise-default-tv ug-ics-efl nettle libnettle libhogweed org.tizen.applist ug-rct alsa-lib com.samsung.audio.airplay-app com.samsung.tv.airplay-app-2
+ %lto_armrel32_pkgs        org.tizen.ScreenMirroring-app-tv gst-plugins-atsc3 fkp hdcp org.tizen.easysetup-daemon org.tizen.webappservice-api wifi-direct-plugin-wpasupplicant sdrm soc-gpu-ddk-muse-tv capi-billing-api-tv tvs-si bixby-native-api tts org.tizen.stand-by-scan comss-api vd-sc-client capi-smsource org.tizen.provider-setup cis com.samsung.tv.remote-workspace mused QSysLink lynk libave libslive-dbus-stub capi-pc-ipc-proxy-tv settings-datafw voice-control libtizen_light-debugmenu libnettle capi-billing-api-internal-tv context-aware-common playready esg-api org.tizen.ssoservice libtvs-core content-service-framework smartsecurity2 lib-airplay-pal-tv org.tizen.contents-recognition-service pvod-appfw libtvs-core org.tizen.browser org.tizen.sso org.tizen.provider-setup org.tizen.easysetup-UI org.tizen.Add_Channels content-db content-service-framework org.tizen.webappservice-api ifw-thing org.tizen.sso-api org.tizen.sealayer spirv-tools glslang tvs-ht-service com.samsung.tv.mvpd-native wifi-direct-manager
+ %lto_pkgs                 glslang com.samsung.ep-plateau-agent org.tizen.remote-management libHarfBuzzSharp org.tizen.browser vdsystem-lldb mesa org.tizen.tv-viewer com.samsung.tv.farfieldvoice gst-ffmpeg-atsc3 capi-media-player opencv Vulkan-LoaderAndValidationLayers org.tizen.sealayer org.tizen.remote-management
+
+QB_CONFIG_EQUAL_EXCEPT_BASE_URL_OR_EOL false
+QB_CONFIG_OTHER_LINES ["-%lto_uncompatible_pkgs    libtar acr gstreamer-atsc3-pvr-plugins libslive-dbus-proxy libslive-provider com.samsung.tv.slive-daemon tvs-parser tvs-udm acm-core tz-spassservice com.samsung.tv.swu-ui capi-appfw-app-context-manager capi-network-http isf iotivity pulseaudio com.samsung.tv.easysetup-client  gstreamer-plugins-muteplay gstreamer-plugins-smsrc vd-net-config context-aware-service tz-playservice dmp-manager libscl-ui-tv atsc3uhdcp marlin nexguard tee_test_suite antimalware sdp secureime s", "+%lto_uncompatible_pkgs    libtar acr ci-module gstreamer-atsc3-pvr-plugins libslive-dbus-proxy libslive-provider com.samsung.tv.slive-daemon tvs-parser tvs-udm acm-core tz-spassservice org.tizen.tv.swu com.samsung.tv.swu-ui ug-hbbtv-efl capi-appfw-app-context-manager capi-network-http isf iotivity pulseaudio com.samsung.tv.easysetup-client  gstreamer-plugins-muteplay gstreamer-plugins-smsrc vd-net-config liballshare-core context-aware-service tz-playservice dmp-manager libscl-ui-tv atsc3uhdcp m"]
+QB_CONFIG_DIFF ["/home1/chengkai/vd-tree/workspace/temp/pm0008a-qb-forensics.qhs40xc_/build.conf.diff", 11]
+/home1/chengkai/vd-tree/workspace/temp/pm0008a-tools.hLR2Fw/qb-forensics.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0008a-tools.hLR2Fw/image-repo-lib.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0008a-tools.hLR2Fw/mlgo-elf-sections.py.txt: OK
+WORKDIR "/home1/chengkai/vd-tree/workspace/temp/pm0008a-qb-forensics.yl5ggllr"
+CLANG_FORCE_RPM ["official", ["0", "1.0.0", "1.1"], "f1159b50f626e21eeb1811d11095345e47ba68ccd20533d44b05585988ef2fec", "clang-contrib-1.0.0-1.1.src.rpm"]
+CLANG_FORCE_PAYLOAD ["official", "/usr/bin/clang-force-options", "9439a0958f759364a171c5346503a9dfe9ef760b640d049aba5d1556608778b2"]
+CLANG_FORCE_LINE [2, "# clang-force-options <options...>"]
+CLANG_FORCE_LINE [3, "# Appends a marked block with <options> to /usr/bin/clang.cfg and /usr/bin/clang++.cfg (idempotent). clang reads these"]
+CLANG_FORCE_LINE [5, "# rpm macro %clang_force_incompatible (macros.clang_force); /usr/bin must be writable (done by the %post of this package)."]
+CLANG_FORCE_LINE [7, "if [ -z \"$OPTS\" ]; then echo \"clang-force-options: no options given, nothing done\"; exit 0; fi"]
+CLANG_FORCE_LINE [8, "for f in /usr/bin/clang.cfg /usr/bin/clang++.cfg; do"]
+CLANG_FORCE_LINE [11, "      echo \"clang-force-options: already applied to $f\""]
+CLANG_FORCE_LINE [13, "      cp \"$f\" \"$f.force\" && { echo '# tizen-force-options begin'; echo \"$OPTS\"; echo '# tizen-force-options end'; } >> \"$f.force\" && mv -f \"$f.force\" \"$f\" && echo \"clang-force-options: applied to $f\" || echo \"clang-force-options: FAILED to rewrite $f\""]
+CLANG_FORCE_LINE [15, "    echo \"clang-force-options: $f now reads:\"; sed 's/^/clang-force-options:    /' \"$f\""]
+CLANG_FORCE_LINE [17, "    echo \"clang-force-options: $f missing or /usr/bin not writable, nothing done\""]
+CLANG_FORCE_PAYLOAD ["official", "/usr/bin/clang-unforce-options", "b5fbc50788e35a0057ac29fdf1aca319146c2219278b996a001c0348013be2ba"]
+CLANG_FORCE_LINE [2, "# clang-unforce-options"]
+CLANG_FORCE_LINE [3, "# Removes the block added by clang-force-options from /usr/bin/clang.cfg and /usr/bin/clang++.cfg (idempotent)."]
+CLANG_FORCE_LINE [5, "for f in /usr/bin/clang.cfg /usr/bin/clang++.cfg; do"]
+CLANG_FORCE_LINE [7, "    sed '/^# tizen-force-options begin$/,/^# tizen-force-options end$/d' \"$f\" > \"$f.force\" && mv -f \"$f.force\" \"$f\" && echo \"clang-unforce-options: removed the forced options from $f\""]
+CLANG_FORCE_PAYLOAD ["official", "/usr/lib/rpm/macros.clang_force", "d70a7c94f475d0540591ff3521eb6a5741811f910a7cf9eb7a67f270c0eeec53"]
+CLANG_FORCE_LINE [3, "# Forced compiler options for clang builds (package clang-force-options, source package clang-contrib)."]
+CLANG_FORCE_LINE [6, "# %clang_force_incompatible runs. Unless the package is blacklisted it executes"]
+CLANG_FORCE_LINE [7, "#     /usr/bin/clang-force-options <options>"]
+CLANG_FORCE_LINE [8, "# which appends a marked block with the options to /usr/bin/clang.cfg and /usr/bin/clang++.cfg. clang reads these"]
+CLANG_FORCE_LINE [10, "# (%__spec_build_post) the block is removed again. Blacklisted packages get /usr/bin/clang-unforce-options instead."]
+CLANG_FORCE_LINE [15, "#   %clang_force_options ...            replaces the list"]
+CLANG_FORCE_LINE [16, "#   %clang_force_disable 1              switches the forcing off"]
+CLANG_FORCE_LINE [17, "#   %clang_force_incompatible_pkgs a b  exempts packages (the %gcc_warning_*_pkgs blacklists are honoured as well)"]
+CLANG_FORCE_LINE [22, "%clang_force_ldflags -Wl,-z,relro,--as-needed -Wl,-O1 -Wl,--hash-style=gnu"]
+CLANG_FORCE_LINE [23, "%clang_force_options %{optflags} %{clang_force_ldflags}"]
+CLANG_FORCE_LINE [25, "%clang_unforce_options %{lua: rpm.define(\"clang_force_unforced 1\"); print(\"/usr/bin/clang-unforce-options\")}"]
+CLANG_FORCE_LINE [27, "%clang_force_incompatible \\"]
+CLANG_FORCE_LINE [29, "    if (rpm.expand(\"%{?clang_force_disable}\") == \"1\") then \\"]
+CLANG_FORCE_LINE [30, "      print(\"/usr/bin/clang-unforce-options\") \\"]
+CLANG_FORCE_LINE [32, "        \" \" .. rpm.expand(\"%{?clang_force_incompatible_pkgs}\") .. \\"]
+CLANG_FORCE_LINE [40, "      print(\"/usr/bin/clang-unforce-options\") \\"]
+CLANG_FORCE_LINE [42, "      print(\"/usr/bin/clang-force-options \" .. rpm.expand(\"%{clang_force_options}\")) \\"]
+CLANG_FORCE_LINE [48, "  RPM_EC=$?; /usr/bin/clang-unforce-options; ( exit $RPM_EC ); \\"]
+CLANG_FORCE_SCRIPTLET ["official", "postinstall scriptlet (using /bin/sh):"]
+CLANG_FORCE_SCRIPTLET ["official", "# Runs while the build root is initialised (Preinstall/RunScripts), before clang and findutils are installed:"]
+CLANG_FORCE_SCRIPTLET ["official", "# only bash, coreutils, grep and sed may be used here."]
+CLANG_FORCE_SCRIPTLET ["official", "chmod a+w /usr/bin"]
+CLANG_FORCE_SCRIPTLET ["official", "grep -q '^# /usr/lib/rpm/macros.clang_force$' /usr/lib/rpm/tizen_macros 2>/dev/null || cat /usr/lib/rpm/macros.clang_force >> /usr/lib/rpm/tizen_macros"]
+CLANG_FORCE_SCRIPTLET ["official", "preuninstall scriptlet (using /bin/sh):"]
+CLANG_FORCE_SCRIPTLET ["official", "sed -e '\\|^# /usr/lib/rpm/macros.clang_force$|,\\|^# /usr/lib/rpm/macros.clang_force ends here$|d' -i /usr/lib/rpm/tizen_macros"]
+CLANG_FORCE_RPM ["custom", ["0", "1.0.0", "1.1"], "f1159b50f626e21eeb1811d11095345e47ba68ccd20533d44b05585988ef2fec", "clang-contrib-1.0.0-1.1.src.rpm"]
+CLANG_FORCE_PAYLOAD ["custom", "/usr/bin/clang-force-options", "9439a0958f759364a171c5346503a9dfe9ef760b640d049aba5d1556608778b2"]
+CLANG_FORCE_LINE [2, "# clang-force-options <options...>"]
+CLANG_FORCE_LINE [3, "# Appends a marked block with <options> to /usr/bin/clang.cfg and /usr/bin/clang++.cfg (idempotent). clang reads these"]
+CLANG_FORCE_LINE [5, "# rpm macro %clang_force_incompatible (macros.clang_force); /usr/bin must be writable (done by the %post of this package)."]
+CLANG_FORCE_LINE [7, "if [ -z \"$OPTS\" ]; then echo \"clang-force-options: no options given, nothing done\"; exit 0; fi"]
+CLANG_FORCE_LINE [8, "for f in /usr/bin/clang.cfg /usr/bin/clang++.cfg; do"]
+CLANG_FORCE_LINE [11, "      echo \"clang-force-options: already applied to $f\""]
+CLANG_FORCE_LINE [13, "      cp \"$f\" \"$f.force\" && { echo '# tizen-force-options begin'; echo \"$OPTS\"; echo '# tizen-force-options end'; } >> \"$f.force\" && mv -f \"$f.force\" \"$f\" && echo \"clang-force-options: applied to $f\" || echo \"clang-force-options: FAILED to rewrite $f\""]
+CLANG_FORCE_LINE [15, "    echo \"clang-force-options: $f now reads:\"; sed 's/^/clang-force-options:    /' \"$f\""]
+CLANG_FORCE_LINE [17, "    echo \"clang-force-options: $f missing or /usr/bin not writable, nothing done\""]
+CLANG_FORCE_PAYLOAD ["custom", "/usr/bin/clang-unforce-options", "b5fbc50788e35a0057ac29fdf1aca319146c2219278b996a001c0348013be2ba"]
+CLANG_FORCE_LINE [2, "# clang-unforce-options"]
+CLANG_FORCE_LINE [3, "# Removes the block added by clang-force-options from /usr/bin/clang.cfg and /usr/bin/clang++.cfg (idempotent)."]
+CLANG_FORCE_LINE [5, "for f in /usr/bin/clang.cfg /usr/bin/clang++.cfg; do"]
+CLANG_FORCE_LINE [7, "    sed '/^# tizen-force-options begin$/,/^# tizen-force-options end$/d' \"$f\" > \"$f.force\" && mv -f \"$f.force\" \"$f\" && echo \"clang-unforce-options: removed the forced options from $f\""]
+CLANG_FORCE_PAYLOAD ["custom", "/usr/lib/rpm/macros.clang_force", "d70a7c94f475d0540591ff3521eb6a5741811f910a7cf9eb7a67f270c0eeec53"]
+CLANG_FORCE_LINE [3, "# Forced compiler options for clang builds (package clang-force-options, source package clang-contrib)."]
+CLANG_FORCE_LINE [6, "# %clang_force_incompatible runs. Unless the package is blacklisted it executes"]
+CLANG_FORCE_LINE [7, "#     /usr/bin/clang-force-options <options>"]
+CLANG_FORCE_LINE [8, "# which appends a marked block with the options to /usr/bin/clang.cfg and /usr/bin/clang++.cfg. clang reads these"]
+CLANG_FORCE_LINE [10, "# (%__spec_build_post) the block is removed again. Blacklisted packages get /usr/bin/clang-unforce-options instead."]
+CLANG_FORCE_LINE [15, "#   %clang_force_options ...            replaces the list"]
+CLANG_FORCE_LINE [16, "#   %clang_force_disable 1              switches the forcing off"]
+CLANG_FORCE_LINE [17, "#   %clang_force_incompatible_pkgs a b  exempts packages (the %gcc_warning_*_pkgs blacklists are honoured as well)"]
+CLANG_FORCE_LINE [22, "%clang_force_ldflags -Wl,-z,relro,--as-needed -Wl,-O1 -Wl,--hash-style=gnu"]
+CLANG_FORCE_LINE [23, "%clang_force_options %{optflags} %{clang_force_ldflags}"]
+CLANG_FORCE_LINE [25, "%clang_unforce_options %{lua: rpm.define(\"clang_force_unforced 1\"); print(\"/usr/bin/clang-unforce-options\")}"]
+CLANG_FORCE_LINE [27, "%clang_force_incompatible \\"]
+CLANG_FORCE_LINE [29, "    if (rpm.expand(\"%{?clang_force_disable}\") == \"1\") then \\"]
+CLANG_FORCE_LINE [30, "      print(\"/usr/bin/clang-unforce-options\") \\"]
+CLANG_FORCE_LINE [32, "        \" \" .. rpm.expand(\"%{?clang_force_incompatible_pkgs}\") .. \\"]
+CLANG_FORCE_LINE [40, "      print(\"/usr/bin/clang-unforce-options\") \\"]
+CLANG_FORCE_LINE [42, "      print(\"/usr/bin/clang-force-options \" .. rpm.expand(\"%{clang_force_options}\")) \\"]
+CLANG_FORCE_LINE [48, "  RPM_EC=$?; /usr/bin/clang-unforce-options; ( exit $RPM_EC ); \\"]
+CLANG_FORCE_SCRIPTLET ["custom", "postinstall scriptlet (using /bin/sh):"]
+CLANG_FORCE_SCRIPTLET ["custom", "# Runs while the build root is initialised (Preinstall/RunScripts), before clang and findutils are installed:"]
+CLANG_FORCE_SCRIPTLET ["custom", "# only bash, coreutils, grep and sed may be used here."]
+CLANG_FORCE_SCRIPTLET ["custom", "chmod a+w /usr/bin"]
+CLANG_FORCE_SCRIPTLET ["custom", "grep -q '^# /usr/lib/rpm/macros.clang_force$' /usr/lib/rpm/tizen_macros 2>/dev/null || cat /usr/lib/rpm/macros.clang_force >> /usr/lib/rpm/tizen_macros"]
+CLANG_FORCE_SCRIPTLET ["custom", "preuninstall scriptlet (using /bin/sh):"]
+CLANG_FORCE_SCRIPTLET ["custom", "sed -e '\\|^# /usr/lib/rpm/macros.clang_force$|,\\|^# /usr/lib/rpm/macros.clang_force ends here$|d' -i /usr/lib/rpm/tizen_macros"]
+chengkai@risc-v-Alienware-Aurora-R16:src$ for BUILD_READBACK in kernel-isa modules; do
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0008a-tools.XXXXXX")
+  export TMPDIR="$d"
+  curl -fsS --connect-timeout 8 --max-time 60 'https://raw.githubusercontent.com/lhmax2010/analysis/988001a92e58e272390553aea4a27e34e6a87d82/artifacts/scripts/r0008a/native-build-readback.py.txt' -o "$d/nbr.py.txt"
+  printf '%s  %s\n' '9fe720021b649c3a5fa6c603c7c22c70e29e49a523aea3f40d6b263357bc6410' "$d/nbr.py.txt" | sha256sum -c -
+  python3 -B -u "$d/nbr.py.txt" "$BUILD_READBACK"
+)
+done
+/home1/chengkai/vd-tree/workspace/temp/pm0008a-tools.GPMFqI/nbr.py.txt: OK
+ISA_LOG official arm mmd other 1873 (63587, '[ 1083s]   gcc -Wp,-MMD,scripts/mod/.empty.o.d -nostdinc -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/include -I./arch/arm/include/generated -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/include -I./include -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/l', 'ter -mapcs -mno-sched-prolog -fno-ipa-sra -mtp=cp15 -mabi=aapcs-linux -mfpu=vfp -marm -Wa,-mno-warn-deprecated -mcpu=cortex-a15 -msoft-float -Uarm -fno-delete-null-pointer-checks -Os -fno-allow-store-data-races -fno-stack-protector -fno-omit-frame-pointer -fno-optimize-sibling-ca')
+ISA_LOG official arm no-mmd other 11 (68160, '[ 1158s] + gcc -nostdinc -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/include -I./arch/arm/include/generated -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/include -I./include -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/include/uapi ', '/tztv-kernel-1/linux-6.12/= -D__ASSEMBLY__ -fno-PIE -mabi=aapcs-linux -mfpu=vfp -marm -Wa,-mno-warn-deprecated -Wa,-mcpu=cortex-a15 -include /home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/include/asm/unified.h -msoft-float -c -o .tmp_vmlinux0.kallsyms.o .tmp_vmlinu')
+ISA_LOG official thumb no-mmd other 302 (452, "[   97s] + CFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-nee", "rtex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g'")
+SAVED_ARGV_ISA official {(): 7100}
+LINKED_BTF_SECTIONS official []
+PERF_CONFIG_NOT_FOUND official
+KERNEL_VARIANT_CONFIG official vd_src/SERET-UL/build/KANTSU2E/debug/vdlinux/.config ['CONFIG_ARM_THUMB=y', '# CONFIG_ARM_THUMBEE is not set', '# CONFIG_THUMB2_KERNEL is not set']
+KERNEL_VARIANT_CONFIG official vd_src/SERET-UL/build/KANTSU2E/release/vdlinux/.config ['CONFIG_ARM_THUMB=y', '# CONFIG_ARM_THUMBEE is not set', '# CONFIG_THUMB2_KERNEL is not set']
+ISA_LOG custom arm mmd other 1873 (63588, '[ 1172s]   gcc -Wp,-MMD,scripts/mod/.empty.o.d -nostdinc -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/include -I./arch/arm/include/generated -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/include -I./include -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/l', 'ter -mapcs -mno-sched-prolog -fno-ipa-sra -mtp=cp15 -mabi=aapcs-linux -mfpu=vfp -marm -Wa,-mno-warn-deprecated -mcpu=cortex-a15 -msoft-float -Uarm -fno-delete-null-pointer-checks -Os -fno-allow-store-data-races -fno-stack-protector -fno-omit-frame-pointer -fno-optimize-sibling-ca')
+ISA_LOG custom arm no-mmd other 11 (68159, '[ 1246s] + gcc -nostdinc -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/include -I./arch/arm/include/generated -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/include -I./include -I/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/include/uapi ', '/tztv-kernel-1/linux-6.12/= -D__ASSEMBLY__ -fno-PIE -mabi=aapcs-linux -mfpu=vfp -marm -Wa,-mno-warn-deprecated -Wa,-mcpu=cortex-a15 -include /home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/arch/arm/include/asm/unified.h -msoft-float -c -o .tmp_vmlinux0.kallsyms.o .tmp_vmlinu')
+ISA_LOG custom thumb no-mmd other 302 (452, "[  174s] + CFLAGS='-Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-nee", "rtex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g'")
+SAVED_ARGV_ISA custom {(): 7100}
+LINKED_BTF_SECTIONS custom []
+PERF_CONFIG_NOT_FOUND custom
+KERNEL_VARIANT_CONFIG custom vd_src/SERET-UL/build/KANTSU2E/debug/vdlinux/.config ['CONFIG_ARM_THUMB=y', '# CONFIG_ARM_THUMBEE is not set', '# CONFIG_THUMB2_KERNEL is not set']
+KERNEL_VARIANT_CONFIG custom vd_src/SERET-UL/build/KANTSU2E/release/vdlinux/.config ['CONFIG_ARM_THUMB=y', '# CONFIG_ARM_THUMBEE is not set', '# CONFIG_THUMB2_KERNEL is not set']
+/home1/chengkai/vd-tree/workspace/temp/pm0008a-tools.Nsab4v/nbr.py.txt: OK
+MODULE_SCOPE 44 60
+MODULE_OWNER EngineeringMode-driver-perf TEXT_CHANGED 1
+MODULE_OWNER SZDrv-perf TEXT_CHANGED 1
+MODULE_OWNER SZDrv_core-perf TEXT_CHANGED 1
+MODULE_OWNER acm-modules-perf TEXT_CHANGED 3
+MODULE_OWNER bluetooth_modules-perf TEXT_CHANGED 2
+MODULE_OWNER dlog-tv-perf TEXT_CHANGED 1
+MODULE_OWNER ecryptfs-perf TEXT_CHANGED 1
+MODULE_OWNER exfat-perf TEXT_CHANGED 2
+MODULE_OWNER feature-config-driver-perf TEXT_CHANGED 1
+MODULE_OWNER lwipc-modules-perf TEXT_CHANGED 1
+MODULE_OWNER performeter-perf TEXT_CHANGED 1
+MODULE_OWNER pms_prd-perf TEXT_CHANGED 2
+MODULE_OWNER sim-module-perf TEXT_CHANGED 3
+MODULE_OWNER smart-deadlock-module-perf TEXT_CHANGED 1
+MODULE_OWNER trustzone-drivers-perf TEXT_CHANGED 2
+MODULE_OWNER tztv-audio-amp-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-eeprom-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-frc-tcon-perf TEXT_CHANGED 5
+MODULE_OWNER tztv-hdmi-sw-perf TEXT_CHANGED 2
+MODULE_OWNER tztv-jackident-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-kfactory-perf TEXT_CHANGED 2
+MODULE_OWNER tztv-media-kantsu2e-alsa-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-codec-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-demod-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-drm-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-extin-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-gfx-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-gpu-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-hdmi-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-khdmi-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-led-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-logo-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-misc-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-pq-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-preinit-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-sbm-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-tcon-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-tsd-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-media-kantsu2e-video-tv-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-micom-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-proidiom-perf TEXT_IDENTICAL 1
+MODULE_OWNER tztv-system-perf TEXT_CHANGED 1
+MODULE_OWNER tztv-tuner-perf TEXT_CHANGED 2
+MODULE_OWNER wifi-drivers-MTK-7668-perf TEXT_CHANGED 2
+MODULE_OWNER wifi-drivers-RTK-rtl8822EU-perf TEXT_CHANGED 1
+MODULE_OWNER wifi-drivers-RTK-rtl8822EU-perf TEXT_IDENTICAL 1
+chengkai@risc-v-Alienware-Aurora-R16:src$
