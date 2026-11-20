@@ -219,17 +219,48 @@ def pilot(args, gbs, sample, thumb, scan, lib, pins, work, name, exemptions, man
            "text_delta":measured["thumb"]["totals"]["text_bytes"]-measured["control"]["totals"]["text_bytes"]}
     (folder/"pilot.json").write_text(json.dumps(row, indent=2)+"\n")
     print("T1_PACKAGE_COMPLETE", name, "TEXT_DELTA", row["text_delta"], "DRIVERS", *drivers)
+    print("T1_ELF_LEDGER", folder/"pilot.json")
+    for line in diff.splitlines():
+        print("T1_CONFIG_DIFF", line)
+    print_pair_rows(row, 1, page_size=18)
+
+
+def print_pair_rows(record, page, page_size):
+    control, variant = (record["lanes"][lane]["files"] for lane in ("control", "thumb"))
+    paths = sorted(control.keys() | variant.keys())
+    start, stop = (page-1)*page_size, page*page_size
+    for path in paths[start:stop]:
+        pair = []
+        for items in (control, variant):
+            row = items.get(path)
+            pair.append({name: row[name] for name in ("text_bytes","arm_share","basis","mode","sha256")}
+                        if row else None)
+        print("T1_ELF_PAIR", json.dumps([record["package"], path, *pair], sort_keys=True))
+    if stop < len(paths):
+        print("T1_MORE_ELF_ROWS", page+1, "TOTAL", len(paths))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("repo_lib","gbs_lib","thumb_lib","sample_lib","scan_lib","bundle_lib","pins"):
         parser.add_argument(name, type=Path)
-    parser.add_argument("--dependency-product-url", required=True)
-    parser.add_argument("--kernel-proof", type=Path, required=True)
+    parser.add_argument("--dependency-product-url")
+    parser.add_argument("--kernel-proof", type=Path)
+    parser.add_argument("--readback", type=Path)
+    parser.add_argument("--page", type=int, default=1)
     parser.add_argument("--package", choices=tuple(PACKAGES), action="append")
     args = parser.parse_args()
     gbs = SimpleNamespace(**runpy.run_path(str(args.gbs_lib)))
+    if args.readback:
+        path = args.readback.resolve(strict=True)
+        if (args.page < 1 or path.name != "pilot.json" or path.parent.name not in PACKAGES
+                or not path.parent.parent.name.startswith("pm0009-thumb-force.")
+                or path.parent.parent.parent != gbs.NATIVE.resolve()):
+            raise ValueError("--readback requires a round 0009 package pilot ledger and positive page")
+        print_pair_rows(json.loads(path.read_text()), args.page, page_size=18)
+        return 0
+    if not (args.dependency_product_url and args.kernel_proof):
+        parser.error("a live dependency Product URL and kernel proof are required for the build")
     sample = runpy.run_path(str(args.sample_lib))
     thumb = runpy.run_path(str(args.thumb_lib))
     scan = runpy.run_path(str(args.scan_lib))
