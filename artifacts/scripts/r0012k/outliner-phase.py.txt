@@ -1,0 +1,98 @@
+"""Attribute an outlined helper to the kernel C compile and identify the final linker."""
+import os
+from pathlib import Path
+import re
+import shlex
+import struct
+import subprocess
+import runpy
+
+def lto(args):
+    enabled = False
+    for arg in args:
+        if arg == "-flto" or arg.startswith("-flto=") or arg == "-emit-llvm":
+            enabled = True
+        elif arg == "-fno-lto":
+            enabled = False
+    return enabled
+
+
+def final_link(tree, sha):
+    root = tree/"vmlinux.pm0012k-link"
+    raw = (root/"argv").read_bytes()
+    if not raw.endswith(b"\0"):
+        raise ValueError("truncated final link argv")
+    exe, *args = map(os.fsdecode,raw[:-1].split(b"\0"))
+    version = (root/"version").read_text().strip()
+    if Path(exe).name != "ld.lld" or not re.match(r"^LLD 22\.1\.8\b",version):
+        raise ValueError("unexpected final linker: "+version)
+    digest = (root/"result.sha256").read_text().split()[0]
+    output_match = "SHA256"
+    if sha(tree/"vmlinux") != digest:
+        # Kbuild may sort exception tables in-place after the final ld.lld invocation.
+        pat = r"Build ID:\s*([0-9a-f]+)"
+        original = re.findall(pat,(root/"output.notes").read_text())
+        retained = subprocess.check_output(["readelf","-nW",tree/"vmlinux"],text=True)
+        if len(original) != 1 or original != re.findall(pat,retained):
+            raise ValueError("cannot join final LLD output to retained perf vmlinux")
+        output_match = "GNU_BUILD_ID " + original[0]
+    responses = {}
+    expanded = []
+    for index, arg in enumerate(args):
+        if arg.startswith("@"):
+            content = (root/f"rsp.{index}").read_text()
+            responses[str(index)] = content
+            words = shlex.split(content)
+            if any(word.startswith("@") for word in words):
+                raise ValueError("unresolved nested LLD response file")
+            expanded.extend(words)
+        else:
+            expanded.append(arg)
+    if any(x.startswith(("--thinlto","--lto-","--plugin-opt","-plugin-opt")) for x in expanded):
+        raise ValueError("final LLD argv includes LTO controls; review the link")
+    return dict(version=version,argv=[exe,*args],cwd=(root/"cwd").read_text().strip(),
+                response_files=responses,output_sha256=digest,retained_match=output_match)
+
+
+def verify(tree, config, sections, sha):
+    if any(config.get(k) == "y" for k in
+           ("CONFIG_LTO","CONFIG_LTO_CLANG","CONFIG_LTO_CLANG_FULL","CONFIG_LTO_CLANG_THIN","CONFIG_LTO_GCC")):
+        raise ValueError("effective kernel config enables LTO")
+    link = final_link(tree,sha)
+    audit = runpy.run_path(str(Path(__file__).with_name("kernel-audit.py.txt")))
+    proof = None
+    count = 0
+    for marker in sorted(tree.rglob(".*.o.cmd")):
+        with marker.open(errors="replace") as stream:
+            saved = stream.readline().partition(":=")[2].strip().split(";",1)[0]
+        if "-D__KERNEL__" not in saved:
+            continue
+        args = shlex.split(saved)
+        if "-c" not in args or not any(x.endswith(".c") for x in args):
+            continue
+        count += 1
+        if lto(args) or any(x.startswith("@") for x in args):
+            raise ValueError("LTO or unexpanded compile argv: "+str(marker))
+        if proof or not any(Path(x).name.endswith("clang") for x in args[:3]):
+            continue
+        flags = [x for x in args if x in ("-moutline","-mno-outline")]
+        obj = marker.with_name(marker.name[1:-4])
+        if flags[-1:] != ["-moutline"] or not obj.is_file():
+            continue
+        raw = obj.read_bytes()
+        if (b"OUTLINED_FUNCTION_" not in raw or raw[:6] != b"\x7fELF\x01\x01"
+            or struct.unpack_from("<HH",raw,16) != (1,40)):
+            continue
+        secs = sections(raw)
+        if not secs:
+            continue
+        if any(name in (".llvm.lto",".llvmbc") for name,_ in secs):
+            raise ValueError("bitcode present in outlined TU: "+str(obj))
+        helper = next((name for name,_,size,_ in audit["symbols"](raw,secs)
+                       if size and audit["HELPER"].fullmatch(name)),None)
+        if helper:
+            proof = dict(object=str(obj.relative_to(tree)),object_sha256=sha(obj),
+                         compile_argv=args,helper=helper)
+    if not proof:
+        raise ValueError("no compiled native ARM TU defines a machine-outlined helper")
+    return dict(**proof,kernel_C_argv_checked=count,lto_none=config.get("CONFIG_LTO_NONE"),lld=link)

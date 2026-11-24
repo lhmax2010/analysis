@@ -30,8 +30,10 @@ SELF	artifacts/patches/thumb2/org.tizen.tv-viewer.patch	a3fc755f82372ab178e6f0b5
 SELF	artifacts/patches/thumb2/org.tizen.AVControl.patch	63a9181ab32c66f479130a902fba47dfaceda0b3c8b070768552ac0f700bf85e	org.tizen.AVControl.patch
 SELF	artifacts/patches/thumb2/libpisa-ipc.patch	dafdd9405cf2c39e60a027cde1fcd083c4a46c4b860ba39e88964aed3c35ca85	libpisa-ipc.patch
 SELF	artifacts/ledger/official-37736448-thumb-reviewed.tsv	69ee47e738a29843359fab944c1f63334aa675d8d857dd67eec597da8d2bfb58	thumb-causes.tsv
-SELF	artifacts/patches/kernel/perf-machine-outliner.spec.patch	beb32ad167d44534d9f723dd6793ff1bcaedb6b720559dfd390a67b35c5001f1	perf-machine-outliner.spec.patch
+SELF	artifacts/patches/kernel/perf-machine-outliner.spec.patch	e68431be418e8c9f634dc59a1814503b5d3cbf276d5afdf38e0ea6fbbe984809	perf-machine-outliner.spec.patch
 SELF	artifacts/scripts/r0012f/kernel-audit.py.txt	6ffb19ce2d81ddc5c6055083d010a8600eea4a7bee1b6763e1b7a345e3c46c78	kernel-audit.py.txt
-SELF	artifacts/scripts/r0012f/kernel-matrix.py.txt	28d0f033a0a433cb701b5f8f4bfb566f1a57ec7554adc4a3736350526ea31bd0	kernel-matrix.py.txt
+SELF	artifacts/scripts/r0012f/kernel-matrix.py.txt	3bc40ada6bc90c324ffef44c6e3cd7d6823c6dc7742258f74b384063ddbf5a44	kernel-matrix.py.txt
 SELF	artifacts/scripts/r0012g/driver-config.sh.txt	3f1bfdac3eece3ab5a15d4a2c87f12bb0eb7e9a86b984c0ca214ef4c02be41c9	driver-config.sh.txt
 SELF	artifacts/scripts/r0012g/thumb-options.py.txt	c7cc48244c20ee4982a75c79780adfb4594bb7231f53e1919ca4b73908b49a10	thumb-options.py.txt
+SELF	artifacts/scripts/r0012k/official-config.py.txt	4d5ea74ef97454f87085dc5869be39478a283138a4d256cdce1b69a5e4a5d200	official-config.py.txt
+SELF	artifacts/scripts/r0012k/outliner-phase.py.txt	568c984195ebd06b7d3d682ecf652da9e2fb1afea924a335879f6e984fc548f0	outliner-phase.py.txt

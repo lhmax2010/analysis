@@ -5,12 +5,8 @@ from pathlib import Path
 import re
 import runpy
 import shlex
-import shutil
-import tempfile
-import resource
 import subprocess
 import sys
-import zlib
 
 HERE=Path(__file__).resolve().parent
 LANES=("K0","K1","K2","K3","K4","K5")
@@ -22,87 +18,26 @@ def load(name):
     return runpy.run_path(str(HERE/(name+".py.txt")))
 
 
-def config_map(raw):
-    values={}
-    for line in raw.decode().splitlines():
-        m=re.fullmatch(r"(CONFIG_\w+)=(.*)|# (CONFIG_\w+) is not set",line)
-        if m:
-            key=m[1] or m[3]
-            if key in values: raise ValueError("duplicate effective config key "+key)
-            values[key]=m[2] if m[1] else "n"
-    if len(values)<1000 or values.get("CONFIG_ARM")!="y":
-        raise ValueError("incomplete ARM effective config")
-    return values
-
-
-def embedded(blob):
-    # Try the raw kernel and bounded gzip-compressed zImage payload(s).
-    candidates=[blob]
-    for hit in re.finditer(b"\x1f\x8b\x08",blob):
-        try:
-            dec=zlib.decompressobj(31)
-            data=dec.decompress(blob[hit.start():],128<<20)
-            if dec.eof and b"IKCFG_ST" in data: candidates.append(data)
-        except zlib.error: continue
-    for magic,exe in ((b"\xfd7zXZ\x00","xz"),(b"\x28\xb5\x2f\xfd","zstd"),(b"\x02\x21\x4c\x18","lz4"),(b"BZh","bzip2")):
-        if not shutil.which(exe): continue
-        for hit in list(re.finditer(re.escape(magic),blob))[:12]:
-            with tempfile.TemporaryFile(dir=Path.cwd()) as out:
-                def limit():
-                    resource.setrlimit(resource.RLIMIT_FSIZE,(128<<20,128<<20))
-                subprocess.run([exe,"-dc"],input=blob[hit.start():],stdout=out,stderr=subprocess.DEVNULL,
-                               preexec_fn=limit,timeout=90)
-                out.seek(0)
-                data=out.read()
-                if b"IKCFG_ST" in data: candidates.append(data)
-    result=set()
-    for section in candidates:
-        for hit in re.finditer(b"IKCFG_ST",section):
-            dec=zlib.decompressobj(31)
-            try:
-                data=dec.decompress(section[hit.end():],2<<20)
-                if dec.eof and dec.unused_data.startswith(b"IKCFG_ED"):
-                    config_map(data)
-                    result.add(data)
-            except (ValueError,zlib.error): continue
-    return result
-
-
 def official_inputs(work,q,s):
     cap,receipt,pkgs=q["retained"]("official",s.lib)
     row=pkgs["tztv-kernel-perf"]
     if row["vcs"]!=s.gbs.DEPOT.rstrip("/")+"#14293732" or not re.search(
         re.escape(s.gbs.DEPOT)+r"\.\.\.@14427407\s*$",s.manifest.read_text(),re.M):
         raise ValueError("unmatched Official source or shelf")
-    configs={}
-    sizes={}
-    for package in ("tztv-kernel-perf","tztv-kernel-devel"):
-        rpm=q["matched_payload"](cap,receipt,pkgs[package],s.lib)
-        for key,(size,digest) in q["member_checksums"](rpm).items():
-            name=Path(key).name
-            perf="perf" in Path(key).parts
-            if not perf or not digest: continue
-            if name=="uImage": sizes["uImage"]=size
-            if name not in (".config","zImage","uImage","vmlinux") and not name.startswith("config-"): continue
-            if size>512<<20: continue
-            dest=work/(package+"-"+digest+"-"+name)
-            if not dest.exists(): q["extract_member"](rpm,key,dest,digest,s.lib)
-            raw=dest.read_bytes()
-            if name=="vmlinux":
-                if package=="tztv-kernel-perf" and s.scan["secs_of"](raw):
-                    sizes["vmlinux"]=size
-            elif name in ("zImage","uImage"):
-                for data in embedded(raw): configs[package+key]=data if package+key not in configs or configs[package+key]==data else b""
-            else:
-                configs[package+key]=raw
-    if not configs:
-        raise ValueError("Official 37736448: no full perf .config in verified kernel RPMs or supported IKCONFIG; supply the authenticated QB perf build output")
-    maps=[config_map(raw) for raw in configs.values()]
-    base=maps[0]
-    if any(m!=base for m in maps) or any(base.get(k)!="y" for k in ("CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC")) or base.get("CONFIG_THUMB2_KERNEL")!="n":
-        raise ValueError("Official perf configs disagree or do not select expected A32/release advisors")
-    (work/"official.config").write_bytes(next(iter(configs.values())))
-    print("KERNEL_THUMB_CONFIG",[(k,hashlib.sha256(v).hexdigest()) for k,v in configs.items()])
+    config=load("official-config")
+    base=config["config_map"](config["select"](work,q))
+    if any(base.get(k)!="y" for k in ("CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC")) or base.get("CONFIG_THUMB2_KERNEL")!="n":
+        raise ValueError("Official perf config does not select expected A32/release advisors")
+    perf=q["matched_payload"](cap,receipt,row,s.lib)
+    members=q["member_checksums"](perf)
+    sizes={"uImage":members["/perf/uImage"][0]}
+    if members["/perf/uImage"][1]!=config["PINS"]["uImage"]:
+        raise ValueError("capture RPM and USB uImage differ")
+    for key,(size,digest) in members.items():
+        if Path(key).name=="vmlinux" and "perf" in Path(key).parts and digest:
+            dest=work/"perf-rpm-vmlinux"
+            q["extract_member"](perf,key,dest,digest,s.lib)
+            if s.scan["secs_of"](dest.read_bytes()): sizes["vmlinux"]=size
     return base,sizes
 
 
@@ -192,8 +127,12 @@ def run(work,proof,owners):
                 matches=[t for t in matches if (t/"vmlinux").is_file()]
                 ids={(s.gbs.sha(t/"vmlinux"),s.gbs.sha(t/".config")) for t in matches}
                 if len(ids)!=1: raise ValueError("ambiguous effective build trees")
-                tree=next((t for t in matches if (t/"kernel/sched/core.o.pm0012f-options").is_file()),matches[0])
-                effective=config_map((tree/".config").read_bytes())
+                matches=[t for t in matches if (t/"kernel/sched/core.o.pm0012f-options").is_file()]
+                if lane in ("K1","K3","K5"):
+                    matches=[t for t in matches if (t/"vmlinux.pm0012k-link/argv").is_file()]
+                if not matches: raise ValueError("missing perf TU diagnostics or final LLD receipt")
+                tree=matches[0]
+                effective=load("official-config")["config_map"]((tree/".config").read_bytes())
                 record["config_delta"]={k:[base.get(k),effective.get(k)] for k in sorted(base.keys()|effective.keys()) if base.get(k)!=effective.get(k)}
                 if lane in ("K4","K5"):
                     if effective.get("CONFIG_THUMB2_KERNEL")!="y": raise ValueError("Thumb Kconfig not delivered")
@@ -201,6 +140,14 @@ def run(work,proof,owners):
                     thumb_config=effective
                 elif record["config_delta"]: raise ValueError("effective config differs from matched Official")
                 record["samples"],record["advisor_options"]=argv_proof(tree,lane)
+                if lane in ("K1","K3","K5"):
+                    phase=load("outliner-phase")["verify"]
+                    record["outliner_phase"]=phase(tree,effective,s.scan["secs_of"],s.gbs.sha)
+                    print("KERNEL_THUMB_COMPILE_TIME",lane,record["outliner_phase"]["object"],
+                          record["outliner_phase"]["helper"],flush=True)
+                    link=record["outliner_phase"]["lld"]
+                    print("KERNEL_THUMB_FINAL_LLD",lane,link["version"],"argc",len(link["argv"]),
+                          "full argv in",work/"kernel-matrix.json",flush=True)
                 record["static"]=audit(tree,tree/"vmlinux",s.scan["secs_of"],effective)
                 if lane=="K0":
                     if ref["uImage"]!=record["images"]["uImage"][0]: raise ValueError("K0 shipped uImage size mismatch")

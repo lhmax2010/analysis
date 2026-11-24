@@ -1,8 +1,8 @@
 --- a/packaging/tztv-kernel.spec
 +++ b/packaging/tztv-kernel.spec
-@@ -3,8 +3,84 @@
+@@ -3,8 +3,115 @@
  export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1"
-+for pm_tool in mkdir cat clang armv7l-tizen-linux-gnueabi-clang make grep sha256sum cut cp find xargs touch chmod sed rpm readelf; do
++for pm_tool in mkdir cat clang ld.lld armv7l-tizen-linux-gnueabi-clang make grep sha256sum cut cp find xargs touch chmod sed rpm readelf; do
 +    command -v "$pm_tool" >/dev/null || { echo "PM_BUILD_MISSING_TOOL $pm_tool" >&2; exit 2; }
 +done
 +# Local 0012f trial, instantiated once per GBS export.
@@ -12,6 +12,36 @@
 +pm_tools="$PWD/.pm0012f-tools"
 +mkdir "$pm_tools"
 +export PM_REAL_CLANG="$(command -v clang)" PM_REAL_MAKE="$(command -v make)"
++export PM_REAL_LLD="$(command -v ld.lld)"
++cat > "$pm_tools/ld.lld" <<'PMLLD'
++#!/bin/sh
++# Save the exact final link while cwd and response files still exist.
++prev=
++out=
++for arg do
++    if [ "$prev" = -o ]; then out=$arg; fi
++    case "$arg" in -o?*) out=${arg#-o};; esac
++    prev=$arg
++done
++if [ "${out##*/}" = vmlinux ]; then
++    set -e
++    dir=$out.pm0012k-link
++    mkdir -p "$dir"
++    printf '%%s\0' "$PM_REAL_LLD" "$@" > "$dir/argv"
++    pwd -P > "$dir/cwd"
++    "$PM_REAL_LLD" --version > "$dir/version"
++    i=0
++    for arg do
++        case "$arg" in @*) cp -- "${arg#@}" "$dir/rsp.$i";; esac
++        i=$((i+1))
++    done
++    "$PM_REAL_LLD" "$@"
++    readelf -nW "$out" > "$dir/output.notes"
++    sha256sum "$out" > "$dir/result.sha256"
++    exit 0
++fi
++exec "$PM_REAL_LLD" "$@"
++PMLLD
 +cat > "$pm_tools/clang" <<'PMCLANG'
 +#!/bin/sh
 +# Capture diagnostics only on the real scheduler TU, beside the output object.
@@ -61,6 +91,7 @@
 +        test ! -e "$dest/complete" || exit 0
 +        mkdir -p "$dest"
 +        cp --parents -t "$dest" -- .config vmlinux arch/arm/boot/zImage kernel/sched/core.o.pm0012f-options
++        if [ -d vmlinux.pm0012k-link ]; then cp -R vmlinux.pm0012k-link "$dest/"; fi
 +        find . -type f -name '.*.o.cmd' -exec cp --parents -t "$dest" -- {} +
 +        # Keep the individual ELF objects needed for caller attribution. Preserve NUL-delimited names.
 +        find . -type f -name '*.o' -exec grep -alFZ OUTLINED_FUNCTION_ {} + > "$dest/candidates" || :
@@ -69,7 +100,7 @@
 +    ) || exit $?
 +fi
 +PMMAKE
-+chmod 755 "$pm_tools/make" "$pm_tools/clang"
++chmod 755 "$pm_tools/make" "$pm_tools/clang" "$pm_tools/ld.lld"
 +export PATH="$pm_tools:$PATH"
 +case "$pm_lane" in K4|K5)
 +    pm_def=linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig
@@ -88,7 +119,7 @@
 +    pm_elf=$pm_tool
 +    printf 'GBS_TOOL %%s invoked %%s\n' "$pm_tool" "$pm_elf"
      if command -v readelf >/dev/null; then
-@@ -13,3 +89,3 @@
+@@ -13,3 +120,3 @@
      sha256sum "$pm_elf" | sed 's/^/GBS_TOOL_SHA256 /'
 -    rpm -qf "$pm_elf" --qf 'GBS_TOOL_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :
 +    rpm -qf "$pm_elf" --qf 'GBS_TOOL_PATH_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :
