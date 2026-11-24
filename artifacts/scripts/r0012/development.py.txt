@@ -1,0 +1,833 @@
+#!/usr/bin/env python3
+"""One matched-QB audit, build experiment or ABI job. The batch owns scheduling."""
+
+import argparse
+from collections import Counter
+from contextlib import redirect_stdout
+import base64
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import subprocess
+import zlib
+from types import SimpleNamespace
+
+ROOT = Path("/home1/chengkai/vd-tree")
+TEMP = ROOT / "workspace/temp"
+CAPTURES = ROOT / "workspace/qb-evidence"
+OFFICIAL = CAPTURES / "37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2"
+GCC = CAPTURES / "37564293-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1"
+CAPTURE_SHA = {
+    OFFICIAL: "f164cf5f56ced88fd0618c68df686c79ec36aca85dbeb53972a4b128f135862d",
+    GCC: "acd8413894dc1e7ee8dd3625a308ad36ff9d1523e7388cf72f30bd218f4060c5",
+}
+A32 = ("org.tizen.AVControl", "org.tizen.tv-viewer", "libpisa-ipc",
+       "org.tizen.webserver", "libgcrypt", "rpm", "nnstreamer")
+T1 = ("deviced", "gst-plugins-dash", "inference-engine-tflite", *A32[:2],
+      "bluetooth-impl-sec-oal", "widevine-cdm")
+CONTROLS = frozenset(T1[-2:])
+PIC = ("nnstreamer-devel-static", "nnstreamer-single-devel-static", "tensorflow2-lite-devel",
+       "ci-data-devel", "vd-tpk-backend-smoke-tomato", "compiler-rt", "glibc-devel", "gcc",
+       "gst-ffmpeg", "capi-base-common-devel-static")
+ABI = ("liballshare-core", "nagsam-mw", "org.tizen.tv.swu", "ug-hbbtv-efl")
+PATH_SAFE = re.compile(r"[A-Za-z0-9_.+-]+")
+PINNED_VCS = re.compile(r"//[^#@\s]+(?:#|@=?)\d+|//[^#@\s]+#vbs-[\w.-]+")
+PHASES = ("compile", "link", "plugin")
+EMPTY = dict.fromkeys(PHASES, [])
+RELOCATION = re.compile(r"R_ARM_[A-Z0-9_]+|relocation|recompile with -fPIC|DT_TEXTREL", re.I)
+
+
+def report(label, value):
+    print(label, json.dumps(value, sort_keys=True, ensure_ascii=True), flush=True)
+
+
+def input_path(value):
+    path = Path(value).resolve(strict=True)
+    if not path.is_relative_to(ROOT / "workspace"):
+        raise ValueError("input lies outside vd-tree/workspace")
+    return path
+
+
+def verify_capture(olevel, folder):
+    olevel["checked_file"](folder / "identity.json", CAPTURE_SHA[folder])
+    identity = json.loads((folder / "identity.json").read_text())
+    ledger = folder / "rpm-identities.tsv"
+    olevel["checked_file"](ledger, identity["files"][ledger.name])
+    return identity, olevel["rows_from"](ledger)
+
+
+def libraries(directory, *names):
+    return [runpy.run_path(str(directory / (name + ".py.txt"))) for name in names]
+
+
+def publish(path, result):
+    path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+    report("PM12_REPORT", str(path))
+
+
+def audit(directory, folder, work):
+    ole, perf, scan, hq = libraries(directory, "olevel", "perf-bundle", "perf-relocations", "hq-elf-rebaseline")
+    _, product = verify_capture(ole, folder)
+    fields = ("name", "arch", "epoch", "version", "release", "srpm")
+    catalog = {}
+    for item in product:
+        catalog.setdefault(tuple(item[k] for k in fields), set()).add(item["vcs"])
+    owners = {}
+    coverage = []
+    selected = []
+    with (work / "findings.jsonl").open("w") as output:
+        class Audit(scan["Audit"]):
+            def walk(self, tree, label):
+                if label == "/":
+                    try:
+                        found, _ = hq["query_owners"](tree, work)
+                        owners.update(found)
+                    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+                        self.problem(label, exc)
+                super().walk(tree, label)
+
+            def problem(self, path, error):
+                coverage.append({"path": path, "error": str(error)[:350]})
+                super().problem(path, error)
+
+        auditor = Audit(output, False)
+        with perf["locks"]():
+            scan["capture_scan"](folder, work, auditor, directory / "perf-bundle.py.txt")
+    with (work / "findings.jsonl").open() as findings:
+        for line in findings:
+            record = json.loads(line)
+            if record.get("scope") not in {"DSO", "PIE"}:
+                continue
+            candidates = sorted(owners.get(record["path"].split("!", 1)[0], ()))
+            resolved = []
+            for candidate in candidates:
+                vcs = candidate[-1]
+                declared = catalog.get(candidate[:-1], set())
+                if not PINNED_VCS.fullmatch(vcs):
+                    vcs = next(iter(declared)) if len(declared) == 1 else ""
+                source = "PUBLISHED_SOURCE_PIN" if PINNED_VCS.fullmatch(vcs) and vcs in declared else (
+                    "INSTALLED_VCS_ONLY" if PINNED_VCS.fullmatch(vcs) else "UNPROVED")
+                resolved.append({**dict(zip(fields, candidate[:-1])), "vcs": vcs, "source_status": source})
+            record["owners"] = resolved
+            record["owner_status"] = "UNIQUE" if len(resolved) == 1 else "AMBIGUOUS" if resolved else "UNRESOLVED"
+            selected.append(record)
+    results = {"capture": str(folder), "counts": dict(auditor.counts), "flags": dict(auditor.flag_counts),
+               "coverage": coverage, "objects": selected,
+               "scope_complete": bool(owners and (auditor.counts["DSO"] or auditor.counts["PIE"])
+                                      and not coverage and not any(tag.startswith("UNSUPPORTED") for tag in auditor.flag_counts)
+                                      and all(item["owner_status"] == "UNIQUE" for item in selected))}
+    publish(work / "audit.json", results)
+    report("PM12_AUDIT", [results["scope_complete"], results["counts"], results["flags"],
+                          sum(item["owner_status"] != "UNIQUE" for item in selected)])
+    return 0 if results["scope_complete"] else 2
+
+
+def repositories(directory):
+    gbs, lib, thumb, stager, ole, scan, perf, forensics = libraries(
+        directory, "gbs-mlgo-t7", "image-repo-lib", "gbs-thumb", "thumb-qb-sample",
+        "olevel", "image_mode_scan", "perf-bundle", "qb-forensics")
+    gbs = SimpleNamespace(**gbs)
+    verify_capture(ole, OFFICIAL)
+    product, buildconf, inventory = ole["capture_identity"](OFFICIAL)
+    config = gbs.pinned(ROOT / "config/gbs_vd_llvm_11.16_qb37627297.conf", stager["CONFIG"]).read_bytes()
+    manifest = gbs.pinned(ROOT / "manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt", ole["SHELVES"])
+    cache = TEMP / "pm0004-mlgo-xllvtyr9/official"
+    base_repo = lib["PREFIX"] + ole["BASE"] + "/repos/base/armv7l/packages/"
+    base = [{"name": row["name"], "arch": row["arch"], "srpm": row["srpm"] or "",
+             "vcs": row["vcs"], "sha256": row["sha"], "url": row["url"]}
+            for row in forensics["xml_metadata"](lib, (cache/"armv7l-repomd.xml").read_bytes(),
+                                                  (cache/"armv7l-primary.download").read_bytes(), base_repo)]
+    return SimpleNamespace(gbs=gbs, lib=lib, thumb=thumb, stager=stager, ole=ole, scan=scan, perf=perf,
+                           product=product, buildconf=buildconf, config=config, manifest=manifest,
+                           inventories={"Product": inventory, "Base": base})
+
+
+def resolve(settings, label, binary_names=None):
+    matches = []
+    for repository, inventory in settings.inventories.items():
+        scoped = [r for r in inventory if r["arch"] in {"armv7l", "noarch"} and r["srpm"].endswith(".src.rpm")]
+        names = {settings.ole["srpm_name"](row["srpm"]) for row in scoped
+                 if row["name"] == label or settings.ole["srpm_name"](row["srpm"]) == label}
+        if len(names) > 1:
+            raise ValueError(f"ambiguous published source for {label}: {sorted(names)}")
+        for source in names:
+            candidates = [row for row in scoped if settings.ole["srpm_name"](row["srpm"]) == source]
+            matches.append((repository, source, candidates))
+    if len(matches) != 1:
+        raise ValueError(f"{label}: expected one exact published source across Base/Product")
+    repository, source, rows = matches[0]
+    selected = {row["name"] for row in rows}
+    if binary_names is not None:
+        selected &= set(binary_names)
+    elif any(row["name"] == label for row in rows) and label != source:
+        selected = {label}
+    return {"repository": repository, "doc_source": source}, rows, selected
+
+
+def hook_source(body, edits):
+    for phase in PHASES:
+        if any(not isinstance(flag, str) or not re.fullmatch(r"-[^%\s]+", flag) for flag in edits[phase]):
+            raise ValueError("invalid hook edit")
+    lines = ['pm12_bin="$PWD/.pm12-driver"', 'mkdir -p "$pm12_bin"',
+             'for pm12_name in clang clang++ clang-22 clang++-22 armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++; do',
+             '  pm12_real=$(command -v "$pm12_name" || :)',
+             '  test -n "$pm12_real" || continue', '  { echo "#!/usr/bin/env bash"',
+             """    printf 'real=%%q\\n' "$pm12_real" """.rstrip(),
+             "    cat <<'PM12_HOOK'"]
+    for phase in PHASES:
+        spelling = " ".join(shlex.quote(flag) for flag in edits[phase]).replace("%", "%%")
+        lines.append(f"{phase}_edits=({spelling})")
+    lines.extend(body.splitlines()[2:])
+    lines.extend(("PM12_HOOK", '  } >"$pm12_bin/$pm12_name"', '  chmod u+x "$pm12_bin/$pm12_name"',
+                  "done", 'export PATH="$pm12_bin:$PATH"', 'export V=1 VERBOSE=1',
+                  'export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1 VERBOSE=1"'))
+    # RPM percent escaping applies to generated printf directives inside wrapper bodies.
+    return "\n".join(lines[:7] + [line.replace("%", "%%") for line in lines[7:]]) + "\n"
+
+
+def inject(spec, body):
+    result, count = re.subn(r"(?m)^%build[ \t]*$", lambda m: m[0] + "\n" + body, spec)
+    if count != 1:
+        raise ValueError("expected one literal %build in the pinned spec")
+    return result
+
+
+def link_trace(lane_dir):
+    trace, links, errors = set(), set(), set()
+    for path in (lane_dir / "gbs.log", *sorted((lane_dir / "GBS-ROOT/local/repos").glob("**/log.txt"))[:8]):
+        if not path.is_file():
+            continue
+        with path.open(errors="replace") as stream:
+            for line in stream:
+                row = re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*", "", line).strip()
+                if row.startswith("PM12_DRIVER "):
+                    trace.add(row)
+                if re.match(r'^"[^"]*/(?:[^"/]*-)?ld(?:\.(?:bfd|gold|lld))?"\s', row):
+                    links.add("PM12_LINK_ARGV " + row)
+                if RELOCATION.search(row) and not row.startswith(("PM12_", "+")):
+                    errors.add(row[:1200])
+    for name, rows in (("driver-argv.txt", trace), ("link-argv.txt", links), ("relocations.txt", errors)):
+        (lane_dir / name).write_text("".join(row + "\n" for row in sorted(rows)))
+    return sorted(trace), sorted(links), sorted(errors)
+
+
+def delivery(recipe, label, rows, links, metrics, lane_dir):
+    compile_flags, link_flags, plugin_flags = (recipe[label][phase] for phase in PHASES)
+    found_cu = []
+    for point in (lane_dir/"elf-proof").glob("*.producers.json"):
+        found_cu.extend(value for value in json.loads(point.read_text()) if value and "GNU AS" not in value)
+    dwarf_flags = recipe.get("dwarf_options", {}).get(label, compile_flags)
+    def producer_has(value):
+        bits = value.split()
+        for flag in dwarf_flags:
+            if flag.startswith("-O"):
+                levels = [bit for bit in bits if re.fullmatch(r"-O(?:[0-3gsz]|fast)?", bit)]
+                if not levels or levels[-1] != flag:
+                    return False
+            elif flag not in bits:
+                return False
+        return "clang" in value.lower()
+    cu_proof = bool(found_cu) and all(producer_has(value) for value in found_cu)
+    missing_dwarf = sum(bool({"NO_DWARF_ELF", "MISSING_PRODUCER"} & row["cu_levels"].keys())
+                        or row["debug_status"] == "AMBIGUOUS_BUILD_ID" for row in metrics.get("files", []))
+    def present(flag, line):
+        bits = shlex.split(line)
+        if flag == "-Wl,-z,text":
+            values = [value for key, value in zip(bits, bits[1:]) if key == "-z" and value in {"text", "notext", "textoff"}]
+            return bool(values) and values[-1] == "text"
+        if flag.startswith("-Wl,"):
+            return all(part in bits for part in flag.removeprefix("-Wl,").split(","))
+        if flag == "-fuse-ld=lld":
+            return "ld.lld" in line
+        if flag == "-flto=thin":
+            return "-plugin-opt=thinlto" in line or "--thinlto" in line
+        return flag in bits
+    required = link_flags + plugin_flags
+    final_links = [line for line in links if "-r" not in shlex.split(line)]
+    plugin_links = [line for line in final_links if "LLVMgold.so" in line or "ld.lld" in line]
+    tested = plugin_links if plugin_flags else final_links
+    present_links = sum(all(present(flag, link) for flag in required) for link in tested)
+    built_elfs = len(metrics.get("files", []))
+    compile_trace = sum(line.startswith(("PM12_DRIVER compile ", "PM12_DRIVER compile-link ")) for line in rows)
+    response = any(line.startswith("PM12_DRIVER response ") for line in rows)
+    return {"dwarf_cus": len(found_cu), "dwarf_option_proof": cu_proof, "missing_dwarf_elfs": missing_dwarf,
+            "compile_calls": compile_trace, "links": len(final_links), "relevant_links": len(tested),
+            "treated_links": present_links, "loadable_elfs": built_elfs, "response_unresolved": response,
+            "observed": cu_proof and bool(compile_trace and tested) and not missing_dwarf
+                        and len(tested) == present_links and not response}
+
+
+def identities(work, source, records):
+    report("PM12_SOURCE", [source, sorted({(row["srpm"], row["vcs"]) for row in records})])
+    with (work/"source.tsv").open("w", newline="") as stream:
+        fields = ("name", "arch", "srpm", "vcs", "sha256")
+        writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore", delimiter="\t", lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(records)
+
+
+def matching_binary_scopes(left, right):
+    key = lambda row: (row["rpm"], row["path"])
+    a = {key(row): row for row in left.get("files", [])}
+    b = {key(row): row for row in right.get("files", [])}
+    if not a or a.keys() != b.keys():
+        return "ELF_SCOPE_CHANGED"
+    if all(a[k]["sha256"] == b[k]["sha256"] for k in a):
+        return "IDENTICAL_BYTES"
+    return "ELF_BYTES_CHANGED"
+
+
+def lane_build(settings, source, spec, original, folder, names, recipe, label, directory):
+    lane = folder / label
+    lane.mkdir()
+    settings.gbs.available(lane, 24, 12)
+    root = lane / "GBS-ROOT"
+    config = lane / "gbs.conf"
+    config.write_bytes(settings.ole["configure_gbs"](settings.gbs, settings.config, root, settings.product))
+    text = settings.buildconf.read_text()
+    edits = recipe[label]
+    prefix = ""
+    if recipe["id"] == "T1":
+        helper = runpy.run_path(str(directory / "thumb-force-pilot.py.txt"))
+        # Use the helper's actual startup probe, and exempt the protected kernel sources.
+        protected = helper["protected_packages"](input_path(TEMP/"pm0005-elf-sections.414uc2ph/sections.jsonl"))
+        if source.name in protected or set(names) & set(protected):
+            raise ValueError("T1 refuses a protected kernel or external-module package")
+        if label == "treatment":
+            text = helper["trial_config"](text, protected, "-mthumb")
+        prefix = helper["PROBE"]
+    if recipe["id"] == "EXP-Z1":
+        definition = "-Wl,-z,text" if label == "treatment" else "%{nil}"
+        text = text.rstrip() + f"\n%pm12_native_link_flags {definition}\n"
+        # RPM expands this once in the generated phase-specific wrapper.
+    driver = (directory / "phase-driver.sh.txt").read_text()
+    if recipe["id"] == "R3":
+        driver = driver.replace('    edits+=("${link_edits[@]}")',
+                                '    if [[ "$phase" == link ]]; then edits+=("${link_edits[@]}"); fi')
+    edits = {**edits, "compile": [*edits["compile"], "-grecord-command-line"]}
+    meta = hook_source(driver, edits if recipe["id"] != "EXP-Z1" else {**edits, "link": ["-PM12_POLICY"]})
+    if recipe["id"] == "EXP-Z1":
+        meta = meta.replace("-PM12_POLICY", "%{pm12_native_link_flags}" if label == "treatment" else "")
+    if recipe.get("original_hook") and label == "C":
+        prefix += "export CCC_OVERRIDE_OPTIONS=" + shlex.quote(recipe["original_hook"]) + "\n"
+    spec.write_text(inject(original, prefix + meta))
+    conf = lane / "build.conf"
+    conf.write_text(text)
+    metrics = {}
+    build_error = None
+    try:
+        with (lane/"launcher.log").open("w") as log, redirect_stdout(log):
+            settings.thumb["run_gbs"](settings.gbs, lane, source, spec.name, config, conf, root, True, False)
+    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+        build_error = settings.ole["error_line"](exc, lane)
+    rows, links, errors = link_trace(lane)
+    if build_error is None:
+        try:
+            metrics = settings.ole["collect_rpms"](settings.scan, root, lane, names)
+        except (ValueError, OSError, subprocess.SubprocessError) as exc:
+            build_error = str(exc)[:350]
+    proof = delivery(recipe, label, rows, links, metrics, lane)
+    result = {"label": label, "metrics": metrics, "delivery": proof, "error": build_error,
+              "arm_compile_calls": sum(line.startswith("PM12_DRIVER compile ") and "-marm" in shlex.split(line) for line in rows),
+              "link_argv_path": str(lane/"link-argv.txt"), "relocations_path": str(lane/"relocations.txt"),
+              "link_sample": [line[:1400] for line in links[:2]], "relocation_sample": errors[:8]}
+    publish(lane / "lane.json", result)
+    if errors and build_error:
+        report("PM12_LINK_FAILURE", {"lane": label, "diagnostics": errors[:6], "log": str(lane/"gbs.log"),
+                                     "producer_fix": "Propose producer -fPIC only after matching the named object/source; TLS-owned DSO cases also need a shared-library TLS model."})
+    return result
+
+
+def package_build(directory, work, label, recipe, names=None, source_manifest=None):
+    settings = repositories(directory)
+    lookup = "libtvs-core" if label == "tvs-core" else label
+    row, published, binaries = resolve(settings, lookup, names)
+    if label == "tvs-core":
+        specs = {record["srpm"] for record in published}
+        if row["doc_source"] != "libtvs-core" or len(specs) != 1:
+            raise ValueError("libtvs-core alias needs a unique published source")
+    identities(work, row["doc_source"], published)
+    if not binaries:
+        raise ValueError("no matching binary names for measured scope")
+    exact_sources = {row["srpm"]: row for row in settings.ole["rows_from"](input_path(source_manifest))} if source_manifest else {}
+    with settings.perf["locks"]():
+        settings.gbs.available(work, 24, 12)
+        settings.gbs.live_product(settings.product)
+        source, spec = settings.ole["source_for"](settings.gbs, settings.lib, settings.stager, row, published,
+                                                   settings.manifest, exact_sources, work)
+        original = spec.read_text()
+        spec.chmod(spec.stat().st_mode | 0o200)
+        settings.gbs.local_git(source, work)
+        if recipe["id"] == "T1":
+            proof = input_path(TEMP/"pm0009-kernel-isa.3sx1qo1w/isa-proof.json")
+            if not json.loads(proof.read_text())["isa_and_argv_complete"]:
+                raise ValueError("T1 requires retained kernel ISA/argv proof")
+        results = {lane: lane_build(settings, source, spec, original, work, binaries, recipe, lane, directory)
+                   for lane in recipe["lanes"]}
+    control = results[recipe["lanes"][0]]
+    summary = {}
+    for label_, item in results.items():
+        scope = matching_binary_scopes(control["metrics"], item["metrics"])
+        proof = item["delivery"]
+        delivered = proof["observed"]
+        if recipe["id"] == "T1":
+            verify = runpy.run_path(str(directory/"thumb-force-pilot.py.txt"))
+            try:
+                before = verify["target_rows"](work/"baseline/gbs.log")
+                after = verify["target_rows"](work/"treatment/gbs.log")
+                proof["driver_mode_probe"] = verify["check_modes"](before, after)
+            except (ValueError, OSError) as exc:
+                proof["driver_mode_probe"] = str(exc)
+                delivered = False
+        if recipe["id"] == "R3" and label_ == "treatment":
+            proof["thinlto_input_summaries_verified"] = False
+            delivered = False
+        verdict = ("BUILD_OR_INPUT_FAILED" if item["error"] else "NOT_DELIVERED" if not delivered
+                   else "SCOPE_REVIEW" if scope == "ELF_SCOPE_CHANGED"
+                   else "CONTROL" if item is control else "NO_EFFECT" if scope == "IDENTICAL_BYTES"
+                   else "DELIVERED")
+        numbers = dict(item["metrics"].get("total", {}))
+        if numbers.get("exec"):
+            numbers["a32_share"] = numbers["arm"] / numbers["exec"]
+        summary[label_] = {"status": verdict, "bytes": numbers, "evidence": proof, "error": item["error"],
+                          "comparison": scope, "link": item["link_argv_path"]}
+        if recipe["id"] == "T1" and label in CONTROLS and label_ == "treatment":
+            old = control["metrics"].get("files", [])
+            new = item["metrics"].get("files", [])
+            a = {(x["rpm"], x["path"]): (x["mode"], x["text"], x["arm"]) for x in old}
+            b = {(x["rpm"], x["path"]): (x["mode"], x["text"], x["arm"]) for x in new}
+            summary[label_]["explicit_arm_control"] = (
+                "MODE_AND_SIZE_UNCHANGED" if a and a == b and any(x[2] for x in a.values())
+                and item["arm_compile_calls"] and control["arm_compile_calls"]
+                else "UNPROVED_OR_MODE_CHANGED")
+            if summary[label_]["explicit_arm_control"] != "MODE_AND_SIZE_UNCHANGED":
+                summary[label_]["status"] = "CONTROL_REVIEW"
+    historical = next((point for point in recipe.get("reported", []) if point["package"] == label), None)
+    publish(work/"experiment.json", {"id": recipe["id"], "package": label, "source": row["doc_source"],
+                  "binary_scope": sorted(binaries), "lanes": summary, "historical": historical,
+                  "historical_scope": "historical numbers retained alongside the new independently pinned lanes"})
+    report("PM12_EXPERIMENT", [recipe["id"], label, {lane: [item["status"], item["bytes"],
+                            item["error"]] for lane, item in summary.items()}])
+    return 0 if all(row["status"] in {"CONTROL", "DELIVERED", "NO_EFFECT"} for row in summary.values()) else 2
+
+
+def base_recipe(experiment):
+    recipe = {"id": experiment, "lanes": ["baseline", "treatment"],
+              "baseline": EMPTY.copy(), "treatment": EMPTY.copy()}
+    if experiment == "EXP-Z1":
+        recipe["treatment"]["link"] = ["-Wl,-z,text"]
+    return recipe
+
+
+def t7(directory, work):
+    settings = repositories(directory)
+    gbs = settings.gbs
+    with settings.perf["locks"]():
+        gbs.available(work, *gbs.capacity_args("pic"))
+        gbs.live_product(settings.product)
+        source = gbs.stage_t7(work, directory/"gbs-t7-link.sh.txt", TEMP/"pm0002/pic-results/members.csv")
+        gbs.find_consumers(work, [TEMP/"pm0002"])
+        lane = work/"official"
+        lane.mkdir()
+        root = lane/"GBS-ROOT"
+        config = lane/"gbs.conf"
+        config.write_bytes(settings.ole["configure_gbs"](gbs, settings.config, root, settings.product))
+        with (lane/"launcher.log").open("w") as log, redirect_stdout(log):
+            settings.thumb["run_gbs"](gbs, lane, source, "pm-t7-probe.spec", config,
+                                      settings.buildconf, root, True, True)
+        rows = []
+        with (lane/"gbs.log").open(errors="replace") as stream:
+            for line in stream:
+                clean = re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*", "", line).strip()
+                if clean.startswith(("T7_RESULT", "T7_MEMBER", "T7_RUNTIME", "LINK_DIAG")):
+                    rows.append(clean)
+        paths = sorted((root/"local/repos").rglob("pm-t7-probe-1-1.armv7l.rpm"))
+        if len(paths) != 1:
+            raise ValueError("T7 probe RPM missing or ambiguous")
+        maps = []
+        map_dir = work/"probe-payload"
+        map_dir.mkdir()
+        # The sole RPM is this job's generated fixture. Preserve its complete map and loader evidence.
+        with (work/"extract-payload.log").open("w") as log:
+            with subprocess.Popen(["rpm2cpio", str(paths[0])], stdout=subprocess.PIPE) as proc:
+                subprocess.run(["cpio", "-id", "--quiet", "--no-absolute-filenames"],
+                               cwd=map_dir, stdin=proc.stdout, stderr=log, stdout=log, check=True)
+                if proc.wait():
+                    raise ValueError("could not read T7 probe RPM")
+        for path in sorted(map_dir.rglob("*.map")):
+            if path.is_file() and not path.is_symlink():
+                maps.append({"path": str(path), "bytes": path.stat().st_size,
+                             "sha256": settings.ole["file_hash"](path)})
+    publish(work/"t7.json", {"log": str(lane/"gbs.log"), "rpm": str(paths[0]), "maps": maps, "outcomes": rows})
+    report("PM12_T7", [len(maps), len(rows), "REVIEW_MEMBER_ROUTES_MAPS_RUNTIME"])
+    return 0 if maps and any("GNU_NATIVE" in row for row in rows) else 2
+
+
+def collect_abi_side(directory, capture, role, package, scratch):
+    ole, lib, scan, abi = libraries(directory, "olevel", "image-repo-lib", "image_mode_scan", "lto-abi")
+    _, ledger = verify_capture(ole, capture)
+    found = {}
+    debug = {}
+    for item in ledger:
+        name = item["name"]
+        if item["arch"] != "armv7l" or (name != package and name != package+"-debuginfo"
+            and not (name.endswith("-debuginfo") and ole["srpm_name"](item["srpm"]) == package)):
+            continue
+        path = lib["cached_rpm"]((item["url"], item["sha256"]), scratch)
+        with subprocess.Popen(["rpm2cpio", str(path)], stdout=subprocess.PIPE) as proc:
+            for member, content in scan["cpio_entries"](proc.stdout):
+                for logical, data in scan["elf_items"](member, content):
+                    dest = scratch / (hashlib.sha256(data).hexdigest() + ".elf")
+                    if not dest.exists():
+                        dest.write_bytes(data)
+                    if name.endswith("-debuginfo"):
+                        id_ = abi["build_id"](dest)
+                        if id_:
+                            debug.setdefault(id_, set()).add(dest)
+                    elif abi["metadata"](dest)["soname"] or re.search(r"\bDYN\b|\bEXEC\b", abi["readelf"](dest, "-h")):
+                        if logical in found:
+                            raise ValueError(f"ambiguous published ELF {logical}")
+                        found[logical] = (dest, item)
+            while proc.stdout.read(1024**2):
+                pass
+            if proc.wait():
+                raise ValueError("rpm2cpio failed")
+    report("PM12_ABI_PACKAGE", [role, package, len(found), len(debug)])
+    return found, debug
+
+
+def abi_job(directory, work, package, gbs_root, installed):
+    if package not in ABI:
+        raise ValueError("not an agreed ABI cohort package")
+    abi, ole, perf, hq = libraries(directory, "lto-abi", "olevel", "perf-bundle", "hq-elf-rebaseline")
+    image_index = {}
+    if installed:
+        for lane, folder in (("gcc", GCC), ("llvm", OFFICIAL)):
+            data = json.loads((input_path(installed)/(lane+".json")).read_text())
+            if data["capture"] != str(folder):
+                raise ValueError("wrong retained ABI image evidence")
+            image_index[lane] = data
+    with perf["locks"]():
+        side = {}
+        for lane, capture in (("gcc", GCC), ("llvm", OFFICIAL)):
+            out = work / lane
+            out.mkdir()
+            side[lane] = collect_abi_side(directory, capture, lane, package, out)
+        shared = side["gcc"][0].keys() & side["llvm"][0].keys()
+        unmatched = sorted(side["gcc"][0].keys() ^ side["llvm"][0].keys())
+        pairs = []
+        for filename in sorted(shared):
+            row = {"package": package, "path": filename}
+            new_rev = [side[lane][0][filename][1] for lane in ("gcc", "llvm")]
+            row["source_status"] = hq["source_state"]({filename: new_rev[0]}, {filename: new_rev[1]})
+            for lane in ("gcc", "llvm"):
+                binary = side[lane][0][filename][0]
+                row[lane] = str(binary)
+                row[lane+"_sha256"] = ole["file_hash"](binary)
+                buildid = abi["build_id"](binary)
+                candidates = side[lane][1].get(buildid, set())
+                if len(candidates) == 1:
+                    debug = next(iter(candidates))
+                    row[lane+"_debug"] = str(debug)
+                    row[lane+"_debug_sha256"] = ole["file_hash"](debug)
+            pairs.append(row)
+        fields = ("package", "path", "source_status", "gcc", "gcc_sha256", "llvm", "llvm_sha256",
+                  "gcc_debug", "gcc_debug_sha256", "llvm_debug", "llvm_debug_sha256")
+        manifest = work / "abi-pairs.tsv"
+        with manifest.open("w", newline="") as stream:
+            writer = csv.DictWriter(stream, delimiter="\t", fieldnames=fields, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(pairs)
+        report("PM12_ABI_PAIR_SCOPE", [str(manifest), len(pairs), unmatched[:30]])
+        if not pairs:
+            return 2
+        root = input_path(gbs_root) if gbs_root else None
+        if root and ("GBS-ROOT" not in root.parts or not (root/"usr/bin").is_dir()):
+            raise ValueError("abidiff requires a retained GBS root")
+        chain = []
+        complete = bool(image_index)
+        for index, row in enumerate(pairs, 1):
+            layout = {lane: image_index.get(lane, {}).get("objects", {}) for lane in ("gcc", "llvm")}
+            logical = "/" + row["path"].lstrip("/")
+            exact = {lane: layout[lane].get(logical, {}).get("sha256") == row[lane+"_sha256"] for lane in layout}
+            pair = tuple(abi["checked"](row[lane], row[lane+"_sha256"]) for lane in ("gcc", "llvm"))
+            result = {"path": row["path"], "source_status": row["source_status"], "installed_payload_match": exact,
+                      **abi["compare"](*pair)}
+            try:
+                result["abidiff"] = abi["abidiff"](pair, row, root, work, index)
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                result["abidiff"] = "REVIEW: "+str(error)[:350]
+            soname = abi["metadata"](pair[1])["soname"]
+            candidates = sorted(path for path, obj in layout["llvm"].items() if set(soname) & set(obj["needed"]))
+            result["direct_needed_consumers"] = candidates
+            complete &= (all(exact.values()) and row["source_status"] == "MATCHED"
+                         and result["abidiff"] == "ABIDIFF_EXIT_0" and not result["removed"]
+                         and not result["soname"] and not result["versions"])
+            chain.append(result)
+    capture_complete = all(not image_index[lane]["coverage"] for lane in image_index) if image_index else False
+    publish(work/"abi.json", {"package": package, "rows": chain, "unmatched": unmatched,
+            "image_scope_complete": capture_complete,
+            "consumer_scope": "DT_NEEDED candidates only; loader resolution, dlopen and board soak pending"})
+    report("PM12_ABI", [package, len(chain), sum(all(row["installed_payload_match"].values()) for row in chain),
+                         dict(Counter(row["abidiff"] for row in chain)), capture_complete])
+    return 0 if complete and capture_complete and not unmatched else 2
+
+
+def abi_index(directory, work):
+    ole, perf, scan = libraries(directory, "olevel", "perf-bundle", "perf-relocations")
+    with perf["locks"]():
+        for lane, capture in (("gcc", GCC), ("llvm", OFFICIAL)):
+            verify_capture(ole, capture)
+            out = work/lane
+            out.mkdir()
+            objects, coverage = {}, []
+
+            class Consumers(scan["Audit"]):
+                def object(self, blob, logical, file=None):
+                    if logical.startswith("/usr/lib/debug/") or len(blob) < 52 or blob[:6] != b"\x7fELF\x01\x01":
+                        return
+                    if blob[16:20] not in {b"\x02\x00\x28\x00", b"\x03\x00\x28\x00"}:
+                        return
+                    objects[logical] = {"sha256": hashlib.sha256(blob).hexdigest(), "needed": elf_needed(blob)}
+
+                def problem(self, logical, error):
+                    coverage.append([logical, str(error)[:350]])
+
+            scan["capture_scan"](capture, out, Consumers(None, False), directory/"perf-bundle.py.txt")
+            publish(work/(lane+".json"), {"capture": str(capture), "objects": objects, "coverage": coverage})
+            report("PM12_ABI_IMAGE_INDEX", [lane, len(objects), len(coverage)])
+
+
+def elf_needed(data):
+    # Reuse the small ELF format here because the audit visits every regular member.
+    import struct
+    if len(data) < 52 or data[:6] != b"\x7fELF\x01\x01":
+        return []
+    kind, machine = struct.unpack_from("<HH", data, 16)
+    if kind not in {2, 3} or machine != 40:
+        return []
+    offset = struct.unpack_from("<I", data, 28)[0]
+    stride, count = struct.unpack_from("<HH", data, 42)
+    if stride != 32 or offset + stride * count > len(data):
+        return []
+    loads, dyn = [], []
+    for i in range(count):
+        record = struct.unpack_from("<8I", data, offset+32*i)
+        if record[1]+record[4] > len(data):
+            return []
+        if record[0] == 1:
+            loads.append(record)
+        if record[0] == 2:
+            _, raw, _, _, size, *_ = record
+            for tag, val in struct.iter_unpack("<II", data[raw:raw+size-size%8]):
+                if tag == 0:
+                    break
+                dyn.append((tag, val))
+    table = next((value for tag, value in dyn if tag == 5), None)
+    size = next((value for tag, value in dyn if tag == 10), 0)
+    if table is None or not size:
+        return []
+    for _, raw, start, _, length, *_ in loads:
+        if start <= table and table + size <= start + length:
+            strings = data[raw+table-start:raw+table-start+size]
+            return [strings[value:].split(b"\0", 1)[0].decode(errors="replace")
+                    for tag, value in dyn if tag == 1 and value < size]
+    return []
+
+
+def option_recipe(directory, package):
+    ole = libraries(directory, "olevel")[0]
+    hook = ole["parse_hook"](TEMP/"pm0010c-nov11-hook-final.txt",
+                            "bdf0fecb69664a13a11ac42c4ea56337f509c87189459328b007b8a290db2e7e")
+    lanes = list("ABCD" if package in A32 else "ABC")
+    recipe = {"id": "STEP8", "lanes": lanes, "original_hook": hook,
+              "dwarf_options": {lane: ["-Os", *(["-mthumb"] if lane in {"C", "D"} else [])]
+                                for lane in lanes if lane != "A"}}
+    recipe.update({lane: {**EMPTY, "compile": {"A": [], "B": ["-Os"], "C": [],
+                   "D": ["-Os", "-mthumb"]}[lane]} for lane in lanes})
+    return recipe
+
+
+def job_recipes(directory):
+    return json.loads((directory/"recipes.json").read_text())
+
+
+def plan_pic(directory, work, audit_path):
+    settings = repositories(directory)
+    names = list(PIC)
+    scope = "AUDIT_UNAVAILABLE"
+    pending = []
+    if audit_path:
+        observed = json.loads(input_path(audit_path).read_text())
+        if observed["capture"] != str(OFFICIAL):
+            raise ValueError("expected the Official audit for the trial")
+        scope = "AUDIT_COMPLETE" if observed["scope_complete"] else "AUDIT_PARTIAL"
+        for row in observed["objects"]:
+            if not ({"DT_TEXTREL", "DF_TEXTREL"} & row["issues"].keys()):
+                continue
+            if row["owner_status"] == "UNIQUE":
+                names.append(row["owners"][0]["name"])
+            else:
+                pending.append(row["path"])
+    sources, unresolved = {}, []
+    for name in dict.fromkeys(names):
+        try:
+            row, _, _ = resolve(settings, name)
+        except ValueError as error:
+            unresolved.append({"package": name, "error": str(error)})
+            continue
+        source = row["doc_source"]
+        sources.setdefault(source, []).append(name)
+    (work/"packages.txt").write_text("".join(row+"\n" for row in sources))
+    publish(work/"trial-plan.json", {"audit_scope": scope, "sources": sources,
+                                    "unresolved_owner_paths": pending, "input_errors": unresolved})
+
+
+def join_audit(work, official, gcc):
+    sides = [json.loads(input_path(path).read_text()) for path in (official, gcc)]
+    if [row["capture"] for row in sides] != [str(OFFICIAL), str(GCC)]:
+        raise ValueError("unexpected audit inputs")
+    paths = [{item["path"]: item for item in side["objects"]} for side in sides]
+    rows = [{"path": path, "official": paths[0].get(path), "gcc": paths[1].get(path)}
+            for path in sorted(paths[0].keys() | paths[1].keys())]
+    counts = dict(Counter("BOTH" if row["official"] and row["gcc"] else
+                         "OFFICIAL_OBSERVED" if row["official"] else "GCC_OBSERVED" for row in rows))
+    publish(work/"audit-compare.json", {"counts": counts, "scope": [side["scope_complete"] for side in sides],
+                                       "rows": rows})
+    report("PM12_AUDIT_COMPARISON", counts)
+
+
+def rank(directory, work, tuesday):
+    ole, hq, perf = libraries(directory, "olevel", "hq-elf-rebaseline", "perf-bundle")
+    config = job_recipes(directory)
+    hqdir = input_path(input_path(tuesday).joinpath("hq-dir.txt").read_text().strip())
+    status = (hqdir/"status.txt").read_text().splitlines()
+    matches = [line.split()[-1] for line in status if " LLVM_ELF_WORKDIR " in line]
+    if len(matches) != 1:
+        raise ValueError("Official HQ scan workdir is unavailable")
+    rows, proof = hq["read_scan"](input_path(matches[0]), "37736448")
+    if perf["captured"](OFFICIAL)[3] != proof["archive_sha256"]:
+        raise ValueError("Official HQ scan archive mismatch")
+    counters = proof["counts"]
+    totals = Counter()
+    for (name, _arch), paths in rows.items():
+        for row in paths.values():
+            source = ole["srpm_name"](row["srpm"])
+            if source:
+                totals[source] += int(row["text"] or 0)
+            if source != name:
+                totals["@"+name] += int(row["text"] or 0)
+    ordered = {}
+    for cohort, maximum in (("og", 5), ("abi", 10)):
+        names = config["cohorts"][cohort]
+        ranked = [(name, totals["libtvs-core" if name == "tvs-core" else name] or totals["@"+name])
+                  for name in names]
+        ranked = sorted((row for row in ranked if row[1]), key=lambda row: (-row[1], row[0]))
+        ordered[cohort] = {"observed": ranked, "absent_or_unresolved": sorted(set(names)-{row[0] for row in ranked})}
+        if not counters.get("read_errors") and not counters.get("owner_unresolved") and counters.get("installed_headers"):
+            (work/(cohort+".txt")).write_text("".join(name+"\n" for name, _ in ranked[:maximum]))
+    publish(work/"rank.json", {"archive_sha256": proof["archive_sha256"], "scan_counts": counters,
+                               "rankings": ordered})
+
+
+def evidence_page(path, page, packet=False):
+    path = input_path(path)
+    if not any(component.startswith(("pm0012-", "pm0011f-")) for component in path.relative_to(TEMP).parts):
+        raise ValueError("expected round 0012/0011f evidence")
+    raw = path.read_bytes()
+    if packet:
+        encoded = base64.b64encode(zlib.compress(raw)).decode("ascii")
+        offset = (page-1)*12000
+        if page < 1 or offset >= len(encoded):
+            raise ValueError("packet page out of range")
+        report("PM12_PACKET", [str(path), hashlib.sha256(raw).hexdigest(), page, (len(encoded)+11999)//12000])
+        chunk = encoded[offset:offset+12000]
+        for i in range(0, len(chunk), 120):
+            print(chunk[i:i+120])
+        return
+    lines = raw.decode(errors="replace").splitlines()
+    length = 84
+    start = (page-1)*length
+    if page < 1 or start >= max(len(lines), 1):
+        raise ValueError("evidence page out of range")
+    report("PM12_PAGE", [str(path), hashlib.sha256(raw).hexdigest(), page, max(1, (len(lines)+length-1)//length)])
+    for line in lines[start:start+length]:
+        print(line[:1450])
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("mode", choices=("audit", "t1", "options", "trial", "t7", "abi", "research",
+                                         "pic-plan", "rank", "page", "packet", "abi-index", "audit-compare"))
+    parser.add_argument("work", type=Path)
+    parser.add_argument("value", nargs="*")
+    parser.add_argument("--source-rpms", type=Path)
+    parser.add_argument("--gbs-root", type=Path)
+    parser.add_argument("--gate", type=Path)
+    args = parser.parse_args()
+    directory = Path(__file__).resolve().parent
+    work = input_path(args.work)
+    try:
+        if args.mode in {"page", "packet"}:
+            evidence_page(work, int(args.value[0]), args.mode == "packet")
+            return 0
+        if work.parent.name != "jobs" or not work.parent.parent.name.startswith("pm0012-"):
+            raise ValueError("job output must be a round-0012 batch subdirectory")
+        os.environ["TMPDIR"] = str(work)
+        val = args.value
+        if args.mode == "audit":
+            return audit(directory, {"official": OFFICIAL, "gcc": GCC}[val[0]], work)
+        if args.mode == "audit-compare":
+            join_audit(work, *val)
+            return 0
+        if args.mode == "abi-index":
+            abi_index(directory, work)
+            return 0
+        if args.mode == "rank":
+            rank(directory, work, val[0])
+            return 0
+        if args.mode == "pic-plan":
+            plan_pic(directory, work, val[0] if val else None)
+            return 0
+        if args.mode == "t7":
+            return t7(directory, work)
+        if args.mode == "abi":
+            return abi_job(directory, work, val[0], args.gbs_root, val[1] if len(val)>1 else None)
+        if args.mode == "t1":
+            if val[0] not in T1:
+                raise ValueError("unknown T1 package")
+            recipe = base_recipe("T1")
+        elif args.mode == "trial":
+            plan = json.loads(input_path(val[1]).read_text())
+            names = plan["sources"].get(val[0])
+            if not names:
+                raise ValueError("not in the EXP-Z1 plan")
+            return package_build(directory, work, val[0], base_recipe("EXP-Z1"), names=names,
+                                 source_manifest=args.source_rpms)
+        elif args.mode == "options":
+            recipe = option_recipe(directory, val[0])
+        else:
+            definition = job_recipes(directory)["experiments"][val[0]]
+            if val[1] not in definition["packages"]:
+                raise ValueError("package outside the historical experiment cohort")
+            if definition.get("prerequisite"):
+                if not args.gate:
+                    raise ValueError("reviewed gate required: "+definition["prerequisite"])
+                gate = json.loads(input_path(args.gate).read_text())
+                if gate.get("experiment") != val[0] or gate.get("status") != "REVIEWED_PASS":
+                    raise ValueError("reviewed experiment gate not satisfied")
+                libraries(directory, "olevel")[0]["checked_file"](input_path(gate["report"]), gate["report_sha256"])
+            return package_build(directory, work, val[1], definition, source_manifest=args.source_rpms)
+        return package_build(directory, work, val[0], recipe, source_manifest=args.source_rpms)
+    except (ValueError, KeyError, IndexError, OSError, subprocess.SubprocessError) as exc:
+        report("PM12_ERROR", str(exc)[:1200])
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

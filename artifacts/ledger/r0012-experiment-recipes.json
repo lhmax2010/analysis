@@ -1,0 +1,555 @@
+{
+  "cohorts": {
+    "og": [
+      "mmi",
+      "mmi-plugins-default",
+      "org.tizen.rct-app",
+      "org.tizen.reminder",
+      "rct-service",
+      "reminder-api",
+      "reminder-service",
+      "tvs-api",
+      "tvs-api-native",
+      "tvs-chms",
+      "tvs-core",
+      "tvs-dbms",
+      "tvs-dvb-chms",
+      "tvs-dvbbase-chms",
+      "tvs-ewbs",
+      "tvs-ht",
+      "tvs-iss",
+      "tvs-list-app",
+      "tvs-nrt",
+      "tvs-util",
+      "ug_rct"
+    ],
+    "abi": [
+      "acm-core",
+      "alsa-lib",
+      "antimalware",
+      "atsc3uhdcp",
+      "bixby-native-api",
+      "capi-appfw-app-context-manager",
+      "capi-billing-api-internal-tv",
+      "capi-billing-api-tv",
+      "capi-network-http",
+      "capi-pc-ipc-proxy-tv",
+      "capi-smsource",
+      "capi-ui-autofill",
+      "com.samsung.tv.mvpd-native",
+      "comss-api",
+      "content-db",
+      "content-service-framework",
+      "context-aware-common",
+      "data-provider-master",
+      "data-service-api",
+      "esg-api",
+      "fkp",
+      "glslang",
+      "gst-plugins-atsc3",
+      "gstreamer-atsc3-pvr-plugins",
+      "hdcp",
+      "ifw-thing",
+      "iotivity",
+      "isf",
+      "lib-airplay-pal-tv",
+      "libave",
+      "libscreen_connector",
+      "libslive-dbus-proxy",
+      "libslive-dbus-stub",
+      "libslive-provider",
+      "libtar",
+      "libtizen_light-debugmenu",
+      "libtvs-core",
+      "libwidget_service",
+      "libwidget_viewer",
+      "logger",
+      "lynk",
+      "mused",
+      "org.tizen.applist",
+      "org.tizen.contents-recognition-service",
+      "org.tizen.easysetup-daemon",
+      "org.tizen.provider-setup",
+      "org.tizen.RunningApps",
+      "org.tizen.ScreenMirroring-app-tv",
+      "org.tizen.sealayer",
+      "org.tizen.sso-api",
+      "org.tizen.ssoservice",
+      "org.tizen.stand-by-scan",
+      "org.tizen.webappservice-api",
+      "pulseaudio",
+      "pvod-appfw",
+      "rpc-port",
+      "sdp",
+      "securestorage",
+      "settings-datafw",
+      "smart-deadlock",
+      "smartsecurity2",
+      "spirv-tools",
+      "storaged",
+      "tee_test_suite",
+      "tts",
+      "tvs-parser",
+      "tvs-si",
+      "tvs-udm",
+      "tz-playservice",
+      "tz-spassservice",
+      "ug-rct",
+      "vd-net-config",
+      "vdsystem-lldb",
+      "voice-control",
+      "webapi-contentsinfo-pepper-plugin",
+      "wifi-direct-manager"
+    ]
+  },
+  "order": [
+    "R4-25",
+    "R4-50",
+    "R5",
+    "R2",
+    "R6-lld",
+    "R6-icf",
+    "R3"
+  ],
+  "experiments": {
+    "R4-25": {
+      "id": "R4-25",
+      "lanes": [
+        "baseline",
+        "treatment"
+      ],
+      "baseline": {
+        "compile": [],
+        "link": [],
+        "plugin": []
+      },
+      "treatment": {
+        "compile": [
+          "-mllvm",
+          "-inline-threshold=25"
+        ],
+        "link": [],
+        "plugin": [
+          "-Wl,-plugin-opt=-inline-threshold=25"
+        ]
+      },
+      "prerequisite": null,
+      "packages": [
+        "app-installers",
+        "avoc-daemon",
+        "dali2-adaptor",
+        "openusd"
+      ],
+      "reported": [
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "1556160",
+          "variant_text_bytes": "1242256",
+          "base_alloc_bytes": "2151413",
+          "variant_alloc_bytes": "1846744",
+          "package": "app-installers"
+        },
+        {
+          "classification": "NOT_MEASURED",
+          "base_text_bytes": "4103102",
+          "variant_text_bytes": "0",
+          "base_alloc_bytes": "7697854",
+          "variant_alloc_bytes": "0",
+          "package": "avoc-daemon"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "2121302",
+          "variant_text_bytes": "1748642",
+          "base_alloc_bytes": "3300207",
+          "variant_alloc_bytes": "2953467",
+          "package": "dali2-adaptor"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "9185842",
+          "variant_text_bytes": "5694970",
+          "base_alloc_bytes": "18722095",
+          "variant_alloc_bytes": "15210742",
+          "package": "openusd"
+        }
+      ],
+      "scope": "Prospective one-change recipe; historical treatments remain independently versioned."
+    },
+    "R4-50": {
+      "id": "R4-50",
+      "lanes": [
+        "baseline",
+        "treatment"
+      ],
+      "baseline": {
+        "compile": [],
+        "link": [],
+        "plugin": []
+      },
+      "treatment": {
+        "compile": [
+          "-mllvm",
+          "-inline-threshold=50"
+        ],
+        "link": [],
+        "plugin": [
+          "-Wl,-plugin-opt=-inline-threshold=50"
+        ]
+      },
+      "prerequisite": null,
+      "packages": [
+        "app-installers",
+        "avoc-daemon",
+        "dali2-adaptor",
+        "openusd"
+      ],
+      "reported": [
+        {
+          "classification": "UNPROVED",
+          "base_text_bytes": "1556160",
+          "variant_text_bytes": "1556160",
+          "base_alloc_bytes": "2151413",
+          "variant_alloc_bytes": "2151413",
+          "package": "app-installers"
+        },
+        {
+          "classification": "NOT_MEASURED",
+          "base_text_bytes": "4103102",
+          "variant_text_bytes": "0",
+          "base_alloc_bytes": "7697854",
+          "variant_alloc_bytes": "0",
+          "package": "avoc-daemon"
+        },
+        {
+          "classification": "UNPROVED",
+          "base_text_bytes": "2121302",
+          "variant_text_bytes": "2121302",
+          "base_alloc_bytes": "3300207",
+          "variant_alloc_bytes": "3300207",
+          "package": "dali2-adaptor"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "9185842",
+          "variant_text_bytes": "6372190",
+          "base_alloc_bytes": "18722095",
+          "variant_alloc_bytes": "15923191",
+          "package": "openusd"
+        }
+      ],
+      "scope": "Prospective one-change recipe; historical treatments remain independently versioned."
+    },
+    "R5": {
+      "id": "R5",
+      "lanes": [
+        "baseline",
+        "treatment"
+      ],
+      "baseline": {
+        "compile": [],
+        "link": [],
+        "plugin": []
+      },
+      "treatment": {
+        "compile": [
+          "-mllvm",
+          "-enable-machine-outliner"
+        ],
+        "link": [],
+        "plugin": [
+          "-Wl,-plugin-opt=-enable-machine-outliner"
+        ]
+      },
+      "prerequisite": null,
+      "packages": [
+        "dali2-adaptor",
+        "openusd"
+      ],
+      "reported": [
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "2121302",
+          "variant_text_bytes": "1867360",
+          "base_alloc_bytes": "3300207",
+          "variant_alloc_bytes": "3087429",
+          "package": "dali2-adaptor"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "9185842",
+          "variant_text_bytes": "7607950",
+          "base_alloc_bytes": "18722095",
+          "variant_alloc_bytes": "17365852",
+          "package": "openusd"
+        }
+      ],
+      "scope": "Prospective one-change recipe; historical treatments remain independently versioned."
+    },
+    "R2": {
+      "id": "R2",
+      "lanes": [
+        "baseline",
+        "treatment"
+      ],
+      "baseline": {
+        "compile": [],
+        "link": [],
+        "plugin": []
+      },
+      "treatment": {
+        "compile": [
+          "-fvisibility-inlines-hidden"
+        ],
+        "link": [],
+        "plugin": []
+      },
+      "prerequisite": "same-source export-set audit and owner review",
+      "packages": [
+        "grpc",
+        "pkgmgr-info",
+        "security-manager",
+        "tee_test_suite",
+        "trustzone-nwd",
+        "webauthn"
+      ],
+      "reported": [
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "5962864",
+          "variant_text_bytes": "5959092",
+          "base_alloc_bytes": "17301503",
+          "variant_alloc_bytes": "13814788",
+          "package": "grpc"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "793658",
+          "variant_text_bytes": "793494",
+          "base_alloc_bytes": "1413103",
+          "variant_alloc_bytes": "1411997",
+          "package": "pkgmgr-info"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "2245404",
+          "variant_text_bytes": "2244708",
+          "base_alloc_bytes": "3919655",
+          "variant_alloc_bytes": "3673443",
+          "package": "security-manager"
+        },
+        {
+          "classification": "PENDING_PAGE",
+          "base_text_bytes": "",
+          "variant_text_bytes": "",
+          "base_alloc_bytes": "",
+          "variant_alloc_bytes": "",
+          "package": "tee_test_suite"
+        },
+        {
+          "classification": "PENDING_PAGE",
+          "base_text_bytes": "",
+          "variant_text_bytes": "",
+          "base_alloc_bytes": "",
+          "variant_alloc_bytes": "",
+          "package": "trustzone-nwd"
+        },
+        {
+          "classification": "PENDING_PAGE",
+          "base_text_bytes": "",
+          "variant_text_bytes": "",
+          "base_alloc_bytes": "",
+          "variant_alloc_bytes": "",
+          "package": "webauthn"
+        }
+      ],
+      "scope": "Prospective one-change recipe; historical treatments remain independently versioned."
+    },
+    "R6-lld": {
+      "id": "R6-lld",
+      "lanes": [
+        "baseline",
+        "treatment"
+      ],
+      "baseline": {
+        "compile": [],
+        "link": [],
+        "plugin": []
+      },
+      "treatment": {
+        "compile": [],
+        "link": [
+          "-fuse-ld=lld"
+        ],
+        "plugin": []
+      },
+      "prerequisite": "in-root lld plugin and native link compatibility",
+      "packages": [
+        "avoc-daemon",
+        "freetype2",
+        "grpc",
+        "openusd"
+      ],
+      "reported": [
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "4103102",
+          "variant_text_bytes": "4103292",
+          "base_alloc_bytes": "7697854",
+          "variant_alloc_bytes": "7728626",
+          "package": "avoc-daemon"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "285904",
+          "variant_text_bytes": "286144",
+          "base_alloc_bytes": "421906",
+          "variant_alloc_bytes": "426175",
+          "package": "freetype2"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "5962864",
+          "variant_text_bytes": "6002004",
+          "base_alloc_bytes": "17301503",
+          "variant_alloc_bytes": "17538480",
+          "package": "grpc"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "9185842",
+          "variant_text_bytes": "9175564",
+          "base_alloc_bytes": "18722095",
+          "variant_alloc_bytes": "18792011",
+          "package": "openusd"
+        }
+      ],
+      "scope": "Prospective one-change recipe; historical treatments remain independently versioned."
+    },
+    "R6-icf": {
+      "id": "R6-icf",
+      "lanes": [
+        "baseline",
+        "treatment"
+      ],
+      "baseline": {
+        "compile": [],
+        "link": [
+          "-fuse-ld=lld"
+        ],
+        "plugin": []
+      },
+      "treatment": {
+        "compile": [],
+        "link": [
+          "-fuse-ld=lld",
+          "-Wl,--icf=safe"
+        ],
+        "plugin": []
+      },
+      "prerequisite": "R6-lld accepted and relocation/address-significance reviewed",
+      "packages": [
+        "avoc-daemon",
+        "freetype2",
+        "grpc",
+        "openusd"
+      ],
+      "reported": [
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "4103292",
+          "variant_text_bytes": "4007636",
+          "base_alloc_bytes": "7728626",
+          "variant_alloc_bytes": "7446030",
+          "package": "avoc-daemon"
+        },
+        {
+          "classification": "UNPROVED",
+          "base_text_bytes": "286144",
+          "variant_text_bytes": "286144",
+          "base_alloc_bytes": "426175",
+          "variant_alloc_bytes": "426175",
+          "package": "freetype2"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "6002004",
+          "variant_text_bytes": "6002004",
+          "base_alloc_bytes": "17538480",
+          "variant_alloc_bytes": "17419688",
+          "package": "grpc"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "9175564",
+          "variant_text_bytes": "8591340",
+          "base_alloc_bytes": "18792011",
+          "variant_alloc_bytes": "17944051",
+          "package": "openusd"
+        }
+      ],
+      "scope": "Prospective one-change recipe; historical treatments remain independently versioned."
+    },
+    "R3": {
+      "id": "R3",
+      "lanes": [
+        "baseline",
+        "treatment"
+      ],
+      "baseline": {
+        "compile": [],
+        "link": [],
+        "plugin": []
+      },
+      "treatment": {
+        "compile": [],
+        "link": [
+          "-flto=thin"
+        ],
+        "plugin": []
+      },
+      "prerequisite": "approved link-only diagnostic; actual module summaries and ThinLTO backends required for acceptance",
+      "packages": [
+        "avoc-daemon",
+        "dali2-adaptor",
+        "freetype2",
+        "openusd"
+      ],
+      "reported": [
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "4103102",
+          "variant_text_bytes": "4225366",
+          "base_alloc_bytes": "7697854",
+          "variant_alloc_bytes": "7846760",
+          "package": "avoc-daemon"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "2121302",
+          "variant_text_bytes": "2160032",
+          "base_alloc_bytes": "3300207",
+          "variant_alloc_bytes": "3365303",
+          "package": "dali2-adaptor"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "285904",
+          "variant_text_bytes": "295236",
+          "base_alloc_bytes": "421906",
+          "variant_alloc_bytes": "429822",
+          "package": "freetype2"
+        },
+        {
+          "classification": "OUTPUT_SIZE_DIFFERS",
+          "base_text_bytes": "9185842",
+          "variant_text_bytes": "9136306",
+          "base_alloc_bytes": "18722095",
+          "variant_alloc_bytes": "18770956",
+          "package": "openusd"
+        }
+      ],
+      "scope": "Prospective one-change recipe; historical treatments remain independently versioned."
+    }
+  }
+}

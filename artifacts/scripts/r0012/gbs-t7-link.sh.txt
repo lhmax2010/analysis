@@ -1,0 +1,208 @@
+#!/bin/bash
+# Invoked only by the GBS probe spec, inside the armv7l root.
+set -euo pipefail
+export LC_ALL=C
+mkdir -p probe
+ld=ld
+"$ld" --version >probe/ld-version.log
+grep -q 'GNU ld' probe/ld-version.log
+head -1 probe/ld-version.log
+clang --version | awk 'NR<=3'
+rpm -q capi-base-common-devel-static libdw-devel libasm-devel libelf-devel libunwind-devel
+printf 'T7_RESULT\tarchive\tmember\tsha256\tcase\tresult\n'
+run() {
+    local label=$1 raw=$2 result
+    shift 2
+    if "$@" >"$raw.log" 2>&1; then
+        result=LINKED_TLS_RUNTIME_UNVERIFIED
+        readelf -W -h -l -r -d -s "$raw.elf" >"$raw.readelf" 2>&1 || true
+        awk '/TEXTREL|TLS_H|TLS_LE|TLS_TPOFF|\.tdata|\.tbss/ {if (++n<=8) print "ELF_EVIDENCE", $0}' "$raw.readelf"
+    elif grep -Eiq 'TLS.*(shared|dynamic)|R_ARM_TLS_LE32.*(shared|cannot|unsupported)|local.exec.*(shared|TLS model)' "$raw.log"; then
+        result=REJECTED_TLS_RELOCATION
+    else
+        result=REJECTED_OTHER_REVIEW
+    fi
+    if [[ -s "$raw.log" ]]; then sed -n '1,3s/^/LINK_DIAG /p' "$raw.log"; fi
+    printf 'T7_RESULT\t%s\t%s\t%s\t%s\t%s\n' "$archive" "$member" "$digest" "$label" "$result"
+}
+capi_runtime() {
+    local sub=$1 tag=$2 file=$3 rc=0
+    shift 3
+    local label="CAPI_RUNTIME_$tag"
+    timeout 30 "$file" "$@" >"$sub/$tag.run.log" 2>&1 || rc=$?
+    case "$rc" in
+        0) printf 'T7_RUNTIME %s TLS_THREAD_CHECK_PASSED\n' "$label" ;;
+        41) printf 'T7_RUNTIME %s DLOPEN_FAILED\n' "$label" ;;
+        42) printf 'T7_RUNTIME %s TLS_THREAD_CHECK_FAILED\n' "$label" ;;
+        *) printf 'T7_RUNTIME %s RUNTIME_REVIEW_EXIT_%s\n' "$label" "$rc" ;;
+    esac
+    sed -n '1,2s/^/LINK_DIAG /p' "$sub/$tag.run.log"
+}
+capi_probe() {
+    local sub=$1 out tag
+    cat >"$sub/capi-check.c" <<'C'
+#include <dlfcn.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifdef DIRECT
+extern void set_last_result(int);
+extern int get_last_result(void);
+#endif
+
+static void (*set_result)(int);
+static int (*get_result)(void);
+
+static void *worker(void *unused)
+{
+    (void)unused;
+    set_result(79);
+    return (void *)(intptr_t)(get_result() != 79);
+}
+
+int main(int argc, char **argv)
+{
+#ifdef DIRECT
+    (void)argc;
+    (void)argv;
+    set_result = set_last_result;
+    get_result = get_last_result;
+#else
+    if (argc != 2)
+        return 41;
+    void *handle = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        return 41;
+    }
+    void *set_addr = dlsym(handle, "set_last_result");
+    void *get_addr = dlsym(handle, "get_last_result");
+    if (!set_addr || !get_addr)
+        return 41;
+    memcpy(&set_result, &set_addr, sizeof(set_result));
+    memcpy(&get_result, &get_addr, sizeof(get_result));
+#endif
+    pthread_t thread;
+    void *reply;
+    set_result(53);
+    if (pthread_create(&thread, NULL, worker, NULL) ||
+        pthread_join(thread, &reply))
+        return 43;
+    return reply || get_result() != 53 ? 42 : 0;
+}
+C
+    if clang -fPIE -pie "$sub/capi-check.c" -pthread -ldl -o "$sub/capi-loader" >"$sub/capi-loader.log" 2>&1; then
+        for tag in native lto; do
+            out="$sub/$tag-shared.elf"
+            if [[ -f "$out" ]]; then
+                capi_runtime "$sub" "${tag}_shared" "$sub/capi-loader" "$out"
+            fi
+        done
+    else
+        echo 'T7_RUNTIME CAPI_SHARED LOADER_BUILD_REVIEW'
+    fi
+    local -a options cmd
+    for tag in native lto; do
+        if [[ "$tag" == native ]]; then
+            options=(-fuse-ld=bfd -fno-lto)
+        else
+            options=(-fuse-ld=gold -flto)
+        fi
+        cmd=(clang "${options[@]}" -fPIE -pie -DDIRECT "$sub/capi-check.c" "$archive" -pthread -Wl,-z,text -o "$sub/$tag-capi-pie")
+        if ! "${cmd[@]}" -### >"$sub/$tag-capi-pie.driver" 2>&1 ||
+            { [[ "$tag" == lto ]] && ! grep -q 'LLVMgold\.so' "$sub/$tag-capi-pie.driver"; } ||
+            { [[ "$tag" == native ]] && grep -q 'LLVMgold\.so' "$sub/$tag-capi-pie.driver"; }; then
+            printf 'T7_RUNTIME CAPI_%s_PIE ROUTE_UNVERIFIED\n' "$tag"
+        elif "${cmd[@]}" >"$sub/$tag-capi-pie.log" 2>&1; then
+            capi_runtime "$sub" "${tag}_pie" "$sub/$tag-capi-pie"
+        else
+            printf 'T7_RUNTIME CAPI_%s_PIE LINK_REVIEW\n' "$tag"
+            sed -n '1,2s/^/LINK_DIAG /p' "$sub/$tag-capi-pie.log"
+        fi
+    done
+}
+cat >probe/dso-load.c <<'C'
+#include <dlfcn.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static void *worker(void *path) {
+    void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        return path;
+    }
+    return dlclose(handle) ? path : NULL;
+}
+
+int main(int argc, char **argv) {
+    if (argc != 2)
+        return 2;
+    pthread_t thread;
+    void *result;
+    if (pthread_create(&thread, NULL, worker, argv[1]) ||
+        pthread_join(thread, &result))
+        return 3;
+    return result || worker(argv[1]) ? 4 : 0;
+}
+C
+clang -fno-lto probe/dso-load.c -pthread -ldl -o probe/dso-loader >probe/dso-loader-build.log 2>&1 ||
+    echo 'T7_RUNTIME GENERIC_LOADER_BUILD_REVIEW'
+
+while IFS=$'\t' read -r archive member digest; do
+    sub=$(mktemp -d "$PWD/probe/member.XXXXXX")
+    matches=$(ar t "$archive" | awk -v want="$member" '$0==want {n++} END {print n+0}')
+    if [[ "$matches" != 1 ]]; then
+        printf 'T7_RESULT\t%s\t%s\t%s\tQUALIFY\tARCHIVE_MEMBER_COUNT_%s\n' "$archive" "$member" "$digest" "$matches"
+        continue
+    fi
+    if ! ar p "$archive" "$member" >"$sub/member.o"; then
+        printf 'T7_RESULT\t%s\t%s\t%s\tQUALIFY\tEXTRACT_FAILED\n' "$archive" "$member" "$digest"
+        continue
+    fi
+    actual=$(sha256sum "$sub/member.o")
+    if [[ "${actual%% *}" != "$digest" ]]; then
+        printf 'T7_RESULT\t%s\t%s\t%s\tQUALIFY\tMEMBER_SHA_MISMATCH\n' "$archive" "$member" "$digest"
+        continue
+    fi
+    readelf -Wr "$sub/member.o" >"$sub/member.relocations"
+    grep -q R_ARM_TLS_LE32 "$sub/member.relocations"
+    has_ir=0
+    if readelf -SW "$sub/member.o" | grep -F '.llvm.lto' >"$sub/member.ir"; then has_ir=1; fi
+    # Prefer a non-hidden function that is defined in the affected member.
+    trigger=$(readelf -Ws "$sub/member.o" | awk '$4=="FUNC" && $5=="GLOBAL" && $6=="DEFAULT" && $7!="UND" && $8 ~ /^[A-Za-z_][A-Za-z0-9_]*$/ {if (!sym) sym=$8} END {print sym}')
+    if [[ -z "$trigger" ]]; then
+        printf 'T7_RESULT\t%s\t%s\t%s\tQUALIFY\tNO_PUBLIC_FUNCTION\n' "$archive" "$member" "$digest"
+        continue
+    fi
+    printf 'T7_MEMBER %s %s trigger=%s llvm_lto=%s\n' "$archive" "$member" "$trigger" "$has_ir"
+    # Link structural fixtures. PIE has no executable test entry or dependency fixture.
+    for kind in shared pie; do
+        raw="$sub/native-$kind"
+        run "GNU_NATIVE_${kind^^}" "$raw" "$ld" "-$kind" -z text -u "$trigger" \
+            -Map="$raw.map" -o "$raw.elf" "$archive" -lc
+    done
+    for kind in shared pie; do
+        raw="$sub/lto-$kind"
+        driver=(clang -fuse-ld=gold -flto "-$kind" -nostartfiles -Wl,-z,text,-u,"$trigger",-Map,"$raw.map" -o "$raw.elf" "$archive")
+        if "${driver[@]}" -### >"$raw.driver" 2>&1 && grep -Eq 'LLVMgold\.so' "$raw.driver"; then
+            run "GOLD_PLUGIN_${kind^^}_IR${has_ir}" "$raw" "${driver[@]}"
+        else
+            printf 'T7_RESULT\t%s\t%s\t%s\tGOLD_PLUGIN_%s\tPLUGIN_PATH_UNVERIFIED\n' "$archive" "$member" "$digest" "${kind^^}"
+        fi
+    done
+    for route in native lto; do
+        out="$sub/$route-shared.elf"
+        if [[ -x probe/dso-loader && -f "$out" ]]; then
+            rc=0
+            timeout 30 probe/dso-loader "$out" >"$sub/$route-dso-load.log" 2>&1 || rc=$?
+            printf 'T7_RUNTIME DLOPEN_IN_MAIN_AND_WORKER %s %s %s rc=%s\n' "$archive" "$member" "$route" "$rc"
+        fi
+    done
+    if [[ "$archive" == /usr/lib/libcapi-base-common.a ]]; then
+        capi_probe "$sub"
+    fi
+done < cases.tsv

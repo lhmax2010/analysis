@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+# All job paths and launch modes are explicit. This runner never calls git remotely.
+set -euo pipefail
+native=/home1/chengkai/vd-tree/workspace/temp
+here=$(dirname "$(realpath -e -- "$0")")
+
+get() {
+    local commit=$1 file=$2 sha=$3 destination=$4
+    local attempt
+    for attempt in 1 2 3 4 5; do
+        if curl -fsS --connect-timeout 15 --max-time 120 \
+            "https://raw.githubusercontent.com/lhmax2010/analysis/$commit/$file" -o "$destination" &&
+            printf '%s  %s\n' "$sha" "$destination" | sha256sum -c - >/dev/null; then
+            return 0
+        fi
+        sleep "$attempt"
+    done
+    return 1
+}
+
+if [[ ${1:-} == launch ]]; then
+    shift
+    pin=$1 index_sha=$2 day=$3
+    shift 3
+    case "$day" in wed|wed-night|thu|thu-night|research|fri|tue) ;; *) exit 2 ;; esac
+    run=$(mktemp -d "$native/pm0012-$day.XXXXXX")
+    mkdir -p "$run/jobs"
+    cp -- "$0" "$run/batch.sh.txt"
+    nohup bash "$run/batch.sh.txt" worker "$pin" "$index_sha" "$day" "$@" </dev/null >"$run/runner.log" 2>&1 &
+    printf 'PM12_BATCH_DIR %s\nPM12_BATCH_PID %s\n' "$run" "$!"
+    exit
+fi
+
+[[ ${1:-} == worker && "$here" == "$native"/pm0012-* ]]
+shift
+pin=$1 index_sha=$2 day=$3
+shift 3
+status="$here/status.txt"
+[[ ! -e "$status" ]]
+export TMPDIR="$here" PYTHONDONTWRITEBYTECODE=1
+export LC_ALL=C
+status_line() {
+    printf '%s %s\n' "$(date -Is)" "$*" >>"$status"
+}
+finish() {
+    local rc=$?
+    trap - EXIT
+    status_line "DONE $day rc=$rc"
+    {
+        printf 'PM12_BATCH_DIR %s\n' "$here"
+        tail -n 85 "$status"
+        find "$here/jobs" -mindepth 2 -maxdepth 2 -name job.log -print0 |
+            sort -z |
+            xargs -0 -r awk '/^PM12_(EXPERIMENT|ERROR|AUDIT|ABI|T7|PREVIOUS_BATCH)|^T7_RUNTIME |^SOURCE1005_SRPM / { if (++n[FILENAME] <= 3) print $0 }' |
+            cut -c1-900 | head -n 135 || true
+    } >"$here/combined.txt"
+    exit "$rc"
+}
+trap finish EXIT
+status_line "START $day"
+failed=0
+
+job() {
+    local label=$1 rc=0
+    shift
+    local dir="$here/jobs/$label"
+    mkdir "$dir"
+    status_line "JOB $label START"
+    # In-job cwd keeps scratch away from the checkout and workdirs of other jobs.
+    ( cd "$dir"; export TMPDIR="$dir"; "$@" ) >"$dir/job.log" 2>&1 || rc=$?
+    status_line "JOB $label END rc=$rc"
+    if ((rc)); then failed=1; fi
+}
+
+dev() { python3 -B -u "$here/development.py.txt" "$1" "$PWD" "${@:2}"; }
+gbs_session() {
+    if ! sudo -n true; then
+        echo 'GBS_BACKGROUND_SUDO_UNAVAILABLE; review detached sudo before starting a GBS job' >&2
+        return 2
+    fi
+    p4 login -s
+}
+gbs() {
+    gbs_session || return
+    local args=()
+    if [[ -n ${SOURCE_RPMS_TSV:-} ]]; then args+=(--source-rpms "$SOURCE_RPMS_TSV"); fi
+    dev "$@" "${args[@]}"
+}
+abi() {
+    local args=()
+    if [[ -n ${ABIDIFF_GBS_ROOT:-} ]]; then args+=(--gbs-root "$ABIDIFF_GBS_ROOT"); fi
+    dev abi "$1" "$2" "${args[@]}"
+}
+run_dir() {
+    local path
+    path=$(realpath -e -- "$1") || return 2
+    [[ "$path" == "$native"/"$2".* && -f "$path/status.txt" ]] || return 2
+    printf '%s\n' "$path"
+}
+read_batch() {
+    local path=$1
+    printf 'PM12_PREVIOUS_BATCH %s\n' "$path"
+    tail -n 70 "$path/status.txt"
+    if [[ -f "$path/combined.txt" ]]; then
+        sha256sum "$path/combined.txt"
+        sed -n '1,85p' "$path/combined.txt"
+    else
+        for part in "$path"/[1-8]-*.txt; do
+            [[ -f "$part" ]] || continue
+            printf 'RETAINED %s\n' "$part"
+            tail -n 4 "$part"
+        done
+    fi
+    if [[ -f "$path/hq-dir.txt" ]]; then
+        local hq
+        hq=$(run_dir "$(cat "$path/hq-dir.txt")" pm0011a-hq-batch)
+        tail -n 18 "$hq/status.txt"
+    fi
+}
+budget_ok() {
+    if ((SECONDS + $1 < batch_seconds)); then return 0; fi
+    status_line "DEFERRED insufficient time to start $2"
+    return 1
+}
+
+if [[ "$day" == tue ]]; then
+    job tuesday read_batch "$(run_dir "$1" pm0011f-batch)"
+    sed -n '1,180p' "$here/jobs/tuesday/job.log"
+    exit "$failed"
+fi
+if [[ "$day" == fri ]]; then
+    index=0
+    for pair in "$@"; do
+        phase=${pair%%=*}
+        case "$phase" in wed|wed-night|thu|thu-night|research) ;; *) exit 2 ;; esac
+        (( index += 1 ))
+        path=$(run_dir "${pair#*=}" "pm0012-$phase")
+        job "$index-$phase" read_batch "$path"
+    done
+    for file in "$here"/jobs/*/job.log; do
+        printf '\nREADBACK %s\n' "$file"
+        awk 'NR<=39 {print substr($0, 1, 850)}' "$file"
+    done
+    exit "$failed"
+fi
+
+get "$pin" artifacts/scripts/r0012/downloads.tsv "$index_sha" "$here/downloads.tsv"
+while IFS=$'\t' read -r commit path sha name; do
+    [[ "$name" =~ ^[A-Za-z0-9_.+-]+$ ]]
+    [[ "$commit" == SELF ]] && commit=$pin
+    get "$commit" "$path" "$sha" "$here/$name"
+done <"$here/downloads.tsv"
+
+case "$day" in
+    wed)
+        for package in deviced gst-plugins-dash inference-engine-tflite org.tizen.AVControl org.tizen.tv-viewer bluetooth-impl-sec-oal widevine-cdm; do
+            job "t1-$package" gbs t1 "$package"
+        done
+        job audit-official dev audit official
+        job audit-gcc dev audit gcc
+        if [[ -f "$here/jobs/audit-official/audit.json" && -f "$here/jobs/audit-gcc/audit.json" ]]; then
+            job audit-compare dev audit-compare "$here/jobs/audit-official/audit.json" "$here/jobs/audit-gcc/audit.json"
+        fi
+        ;;
+    wed-night)
+        batch_seconds=36000
+        for package in org.tizen.AVControl org.tizen.tv-viewer libpisa-ipc org.tizen.webserver libgcrypt rpm nnstreamer; do
+            budget_ok 3600 "$package" || break
+            job "step8-$package" gbs options "$package"
+        done
+        ;;
+    thu)
+        wed=$(run_dir "$1" pm0012-wed)
+        tue=$(run_dir "$2" pm0011f-batch)
+        audit="$wed/jobs/audit-official/audit.json"
+        if [[ -f "$audit" ]]; then job trial-plan dev pic-plan "$audit"; else job trial-plan dev pic-plan; fi
+        plan="$here/jobs/trial-plan/trial-plan.json"
+        if [[ -f "$here/jobs/trial-plan/packages.txt" ]]; then
+            while IFS= read -r owner; do job "pic-$owner" gbs trial "$owner" "$plan"; done <"$here/jobs/trial-plan/packages.txt"
+        fi
+        job t7 gbs t7
+        job abi-index dev abi-index
+        for package in liballshare-core nagsam-mw org.tizen.tv.swu ug-hbbtv-efl; do
+            job "abi-$package" abi "$package" "$here/jobs/abi-index"
+        done
+        job rank dev rank "$tue"
+        ;;
+    thu-night)
+        thu=$(run_dir "$1" pm0012-thu)
+        wednight=$(run_dir "$2" pm0012-wed-night)
+        if ! grep -Fq 'DONE wed-night ' "$wednight/status.txt"; then
+            status_line 'DEFERRED Wednesday Step 8 queue still active'
+            exit 2
+        fi
+        batch_seconds=36000
+        for experiment in R4-25 R4-50 R5; do
+            python3 -B -c 'import json,sys; print(*json.load(open(sys.argv[1]))["experiments"][sys.argv[2]]["packages"],sep="\n")' \
+                "$here/recipes.json" "$experiment" >"$here/$experiment.packages"
+            while IFS= read -r package; do
+                budget_ok 2400 "$experiment/$package" || break 2
+                job "$experiment-$package" gbs research "$experiment" "$package"
+            done <"$here/$experiment.packages"
+        done
+        if [[ -f "$thu/jobs/rank/og.txt" ]]; then
+            while IFS= read -r package; do
+                budget_ok 2700 "$package" || break
+                job "step8-$package" gbs options "$package"
+            done <"$thu/jobs/rank/og.txt"
+        else
+            status_line 'DEFERRED Step 8 -Og ranking requires complete installed Official scope'
+        fi
+        ;;
+    research)
+        experiment=$1 gate=$(realpath -e "$2")
+        case "$experiment" in R2|R6-lld|R6-icf|R3) ;; *) exit 2 ;; esac
+        python3 -B -c 'import json,sys; print(*json.load(open(sys.argv[1]))["experiments"][sys.argv[2]]["packages"],sep="\n")' \
+            "$here/recipes.json" "$experiment" >"$here/$experiment.packages"
+        while IFS= read -r package; do
+            job "$experiment-$package" gbs research "$experiment" "$package" --gate "$gate"
+        done <"$here/$experiment.packages"
+        ;;
+esac
+exit "$failed"
