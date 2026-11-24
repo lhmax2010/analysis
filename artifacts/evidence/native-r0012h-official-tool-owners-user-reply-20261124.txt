@@ -26,7 +26,7 @@ TOOL tr                                      /usr/bin/tr /bin/tr
 TOOL sed                                     /usr/bin/sed /bin/sed
 TOOL grep                                    /usr/bin/grep /bin/grep
 TOOL rpm                                     /usr/bin/rpm /bin/rpm
-TOOL realpath                                MISSING
+TOOL realpath                               MISSING
 TOOL readlink                                /usr/bin/readlink /bin/readlink
 TOOL stat                                    /usr/bin/stat /bin/stat
 TOOL dirname                                 /usr/bin/dirname /bin/dirname
@@ -47,9 +47,9 @@ OWNER /usr/bin/rpm                               error: cannot open Packages dat
 OWNER /bin/rpm                                   error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
 OWNER /usr/bin/readlink                          error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
 OWNER /usr/bin/stat                              error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
-PKG clang     error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
-PKG binutils  error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
-PKG coreutils error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
-PKG gawk      error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
-PKG rpm       error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG clang      error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG binutils   error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG coreutils  error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG gawk       error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG rpm        error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
 chengkai@risc-v-Alienware-Aurora-R16:config$

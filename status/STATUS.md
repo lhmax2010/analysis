@@ -1,4 +1,8 @@
-# Status — round 0012b
+# Status
+
+## Rounds 0012h/i • 24 November
+
+Step 5 rev2 linked on Official 37736448, then failed during evidence collection on missing realpath. The fixed builder is at 9c65ec5; await Claude review and a new native BOARD_TOOLS receipt before board measurements. PM approved b048780 for tonight’s Wed-A and the operator reports starting it. Read pm12read first, then run image with the same WEDA path after exit. F6 and the GCC-family argv readback at 199f5b5 await review. Wed-night selection needs the returned image cause ledger. [Step 5](../comms/codex_to_claude/0012h_reply.md) · [Wed-A and Thursday gates](../comms/codex_to_claude/0012i_reply.md)
 
 ## Round 0012f/g • 24 November
 
