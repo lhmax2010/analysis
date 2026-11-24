@@ -1,0 +1,349 @@
+#!/usr/bin/env python3
+"""Read retained matched-QB artifacts and stage verified MLGO proof inputs."""
+
+import argparse
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import struct
+import subprocess
+import tempfile
+from urllib.error import HTTPError, URLError
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+ROOT = Path("/home1/chengkai/vd-tree/workspace")
+RUN = ROOT / "temp/pm0005-gbs-kernel.mtob625f"
+LABEL = "TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_"
+CAPTURES = {
+    "gcc": ("37564293", "20261113.1", "acd8413894dc1e7ee8dd3625a308ad36ff9d1523e7388cf72f30bd218f4060c5"),
+    "official": ("37736448", "20261123.2", "f164cf5f56ced88fd0618c68df686c79ec36aca85dbeb53972a4b128f135862d"),
+    "custom": ("37736427", "20261123.1", "59e000f5b7ec8a508f5251b2e11e36cd3b29036ac91b3cf7034d3aadbb0a3e5b"),
+}
+BASES = {"official": ("20261113.1", "9.1"), "custom": ("20261118.1", "11.1")}
+KERNEL = re.compile(r"^tztv-kernel(?:-perf|-release|-devel)?$")
+VMLINUX = re.compile(r"(?:^|/)vmlinux(?:-[^/]+)?(?:\.debug)?$")
+PLATFORM_DIGESTS = {
+    "official": "4dedcae9475edb6ba18c522ba34887c928d28ba910a2c178a5631ee6b1d7e823",
+    "custom": "ff72fc08d4aa981b6378ba1644601eec7b3b2813ab07e80f7ca3f5b561b3b08d",
+}
+RPM_DB_DIRS = ("usr/lib/sysimage/rpm", "var/lib/rpm", "var/lib/rpmdb")
+ROSTER_FMT = r"%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\t%{SOURCERPM}\n"
+
+
+def emit(tag, *values):
+    print(tag, json.dumps(values, ensure_ascii=True, separators=(",", ":")), flush=True)
+
+
+def query(path, fmt):
+    return subprocess.check_output(["rpm", "-qp", "--qf", fmt, str(path)],
+                                   text=True, timeout=60, stderr=subprocess.PIPE)
+
+
+def retained(lane, repo):
+    qb, version, digest = CAPTURES[lane]
+    folder = ROOT / "qb-evidence" / f"{qb}-{LABEL}{version}"
+    receipt = folder / "identity.json"
+    if receipt.resolve(strict=True) != receipt or repo["file_sha"](receipt) != digest:
+        raise ValueError(f"capture receipt mismatch: {lane}")
+    identity = json.loads(receipt.read_text())
+    ledger = folder / "rpm-identities.tsv"
+    if ledger.resolve(strict=True) != ledger or repo["file_sha"](ledger) != identity["files"][ledger.name]:
+        raise ValueError(f"Product ledger mismatch: {lane}")
+    with ledger.open(newline="") as stream:
+        rows = list(csv.DictReader(stream, delimiter="\t"))
+    packages = {}
+    for row in rows:
+        if KERNEL.fullmatch(row["name"]) and row["arch"] == "armv7l":
+            if row["name"] in packages:
+                raise ValueError(f"duplicate kernel ledger identity: {row['name']}")
+            packages[row["name"]] = row
+            emit("KERNEL_SOURCE", lane, *(row[key] for key in ("name", "epoch", "version", "release", "arch", "srpm", "vcs")))
+        elif VMLINUX.search(row["name"]) or ("kernel" in row["name"] and "debuginfo" in row["name"]):
+            emit("KERNEL_DEBUG_PACKAGE", lane, row["name"], row["arch"], row["srpm"], row["vcs"], row["sha256"], row["url"])
+    return folder, identity, packages
+
+
+def matched_payload(folder, identity, row, repo):
+    matches = [item["file"] for item in identity["payloads"] if item["sha256"] == row["sha256"]]
+    name, = matches
+    path = folder / name
+    if path.resolve(strict=True) != path or repo["file_sha"](path) != row["sha256"]:
+        raise ValueError(f"kernel RPM digest mismatch: {path}")
+    return path
+
+
+def member_checksums(rpm):
+    algorithm = query(rpm, "%{FILEDIGESTALGO}")
+    rows = {}
+    for line in query(rpm, r"[%{FILENAMES}\t%{FILESIZES}\t%{FILEDIGESTS}\t%{FILEMODES}\n]").splitlines():
+        name, size, digest, mode = line.split("\t")
+        if int(mode) & 0o170000 == 0o100000:
+            rows[name] = (int(size), digest if algorithm == "8" else None)
+    return rows
+
+
+def local_paths(lane):
+    lane_root = RUN / lane
+    root = lane_root / "GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0"
+    image = root / "home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux"
+    candidates = sorted((lane_root / "GBS-ROOT/local/repos").glob("**/tztv-kernel-perf-*.rpm"))
+    rpms = [path for path in candidates if path.is_file() and not path.is_symlink()
+            and query(path, "%{NAME}") == "tztv-kernel-perf"]
+    return root, image, rpms
+
+
+def compare_elf(lane, published, replay, elf):
+    with published.open("rb") as stream:
+        magic = stream.read(8)
+    if magic[:4] != b"\x7fELF":
+        emit("QB_KERNEL_MEMBER_NON_ELF", lane, str(published), magic.hex())
+        return False
+    one = elf["elf_info"](published)["sections"]
+    two = elf["elf_info"](replay)["sections"]
+    equal = one == two
+    emit("KERNEL_SECTION_COMPARISON", lane, str(published), str(replay), len(one), len(two), equal)
+    for name in (".text", ".init.text", ".exit.text", ".rodata", ".data", ".bss", ".ARM.exidx", ".BTF"):
+        if name in one or name in two:
+            emit("KERNEL_SECTION", lane, name, one.get(name), two.get(name))
+    return True
+
+
+def extract_member(rpm, name, output, digest, repo):
+    match = name.lstrip("/")
+    if not match or ".." in Path(match).parts:
+        raise ValueError(f"unsafe RPM member {name}")
+    with subprocess.Popen(["rpm2cpio", str(rpm)], stdout=subprocess.PIPE) as unpack:
+        with output.open("xb") as destination:
+            extract = subprocess.run(["cpio", "-i", "--to-stdout", "--quiet", "--", "./" + match, match],
+                                     stdin=unpack.stdout, stdout=destination, stderr=subprocess.PIPE, timeout=300)
+        if unpack.wait(timeout=30) != 0 or extract.returncode or repo["file_sha"](output) != digest:
+            raise ValueError(f"cannot extract and verify {name} from {rpm.name}")
+
+
+def toolchain(lane, root, repo):
+    for folder in ("usr", "emul/usr"):
+        candidates = [root / folder / "bin/clang-22"]
+        for libdir in ("lib", "lib64"):
+            candidates.extend(path for path in (root / folder / libdir).glob("libLLVM*.so*") if path.is_file())
+        for path in sorted(set(candidates)):
+            if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root):
+                continue
+            headers = subprocess.check_output(["readelf", "-hW", "-dW", str(path)], text=True, timeout=30)
+            tags = [line.strip() for line in headers.splitlines() if "Machine:" in line or "(NEEDED)" in line
+                    or "(RPATH)" in line or "(RUNPATH)" in line]
+            emit("GBS_ELF", lane, str(path), repo["file_sha"](path), tags[:16])
+            symbols = subprocess.check_output(["readelf", "--dyn-syms", "--wide", str(path)], text=True, timeout=75)
+            names = [line.split()[-1] for line in symbols.splitlines()
+                     if re.search(r"InlinerSizeModel|RegAllocEvictModel|tfcompile", line)]
+            emit("GBS_MODEL_SYMBOLS", lane, str(path), names[:10], len(names))
+
+
+def kernels(repo, elf, work):
+    for lane in CAPTURES:
+        folder, identity, rows = retained(lane, repo)
+        if lane == "gcc":
+            continue
+        root, replay, local = local_paths(lane)
+        prior = member_checksums(local[0]) if len(local) == 1 else {}
+        emit("GBS_KERNEL_REFERENCE", lane, str(replay), [str(path) for path in local])
+        section_found = False
+        for package, row in sorted(rows.items()):
+            rpm = matched_payload(folder, identity, row, repo)
+            members = member_checksums(rpm)
+            for name, (size, digest) in sorted(members.items()):
+                if name.endswith(("/uImage", "/zImage")) and package == "tztv-kernel-perf":
+                    usb = ROOT / "usb" / CAPTURES[lane][0] / "updateSU2E" / Path(name).name
+                    emit("KERNEL_MEMBER", lane, name, size, digest, prior.get(name),
+                         repo["file_sha"](usb) if usb.is_file() else None)
+                if not VMLINUX.search(name):
+                    continue
+                emit("KERNEL_VMLINUX_MEMBER", lane, package, name, size, digest, prior.get(name))
+                if package != "tztv-kernel-perf" and "/perf/" not in name:
+                    continue
+                if not digest or not 8 <= size <= 768 * 1024**2:
+                    continue
+                if shutil.disk_usage(work).free < 50 * 1024**3 + size:
+                    raise ValueError("kernel extraction exceeds disk reserve")
+                destination = work / f"{lane}-{package}-{len(list(work.iterdir()))}.vmlinux"
+                extract_member(rpm, name, destination, digest, repo)
+                if replay.is_file():
+                    section_found |= compare_elf(lane, destination, replay, elf)
+        if not section_found:
+            emit("QB_LINKED_VMLINUX_UNAVAILABLE", lane, "Review exact matching debuginfo or authenticated QB build outputs")
+        toolchain(lane, root, repo)
+
+
+def image_kind(path):
+    with path.open("rb") as stream:
+        prefix = stream.read(4 * 1024**2)
+    found = []
+    for offset in range(0, len(prefix), 512):
+        head = prefix[offset:offset + 4]
+        kind = {b"hsqs": "squashfs", b"\x3a\xff\x26\xed": "android-sparse"}.get(head)
+        if not kind and prefix[offset+1024:offset+1028] == bytes.fromhex("e2e1f5e0"):
+            kind = "erofs"
+        if not kind and prefix[offset+1080:offset+1082] == b"\x53\xef":
+            if offset + 1082 <= len(prefix):
+                log_block = struct.unpack_from("<I", prefix, offset + 1048)[0]
+                if log_block <= 6:
+                    kind = "ext-candidate"
+        if kind:
+            found.append((offset, kind))
+    return prefix[:32].hex(), found
+
+
+def squashfs_roster(path, lane, offset, work):
+    tree = work / f"{lane}-rpmdb"
+    result = subprocess.run(["unsquashfs", "-processors", "1", "-offset", str(offset),
+                             "-dest", str(tree), str(path), *RPM_DB_DIRS],
+                            text=True, capture_output=True, timeout=180)
+    if result.returncode:
+        emit("PLATFORM_ROSTER_UNAVAILABLE", lane, result.stderr.strip()[-500:])
+        return
+    for relative in RPM_DB_DIRS:
+        directory = tree / relative
+        if not directory.resolve().is_relative_to(tree.resolve()):
+            continue
+        for name, backend in (("rpmdb.sqlite", "sqlite"), ("Packages", "bdb_ro"), ("Packages.db", "ndb")):
+            candidate = directory / name
+            if not candidate.is_file() or candidate.is_symlink():
+                continue
+            result = subprocess.run(["rpm", "--define", f"_db_backend {backend}", "--dbpath",
+                                     str(directory), "-qa", "--qf", ROSTER_FMT],
+                                    text=True, capture_output=True, timeout=120)
+            rows = result.stdout.splitlines()
+            if result.returncode or result.stderr.strip() or not rows:
+                continue
+            if any(len(row.split("\t")) != 6 or not row.split("\t")[1].isdigit() for row in rows):
+                continue
+            roster = work / f"{lane}-installed.tsv"
+            roster.write_text("\n".join(sorted(rows)) + "\n")
+            emit("PLATFORM_ROSTER", lane, len(rows), str(roster), hashlib.sha256(roster.read_bytes()).hexdigest())
+            return
+    emit("PLATFORM_ROSTER_UNAVAILABLE", lane, "RPM DB not found or not readable")
+
+
+def platforms(repo, work):
+    for lane in BASES:
+        qb = CAPTURES[lane][0]
+        directory = ROOT / "usb" / qb
+        path = directory / "updateSU2E/platform.img"
+        if path.resolve(strict=True) != path:
+            raise ValueError(f"unexpected platform image: {path}")
+        lines = (directory / "manifest.sha256").read_text().splitlines()
+        digest, = (line.split()[0] for line in lines if line.endswith("  platform.img"))
+        if digest != PLATFORM_DIGESTS[lane] or repo["file_sha"](path) != digest:
+            raise ValueError(f"platform image differs from the recorded USB manifest: {qb}")
+        head, hits = image_kind(path)
+        emit("PLATFORM_FORMAT", lane, str(path), path.stat().st_size, digest, head, hits[:12])
+        for tool, cmd in (("file", ["file", "-b", str(path)]),
+                          ("blkid", ["blkid", "-p", "-c", "/dev/null", "-o", "export", str(path)])):
+            if shutil.which(tool):
+                result = subprocess.run(cmd, text=True, capture_output=True, timeout=15)
+                emit("PLATFORM_PROBE", lane, tool, result.returncode, result.stdout.strip()[:1000])
+        squash_offsets = [offset for offset, kind in hits if kind == "squashfs"]
+        if len(squash_offsets) == 1 and shutil.which("unsquashfs"):
+            squashfs_roster(path, lane, squash_offsets[0], work)
+        else:
+            emit("PLATFORM_ROSTER_UNAVAILABLE", lane, "Use same-QB board roster; review detected format and offset")
+
+
+def find_srpm(repo, lane, work):
+    stamp, release = BASES[lane]
+    base = repo["PREFIX"] + stamp + "/"
+    filename = f"llvm-22.1.8-{release}.src.rpm"
+    for relative in ("repos/base/source/packages/", "repos/base/src/packages/", "repos/base/src/",
+                     "repos/base/source/", "repos/base/SRPMS/", "src/", "source/", "SRPMS/",
+                     "repos/base/armv7l/packages/"):
+        candidate = base + relative
+        try:
+            raw = repo["fetch"](candidate + "repodata/repomd.xml", 2 * 1024**2)
+            root = ET.fromstring(raw)
+            primary = root.find(f'{repo["REP"]}data[@type="primary"]')
+            location = urljoin(candidate, primary.find(repo["REP"] + "location").get("href"))
+            if not location.startswith(base):
+                raise ValueError("primary metadata leaves pinned snapshot")
+            data = repo["fetch"](location)
+            checksum = primary.find(repo["REP"] + "checksum")
+            algorithm = checksum.get("type")
+            if hashlib.new("sha1" if algorithm == "sha" else algorithm, data).hexdigest() != checksum.text.strip():
+                raise ValueError("primary metadata checksum mismatch")
+            ns = repo["COM"]
+            for row in ET.fromstring(repo["unpack"](data)).findall(ns + "package"):
+                if (row.findtext(ns + "name"), row.findtext(ns + "arch")) != ("llvm", "src"):
+                    continue
+                version = row.find(ns + "version").attrib
+                if (version["ver"], version["rel"], version.get("epoch", "0")) != ("22.1.8", release, "0"):
+                    continue
+                url = urljoin(candidate, row.find(ns + "location").get("href"))
+                digest = row.find(ns + "checksum")
+                if not url.startswith(base) or url.rsplit("/", 1)[-1] != filename or digest.get("type") != "sha256":
+                    raise ValueError("unexpected LLVM SRPM location or checksum")
+                path = repo["cached_rpm"]((url, digest.text.strip()), work)
+                emit("SRPM_PUBLISHED", lane, url, digest.text.strip())
+                return path
+            emit("SRPM_REPOSITORY_NO_MATCH", lane, candidate)
+        except (HTTPError, URLError, OSError, ValueError, AttributeError, ET.ParseError) as exc:
+            emit("SRPM_PROBE", lane, candidate, str(exc)[:180])
+    raise ValueError(f"{lane}: {filename} unavailable in the checked snapshot layouts")
+
+
+def srpms(repo, inputs, work):
+    rows = []
+    complete = True
+    for index, (lane, (_, release)) in enumerate(BASES.items()):
+        try:
+            if inputs:
+                path = inputs[index].resolve(strict=True)
+                if not path.is_relative_to(ROOT):
+                    raise ValueError("retained SRPM must be under vd-tree/workspace")
+                emit("SRPM_OPERATOR_RETAINED", lane, str(path))
+            else:
+                path = find_srpm(repo, lane, work)
+            header = query(path, r"%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{SOURCEPACKAGE}").split("\t")
+            if header != ["llvm", "0", "22.1.8", release, "1"]:
+                raise ValueError(f"wrong LLVM source RPM header: {header}")
+            rows.append((lane, "llvm", str(path), repo["file_sha"](path)))
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            complete = False
+            emit("SRPM_UNAVAILABLE", lane, str(exc)[:400])
+    if not complete:
+        return 2
+    path = work / "mlgo-proof-rpms.tsv"
+    with path.open("w", newline="") as stream:
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
+        writer.writerow(("lane", "kind", "path", "sha256"))
+        writer.writerows(rows)
+    emit("MLGO_PROOF_RPMS", str(path), repo["file_sha"](path))
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("repository_library", type=Path)
+    modes = parser.add_subparsers(dest="mode", required=True)
+    modes.add_parser("platform")
+    modes.add_parser("kernel").add_argument("elf_library", type=Path)
+    modes.add_parser("srpm").add_argument("--local", nargs=2, type=Path, metavar=("OFFICIAL", "CUSTOM"))
+    args = parser.parse_args()
+    repo = runpy.run_path(str(args.repository_library))
+    work = Path(tempfile.mkdtemp(prefix="pm0011e-qb.", dir=ROOT / "temp"))
+    os.environ.update(TMPDIR=str(work), LC_ALL="C")
+    print("WORKDIR", work, flush=True)
+    if args.mode == "platform":
+        platforms(repo, work)
+    elif args.mode == "kernel":
+        kernels(repo, runpy.run_path(str(args.elf_library)), work)
+    else:
+        return srpms(repo, args.local, work)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
