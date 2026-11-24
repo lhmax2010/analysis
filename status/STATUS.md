@@ -1,4 +1,10 @@
-# Status — round 0011e
+# Status — round 0012b
+
+## Rounds 0012–0012b — 24 November 2026
+
+- The board is unavailable. Step 5 hit an RPM source-staging error before producing the benchmark. The replacement spec passed local RPM staging and build. Native ARM ISA, library provenance and benchmark handoff await a rerun. The revised board-free overnight batch supersedes the original start guard. Both originals and the failure transcript are retained. [Replacement pin and command](../comms/codex_to_claude/0012b_reply.md)
+- The development queue is staged for Claude review. It covers EXP-T1, paired TEXTREL image audits, Step 8, strict-link trial, archive consumer checks, four ABI checks and prospective R4/R5. R2, R6 and the R3 diagnostic wait for their recorded gates. Board soak and matched kernel runtime measurements remain open. [Fixtures, limits and launchers](../comms/codex_to_claude/0012_reply.md)
+- The full Source1005 patch matches the retained Official OBS bytes and the Customized rev12 source manifest. The independent review prompt is archived. Direct SRPM payload verification awaits the board-free diagnostics. [Patch provenance and launcher](../comms/codex_to_claude/0012a_reply.md)
 
 ## Round 0011e — 24 November 2026
 

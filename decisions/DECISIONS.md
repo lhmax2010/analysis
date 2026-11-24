@@ -432,3 +432,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Use the verified staging manifests for Official QB 37736448 and Customized QB 37736427. Keep an alternating per-lane board schedule and preserve native copies of each visit, both board RPM rosters and one combined measurement file per lane.
 - Keep the source-matched Base-swap attribution. Exact historical LLVM SRPMs, same-QB RPM rosters and executed Clang/libLLVM provenance qualify the comparison inside the Base. Compare verified linked ELF sections before carrying replay results into the matched QB table.
 - Capture GCC reference 37564293 as the overnight input. Hold its kernel RPM comparison for a source-identity check. Run the overnight batch after Step 5 staging releases the shared lock, then Steps 9 and 8. [Round 0011e results and runbook](../comms/codex_to_claude/0011e_reply.md)
+
+## D-055 — Run board-free development in one heavy slot
+
+- Use Official 37736448 and GCC no-prelink 37564293 for the static baseline. Keep the kernel and external-module exemptions for T1. Require observed compiler and linker delivery and exact output scope before a no-effect result.
+- Trial strict final links before any production rollout. Identify a failing object and its producer before proposing a shelf. Retain native and plugin link maps, ABI source status and runtime gaps. Keep the gating order for R2, R6 and the link-only R3 diagnostic.
+- Run the r0011f rev2 diagnostics independently of board staging. Use the fixed Step 5 source package after the heavy slot is clear. Reuse one hashed benchmark binary in both board lanes.
+- Archive Source1005 and the independent review request. Treat the retained OBS source match and direct SRPM member verification as separate evidence.
+- **PM direction recorded.** Implementation and local tests complete for the staged entry points. Claude review and native results are pending. [Development queue](../comms/codex_to_claude/0012_reply.md) [Independent review](../comms/codex_to_claude/0012a_reply.md) [Step 5 repair](../comms/codex_to_claude/0012b_reply.md)
