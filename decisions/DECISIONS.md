@@ -399,3 +399,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Use new Official 37736448 and Customized 37736427 for the MLGO chain. Require submitted manifest evidence, matching published build config and Product source review before a source-matched claim.
 - For a future GCC build, validate that every local repository resolves to a dedicated empty path under the GCC run workspace. Reject LLVM buildroot paths. The historical gccL configuration remains unproved.
 - **PM decision recorded**. New tools await review and native input. [Round 0011](../comms/codex_to_claude/0011_reply.md)
+
+
+## D-050 — Keep the HQ comparison off the board critical path
+
+- After the reference capture and USB staging, run a serial overnight GCC scan, LLVM scan and comparison. Schedule Step 8 after that batch exits. Keep the Base proof in its own heavy-job slot.
+- Use only MATCHED rows for HQ totals. Report raw bytes in TSVs and bytes/KiB in the comparison summary. Report both image prelink counts and any paths that carry a marker.
+- Keep FILE-symbol-supported LTO review candidates separate from stripped and inconclusive pairs. Verified build-log evidence may qualify a candidate for manual review.
+- **PM order recorded**. The updated HQ launcher and output rules await Claude review. [Round 0011a](../comms/codex_to_claude/0011a_reply.md)

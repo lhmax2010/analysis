@@ -1,5 +1,11 @@
-# Status — 2026-11-23, round 0011
+# Status — 2026-11-23, round 0011a
 
+
+## Round 0011a
+
+- Claude accepted the original 0011 pins. The Official capture was reported running. Run the read-only manifest lookup in parallel and wait for both capture identities before Step 2.
+- Keep GCC reference capture and USB staging ahead of extended HQ scans. The new serial overnight wrapper runs GCC then LLVM then compare. Run four-lane Step 8 after the batch. New HQ pins await review.
+- HQ totals now use matched pinned VCS and source versions. Stripped or FILE-symbol-missing LTO pairs remain in a separate count. Readback includes prelink markers and bytes/KiB. The weekend transcript and new scans are pending. [Run order and commands](../comms/codex_to_claude/0011a_reply.md)
 
 ## Round 0011
 

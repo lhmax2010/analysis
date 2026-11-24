@@ -1,6 +1,6 @@
 # Round 0011 reply — Matched MLGO QBs and GCC no-prelink reference
 
-The supplied Step 1 launcher matches its SHA-256 and is archived as received. Its native capture results and the 0010w combined output have yet to return. The new helpers at `aaa44c847bfc6b5313de6fd579be853d01d6f684` await Claude review. Monday remains Step 1 → Step 2 → Step 3 → Step 5 → Step 8. Run the MLGO Base proof after both captures. [PM handoff](../claude_to_codex/0011_pm_review.md) [Step 1 launcher](../../artifacts/evidence/native-cmd-r0011-capture-mlgo-qbs.sh)
+The supplied Step 1 launcher matches its SHA-256 and is archived as received. Its native capture results and the 0010w combined output have yet to return. Claude accepted the original helpers in 0011a. Use the [approved run order and new HQ tooling](0011a_reply.md). Monday remains Step 1 → Step 2 → Step 3 → Step 5 → Step 8. Run the MLGO Base proof after both captures. [PM handoff](../claude_to_codex/0011_pm_review.md) [Step 1 launcher](../../artifacts/evidence/native-cmd-r0011-capture-mlgo-qbs.sh)
 
 | Lane | QB | Product | Base |
 |---|---:|---|---|
@@ -140,6 +140,8 @@ The fixed `DO_NOT_DELETE` URL is accepted only in the new `reference` mode for Q
 ```
 
 ## Re-baseline Docs 04–07
+
+The [0011a overnight launcher](0011a_reply.md#overnight-hq-comparison) supersedes the comparison command below for new HQ tables. It applies the revised source and stripped-ELF gates.
 
 Run the same ELF scan once with `HQ_MODE=gcc` and once with `HQ_MODE=llvm`, serially. The scan reads actual retained PERF filesystem images through the existing ext4 traversal. It uses the captured platform RPM DB to associate each image path with its owner and fills missing VCS from the exact Product RPM ledger where available. It records ELF section sizes, file sizes, FILE-symbol evidence, ARM/Thumb estimates and prelink markers. Unmapped partitions or ownership gaps are reported. If a capture uses an unsupported layout or its RPM DB is unreadable, return that evidence before treating the inventory as complete. Native scan budget 20–90 minutes per image and expanded partition space plus reserve, using one reader and no network after script download. The join and paging take seconds.
 
