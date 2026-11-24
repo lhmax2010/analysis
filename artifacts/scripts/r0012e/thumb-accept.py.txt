@@ -38,7 +38,7 @@ def cc1_modes(log):
             line=re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*","",raw).strip()
             if line.startswith("PM_THUMB_") or re.search(r"^\+ (?:make|gmake) .*?\bcheck\b|^\+ make check$",line):
                 summaries.append(line)
-            if "-cc1" not in line or "/dev/null" in line:
+            if "-cc1" not in line or "/dev/null" in line or line.startswith("PM_CFG ") or "/.pm0012g-driver/" in line:
                 continue
             try:
                 args=shlex.split(line)
@@ -81,6 +81,9 @@ def evaluate(directory,work,name,results,source,spec,controls):
     modes=runpy.run_path(str(directory/"image_mode_scan.py.txt"))
     mapping=runpy.run_path(str(directory/"thumb-map.py.txt"))["text_map"]
     ole=runpy.run_path(str(directory/"olevel.py.txt"))
+    abi_compare=runpy.run_path(str(directory/"lto-abi.py.txt"))["compare"]
+    options=runpy.run_path(str(directory/"thumb-options.py.txt"))["summarize"](work)
+    (work/"thumb-options.json").write_text(json.dumps(options,indent=2)+"\n")
     pairs={}
     assembly=[]
     for root,dirs,files in os.walk(source):
@@ -121,6 +124,7 @@ def evaluate(directory,work,name,results,source,spec,controls):
                   "cu_count":len(cus),"cu_missing":sum(not c.get("producer") for c in cus),
                   "cu_mode_verified":sum(proven_unit(c,modes_seen,name in controls) for c in cus),
                   "cu_names":[c.get("name","") for c in cus]}
+            item["export_and_loader_diff"]=abi_compare(e0,e1)
             if item["identical"]: item["abi"]="IDENTICAL_ELF"
             elif not shutil.which("abidiff"): item["abi"]="ABIDIFF_UNAVAILABLE"
             elif any(not r["build_id"] or r["debug_status"]=="AMBIGUOUS_BUILD_ID" for r in (old,new)):
@@ -156,11 +160,16 @@ def evaluate(directory,work,name,results,source,spec,controls):
           "T1":outcome(not unmatched and not response and proof["compile_calls"] and not proof["missing_dwarf_elfs"] and all(i["cu_count"] and i["cu_mode_verified"]==i["cu_count"] for i in items)),
           "T2":outcome(all(verified_map(i) and (not i["maps"][1]["a_ranges"] or (name in controls and i["identical"] and i["maps"][0]==i["maps"][1])) for i in items)),
           "T3":outcome(bool(items)),
-          "T4":outcome(all(i["dynamic_equal"] and i["abi"] in ("PASS","IDENTICAL_ELF") for i in items)),
+          "T4":outcome(all(i["dynamic_equal"] and not any(i["export_and_loader_diff"].values()) and i["abi"] in ("PASS","IDENTICAL_ELF") for i in items)),
           "T5":"PASS" if name in ("rpm","libgcrypt") and "PM_THUMB_CHECK_REACHED" in plain.splitlines() and re.search(r"(?m)^\+ .*?\bcheck\b",plain) and not result["error"] else "REVIEW_TEST_INVENTORY" if "PM_THUMB_CHECK_REACHED" in plain else "CHECK_NOT_OBSERVED",
           "T6":outcome("PM_THUMB_INTERWORK_PASS" in plain.splitlines() and all(i["identical"] or "PM_THUMB_SMOKE_PASS "+i["path"] in plain.splitlines() for i in items)),
           "T7":"REVIEW_ASM_SITES" if assembly else ("PASS" if scope and compiled_names and not unmatched and not proof["missing_dwarf_elfs"] and all((source / n).is_file() for i in items for n in i["cu_names"] if not Path(n).is_absolute()) and all(not Path(n).is_absolute() for i in items for n in i["cu_names"]) else "REVIEW_GENERATED_SOURCES"),
           "T8":outcome(result["arm_compile_calls"] and results["baseline"]["arm_compile_calls"] and all(i["identical"] and verified_map(i) and i["maps"][0]==i["maps"][1] for i in items)) if name in controls and "PM_THUMB_ASM_ARM_PASS" in plain.splitlines() else ("REVIEW" if name in controls else "N/A")}
+        report["gates"]["driver_config_and_IT"]=outcome(all(options.get(x) and not options[x]["driver_gaps"] for x in ("baseline",lane)))
+        report["new_lto_unit_count"]=len(options["new_lto_units"]) if lane=="package" else None
+        if name=="org.tizen.tv-viewer" and lane=="package":
+            seen=options.get(lane,{}).get("groups",[])
+            report["gates"]["tv_viewer_C_CXX"]=outcome({r[0] for r in seen}=={"c","c++"} and all(r[1].startswith("thumb") and r[2]=={"c":"-Os","c++":"-O1"}[r[0]] for r in seen))
         report["payload_bytes"]={}
         for label in ("baseline",lane):
             report["payload_bytes"][label]={}

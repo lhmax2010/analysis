@@ -1,0 +1,75 @@
+# Runs before the tracing wrappers, inside the lane's fresh GBS root.
+(
+set -u
+d="$PWD/.pm0012g-driver"
+mkdir "$d" || exit 2
+cat > "$d/it.c" <<'END'
+int test(int x) {
+    __asm__ volatile ("cmp %0, #0\n\tmoveq %0, #1" : "+r"(x) : : "cc");
+    return x;
+}
+END
+cat > "$d/it.S" <<'END'
+.syntax unified
+.text
+.global pm_asm_it
+.type pm_asm_it,%function
+pm_asm_it:
+    cmp r0, #0
+    moveq r0, #1
+    bx lr
+END
+if [ "@SCOPED@" = yes ]; then
+    for drv in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++ cc c++; do
+        command -v "$drv" >/dev/null || continue
+        "$drv" -v -### -c -x c /dev/null >"$d/$drv.discovery" 2>&1 || continue
+        sed -n 's/^Configuration file: //p' "$d/$drv.discovery"
+    done | sort -u > "$d/selected"
+    while IFS= read -r chosen; do
+        case "$chosen" in /*) ;; *) continue;; esac
+        actual=$(readlink -f "$chosen") || continue
+        case "$actual" in /usr/bin/*-clang.cfg|/usr/bin/*-clang++.cfg|/emul/usr/bin/*-clang.cfg|/emul/usr/bin/*-clang++.cfg) ;; *) continue;; esac
+        test -f "$actual" && ! grep -Fqx '# tizen-force-options begin' "$actual" || continue
+        # A shadowing file is edited exclusively inside this package's disposable GBS root.
+        copy=$(mktemp "${actual}.pm0012g.XXXXXX") || exit 2
+        cp -p "$actual" "$copy" && chmod u+w "$copy" &&
+          printf '\n# tizen-force-options begin\n-mthumb -mimplicit-it=thumb\n# tizen-force-options end\n' >> "$copy" &&
+          chmod --reference="$actual" "$copy" && mv -f "$copy" "$actual" || exit 2
+        echo "PM_SELECTED_CFG_EDIT $chosen $actual"
+    done < "$d/selected"
+fi
+for driver in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++ cc c++; do
+    exe=$(command -v "$driver") || { echo "PM_CFG $driver MISSING"; continue; }
+    lang=c
+    case "$driver" in *++) lang=c++;; esac
+    trace="$d/$driver.trace"
+    if ! "$exe" -v -### -c -x "$lang" "$d/it.c" >"$trace" 2>&1; then
+        echo "PM_CFG $driver QUERY_FAILED"; continue
+    fi
+    echo "PM_CFG $driver EXE $exe $(readlink -f "$exe")"
+    sed -n -e "/Configuration file:/s/^/PM_CFG $driver LOADED /p" -e "/\"-cc1\"/s/^/PM_CFG $driver ARGV /p" "$trace"
+    sed -n 's/^Configuration file: //p' "$trace" | while IFS= read -r cfg; do
+        if test -f "$cfg"; then
+            echo "PM_CFG $driver CONFIG $(readlink -f "$cfg") $(sha256sum "$cfg" | cut -d' ' -f1)"
+            awk -v drv="$driver" '/^# tizen-force-options begin$/ {block=1;next}
+                 /^# tizen-force-options end$/ {block=0;next}
+                 block {print "PM_CFG",drv,"OPTION",$0}' "$cfg"
+        fi
+    done
+    if ! grep -Fq '"-cc1"' "$trace"; then echo "PM_CFG $driver NON_CLANG_OR_UNRESOLVED"
+        if grep -q 'gcc version' "$trace"; then echo "PM_CFG $driver GCC confirmed"; fi
+        continue; fi
+    "$exe" -marm -### -c -x "$lang" "$d/it.c" >"$trace.arm" 2>&1 &&
+        sed -n "/\"-cc1\"/s/^/PM_CFG $driver ARM_OVERRIDE /p" "$trace.arm"
+    for suffix in c S; do
+        input_lang=$lang
+        test "$suffix" = c || input_lang=assembler-with-cpp
+        obj="$d/$driver.$suffix.o"
+        if "$exe" -x "$input_lang" -c "$d/it.$suffix" -o "$obj" >"$obj.log" 2>&1; then
+            echo "PM_CFG $driver BUILT $suffix $(readelf -sW "$obj" | awk '$NF ~ /^\$[at]([.]|$)/ {print substr($NF,2,1)}' | sort -u | tr -d '\n')"
+        else
+            echo "PM_CFG $driver FAILED $suffix"; head -n 8 "$obj.log"
+        fi
+    done
+done
+)

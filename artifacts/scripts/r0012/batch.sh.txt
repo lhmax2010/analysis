@@ -177,6 +177,10 @@ done <"$here/downloads.tsv"
 case "$day" in
     image)
         source "$here/image-chain.sh.txt"
+        if [[ -n ${PM12_WEDA_RUN:-} ]]; then
+            pilot=$(run_dir "$PM12_WEDA_RUN" pm0012-wed-a)
+            job pilot-options python3 -B "$here/thumb-options.py.txt" "$pilot"
+        fi
         ;;
     wed-a)
         for package in org.tizen.AVControl org.tizen.tv-viewer libpisa-ipc org.tizen.webserver libgcrypt rpm nnstreamer bluetooth-impl-sec-oal widevine-cdm; do
@@ -196,6 +200,14 @@ case "$day" in
     wed-night)
         image=$(run_dir "${1:?supply the image run}" pm0012-image)
         roster="$image/jobs/thumb-roster/thumb-roster.json"
+        if ! awk 'NR>1 && NF {found=1} END {exit !found}' "$here/thumb-causes.tsv"; then
+            status_line 'DEFERRED await reviewed Official image range ledger and new pin'
+            exit 2
+        fi
+        if [[ -n ${PM12_WEDA_RUN:-} ]]; then
+            pilot=$(run_dir "$PM12_WEDA_RUN" pm0012-wed-a)
+            job pilot-options python3 -B "$here/thumb-options.py.txt" "$pilot"
+        fi
         job qualify python3 -B "$here/thumb-qualify.py.txt" "$roster"
         if [[ -f "$here/jobs/qualify/group-a.txt" ]]; then
             for control in bluetooth-impl-sec-oal widevine-cdm; do job "thumb-$control" gbs thumb "$control"; done
@@ -222,11 +234,14 @@ case "$day" in
             if [[ ${#proofs[@]} == 1 && -s "${proofs[0]}" ]]; then
                 hq=$(cat "$PM12_IMAGE_RUN/hq-dir.txt")
                 official_scan=$(awk '$1=="HQ_ELF_WORKDIR" {print $2}' "$hq/llvm.log")
-                job kernel-thumb bash -c 'sudo -n true && p4 login -s && python3 -B -u "$1" "$2" "$3"' _ "$here/kernel-thumb.py.txt" "${proofs[0]}" "$official_scan/installed-owners.tsv"
+                job kernel-thumb bash -c 'sudo -n true && p4 login -s && python3 -B -u "$1" "$2" "$3"' _ "$here/kernel-matrix.py.txt" "${proofs[0]}" "$official_scan/installed-owners.tsv"
             else
                 failed=1
                 status_line 'KERNEL_THUMB_BLOCKED missing uniquely identified matched kernel source/config proof'
             fi
+        else
+            failed=1
+            status_line 'KERNEL_THUMB_BLOCKED missing PM12_IMAGE_RUN'
         fi
         if [[ -n ${PM12_RETRY_PACKAGES:-} ]]; then
             for package in $PM12_RETRY_PACKAGES; do

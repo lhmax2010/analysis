@@ -1,0 +1,10 @@
+PASS Python 3.10 and shell syntax
+PASS 37 immutable staged files and unique names
+patching file /home/toolchain/Desktop/temp/.work-tmp/0012f/tmpyb6nrsf5/spec
+Hunk #1 succeeded at 5 (offset 3 lines).
+PASS trial spec patch on actual staging instrumentation and six shell expansions
+PASS verified embedded config framing; gzip and xz zImage; truncation rejected
+PASS required four kernel subtrees and TU advisor modes; crossed lane rejected
+PASS ARM exidx PREL31 negative offsets, CANTUNWIND and compact descriptor
+PASS effective cc1 groups, last -O, paired new LTO, six driver config gates and missing implicit-IT case
+Native GBS compilation, real advisor output, module modpost and KantSU2E measurements require native evidence.

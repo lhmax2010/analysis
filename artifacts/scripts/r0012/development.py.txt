@@ -325,9 +325,10 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
         if recipe.get("package_name", source.name) in protected or set(names) & set(protected):
             raise ValueError("T1 refuses a protected kernel or external-module package")
         if label in {"treatment","default"}:
-            text = helper["trial_config"](text, protected, "-mthumb")
+            text = helper["trial_config"](text, protected, "-mthumb -mimplicit-it=thumb" if recipe["id"]=="THUMB" else "-mthumb")
         prefix = helper["PROBE"]
         if recipe["id"] == "THUMB":
+            prefix += "\n" + (directory/"driver-config.sh.txt").read_text().replace("@SCOPED@", "yes" if label=="default" else "no").replace("%","%%")
             if re.search(r"(?mi)^%files[^%]*?\.ko(?:\s|$)", original):
                 raise ValueError("external module producer requires exemption review")
             if label == "package":
@@ -434,7 +435,13 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
             try:
                 before = verify["target_rows"](work/"baseline/gbs.log")
                 after = verify["target_rows"](work/("default" if recipe["id"]=="THUMB" else "treatment")/"gbs.log")
-                proof["driver_mode_probe"] = verify["check_modes"](before, after)
+                if recipe["id"]=="THUMB":
+                    opt=libraries(directory,"thumb-options")[0]
+                    gaps={n:opt["config_gate"](opt["parse"](work/n/"gbs.log")[0],n=="default") for n in ("baseline","default")}
+                    proof["driver_mode_gaps"]=gaps
+                    delivered = delivered and not any(gaps.values())
+                else:
+                    proof["driver_mode_probe"] = verify["check_modes"](before, after)
             except (ValueError, OSError) as exc:
                 proof["driver_mode_probe"] = str(exc)
                 delivered = False

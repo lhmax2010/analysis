@@ -1,0 +1,80 @@
+--- a/packaging/tztv-kernel.spec
++++ b/packaging/tztv-kernel.spec
+@@ -2,4 +2,77 @@
+ export V=1 KBUILD_VERBOSE=1
+ export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1"
++# Local 0012f trial, instantiated once per GBS export.
++pm_lane=@LANE@
++export PM_KERNEL_LANE="$pm_lane"
++export PM_KERNEL_EVIDENCE="%{_builddir}/pm0012f-evidence"
++pm_tools="$PWD/.pm0012f-tools"
++mkdir "$pm_tools"
++export PM_REAL_CLANG="$(command -v clang)" PM_REAL_MAKE="$(command -v make)"
++cat > "$pm_tools/clang" <<'PMCLANG'
++#!/bin/sh
++# Capture diagnostics only on the real scheduler TU, beside the output object.
++obj=
++prev=
++probe=
++for arg do
++    case "$arg" in kernel/sched/core.c|*/kernel/sched/core.c) probe=yes;; esac
++    if [ "$prev" = -o ]; then obj=$arg; fi
++    prev=$arg
++done
++if [ "$probe" = yes ] && [ -n "$obj" ]; then
++    "$PM_REAL_CLANG" "$@" -mllvm -print-all-options > "$obj.pm0012f-options" 2>&1
++    rc=$?
++    grep -E -- '^[[:space:]]*--?(enable-ml-inliner|regalloc-enable-advisor)[[:space:]]*=|warning:|error:' "$obj.pm0012f-options" >&2 || :
++    exit "$rc"
++fi
++exec "$PM_REAL_CLANG" "$@"
++PMCLANG
++cat > "$pm_tools/make" <<'PMMAKE'
++#!/bin/sh
++# Scope the make override to Linux Kbuild. Keep any explicit incoming KCFLAGS.
++directory=$PWD
++prev=
++kc=${KCFLAGS-}
++for arg do
++    if [ "$prev" = -C ]; then directory=$arg; fi
++    case "$arg" in -C?*) directory=${arg#-C};; KCFLAGS=*) kc=${arg#KCFLAGS=};; esac
++    prev=$arg
++done
++if [ -f "$directory/arch/arm/Makefile" ] && [ -f "$directory/scripts/Kbuild.include" ]; then
++    case "$PM_KERNEL_LANE" in K1|K3|K5) set -- "$@" "KCFLAGS=${kc:+$kc }-moutline";; esac
++    case "$PM_KERNEL_LANE" in K2|K3) set -- "$@" CONFIG_MLGO_INLINER= CONFIG_MLGO_REGALLOC=;; esac
++fi
++"$PM_REAL_MAKE" "$@" || exit $?
++# Some packaging steps clean the perf build tree before rpm exits.
++out=${KBUILD_OUTPUT:-.}
++for arg do case "$arg" in O=*) out=${arg#O=};; esac; done
++case "$out" in /*) tree=$out;; *) tree=$directory/$out;; esac
++if [ -s "$tree/kernel/sched/core.o.pm0012f-options" ] && [ -s "$tree/arch/arm/boot/zImage" ] &&
++   [ -s "$tree/.config" ] && [ -s "$tree/vmlinux" ]; then
++    (
++        set -eu
++        cd "$tree"
++        hash=$(sha256sum arch/arm/boot/zImage | cut -d' ' -f1)
++        dest=$PM_KERNEL_EVIDENCE/$hash
++        test ! -e "$dest/complete" || exit 0
++        mkdir -p "$dest"
++        cp --parents --reflink=auto -t "$dest" -- .config vmlinux arch/arm/boot/zImage kernel/sched/core.o.pm0012f-options
++        find . -type f -name '.*.o.cmd' -exec cp --parents --reflink=auto -t "$dest" -- {} +
++        # Keep the individual ELF objects needed for caller attribution. Preserve NUL-delimited names.
++        find . -type f -name '*.o' -exec grep -alFZ OUTLINED_FUNCTION_ {} + > "$dest/candidates" || :
++        xargs -0 -r -a "$dest/candidates" cp --parents --reflink=auto -t "$dest" --
++        touch "$dest/complete"
++    ) || exit $?
++fi
++PMMAKE
++chmod 755 "$pm_tools/make" "$pm_tools/clang"
++export PATH="$pm_tools:$PATH"
++case "$pm_lane" in K4|K5)
++    pm_def=linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig
++    test -f "$pm_def" || exit 2
++    chmod u+w "$pm_def"
++    sed -i '/^# CONFIG_THUMB2_KERNEL is not set$/d' "$pm_def"
++    echo CONFIG_THUMB2_KERNEL=y >> "$pm_def"
++esac
+ printf 'GBS_KERNEL_PATH %%s\n' "$PATH"
+ rpm -q clang llvm clang-accel-x86_64-armv7l --qf 'GBS_RPM %%{NAME} %%{EPOCHNUM} %%{VERSION} %%{RELEASE} %%{ARCH}\n' || :

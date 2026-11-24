@@ -1,0 +1,223 @@
+"""Run the six local perf kernel lanes serially in the existing Thursday job."""
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import shlex
+import shutil
+import tempfile
+import resource
+import subprocess
+import sys
+import zlib
+
+HERE=Path(__file__).resolve().parent
+LANES=("K0","K1","K2","K3","K4","K5")
+GROUPS=("kernel/sched/","mm/","net/core/","arch/arm/")
+ADVISORS=("enable-ml-inliner","regalloc-enable-advisor")
+
+
+def load(name):
+    return runpy.run_path(str(HERE/(name+".py.txt")))
+
+
+def config_map(raw):
+    values={}
+    for line in raw.decode().splitlines():
+        m=re.fullmatch(r"(CONFIG_\w+)=(.*)|# (CONFIG_\w+) is not set",line)
+        if m:
+            key=m[1] or m[3]
+            if key in values: raise ValueError("duplicate effective config key "+key)
+            values[key]=m[2] if m[1] else "n"
+    if len(values)<1000 or values.get("CONFIG_ARM")!="y":
+        raise ValueError("incomplete ARM effective config")
+    return values
+
+
+def embedded(blob):
+    # Try the raw kernel and bounded gzip-compressed zImage payload(s).
+    candidates=[blob]
+    for hit in re.finditer(b"\x1f\x8b\x08",blob):
+        try:
+            dec=zlib.decompressobj(31)
+            data=dec.decompress(blob[hit.start():],128<<20)
+            if dec.eof and b"IKCFG_ST" in data: candidates.append(data)
+        except zlib.error: continue
+    for magic,exe in ((b"\xfd7zXZ\x00","xz"),(b"\x28\xb5\x2f\xfd","zstd"),(b"\x02\x21\x4c\x18","lz4"),(b"BZh","bzip2")):
+        if not shutil.which(exe): continue
+        for hit in list(re.finditer(re.escape(magic),blob))[:12]:
+            with tempfile.TemporaryFile(dir=Path.cwd()) as out:
+                def limit():
+                    resource.setrlimit(resource.RLIMIT_FSIZE,(128<<20,128<<20))
+                subprocess.run([exe,"-dc"],input=blob[hit.start():],stdout=out,stderr=subprocess.DEVNULL,
+                               preexec_fn=limit,timeout=90)
+                out.seek(0)
+                data=out.read()
+                if b"IKCFG_ST" in data: candidates.append(data)
+    result=set()
+    for section in candidates:
+        for hit in re.finditer(b"IKCFG_ST",section):
+            dec=zlib.decompressobj(31)
+            try:
+                data=dec.decompress(section[hit.end():],2<<20)
+                if dec.eof and dec.unused_data.startswith(b"IKCFG_ED"):
+                    config_map(data)
+                    result.add(data)
+            except (ValueError,zlib.error): continue
+    return result
+
+
+def official_inputs(work,q,s):
+    cap,receipt,pkgs=q["retained"]("official",s.lib)
+    row=pkgs["tztv-kernel-perf"]
+    if row["vcs"]!=s.gbs.DEPOT.rstrip("/")+"#14293732" or not re.search(
+        re.escape(s.gbs.DEPOT)+r"\.\.\.@14427407\s*$",s.manifest.read_text(),re.M):
+        raise ValueError("unmatched Official source or shelf")
+    configs={}
+    sizes={}
+    for package in ("tztv-kernel-perf","tztv-kernel-devel"):
+        rpm=q["matched_payload"](cap,receipt,pkgs[package],s.lib)
+        for key,(size,digest) in q["member_checksums"](rpm).items():
+            name=Path(key).name
+            perf="perf" in Path(key).parts
+            if not perf or not digest: continue
+            if name=="uImage": sizes["uImage"]=size
+            if name not in (".config","zImage","uImage","vmlinux") and not name.startswith("config-"): continue
+            if size>512<<20: continue
+            dest=work/(package+"-"+digest+"-"+name)
+            if not dest.exists(): q["extract_member"](rpm,key,dest,digest,s.lib)
+            raw=dest.read_bytes()
+            if name=="vmlinux":
+                if package=="tztv-kernel-perf" and s.scan["secs_of"](raw):
+                    sizes["vmlinux"]=size
+            elif name in ("zImage","uImage"):
+                for data in embedded(raw): configs[package+key]=data if package+key not in configs or configs[package+key]==data else b""
+            else:
+                configs[package+key]=raw
+    if not configs:
+        raise ValueError("Official 37736448: no full perf .config in verified kernel RPMs or supported IKCONFIG; supply the authenticated QB perf build output")
+    maps=[config_map(raw) for raw in configs.values()]
+    base=maps[0]
+    if any(m!=base for m in maps) or any(base.get(k)!="y" for k in ("CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC")) or base.get("CONFIG_THUMB2_KERNEL")!="n":
+        raise ValueError("Official perf configs disagree or do not select expected A32/release advisors")
+    (work/"official.config").write_bytes(next(iter(configs.values())))
+    print("KERNEL_THUMB_CONFIG",[(k,hashlib.sha256(v).hexdigest()) for k,v in configs.items()])
+    return base,sizes
+
+
+def argv_proof(tree,lane):
+    samples={}
+    off=lane in ("K2","K3")
+    outline=lane in ("K1","K3","K5")
+    for group in GROUPS:
+        for p in sorted((tree/group).rglob(".*.o.cmd")):
+            cmd=p.read_text(errors="replace").splitlines()[0].partition(":=")[2].strip().split(";",1)[0]
+            args=shlex.split(cmd)
+            if "-c" not in args or "-D__KERNEL__" not in args or not any(x.endswith(".c") for x in args): continue
+            if not any("clang" in Path(x).name for x in args[:3]): continue
+            if ("-moutline" in args)!=outline: continue
+            selected={name:[arg.split("=",1)[1] for arg in args if arg.startswith("-"+name+"=")] for name in ADVISORS}
+            if any((vals and vals[-1]!="default") if off else (not vals or vals[-1]!="release") for vals in selected.values()): continue
+            modes=[x for x in args if x in ("-mthumb","-marm")]
+            if group=="kernel/sched/" and (not modes or modes[-1]!=("-mthumb" if lane in ("K4","K5") else "-marm")): continue
+            samples[group]=cmd
+            break
+    if len(samples)!=4: raise ValueError("missing effective compile flags for "+str(sorted(set(GROUPS)-samples.keys())))
+    dump=tree/"kernel/sched/core.o.pm0012f-options"
+    output=dump.read_text(errors="replace") if dump.is_file() else ""
+    wanted="default" if off else "release"
+    options={}
+    for name in ADVISORS:
+        m=re.search(r"^\s*--?"+name+r"\s*=\s*([^\n]+)",output,re.M)
+        if not m or not re.match(re.escape(wanted)+r"\b",m[1],re.I):
+            raise ValueError(f"{lane}: scheduler TU diagnostic did not prove {name}={wanted}")
+        options[name]=m[1].strip()
+    return samples,options
+
+
+def run(work,proof,owners):
+    dev=load("development")
+    facts=json.loads(dev["input_path"](proof).read_text())
+    if not facts.get("spec_diff") or not facts.get("official_input_objects"):
+        raise ValueError("direct 9.1 / 11.1 SRPM spec and Official model proof required")
+    s=dev["repositories"](HERE)
+    q=load("matched-qb")
+    audit=load("kernel-audit")["audit"]
+    results={}
+    with s.perf["locks"]():
+        s.gbs.available(work,55,16)
+        base,ref=official_inputs(work,q,s)
+        if "uImage" not in ref: raise ValueError("missing matched QB perf uImage")
+        src=s.gbs.stage_kernel(work)
+        spec=src/"packaging/tztv-kernel.spec"
+        subprocess.run(["patch","--batch","--fuzz=0","-p1","-i",HERE/"perf-machine-outliner.spec.patch"],cwd=src,check=True)
+        template=spec.read_text()
+        if template.count("@LANE@")!=1: raise ValueError("invalid trial patch")
+        shared=work/"shared"
+        shared.mkdir()
+        cfg,root=dev["fresh_lane"](s,shared)
+        s.gbs.live_product(s.product)
+        thumb_config=None
+        for lane in LANES:
+            s.gbs.available(work,55,16)
+            folder=work/lane
+            folder.mkdir()
+            record=results[lane]={}
+            spec.write_text(template.replace("@LANE@",lane))
+            try:
+                if root.exists() or any((shared/"empty-repo").iterdir()): raise ValueError("GBS root/repo carried earlier lane products")
+                s.thumb["run_gbs"](s.gbs,folder,src,spec.name,cfg,s.buildconf,root,True,False)
+                toolchain=(folder/"thumb-probe.txt").read_text(errors="replace").splitlines()
+                record["rpm_identity"]=[line for line in toolchain if line.startswith("GBS_RPM ")]
+                if not any(re.search(r"^GBS_RPM clang (?:0|\(none\)) 22\.1\.8 9\.1 armv7l$",line) for line in record["rpm_identity"]):
+                    raise ValueError("missing pinned 22.1.8-9.1 armv7l clang in GBS root")
+                rpm,=[p for p in s.gbs.kernel_rpms(root) if q["query"](p,"%{NAME}")=="tztv-kernel-perf"]
+                members=q["member_checksums"](rpm)
+                record["images"]={n:members["/perf/"+n] for n in ("uImage","zImage")}
+                record["module_bytes"]=sum(z for n,(z,_) in members.items() if re.search(r"\.ko(?:\.(?:gz|xz|zst))?$",n))
+                # Join the real output tree to its RPM; multiple other kernel flavours can be present.
+                matches=[p.parents[3] for p in root.glob("**/rpmbuild/BUILD/**/arch/arm/boot/zImage")
+                         if s.gbs.sha(p)==record["images"]["zImage"][1] and (p.parents[3]/".config").is_file()]
+                if not matches: raise ValueError("no retained effective build tree with a byte-identical perf zImage")
+                matches=[t for t in matches if (t/"vmlinux").is_file()]
+                ids={(s.gbs.sha(t/"vmlinux"),s.gbs.sha(t/".config")) for t in matches}
+                if len(ids)!=1: raise ValueError("ambiguous effective build trees")
+                tree=next((t for t in matches if (t/"kernel/sched/core.o.pm0012f-options").is_file()),matches[0])
+                effective=config_map((tree/".config").read_bytes())
+                record["config_delta"]={k:[base.get(k),effective.get(k)] for k in sorted(base.keys()|effective.keys()) if base.get(k)!=effective.get(k)}
+                if lane in ("K4","K5"):
+                    if effective.get("CONFIG_THUMB2_KERNEL")!="y": raise ValueError("Thumb Kconfig not delivered")
+                    if thumb_config and thumb_config!=effective: raise ValueError("K4/K5 config drift")
+                    thumb_config=effective
+                elif record["config_delta"]: raise ValueError("effective config differs from matched Official")
+                record["samples"],record["advisor_options"]=argv_proof(tree,lane)
+                record["static"]=audit(tree,tree/"vmlinux",s.scan["secs_of"],effective)
+                if lane=="K0":
+                    if ref["uImage"]!=record["images"]["uImage"][0]: raise ValueError("K0 shipped uImage size mismatch")
+                    record["linked_QB_size"]=ref.get("vmlinux")
+                    if "vmlinux" in ref and ref["vmlinux"]!=record["static"]["vmlinux_bytes"]:
+                        raise ValueError("K0 shipped linked vmlinux size mismatch")
+                if lane in ("K1","K3","K5") and not record["static"]["helper_count"]:
+                    raise ValueError("flag delivered but zero surviving linked helpers")
+                record["status"]="STATIC_MEASURED"
+            except (ValueError,OSError,IndexError,subprocess.SubprocessError) as exc:
+                record["status"]="BLOCKED_OR_FAILED"
+                record["diagnostic"]=str(exc)
+            finally:
+                if root.exists(): root.rename(folder/"GBS-ROOT")
+                (work/"kernel-matrix.json").write_text(json.dumps(results,indent=2)+"\n")
+                print("KERNEL_THUMB_LANE",lane,record["status"],record.get("diagnostic",""),flush=True)
+            if lane=="K0" and record["status"]!="STATIC_MEASURED": break
+        qualified=[lane for lane in ("K0","K1","K4","K5") if results.get(lane,{}).get("status")=="STATIC_MEASURED"]
+        if qualified:
+            load("kernel-modules")["build_modules"](work,s,dev,dev["input_path"](owners),qualified)
+        if len(qualified)!=4 or len(results)!=6 or any(r["status"]!="STATIC_MEASURED" for r in results.values()) or "vmlinux" not in ref:
+            raise ValueError("kernel matrix or shipped linked-vmlinux reference incomplete; see kernel-matrix.json")
+
+
+if __name__=="__main__":
+    try: run(Path.cwd(),Path(sys.argv[1]),Path(sys.argv[2]))
+    except (ValueError,OSError,subprocess.SubprocessError) as exc:
+        print("KERNEL_THUMB_BLOCKED",exc)
+        sys.exit(2)

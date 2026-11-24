@@ -1,0 +1,120 @@
+"""Inspect retained ARM binaries with host readers only. Preserve caller and unwind uncertainty."""
+import bisect
+import collections
+from pathlib import Path
+import re
+import shutil
+import struct
+import subprocess
+
+HELPER = re.compile(r"^OUTLINED_FUNCTION_\d+(?:[.$].*)?$")
+BRANCH = re.compile(r"^b(?:l|lx)?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?(?:\.[nw])?$")
+SPECIAL = (".noinstr.text",".head.text",".entry.text",".idmap.text",".hyp.text",".kprobes.text","__kprobes")
+
+
+def symbols(blob, sections):
+    for _, sec in sections:
+        if sec[1] != 2 or sec[9] != 16:
+            continue
+        strings = sections[sec[6]][1]
+        labels = blob[strings[4]:strings[4]+strings[5]]
+        for pos in range(sec[4],sec[4]+sec[5],16):
+            key,addr,size,kind,_,idx=struct.unpack_from("<IIIBBH",blob,pos)
+            if kind & 15 != 2 or not 0 < idx < len(sections):
+                continue
+            name=labels[key:labels.index(b"\0",key)].decode(errors="replace")
+            yield name,addr & ~1,size,sections[idx][0]
+
+
+def unwind(blob, sections):
+    entries=[]
+    for name,sec in sections:
+        if sec[1] != 0x70000001: continue
+        for i in range(0,sec[5],8):
+            delta,desc=struct.unpack_from("<II",blob,sec[4]+i)
+            delta=((delta & 0x7fffffff)^0x40000000)-0x40000000
+            entries.append(((sec[3]+i+delta)&0xfffffffe,desc))
+    return sorted(entries)
+
+
+def disassemble(exe, path, targets, linked):
+    cmd=[exe,"-d","--no-show-raw-insn",str(path)]
+    records=[]
+    section=caller=None
+    base=0
+    with subprocess.Popen(cmd,stdout=subprocess.PIPE,text=True,errors="replace") as proc:
+        for raw in proc.stdout:
+            line=raw.strip()
+            if line.startswith("Disassembly of section "):
+                section=line.split()[-1].rstrip(":")
+                caller=None
+                continue
+            label=re.fullmatch(r"([\da-fA-F]+) <(.+)>:",line)
+            if label:
+                base,caller=int(label[1],16),label[2]
+                continue
+            if not caller: continue
+            ins=re.match(r"(\w+):\s+(\S+)\s+(?:0x)?([a-fA-F0-9]+)\s+<([^>]+)>",line)
+            if not ins or not BRANCH.fullmatch(ins[2]): continue
+            target=int(ins[3],16)&~1
+            callee=ins[4]
+            if linked:
+                if target not in targets: continue
+                callee=targets[target]
+            elif not HELPER.fullmatch(callee): continue
+            records.append(dict(caller=caller,section=section,offset=int(ins[1],16)-base,
+                                dest=callee,addr=target,op=ins[2]))
+        if proc.wait(): raise ValueError("disassembly failed: "+str(path))
+    return records
+
+
+def audit(tree, image, scan, config):
+    blob=image.read_bytes()
+    secs=scan(blob)
+    if not secs or struct.unpack_from("<H",blob,16)[0]!=2: raise ValueError("expected linked ARM vmlinux")
+    syms=list(symbols(blob,secs))
+    if not syms: raise ValueError("vmlinux has no function symbol table")
+    helpers={va:dict(name=name,section=sec,bytes=size,calls=[]) for name,va,size,sec in syms if HELPER.fullmatch(name)}
+    totals={name:sec[5] for name,sec in secs}
+    report={"sections":{k:totals.get(k) for k in (".text",".rodata",".init.text",".ARM.exidx")},
+            "alloc_bytes":sum(sec[5] for _,sec in secs if sec[2]&2),"vmlinux_bytes":len(blob),
+            "helpers":helpers,"helper_count":len(helpers),"helper_bytes":sum(x["bytes"] for x in helpers.values())}
+    if not helpers: return report
+    exe=next((shutil.which(x) for x in ("llvm-objdump-22","llvm-objdump","arm-linux-gnueabi-objdump","arm-linux-gnueabihf-objdump") if shutil.which(x)),None)
+    if not exe: raise ValueError("ARM-capable disassembler unavailable")
+    target_names={va:x["name"] for va,x in helpers.items()}
+    origins=collections.defaultdict(set)
+    for marker in tree.rglob(".*.o.cmd"):
+        obj=marker.with_name(marker.name[1:-4])
+        if not obj.is_file() or not re.search(r"\s-c\s",marker.read_text(errors="replace").split("\n",1)[0]): continue
+        contents=obj.read_bytes()
+        if b"OUTLINED_FUNCTION_" not in contents or not scan(contents): continue
+        for c in disassemble(exe,obj,{},False):
+            origins[c["caller"],c["offset"],c["dest"]].add((str(obj.relative_to(tree)),c["section"]))
+    entries=unwind(blob,secs)
+    starts=[e[0] for e in entries]
+    for addr,helper in helpers.items():
+        i=bisect.bisect_right(starts,addr)-1
+        if config.get("CONFIG_ARM_UNWIND")=="y":
+            end=addr+helper["bytes"]
+            # An EHABI row covers up to the next row. A terminal entry alone has no established end.
+            span=(entries[i:bisect.bisect_left(starts,end)] if i>=0 and end>addr and starts[-1]>=end else [])
+            helper["unwind"]=("NO_PROVEN_RANGE" if not span else "CANTUNWIND" if any(v==1 for _,v in span)
+                              else "DESCRIPTOR_COVERAGE_REVIEW_ON_TARGET")
+            helper["exidx_records"]=span
+        else:
+            helper["unwind"]="FRAME_POINTER_CHAIN_REVIEW" if config.get("CONFIG_FRAME_POINTER")=="y" else "NO_VERIFIED_UNWINDER"
+    for c in disassemble(exe,image,target_names,True):
+        matches=sorted(origins.get((c["caller"],c["offset"],c["dest"]),()))
+        c["input_candidates"]=matches
+        c["attribution"]="UNIQUE" if len(matches)==1 else "UNRESOLVED"
+        helper=helpers[c["addr"]]
+        names={c["section"],*(sec for _,sec in matches)}
+        c["restricted"]=sorted(sec for sec in names if any(tag in sec for tag in SPECIAL))
+        c["init_to_resident"]=any(sec.startswith(".init.text") for sec in names) and helper["section"].startswith(".text")
+        helper["calls"].append(c)
+    for helper in helpers.values():
+        helper["caller_subsystems"]=sorted({obj.split("/")[0] if not obj.startswith(("arch/arm/","kernel/sched/")) else "/".join(obj.split("/")[:2])
+                                            for c in helper["calls"] for obj,_ in c["input_candidates"]})
+    report["audit_scope"]="Resolved direct branches and tail calls; unjoined objects, indirect calls, veneers, and frame chains need review."
+    return report

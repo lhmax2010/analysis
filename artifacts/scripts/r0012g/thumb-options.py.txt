@@ -1,0 +1,138 @@
+"""Read actual ARM cc1 jobs, loaded config files and assembler results from each GBS lane."""
+from collections import Counter, defaultdict
+import subprocess
+import json
+from pathlib import Path
+import re
+import shlex
+import sys
+import runpy
+
+DRIVERS = ("clang", "clang++", "armv7l-tizen-linux-gnueabi-clang",
+           "armv7l-tizen-linux-gnueabi-clang++", "cc", "c++")
+FLAGS = {"-mthumb", "-mimplicit-it=thumb"}
+
+
+def parse(path):
+    drivers = defaultdict(lambda: defaultdict(list))
+    units = set()
+    diagnostics = []
+    for raw in path.open(errors="replace"):
+        line = re.sub(r"^\[\s*[\d.]+s\]\s*", "", raw).strip()
+        if line.startswith("PM_CFG "):
+            _, name, tag, *value = line.split(maxsplit=3)
+            drivers[name][tag].extend(value)
+        elif re.search(r"(?:fatal error:|error:|warning:).*?(?:IT block|predicated|\[-W|format.security)", line, re.I):
+            diagnostics.append(line)
+        elif line.startswith('"') and '"-cc1"' in line and "/.pm0012g-driver/" not in line:
+            try:
+                args = shlex.split(line)
+                triple = args[args.index("-triple")+1]
+                lang = args[args.index("-x")+1]
+                src = args[-1]
+            except (IndexError, ValueError):
+                continue
+            if lang not in ("c","c++") or src == "/dev/null" or not triple.startswith(("arm","thumb")):
+                continue
+            opts = [x for x in args if re.fullmatch(r"-O(?:[0-3gsz]|fast)?",x)]
+            lto = "off"
+            for arg in args:
+                if arg == "-fno-lto": lto = "off"
+                if arg == "-flto" or arg.startswith("-flto="): lto = arg.partition("=")[2] or "full"
+            units.add((src,lang,triple,opts[-1] if opts else "-O0",lto))
+    return dict(drivers), sorted(units), list(dict.fromkeys(diagnostics))
+
+
+def config_gate(drivers, scoped):
+    gaps = []
+    for name in DRIVERS:
+        row = drivers.get(name,{})
+        if name in ("cc","c++") and row.get("EXE") and "NON_CLANG_OR_UNRESOLVED" in row:
+            if row.get("GCC"):
+                continue
+        expected = "t" if scoped else "a"
+        config = row.get("CONFIG",[])
+        options = set(" ".join(row.get("OPTION",[])).split())
+        argv = row.get("ARGV",[])
+        if (not any(re.search(r'"-triple" "arm',v) for v in row.get("ARM_OVERRIDE",[])) or not config or not argv or not set(row.get("BUILT",[])) >= {"c "+expected,"S "+expected}
+                or scoped and (not FLAGS <= options or not any(re.search(r'"-triple" "thumb',v) for v in argv))
+                or not scoped and options):
+            gaps.append([name, row.get("LOADED",[]), "check selected cfg, triple and both object mappings"])
+    return gaps
+
+
+def summarize(work):
+    result = {}
+    all_units = {}
+    for lane in ("baseline","default","package"):
+        path = work/lane/"gbs.log"
+        if not path.is_file(): continue
+        drivers, units, diagnostics = parse(path)
+        all_units[lane] = units
+        counts = Counter(x[1:] for x in units)
+        links=work/lane/"link-argv.txt"
+        evidence=[]
+        if links.is_file():
+            for raw in links.read_text(errors="replace").splitlines():
+                try:
+                    args=shlex.split(raw)
+                except ValueError:
+                    continue
+                flags=[x for x in args if x in ("-flto","-fno-lto") or x.startswith("-flto=") or "LLVMgold" in x or "-plugin-opt" in x]
+                if flags: evidence.append({"flags":flags,"argv":raw})
+        result[lane] = {"link_lto_evidence":evidence,"drivers":drivers, "driver_gaps":config_gate(drivers, lane=="default"),
+                        "groups":[[*k,v] for k,v in sorted(counts.items())],
+                        "diagnostics":diagnostics, "units":units}
+    baseline = defaultdict(set)
+    for src,lang,_,_,lto in all_units.get("baseline",[]): baseline[src,lang].add(lto)
+    paired = [(src,lang,lto) for src,lang,_,_,lto in all_units.get("package",[])
+              if baseline[src,lang] == {"off"} and lto != "off"]
+    result["new_lto_units"]=sorted(set(paired))
+    # Keep mixed and renamed/absent units visible. A zero matched count cannot clear them.
+    return result
+
+
+def prior_abi(job):
+    # The approved pilot already ran abidiff. Verify its inputs before reusing the result.
+    abi=runpy.run_path(str(Path(__file__).with_name("lto-abi.py.txt")))
+    manifests=[job/l/"lane.json" for l in ("baseline","package")]
+    earlier=job/"thumb-acceptance.json"
+    if not all(p.is_file() for p in [*manifests,earlier]): return {"status":"PILOT_OUTPUT_MISSING"}
+    indices=[]
+    for p in manifests:
+        indices.append({(r["rpm"],r["path"]):r for r in json.loads(p.read_text())["metrics"].get("files",[])})
+    a,b=indices
+    old=json.loads(earlier.read_text())["lanes"].get("package",{})
+    checks={(r["rpm"],r["path"]):r for r in old.get("files",[])}
+    evidence=[]
+    for k in sorted(a.keys() & b.keys()):
+        binaries=[]
+        for lane,r in [("baseline",a[k]),("package",b[k])]:
+            binary=job/lane/"elf-proof"/(r["sha256"]+".elf")
+            binaries.append(abi["checked"](str(binary),r["sha256"]))
+        diff=abi["compare"](*binaries)
+        evidence.append({"path":k,"export_loader_delta":diff,"pilot_debug_abidiff":checks.get(k,{}).get("abi","UNAVAILABLE")})
+    complete=bool(a and a.keys()==b.keys() and all(not any(r["export_loader_delta"].values()) and
+                r["pilot_debug_abidiff"] in ("PASS","IDENTICAL_ELF") for r in evidence))
+    return {"status":"ABI_PASS" if complete else "ABI_REVIEW","files":evidence}
+
+
+if __name__ == "__main__":
+    folder=Path(sys.argv[1])
+    for job in sorted((folder/"jobs").glob("thumb-*")):
+        data=summarize(job)
+        if data["new_lto_units"]:
+            try:
+                data["lto_abi"]=prior_abi(job)
+            except (ValueError, OSError, KeyError, RuntimeError, subprocess.SubprocessError) as exc:
+                data["lto_abi"]={"status":"ABI_REVIEW","reason":str(exc)}
+            print("THUMB_LTO_CHANGE",job.name,len(data["new_lto_units"]),data["lto_abi"]["status"])
+        out=Path.cwd()/(job.name+".json")
+        out.write_text(json.dumps(data,indent=2)+"\n")
+        print("THUMB_GROUPS",job.name, {k:v["groups"][:10] for k,v in data.items() if k in ("baseline","default","package")},
+              "new_lto_units",len(data["new_lto_units"]))
+        for lane in ("baseline","default","package"):
+            diag=data.get(lane,{}).get("diagnostics",[])
+            for line in diag[:3]:
+                label="F1_IT_DIAGNOSTIC" if lane=="default" and re.search(r"IT block|predicated",line,re.I) else "COMPILER_DIAGNOSTIC"
+                print(label,lane,line[:450])

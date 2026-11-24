@@ -24,11 +24,11 @@ def owners(lines):
     return packages
 
 
-def build_modules(work, settings, dev, owners_file):
+def build_modules(work, settings, dev, owners_file, lanes=("baseline", "thumb")):
     with owners_file.open() as stream:
         inputs = owners(stream)
     report = {}
-    for lane in ("baseline", "thumb"):
+    for lane in lanes:
         kernel = work/lane/"GBS-ROOT/local/repos"
         headers = [p for p in kernel.rglob("tztv-kernel-devel-*.rpm")
                    if settings.ole["rpm_query"](p,"%{NAME}") == "tztv-kernel-devel"]
@@ -45,7 +45,8 @@ def build_modules(work, settings, dev, owners_file):
             item = {"expected_modules": sorted(paths), "devel_rpm_sha256":settings.gbs.sha(header)}
             report.setdefault(package,{})[lane] = item
             try:
-                settings.gbs.available(dest,24,12)
+                disk, ram = (55, 16) if lane.startswith("K") else (24, 12)
+                settings.gbs.available(dest, disk, ram)
                 row,published,_ = dev["resolve"](settings,package)
                 if {r["srpm"] for r in published} != {srpm}:
                     raise ValueError("installed module source differs from staged source")
@@ -75,13 +76,19 @@ export KBUILD_VERBOSE=1 V=1
                     found.update(p for p in subprocess.check_output(["rpm","-qlp",rpm],text=True).splitlines() if MODULE.search(p))
                 seen=False
                 compile_examples=[]
+                modpost=[]
+                unsafe=[]
                 with (dest/"gbs.log").open(errors="replace") as f:
                     for line in f:
                         if "PM_MODULE_HEADER_CONFIRMED "+sha in line: seen=True
+                        if re.search(r"(?:^|\s)(?:\S*/)?scripts/mod/modpost\s",line) and len(modpost)<5:
+                            modpost.append(line.strip())
+                        if re.search(r"(?:warning|error):.*modpost|modpost:.*(?:undefined|unresolved)|KBUILD_MODPOST_WARN=[1y]",line,re.I):
+                            unsafe.append(line.strip())
                         if len(compile_examples)<8 and " -c " in line and re.search(r"(?:clang|gcc).*\.c\b",line):
                             compile_examples.append(line.strip()[:1800])
-                item.update(missing_paths=sorted(paths-found),compile_examples=compile_examples)
-                item["status"]="BUILT_HEADER_AND_MODULE_PATHS_OBSERVED" if seen and paths<=found and compile_examples else "REVIEW_BUILD_INPUTS"
+                item.update(missing_paths=sorted(paths-found),compile_examples=compile_examples,modpost_commands=modpost,modpost_diagnostics=unsafe)
+                item["status"]="BUILT_HEADER_AND_MODULE_PATHS_OBSERVED" if seen and paths<=found and compile_examples and modpost and not unsafe else "REVIEW_BUILD_INPUTS"
             except (ValueError,OSError,subprocess.SubprocessError) as exc:
                 item.update(status="BLOCKED_OR_FAILED",diagnostic=str(exc),log=str(dest/"gbs.log"))
             (work/"external-modules.json").write_text(json.dumps(report,indent=2)+"\n")
