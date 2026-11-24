@@ -1,4 +1,10 @@
-# Status — round 0011d
+# Status — round 0011e
+
+## Round 0011e — 24 November 2026
+
+- Native chain `pm0011c-chain.AFkXQV` finished at 16:13:39 CST. GCC reference 37564293 and both matched USB bundles are verified in the returned transcript. The Base proof exited normally and reported `REVIEW_STATUS INCOMPLETE`. Missing LLVM SRPMs, an unrecognized platform filesystem and executed compiler provenance remain open. [Chain evidence](../artifacts/evidence/native-run-r0011c-chain-AFkXQV-20261124.txt)
+- The uImage sizes equal the retained GBS replay; the zImage sizes differ by +40 B Official and −272 B Customized. Linked vmlinux section equivalence requires the matched-QB artifact. GCC vs LLVM kernel RPM figures remain internal pending the kernel source-identity comparison. Doc 02 rev4 remains the verbatim live export. [Kernel readback and attribution](../comms/codex_to_claude/0011e_reply.md#close-the-base-proof-and-verify-the-kernel-table)
+- Board Step 5 can start now with Official QB 37736448. Alternate Official and Customized visits on the same KantSU2E, archive per-lane board RPM rosters and return combined measurements by lane. Start HQ overnight after Step 5 staging releases the shared lock. The diagnostics and board runbook await native execution. [Board-day runbook](../comms/codex_to_claude/0011e_reply.md#board-day-runbook)
 
 ## Round 0011d — 24 November 2026
 

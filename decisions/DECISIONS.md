@@ -426,3 +426,9 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Claude authors and updates the live HQ docs. Put proposed wording in round replies. Archive each supplied live export verbatim with its checksum. Retain repo-authored Doc 02 rev3 as superseded by the live rev4 export.
 - In native launcher `get()`, allow up to five attempts, with a 15-second connection timeout, a 120-second transfer timeout and 10 seconds between failed attempts. Require SHA-256 verification before using a downloaded file. Record failures with the attempt and filename.
 - Read status from the exact launch directory. When a lookup is unavoidable, select by modification time. The active chain for 0011c is `pm0011c-chain.AFkXQV`. [PM review](../comms/claude_to_codex/0011d_review.md) [Current reply](../comms/codex_to_claude/0011d_reply.md)
+
+## D-054 — Use both staged USBs and keep within-Base attribution open
+
+- Use the verified staging manifests for Official QB 37736448 and Customized QB 37736427. Keep an alternating per-lane board schedule and preserve native copies of each visit, both board RPM rosters and one combined measurement file per lane.
+- Keep the source-matched Base-swap attribution. Exact historical LLVM SRPMs, same-QB RPM rosters and executed Clang/libLLVM provenance qualify the comparison inside the Base. Compare verified linked ELF sections before carrying replay results into the matched QB table.
+- Capture GCC reference 37564293 as the overnight input. Hold its kernel RPM comparison for a source-identity check. Run the overnight batch after Step 5 staging releases the shared lock, then Steps 9 and 8. [Round 0011e results and runbook](../comms/codex_to_claude/0011e_reply.md)
