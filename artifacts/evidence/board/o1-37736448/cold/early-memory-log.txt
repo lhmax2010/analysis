@@ -1,0 +1,79 @@
+[    0.000000] Zone ranges:
+[    0.000000] Early memory node ranges
+[    0.000000] Reserved memory: created CMA memory pool at 0x8e000000, size 60 MiB
+[    0.000000] OF: reserved mem: initialized node default_cma, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x8e000000..0x91bfffff (61440 KiB) map reusable default_cma
+[    0.000000] Reserved memory: created CMA memory pool at 0x26400000, size 4 MiB
+[    0.000000] OF: reserved mem: initialized node cma_1, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x26400000..0x267fffff (4096 KiB) map reusable cma_1
+[    0.000000] Reserved memory: created CMA memory pool at 0x96800000, size 32 MiB
+[    0.000000] OF: reserved mem: initialized node cma_2, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x96800000..0x987fffff (32768 KiB) map reusable cma_2
+[    0.000000] Reserved memory: created CMA memory pool at 0x2b000000, size 36 MiB
+[    0.000000] OF: reserved mem: initialized node cma_3, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x2b000000..0x2d3fffff (36864 KiB) map reusable cma_3
+[    0.000000] Reserved memory: created CMA memory pool at 0x2d400000, size 12 MiB
+[    0.000000] OF: reserved mem: initialized node cma_4, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x2d400000..0x2dffffff (12288 KiB) map reusable cma_4
+[    0.000000] Reserved memory: created CMA memory pool at 0x2e000000, size 12 MiB
+[    0.000000] OF: reserved mem: initialized node cma_5, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x2e000000..0x2ebfffff (12288 KiB) map reusable cma_5
+[    0.000000] Reserved memory: created CMA memory pool at 0x91c00000, size 24 MiB
+[    0.000000] OF: reserved mem: initialized node cma_6, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x91c00000..0x933fffff (24576 KiB) map reusable cma_6
+[    0.000000] Reserved memory: created CMA memory pool at 0x93400000, size 8 MiB
+[    0.000000] OF: reserved mem: initialized node cma_7, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x93400000..0x93bfffff (8192 KiB) map reusable cma_7
+[    0.000000] Reserved memory: created CMA memory pool at 0x93c00000, size 16 MiB
+[    0.000000] OF: reserved mem: initialized node cma_8, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x93c00000..0x94bfffff (16384 KiB) map reusable cma_8
+[    0.000000] Reserved memory: created CMA memory pool at 0x94c00000, size 4 MiB
+[    0.000000] OF: reserved mem: initialized node cma_9, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x94c00000..0x94ffffff (4096 KiB) map reusable cma_9
+[    0.000000] Reserved memory: created CMA memory pool at 0x95000000, size 8 MiB
+[    0.000000] OF: reserved mem: initialized node cma_10, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x95000000..0x957fffff (8192 KiB) map reusable cma_10
+[    0.000000] Reserved memory: created CMA memory pool at 0x95800000, size 8 MiB
+[    0.000000] OF: reserved mem: initialized node cma_11, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x95800000..0x95ffffff (8192 KiB) map reusable cma_11
+[    0.000000] Reserved memory: created CMA memory pool at 0x96000000, size 8 MiB
+[    0.000000] OF: reserved mem: initialized node cma_12, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x96000000..0x967fffff (8192 KiB) map reusable cma_12
+[    0.000000] Reserved memory: created CMA memory pool at 0x26800000, size 64 MiB
+[    0.000000] OF: reserved mem: initialized node cma_13, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x26800000..0x2a7fffff (65536 KiB) map reusable cma_13
+[    0.000000] Reserved memory: created CMA memory pool at 0x2a800000, size 8 MiB
+[    0.000000] OF: reserved mem: initialized node cma_14, compatible id shared-dma-pool
+[    0.000000] OF: reserved mem: 0x2a800000..0x2affffff (8192 KiB) map reusable cma_14
+[    0.046730] Memory: 1279556K/1631488K available (8363K kernel code, 666K rwdata, 1640K rodata, 404K init, 4024K bss, 29920K reserved, 311296K cma-reserved, 726272K highmem)
+[    0.067885] [0-0.064] cma: swapper/0(1): __cma_alloc((ptrval), default_cma, count 64, align 6)
+[    0.077147] [0-0.064] cma: swapper/0(1): __cma_alloc(default_cma): returned (ptrval)(pfn 8e000)
+[    0.357421] Freeing unused kernel image (initmem) memory: 404K
+[    1.507065] nvt_cma cma_default: assigned reserved memory node default_cma
+[    1.507142] nvt_cma cma_osd: assigned reserved memory node cma_1
+[    1.507195] nvt_cma cma_videoenc: assigned reserved memory node cma_2
+[    1.507245] nvt_cma cma_atv: assigned reserved memory node cma_3
+[    1.507292] nvt_cma cma_enc_capture: assigned reserved memory node cma_4
+[    1.507339] nvt_cma cma_cars: assigned reserved memory node cma_5
+[    1.507479] nvt_cma cma_isdb: assigned reserved memory node cma_7
+[    1.507529] nvt_cma cma_demux: assigned reserved memory node cma_8
+[    1.507580] nvt_cma cma_section: assigned reserved memory node cma_9
+[    1.507626] nvt_cma cma_pvr: assigned reserved memory node cma_10
+[    1.507670] nvt_cma cma_nagsam: assigned reserved memory node cma_11
+[    1.507716] nvt_cma cma_subdec: assigned reserved memory node cma_13
+[    1.507763] nvt_cma cma_va: assigned reserved memory node cma_14
+[    2.380592] [1-2.269] cma: fastinit(409): __cma_alloc((ptrval), default_cma, count 16, align 4)
+[    2.380602] [1-2.270] cma: fastinit(409): __cma_alloc(default_cma): returned (ptrval)(pfn 8e040)
+[    2.689619] trustware-cma trustware-cma: assigned reserved memory node cma_6
+[    2.689651] trustware-cma trustware-cma: Registered TrustWare CMA driver
+[    3.268996] l2dec has reserved memory
+[    3.615696] [1-3.289] cma: kworker/u31:0(60): __cma_alloc(bce99119, cma_14, count 512, align 8)
+[    3.615720] [1-3.448] cma: kworker/u31:0(60): __cma_alloc(cma_14): returned 4cf144dd(pfn 2a800)
+[    4.223286] [D/SOC_DRM_VIDEO][ndp_dp-common] [Capture][capture_main     ] PhyAdr 0x03000000 addr 0x00000000 size 0x000C0000 cma: 0
+[    4.223353] [D/SOC_DRM_VIDEO][ndp_dp-common] [Capture][capture_sub      ] PhyAdr 0x03000000 addr 0x000C0000 size 0x000C0000 cma: 0
+[    4.223493] [D/SOC_DRM_VIDEO][ndp_dp-common] [Capture][capture_post     ] PhyAdr 0x03000000 addr 0x00180000 size 0x00099000 cma: 0
+[    5.085730] [BT_DRV_WRN] BTUSB btmtk_usb_init_memory: Success
+[    5.572853] [2-5.314] cma: kworker/2:2R(183): __cma_alloc(ccd16e75, default_cma, count 2, align 1)
+[    5.572865] [2-5.314] cma: kworker/2:2R(183): __cma_alloc(default_cma): returned 8e29adc5(pfn 8e050)
+[    5.573993] [2-5.314] cma: kworker/2:2R(183): __cma_alloc(ccd16e75, default_cma, count 87, align 7)
+[    5.574016] [2-5.315] cma: kworker/2:2R(183): __cma_alloc(default_cma): returned 4df51886(pfn 8e080)

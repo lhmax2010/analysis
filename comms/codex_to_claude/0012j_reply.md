@@ -33,28 +33,39 @@ A root read confirmed that `/proc/config.gz` is absent. The running compile stri
 | Linux System RAM, three banks | 687.25 + 394 + 512 = 1,593.25 MiB |
 | Outside Linux System RAM on the 2 GiB layout | 454.75 MiB |
 | Named vendor regions outside System RAM, union by address | 454.00 MiB inclusive of the 48 MiB secure_os region starting at zero; residual 0.75 MiB |
-| Present RAM minus managed RAM (7,379 pages × 4 KiB) | 29,516 KiB |
+| Reserved at boot, excluding the separately reported CMA | 29,920 KiB |
+| Present RAM minus managed RAM after freeing initmem (7,379 pages × 4 KiB) | 29,516 KiB |
 | Linux MemTotal | 1,601,972 KiB (1,564.43 MiB) |
 | 15 reusable reserved-memory pools | 304 MiB, all inside System RAM; CmaTotal 311,296 KiB |
 | CMA as sampled during inventory | 13,140 KiB free, 2,724 KiB DMA-used, 295,432 KiB user-used |
 | zram0 swap as sampled | 1,041,012 KiB logical, 108,284 KiB used; physical memory 34,611,200 bytes |
 
-Normal zone present/managed pages 148,480/141,101; HighMem 181,568/181,568; Movable 0/0; CMA 77,824/77,824. In the vendor interval union, overlapping entries at address zero are counted once. The boot-message buffer returned zero matching Memory/CMA lines and the boot journal reported no files. The System RAM and managed-page totals reconcile independently using iomem, zoneinfo and meminfo. Recorded VM counters include pgpgin 362,219, pswpin 18,224 and file/anon workingset refaults 354/18,242. [Command line](../../artifacts/evidence/board/o1-37736448/cmdline.txt) · [System RAM](../../artifacts/evidence/board/o1-37736448/iomem.txt) · [Vendor regions](../../artifacts/evidence/board/o1-37736448/vendor-memory.tsv) · [Reserved pools](../../artifacts/evidence/board/o1-37736448/device-tree.tsv) · [Zones](../../artifacts/evidence/board/o1-37736448/zoneinfo.txt) · [VM counters](../../artifacts/evidence/board/o1-37736448/vmstat.txt) · [zram](../../artifacts/evidence/board/o1-37736448/swap.txt)
+Normal zone present/managed pages 148,480/141,101; HighMem 181,568/181,568; Movable 0/0; CMA 77,824/77,824. In the vendor interval union, overlapping entries at address zero are counted once. The cold-boot ring buffer reported 1,279,556/1,631,488 KiB available at 0.047 s, 29,920 KiB reserved and 311,296 KiB cma-reserved. It recorded the release of 404 KiB initmem at 0.357 s; 29,920 − 404 = 29,516 KiB. [Cold-boot kernel log](../../artifacts/evidence/board/o1-37736448/cold/early-memory-log.txt) The System RAM and managed-page totals reconcile independently using iomem, zoneinfo and meminfo. Recorded VM counters include pgpgin 362,219, pswpin 18,224 and file/anon workingset refaults 354/18,242. [Command line](../../artifacts/evidence/board/o1-37736448/cmdline.txt) · [System RAM](../../artifacts/evidence/board/o1-37736448/iomem.txt) · [Vendor regions](../../artifacts/evidence/board/o1-37736448/vendor-memory.tsv) · [Reserved pools](../../artifacts/evidence/board/o1-37736448/device-tree.tsv) · [Zones](../../artifacts/evidence/board/o1-37736448/zoneinfo.txt) · [VM counters](../../artifacts/evidence/board/o1-37736448/vmstat.txt) · [zram](../../artifacts/evidence/board/o1-37736448/swap.txt)
 
 **1 GiB projection.** Holding the 454.75 MiB outside Linux fixed leaves **569.25 MiB** of System RAM. If the 29,516 KiB present-to-managed gap also stays fixed, **553,396 KiB (540.43 MiB)** remains managed by Linux, including reusable CMA. With all 304 MiB of CMA retained, the managed portion outside CMA would be **236.43 MiB**. The board shows user pages in CMA. Actual userspace headroom also depends on kernel allocations, active DMA, reclaim and the 1 GiB bank layout. A 1 GiB idle MemAvailable value requires a measurement.
 
 ## Cold boot and idle
 
-The operator was asked to cold boot and confirm responsive Home. The three scheduled readings require the new boot ID and five minutes at Home.
+The operator cold-booted the board and estimated about 10 s to a responsive Home without a stopwatch. SDB confirmed a new boot, `45fac48b-bc2b-4ba9-9b98-a75d0b5f3bf0`, and the same Official Product. Sampling offsets are measured from receipt of the operator confirmation, so the first sample had at least five minutes at Home. [Operator confirmation](../../artifacts/evidence/board/o1-37736448/cold/home-receipt.json) · [Boot identity](../../artifacts/evidence/board/o1-37736448/cold/confirmed-product.txt)
 
 | Sample | MemTotal | MemFree | MemAvailable | Cached | Shmem | Slab | KernelStack |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Post-flash snapshot, uptime 1,454.33 s (KiB) | 1,601,972 | 74,248 | 1,033,704 | 954,496 | 6,500 | 92,144 | 6,144 |
-| Home +5 min | — | — | — | — | — | — | — |
-| Home +6 min | — | — | — | — | — | — | — |
-| Home +7 min | — | — | — | — | — | — | — |
+| Home +5 min | 1,601,972 | 219,808 | 1,082,736 | 856,460 | 5,208 | 92,148 | 6,092 |
+| Home +6 min | 1,601,972 | 216,616 | 1,080,224 | 857,060 | 5,216 | 92,348 | 6,240 |
+| Home +7 min | 1,601,972 | 220,836 | 1,084,480 | 857,020 | 5,172 | 92,576 | 6,220 |
 
 In the post-flash snapshot, 109 processes returned a PSS reading. The largest five were `DN_g.tizen.menu` (51,328 KiB), `wrt-loader` (45,510), `TA_native-home` (38,285), `DN_function-osd` (24,687) and `home-mainhub` (17,509). With CLK_TCK 250, the mainhub process started at 3,504 ticks (**14.016 s** since kernel boot) and native-home at 649 ticks (**2.596 s**). Operator-observed Home readiness is a separate endpoint. [All 25 ranked processes](../../artifacts/evidence/board/o1-37736448/postflash/top25.tsv) · [Raw PSS and start ticks](../../artifacts/evidence/board/o1-37736448/postflash/idle-1-pss.tsv) · [Executable identities](../../artifacts/evidence/board/o1-37736448/process-candidates.tsv)
+
+Cold-boot samples provided PSS for 113, 114, 113 processes, respectively. Across all three samples, home-mainhub PID 1618 started at **19.764 s** after kernel boot and TA_native-home PID 486 at **3.156 s**. Start times use field 22 of /proc/PID/stat divided by the live CLK_TCK. [Full top 25 for each sample](../../artifacts/evidence/board/o1-37736448/cold/top25-per-sample.tsv) · [Sample starts and runtime](../../artifacts/evidence/board/o1-37736448/cold/sample-timing.tsv)
+
+| Rank | +5 min · PSS KiB | +6 min · PSS KiB | +7 min · PSS KiB |
+|---|---|---|---|
+| 1 | wrt-loader · 45,626 | wrt-loader · 45,623 | wrt-loader · 45,624 |
+| 2 | TA_native-home · 44,423 | TA_native-home · 44,411 | TA_native-home · 44,528 |
+| 3 | DN_g.tizen.menu · 31,355 | DN_g.tizen.menu · 31,363 | DN_g.tizen.menu · 31,375 |
+| 4 | enlightenment · 17,613 | enlightenment · 17,612 | enlightenment · 17,609 |
+| 5 | home-mainhub · 17,250 | home-mainhub · 17,245 | home-mainhub · 17,249 |
 
 ## Thumb-target payloads
 

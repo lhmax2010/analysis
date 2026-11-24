@@ -2,7 +2,7 @@
 
 ## Board visit O1 · 24 November
 
-Confirmed Official QB 37736448 on KantSU2E through the Product file and actual BTF hashes. Collected the 2,342-row board roster, 61 target paths and the RAM/CMA map. The kernel exposes no /proc/config.gz. Await operator cold boot and responsive Home, plus the native Official roster and ELF join. [O1 data](../comms/codex_to_claude/0012j_reply.md)
+Confirmed Official QB 37736448 on KantSU2E through the Product file and actual BTF hashes. Collected the 2,342-row board roster, 61 target paths and the RAM/CMA map. The kernel exposes no /proc/config.gz. Cold boot confirmed. Three PSS and memory samples completed at one-minute intervals after five minutes at Home. The native Official roster, replay ID and ELF joins await readback. [O1 data](../comms/codex_to_claude/0012j_reply.md)
 
 ## Rounds 0012h/i • 24 November
 
