@@ -1,0 +1,181 @@
+"""Read the two pinned Official boot images, then qualify a perf build config if needed."""
+import argparse
+import hashlib
+from pathlib import Path
+import re
+import runpy
+import struct
+import subprocess
+import sys
+import tempfile
+import zlib
+
+ROOT = Path("/home1/chengkai/vd-tree/workspace")
+IMAGES = ROOT/"usb/37736448/updateSU2E"
+BUILD_ID = "419813f26f2d03bee00bde1d7173b0c2fd887530"
+PINS = {"zImage": "f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab",
+        "uImage": "eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6"}
+NOTE = struct.pack("<III", 4, 20, 3) + b"GNU\0" + bytes.fromhex(BUILD_ID)
+
+
+def file_sha(path):
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def config_map(raw):
+    values = {}
+    for line in raw.decode().splitlines():
+        m = re.fullmatch(r"(CONFIG_\w+)=(.*)|# (CONFIG_\w+) is not set", line)
+        if m:
+            key = m[1] or m[3]
+            if key in values:
+                raise ValueError("duplicate config key " + key)
+            values[key] = m[2] if m[1] else "n"
+    if len(values) < 1000 or values.get("CONFIG_ARM") != "y":
+        raise ValueError("incomplete ARM configuration")
+    return values
+
+
+def image_config(images):
+    blobs = {}
+    for name, expected in PINS.items():
+        raw = (images/name).read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        if digest != expected:
+            raise ValueError("Official USB hash mismatch: " + name)
+        print("BOOT_IMAGE", name, len(raw), digest, "outer_IKCFG_ST", raw.count(b"IKCFG_ST"))
+        blobs[name] = raw
+    u = blobs["uImage"]
+    size = struct.unpack_from(">I", u, 12)[0]
+    payload = u[64:64+size]
+    if (u[:4] != bytes.fromhex("27051956") or u[31] != 0 or len(payload) != size
+        or zlib.crc32(payload) != int.from_bytes(u[24:28], "big")):
+        raise ValueError("invalid uncompressed U-Boot payload")
+    for hit in re.finditer(b"\x1f\x8b\x08", blobs["zImage"]):
+        dec = zlib.decompressobj(31)
+        try:
+            expanded = dec.decompress(blobs["zImage"][hit.start():], size+1)
+        except zlib.error:
+            continue
+        if dec.eof and expanded == payload:
+            print("BOOT_PAYLOAD_EQUAL", "gzip_offset", hit.start(), "bytes", size,
+                  "sha256", hashlib.sha256(payload).hexdigest())
+            break
+    else:
+        raise ValueError("no complete zImage stream equal to the uImage kernel")
+    if NOTE not in payload:
+        raise ValueError("running O1 GNU build ID missing from decoded kernel")
+    print("MATCHED_RUNNING_BUILD_ID", BUILD_ID)
+    for banner in re.findall(rb"Linux version 6\.12\.60 [^\x00\n]{1,250}", payload):
+        print("BOOT_BANNER", banner.decode(errors="replace"))
+    found = list(re.finditer(b"IKCFG_ST", payload))
+    print("DECODED_IKCFG_ST_COUNT", len(found))
+    if not found:
+        return None
+    values = set()
+    for hit in found:
+        dec = zlib.decompressobj(31)
+        raw = dec.decompress(payload[hit.end():], 2 << 20)
+        if not dec.eof or not dec.unused_data.startswith(b"IKCFG_ED"):
+            raise ValueError("malformed embedded config")
+        config_map(raw)
+        values.add(raw)
+    if len(values) != 1:
+        raise ValueError("conflicting embedded configs")
+    return values.pop()
+
+
+def perf_path(name):
+    return any(re.fullmatch(r"perf|[\w.-]+[-_]perf(?:[-_.][\w.-]+)?", part, re.I)
+               for part in Path(name).parts)
+
+
+def devel_config(work, q):
+    lib = {"file_sha": file_sha}
+    cap, receipt, pkgs = q["retained"]("official", lib)
+    packages = {}
+    for name in ("tztv-kernel-perf", "tztv-kernel-devel"):
+        row = pkgs[name]
+        rpm = q["matched_payload"](cap, receipt, row, lib)
+        fields = q["query"](rpm, r"%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\t%{SOURCERPM}").split("\t")
+        if fields != [name, "0", "1", "1", "armv7l", "tztv-kernel-1-1.src.rpm"] or fields != [
+                row[k] for k in ("name","epoch","version","release","arch","srpm")]:
+            raise ValueError("Official RPM identity mismatch")
+        print("PINNED_RPM", *fields, row["sha256"])
+        packages[name] = rpm
+    rpm = packages["tztv-kernel-devel"]
+    rows = q["member_checksums"](rpm)
+    configs = {}
+    matches = []
+    candidate_lines = []
+    for key, (size, digest) in rows.items():
+        name = Path(key).name
+        is_config = name == ".config" or name.startswith("config-")
+        if not is_config and name not in ("vmlinux", "vmlinux.debug", "vmlinux.id", "zImage", "uImage"):
+            continue
+        candidate_lines.append(f"{key}\t{size}\t{digest}")
+        if len(candidate_lines) <= 40:
+            print("DEVEL_CANDIDATE", key, size, digest)
+        if not perf_path(key) or not digest:
+            continue
+        if name in PINS:
+            if digest == PINS[name]:
+                matches.append(key)
+            continue
+        dest = work/(digest+"-"+name)
+        if not dest.exists():
+            q["extract_member"](rpm,key,dest,digest,lib)
+        if file_sha(dest) != digest:
+            raise ValueError("member digest mismatch")
+        if is_config:
+            raw = dest.read_bytes()
+            config_map(raw)
+            configs[key] = raw
+        elif name == "vmlinux.id":
+            if dest.read_bytes().strip().lower() == BUILD_ID.encode():
+                matches.append(key)
+        elif dest.read_bytes()[:4] == b"\x7fELF":
+            notes = subprocess.check_output(["readelf","-nW",dest], text=True)
+            if re.findall(r"Build ID:\s*([0-9a-f]+)",notes) == [BUILD_ID]:
+                matches.append(key)
+    (work/"devel-candidates.tsv").write_text("\n".join(candidate_lines)+"\n")
+    if len(set(configs.values())) != 1 or not matches:
+        raise ValueError(f"DEVEL_BUILD_CONFIG_UNVERIFIED perf_config_count={len(configs)} matching_perf_artifacts={len(matches)}")
+    print("DEVEL_PERF_CONFIG", *configs, "MATCHING_PERF_ARTIFACTS", *matches)
+    return next(iter(configs.values()))
+
+
+def select(work, q, images=IMAGES):
+    raw = image_config(images)
+    if raw is None:
+        print("EMBEDDED_CONFIG_ABSENT")
+        raw = devel_config(work,q)
+        label = "SAME_BUILD_DEVEL_CONFIG"
+    else:
+        label = "SHIPPED_EMBEDDED_CONFIG"
+    (work/"official.config").write_bytes(raw)
+    print("CONFIG_PROVENANCE", label, hashlib.sha256(raw).hexdigest())
+    for key, val in config_map(raw).items():
+        if re.match(r"CONFIG_(?:IKCONFIG|LTO|CC_OPTIMIZE_FOR_|KALLSYMS|CMA|CLANG_VERSION|CC_VERSION_TEXT|FRAME_POINTER|THUMB2_KERNEL|ARM_UNWIND|FUNCTION_TRACER|KPROBES|MODULES(?:$))",key):
+            print("KCONFIG",key,val)
+    return raw
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--images", type=Path, default=IMAGES)
+    ap.add_argument("--images-only",action="store_true")
+    args=ap.parse_args()
+    try:
+        if args.images_only:
+            print("EMBEDDED_CONFIG_ABSENT" if image_config(args.images) is None else "EMBEDDED_CONFIG_PRESENT")
+        else:
+            work = Path(tempfile.mkdtemp(prefix="pm0012k-config.",dir=ROOT/"temp"))
+            print("WORKDIR", work)
+            select(work,runpy.run_path(str(Path(__file__).with_name("matched-qb.py.txt"))),args.images)
+    except (ValueError, OSError, subprocess.SubprocessError, zlib.error) as exc:
+        sys.exit(str(exc))

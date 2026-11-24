@@ -53,3 +53,4 @@ a27b39a4e3b41381cd33cc381c26edc0bb1b77721103fafff3461f72b32813da  ./targets.tsv
 3f8c676ff5f2b51a41410da77cf80c51b5e8be39b380e83c6a7e48114970a767  ./vendor-memory.tsv
 170eb3ee2f31b24413752aada4c5e565f2e5d8db84a3770dcce7da2858cd277f  ./vmstat.txt
 0fcbaf7d1babc0de4bfb0c2a567a4aa55e0d246059bacef85a04162a1be9c80f  ./zoneinfo.txt
+44c035168a53d80a0238e40ac59874df1dc44fa33cbb18f001b8ac6864e74198  ./config-proof/official-boot-images.txt
