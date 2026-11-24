@@ -456,3 +456,7 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 
 - Use coreutils 6.9 and gawk 3.1.5 as the compatibility floor for injected commands. Gate on the commands in the real build root. Verify an owner before relying on mktemp. Record both Base RPM and linked archive digests and the actual CRT search paths. One accepted binary serves both board lanes. [Step 5 review](../comms/codex_to_claude/0012h_reply.md)
 - PM’s Wed-A approval for b048780 supersedes the earlier 0a4e9ec pilot. Run the matched image readback after Wed-A exits. Capture each observed GCC-family compile line under T1 and F2. A scoped Clang lane with a loaded config missing either marked ISA option requires a targeted F6 rerun. Await matched causes before a Wed-night pin and separate PM approval before Thursday’s kernel trial. [PM decision and operation order](../comms/claude_to_codex/0012i.md)
+
+## D-059 — Official O1 board visit
+
+Keep Official QB 37736448 flashed for Step 5. The operator performs the cold boot and times Home readiness. Accept the three idle readings at Home +5/+6/+7 minutes on that boot. Retain the post-flash sample separately. [Operator instruction](../comms/claude_to_codex/0012j.md) · [O1 measurements](../comms/codex_to_claude/0012j_reply.md)
