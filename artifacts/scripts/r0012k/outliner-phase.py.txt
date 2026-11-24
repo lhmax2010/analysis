@@ -96,3 +96,20 @@ def verify(tree, config, sections, sha):
     if not proof:
         raise ValueError("no compiled native ARM TU defines a machine-outlined helper")
     return dict(**proof,kernel_C_argv_checked=count,lto_none=config.get("CONFIG_LTO_NONE"),lld=link)
+
+
+if __name__ == "__main__":
+    import argparse
+    import base64
+    import hashlib
+    import json
+    import zlib
+    parser = argparse.ArgumentParser(description="Export the retained phase and linker evidence.")
+    parser.add_argument("report", type=Path)
+    args = parser.parse_args()
+    rows = json.loads(args.report.read_text())
+    packet = {lane: {k: rows.get(lane, {}).get(k) for k in ("status", "diagnostic", "outliner_phase")}
+              for lane in ("K1", "K3", "K5")}
+    raw = json.dumps(packet, separators=(",", ":")).encode()
+    print("PHASE_JSON_SHA256", hashlib.sha256(raw).hexdigest())
+    print("PHASE_ZLIB_BASE64", base64.b64encode(zlib.compress(raw, 9)).decode())

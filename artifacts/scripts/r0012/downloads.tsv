@@ -36,4 +36,4 @@ SELF	artifacts/scripts/r0012f/kernel-matrix.py.txt	3bc40ada6bc90c324ffef44c6e3cd
 SELF	artifacts/scripts/r0012g/driver-config.sh.txt	3f1bfdac3eece3ab5a15d4a2c87f12bb0eb7e9a86b984c0ca214ef4c02be41c9	driver-config.sh.txt
 SELF	artifacts/scripts/r0012g/thumb-options.py.txt	c7cc48244c20ee4982a75c79780adfb4594bb7231f53e1919ca4b73908b49a10	thumb-options.py.txt
 SELF	artifacts/scripts/r0012k/official-config.py.txt	4d5ea74ef97454f87085dc5869be39478a283138a4d256cdce1b69a5e4a5d200	official-config.py.txt
-SELF	artifacts/scripts/r0012k/outliner-phase.py.txt	568c984195ebd06b7d3d682ecf652da9e2fb1afea924a335879f6e984fc548f0	outliner-phase.py.txt
+SELF	artifacts/scripts/r0012k/outliner-phase.py.txt	ee56e8af285fc5f1fe5bd29fb202f506b2c904ed4ba9d95a07c834cf6ca60603	outliner-phase.py.txt
