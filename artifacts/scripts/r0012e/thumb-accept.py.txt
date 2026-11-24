@@ -38,10 +38,12 @@ def cc1_modes(log):
             line=re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*","",raw).strip()
             if line.startswith("PM_THUMB_") or re.search(r"^\+ (?:make|gmake) .*?\bcheck\b|^\+ make check$",line):
                 summaries.append(line)
-            if '"-cc1"' not in line or "/dev/null" in line:
+            if "-cc1" not in line or "/dev/null" in line:
                 continue
             try:
                 args=shlex.split(line)
+                if "-cc1" not in args and "-cc1as" not in args:
+                    continue
                 triple=args[args.index("-triple")+1]
                 src=Path(args[-1])
                 if src.suffix in (".c",".C",".cc",".cpp",".cxx",".S",".s"):

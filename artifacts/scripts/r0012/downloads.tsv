@@ -7,7 +7,7 @@ b4e88f29f06ca8aeea921ee6205834022038fc42	artifacts/scripts/r0009/thumb-force-pil
 ea24f17d8d8f7b245c36d040381880839165d1c5	artifacts/scripts/r0004/image_mode_scan.py.txt	1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75	image_mode_scan.py.txt
 d3cea65aac76d438b82b55a2857a5ee18546edad	artifacts/scripts/r0005/image-repo-lib.py.txt	8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f	image-repo-lib.py.txt
 1bcea33e793a3c6538d9a3b631b50948d00f70aa	artifacts/scripts/r0010/lto-abi.py.txt	28c32eac9f378063dc7963f614d6745ba5d94a2c91d0045b220a9909167f107b	lto-abi.py.txt
-SELF	artifacts/scripts/r0012/development.py.txt	5cc85ebc6c562a68526e5a35014de18670c05e894cd4798926420b3c417412e8	development.py.txt
+SELF	artifacts/scripts/r0012/development.py.txt	0fb08c4334e5bf22c890837dde06ab7f854edb9c924e1e8d34bbd4bba47d9935	development.py.txt
 SELF	artifacts/scripts/r0012/phase-driver.sh.txt	a59fadada4d43b8f438578beaccd39c48b5cb744f0f00a5b13648d8d16b28389	phase-driver.sh.txt
 SELF	artifacts/scripts/r0012/gbs-t7-link.sh.txt	8d292822734efa7358c816dd076117b19e7a037f9c176dea9baf36dd6e291a9a	gbs-t7-link.sh.txt
 SELF	artifacts/ledger/r0012-experiment-recipes.json	349e0e89955fe268ae8bf60497bf3c1feef343583fcb38bfcaf020d89a4ad912	recipes.json
@@ -18,7 +18,7 @@ SELF	artifacts/scripts/r0012e/thumb-roster.py.txt	d9dceef559f83a5394d8b8191c002b
 SELF	artifacts/scripts/r0012e/thumb-check.sh.txt	f34755a756a76666a6b7215b9c318b2f3d8c9e784682459a2145e00c73aa06bb	thumb-check.sh.txt
 SELF	artifacts/scripts/r0012e/thumb-map.py.txt	d945885592c82702703a70136807894e69a1380d452c5de706d588631db4b544	thumb-map.py.txt
 SELF	artifacts/scripts/r0012e/thumb-qualify.py.txt	61190ee5be2e55b4c7e4a50ba33a614896d40ee84c60ec7f82904ff2a57929f6	thumb-qualify.py.txt
-SELF	artifacts/scripts/r0012e/thumb-accept.py.txt	58a646e1ce909d500a0ad7bc847865817d7b7bc09fdf480b14579c6929dde158	thumb-accept.py.txt
+SELF	artifacts/scripts/r0012e/thumb-accept.py.txt	553de1329a81d70413a6180bf8da6fb9f5afd9d61f0315a3dc3d95343f88bab1	thumb-accept.py.txt
 SELF	artifacts/scripts/r0012e/kernel-thumb.py.txt	4fd3e4b7c87f71cdc2b935870b395eef500bb7d2586a9b9fac2462cb4f044351	kernel-thumb.py.txt
 SELF	artifacts/scripts/r0009/perf-bundle.py.txt	5955fef6db3eb883dcdb4e50f0332b7a8f417f304ce4539358977d13ff21ba38	perf-bundle.py.txt
 SELF	artifacts/scripts/r0009/perf-relocations.py.txt	5daf2c1c25f122de38ea445bbbe0336b5f8e086c16a3dafa87244361ccc963d8	perf-relocations.py.txt

@@ -393,6 +393,9 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
     settings = repositories(directory)
     lookup = "libtvs-core" if label == "tvs-core" else label
     row, published, binaries = resolve(settings, lookup, names)
+    if recipe["id"] == "THUMB":
+        # collect_rpms loads separate DWARF providers independently of the runtime payload scope.
+        binaries = {name for name in binaries if not name.endswith(("-debuginfo", "-debugsource"))}
     if label == "tvs-core":
         specs = {record["srpm"] for record in published}
         if row["doc_source"] != "libtvs-core" or len(specs) != 1:
