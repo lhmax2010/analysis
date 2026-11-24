@@ -1,0 +1,7 @@
+coreutils-6.9-15.2.armv7l	/usr/bin/sha256sum
+coreutils-6.9-15.2.armv7l	/usr/bin/tail
+binutils-2.43-2.9.armv7l	/usr/bin/ld
+binutils-2.43-2.9.armv7l	/usr/bin/readelf
+gawk-3.1.5-2.2.armv7l	/usr/bin/awk
+clang-22.1.8-18.1.armv7l	/usr/bin/armv7l-tizen-linux-gnueabi-clang
+rpm-4.14.1.1-2.8.armv7l	/bin/rpm

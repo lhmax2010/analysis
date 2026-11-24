@@ -1,0 +1,59 @@
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/gbs-board-bench.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/olevel.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/mlgo-tv-run.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/mlgo-tv-measure.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/mlgo-tv-microbench.c.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/mlgo-tv-identity.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/gbs-mlgo-t7.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/gbs-thumb.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/thumb-qb-sample.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/image_mode_scan.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.FWrYRi/perf-bundle.py.txt: OK
+/home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/identity.json: OK
+[sudo] password for chengkai:
+GBS_DEPENDENCY_PRODUCT_LIVE http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/
+CAPACITY disk_free_gib 149 ram_available_gib 74
+GBS_BENCH_WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on
+PM_BENCH_PROVIDER binutils 2.43 3.49 cb7d488667f705019474031276916595d284e200f7f9e58358c30ccb88ae1396 /usr/bin/readelf
+PM_BENCH_PROVIDER clang 22.1.8 9.1 5fafd0909825bcce5b4183806ec8683900bcbe4f6cece9be358fe471ae8376f8 /usr/bin/clang-22
+PM_BENCH_PROVIDER glibc-devel 2.40 1.111 b33038e6bdb40aad228cadef2b0b66bc6d9d36ea716edabb524554b007e6ff2a /usr/lib/libc.so
+PM_BENCH_PROVIDER glibc-devel-static 2.40 1.111 9618c524c413b837e439146130d346655693c31eea90f3355526a0366b87f24a /usr/lib/libc.a
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/published-build.conf --threads 1 --spec pm-board-microbench.spec --include-all LOG /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/gbs.log
+GBS_EXIT 1
+THUMB_WRAPPED_COMPILE_LINES 0
+GBS_FAILURE_LOG log.txt [   73s]     for (i=2; i<NF; i++) if ($i=="-o" && $(i+1)=="microbench") print $1 }' driver.log
+GBS_FAILURE_LOG log.txt [   73s] + linker=/usr/bin/ld
+GBS_FAILURE_LOG log.txt [   73s] + test -x /usr/bin/ld
+GBS_FAILURE_LOG log.txt [   73s] ++ /usr/bin/ld --version
+GBS_FAILURE_LOG log.txt [   73s] + version='GNU ld (GNU Binutils) 2.43
+GBS_FAILURE_LOG log.txt [   73s] Copyright (C) 2024 Free Software Foundation, Inc.
+GBS_FAILURE_LOG log.txt [   73s] This program is free software; you may redistribute it under the terms of
+GBS_FAILURE_LOG log.txt [   73s] the GNU General Public License version 3 or (at your option) a later version.
+GBS_FAILURE_LOG log.txt [   73s] This program has absolutely no warranty.'
+GBS_FAILURE_LOG log.txt [   73s] ++ realpath -e -- /usr/bin/ld
+GBS_FAILURE_LOG log.txt [   73s] /var/tmp/rpm-tmp.tfGt6s: line 81: realpath: command not found
+GBS_FAILURE_LOG log.txt [   73s] ++ printf '%s\n' 'GNU ld (GNU Binutils) 2.43
+GBS_FAILURE_LOG log.txt [   73s] Copyright (C) 2024 Free Software Foundation, Inc.
+GBS_FAILURE_LOG log.txt [   73s] This program is free software; you may redistribute it under the terms of
+GBS_FAILURE_LOG log.txt [   73s] the GNU General Public License version 3 or (at your option) a later version.
+GBS_FAILURE_LOG log.txt [   73s] This program has absolutely no warranty.'
+GBS_FAILURE_LOG log.txt [   73s] ++ head -1
+GBS_FAILURE_LOG log.txt [   73s] + printf 'PM_BENCH_LINKER\t%s\t%s\t%s\n' /usr/bin/ld '' 'GNU ld (GNU Binutils) 2.43'
+GBS_FAILURE_LOG log.txt [   73s] PM_BENCH_LINKER        /usr/bin/ld             GNU ld (GNU Binutils) 2.43
+GBS_FAILURE_LOG log.txt [   73s] ++ awk '$1 == "LOAD" && $2 ~ /\/libc\.a$/ {print $2}' microbench.map
+GBS_FAILURE_LOG log.txt [   73s] ++ sort -u
+GBS_FAILURE_LOG log.txt [   73s] + libc=/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/libc.a
+GBS_FAILURE_LOG log.txt [   73s] + test -n /usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/libc.a
+GBS_FAILURE_LOG log.txt [   73s] + test -f /usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/libc.a
+GBS_FAILURE_LOG log.txt [   73s] ++ realpath -e -- /usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/libc.a
+GBS_FAILURE_LOG log.txt [   73s] /var/tmp/rpm-tmp.tfGt6s: line 85: realpath: command not found
+GBS_FAILURE_LOG log.txt [   73s] + libc=
+GBS_FAILURE_LOG log.txt [   73s] error: Bad exit status from /var/tmp/rpm-tmp.tfGt6s (%build)
+GBS_FAILURE_LOG log.txt [   73s]
+GBS_FAILURE_LOG log.txt [   73s]
+GBS_FAILURE_LOG log.txt [   73s] RPM build errors:
+GBS_FAILURE_LOG log.txt [   73s]     Bad exit status from /var/tmp/rpm-tmp.tfGt6s (%build)
+GBS_FAILURE_LOG log.txt [   73s]
+GBS_FAILURE_LOG log.txt [   73s] risc-v-Alienware-Aurora-R16 failed "build pm-board-microbench.spec" at Tue Nov 24 12:50:38 UTC 2026.
+GBS_FAILURE_LOG log.txt [   73s]
+GBS_BENCH_BLOCKED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/gbs.log

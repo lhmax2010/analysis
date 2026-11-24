@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import re
 import runpy
+import shlex
+import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 import tempfile
@@ -15,6 +17,7 @@ from types import SimpleNamespace
 
 
 FLAGS = ("-O2", "-static", "-std=c11", "-Wall", "-Wextra", "-Werror")
+BUILD_TOOLS = ("armv7l-tizen-linux-gnueabi-clang", "ld", "awk", "sha256sum", "rpm", "readelf", "tail")
 SPEC = r"""Name: pm-board-microbench
 Version: 1
 Release: 1
@@ -30,14 +33,50 @@ BuildRequires: binutils
 Fixed target measurement benchmark.
 
 %prep
+# Inventory the commands using file lists from the installed Official build root.
+for tool in cp mkdir rpm awk ln; do
+    command -v "$tool" >/dev/null || { echo "PM_BENCH_MISSING_TOOL $tool"; exit 2; }
+done
 cp -- "%{SOURCE0}" bench.c
+mkdir -p .pm-bench-bin
+rpm -q --qf '[%%{=NAME}-%%{=VERSION}-%%{=RELEASE}.%%{=ARCH}\t%%{FILENAMES}\n]' \
+    clang binutils coreutils gawk rpm >bench-rpm-files.tsv
+for tool in @TOOLS@; do
+    location=$(command -v "$tool") || { echo "PM_BENCH_MISSING_TOOL $tool"; exit 2; }
+    # /bin can be a symlink to /usr/bin. Match the installed inode in either spelling.
+    awk -F '\t' -v tool="$tool" '$2 == "/bin/"tool || $2 == "/usr/bin/"tool' bench-rpm-files.tsv >bench-tool.rows
+    matched=
+    while read -r provider registered; do
+        if test "$location" -ef "$registered"; then
+            matched=$registered
+            printf 'PM_BENCH_TOOL\t%%s\t%%s\t%%s\n' "$tool" "$provider" "$registered"
+            break
+        fi
+    done <bench-tool.rows
+    test -n "$matched" || { echo "PM_BENCH_UNOWNED_TOOL $tool $location"; exit 2; }
+    ln -sf "$matched" ".pm-bench-bin/$tool"
+    if test "$tool" = armv7l-tizen-linux-gnueabi-clang; then printf '%%s\n' "$location" >bench-driver.path; fi
+done
 
 %build
 set -eu
-cc=$(command -v armv7l-tizen-linux-gnueabi-clang)
+for tool in @TOOLS@; do
+    location=$(command -v "$tool") || { echo "PM_BENCH_MISSING_TOOL $tool"; exit 2; }
+    test "$location" -ef ".pm-bench-bin/$tool" || { echo "PM_BENCH_UNOWNED_TOOL $tool $location"; exit 2; }
+done
+# Use the original compiler spelling so that the fixture PATH does not change
+# driver config discovery, the target prefix, or GCC installation discovery.
+IFS= read -r cc <bench-driver.path
+test "$cc" -ef "$(command -v armv7l-tizen-linux-gnueabi-clang)"
+dir_path() (
+    case "$1" in /*) ;; *) exit 2;; esac
+    CDPATH= cd -P -- "${1%%/*}" || exit 2
+    printf '%%s/%%s\n' "${PWD%%/}" "${1##*/}"
+)
 printf 'PM_BENCH_COMPILER %%s\n' "$cc"
 printf 'PM_BENCH_FLAGS @FLAGS@\n'
-printf 'PM_BENCH_SOURCE %%s\n' "$(sha256sum bench.c | awk '{print $1}')"
+digest=$(sha256sum bench.c)
+printf 'PM_BENCH_SOURCE %%s\n' "${digest%%%% *}"
 archive=$("$cc" -print-file-name=libc.a)
 if ! test -f "$archive"; then
     echo PM_BENCH_NO_STATIC_LIBC
@@ -50,25 +89,28 @@ if ! "$cc" -v @FLAGS@ bench.c -Wl,-Map,microbench.map -o microbench 2>driver.log
 fi
 linker=$(awk '{ for (i=1; i<=NF; i++) gsub(/"/,"",$i)
     for (i=2; i<NF; i++) if ($i=="-o" && $(i+1)=="microbench") print $1 }' driver.log)
-test -x "$linker"
+test -x "$linker" && test "$linker" -ef "$(command -v ld)" || exit 2
+ldpath=$(dir_path "$linker")
 version=$("$linker" --version)
-printf 'PM_BENCH_LINKER\t%%s\t%%s\t%%s\n' "$linker" "$(realpath -e -- "$linker")" "$(printf '%%s\n' "$version" | head -1)"
-libc=$(awk '$1 == "LOAD" && $2 ~ /\/libc\.a$/ {print $2}' microbench.map | sort -u)
-test -n "$libc"
-test -f "$libc"
-libc=$(realpath -e -- "$libc")
-owner=$(rpm -qf --qf '%%{NAME}\t%%{EPOCHNUM}\t%%{VERSION}\t%%{RELEASE}\t%%{ARCH}\n' "$libc")
-digest=$(sha256sum "$libc")
-printf 'PM_BENCH_GLIBC\t%%s\t%%s\t%%s\n' "$libc" "${digest%%%% *}" "$owner"
+printf 'PM_BENCH_LINKER\t%%s\t%%s\t%%s\n' "$linker" "$ldpath" "$(printf '%%s\n' "$version" | awk 'NR==1')"
+# Both the search spelling and physical directory are useful for libc and startup files.
+awk '$1 == "LOAD" && $2 ~ /\/(libc\.a|[[:alnum:]_-]*crt[[:alnum:]_-]*\.o)$/ && !seen[$2]++ {print $2}' microbench.map >bench-loads.txt
+while IFS= read -r raw; do
+    test -f "$raw"
+    absolute=$(dir_path "$raw")
+    printf 'PM_BENCH_LOAD\t%%s\t%%s\n' "$raw" "$absolute"
+    case "$raw" in */libc.a)
+        owner=$(rpm -qf --qf '%%{NAME}\t%%{EPOCHNUM}\t%%{VERSION}\t%%{RELEASE}\t%%{ARCH}\n' "$absolute")
+        digest=$(sha256sum "$absolute")
+        printf 'PM_BENCH_GLIBC\t%%s\t%%s\t%%s\n' "$absolute" "${digest%%%% *}" "$owner";;
+    esac
+done <bench-loads.txt
 readelf -sW microbench >microbench.symbols
-main=$(awk '$4 == "FUNC" && $7 != "UND" && $8 == "main" {print $2}' microbench.symbols | sort -u)
+main=$(awk '$4=="FUNC" && $7!="UND" && $8=="main" && !seen[$2]++ {print $2}' microbench.symbols)
 test -n "$main"
 printf 'PM_BENCH_MAIN %%s\n' "$main"
 readelf -lWd microbench >microbench.elfinfo
-if grep -Eq '^[[:space:]]*INTERP[[:space:]]|\(NEEDED\)' microbench.elfinfo; then
-    echo 'PM_BENCH_INVALID_DYNAMIC_DEPENDENCY' >&2
-    exit 1
-fi
+awk '/^[[:space:]]*INTERP[[:space:]]|\(NEEDED\)/ {bad=1} END {exit bad}' microbench.elfinfo || { echo PM_BENCH_INVALID_DYNAMIC_DEPENDENCY; exit 1; }
 echo PM_BENCH_STATIC_NO_INTERP_OR_NEEDED
 
 %install
@@ -76,7 +118,7 @@ mkdir -p %{buildroot}/usr/bin
 install -m 0755 microbench %{buildroot}/usr/bin/pm-board-microbench
 %files
 /usr/bin/pm-board-microbench
-""".replace("@FLAGS@", " ".join(FLAGS))
+""".replace("@FLAGS@", " ".join(FLAGS)).replace("@TOOLS@", " ".join(BUILD_TOOLS))
 
 
 def build_proof(log, source_sha):
@@ -101,8 +143,21 @@ def build_proof(log, source_sha):
     if not (Path(libc).is_absolute() and Path(libc).name == "libc.a"
             and re.fullmatch(r"[0-9a-f]{64}", sha) and [name,epoch,version,release,arch] == ["glibc-devel-static","0","2.40","1.111","armv7l"]):
         raise ValueError("static libc proof did not identify a glibc-owned archive")
+    tools = [row.split("\t")[1:] for row in sorted(rows) if row.startswith("PM_BENCH_TOOL\t")]
+    if any(len(row) != 3 for row in tools) or sorted(row[0] for row in tools) != sorted(BUILD_TOOLS):
+        raise ValueError("incomplete installed RPM command inventory")
+    loads = [row.split("\t")[1:] for row in sorted(rows) if row.startswith("PM_BENCH_LOAD\t")]
+    gcc_dir = "/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/"
+    loaded = [{"map_path":raw, "physical_directory_path":path, "via_gcc_14_2":gcc_dir in raw}
+              for raw,path in loads]
+    archives = [row for row in loaded if Path(row["map_path"]).name == "libc.a"]
+    startup = [row for row in loaded if row["map_path"].endswith(".o")]
+    if len(archives) != 1 or archives[0]["physical_directory_path"] != libc or not startup:
+        raise ValueError("missing unique map-to-libc join or CRT startup inputs")
     return {
-        "linker": dict(zip(("invoked", "resolved", "version"), field("PM_BENCH_LINKER", "\t").split("\t"), strict=True)),
+        "linker": dict(zip(("invoked", "physical_directory_path", "version"), field("PM_BENCH_LINKER", "\t").split("\t"), strict=True)),
+        "installed_tools": tools,
+        "gcc_installation_lookup": {"expected_directory":gcc_dir, "static_libc":archives[0], "startup_objects":startup},
         "compiler": field("PM_BENCH_COMPILER"),
         "compile_flags": list(FLAGS),
         "link_evidence_flag": "-Wl,-Map,microbench.map",
@@ -110,6 +165,79 @@ def build_proof(log, source_sha):
         "static_glibc": {"path": libc, "sha256": sha, "rpm_nevra": [name, epoch, version, release, arch]},
         "linkage": "STATIC_NO_PT_INTERP_OR_DT_NEEDED",
     }
+
+
+def restricted_build_fixture(work, owners, source, body):
+    """Replay the exact shell section with a closed PATH. Target executables are doubles."""
+    missing = sorted(set(BUILD_TOOLS) - owners.keys())
+    if missing:
+        for tool in missing:
+            print("PM_BENCH_MISSING_TOOL", tool)
+        raise ValueError("missing Official RPM file-list entry: " + ", ".join(missing))
+    if not __debug__:
+        raise ValueError("benchmark fixture requires Python without -O")
+    CC = BUILD_TOOLS[0]
+
+    def put(path, script):
+        path.write_text("#!/bin/sh\nset -eu\n" + script + "\n")
+        path.chmod(0o755)
+    target = work/".pm-bench-bin"
+    target.mkdir()
+    for name in ("awk", "sha256sum", "tail"):
+        (target/name).symlink_to(shutil.which(name))
+    # Reproduce the search path in the real link map. The fixture's /usr alias
+    # also exercises physical parent handling with a symlink and '..'.
+    usr = work/"usr"
+    (work/"guest-usr").mkdir()
+    usr.symlink_to(work/"guest-usr", target_is_directory=True)
+    gcc = usr/"lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0"
+    gcc.mkdir(parents=True)
+    (usr/"bin").mkdir()
+    search = str(usr)+"/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0"
+    archive = search+"/../../../../lib/libc.a"
+    crt = search+"/crtbeginT.o"
+    Path(archive).write_bytes(b"!<arch>\nfixture")
+    Path(crt).touch()
+    (work/"bench.c").write_bytes(source.read_bytes())
+    put(target/"ld","echo 'GNU ld (GNU Binutils) 2.43'")
+    put(target/"rpm",'''printf 'glibc-devel-static\\t0\\t2.40\\t1.111\\tarmv7l\\n' ''')
+    put(target/"readelf",'''case "$1" in
+        -sW) echo '3: 00001234 12 FUNC GLOBAL DEFAULT 1 main';;
+        -lWd) echo 'LOAD 0x0';; *) exit 3;; esac''')
+    put(target/CC, f'''case "$1" in
+        -print-file-name=libc.a) echo {shlex.quote(archive)};;
+        -v) echo '"{target}/ld" "-o" "microbench"' >&2
+            printf 'LOAD %s\\n' {shlex.quote(crt)} {shlex.quote(archive)} >microbench.map
+            : >microbench;;
+        *) exit 3;; esac
+        : >compiler-ran''')
+    (work/"bench-driver.path").write_text(str(target/CC)+"\n")
+    env = {**os.environ, "PATH":str(target)}
+    def exercise():
+        return subprocess.run(["/bin/sh","-e"],cwd=work,input=body,env=env,
+                              text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    good = exercise()
+    if good.returncode: raise ValueError(good.stdout)
+    log = work/"fixture.log"
+    log.write_text("".join(f"PM_BENCH_TOOL\t{k}\t{v[0]}\t{v[1]}\n" for k,v in owners.items())+good.stdout)
+    proof = build_proof(log,hashlib.sha256((work/"bench.c").read_bytes()).hexdigest())
+    assert proof["static_glibc"]["path"] == str(Path(archive).resolve())
+    assert proof["static_glibc"]["sha256"] == hashlib.sha256(Path(archive).read_bytes()).hexdigest()
+    lookup = proof["gcc_installation_lookup"]
+    assert lookup["static_libc"]["map_path"] == archive and lookup["static_libc"]["via_gcc_14_2"]
+    assert [row["map_path"] for row in lookup["startup_objects"]] == [crt]
+    assert proof["linker"]["version"].endswith("2.43") and proof["benchmark_main_isa"]=="A32"
+    (work/"compiler-ran").unlink()
+    for name in BUILD_TOOLS:
+        entry = target/name
+        hidden = work/(name+".held")
+        entry.rename(hidden)
+        result = exercise()
+        hidden.rename(entry)
+        assert result.returncode and "PM_BENCH_MISSING_TOOL "+name in result.stdout, name
+        assert not (work/"compiler-ran").exists(), name
+
+    print("PM_BENCH_FIXTURE_PASS restricted PATH; seven missing-tool cases")
 
 
 def base_glibc_source(log, base, proof):
@@ -148,7 +276,7 @@ def dependency_gate(product_rows, metadata, get_files, spec=SPEC):
         print("PM_BENCH_PROVIDER", name, version, release, digest, needed)
 
 
-def verify_dependencies(product, work):
+def verify_dependencies(product, work, source):
     # Read the same cached Base rpm-md used in the matched-pair preflight.
     import bz2
     import gzip
@@ -172,6 +300,8 @@ def verify_dependencies(product, work):
         v = pkg.find("{*}version")
         key = pkg.findtext("{*}name"), v.get("epoch", "0"), v.get("ver"), v.get("rel"), pkg.findtext("{*}arch")
         meta[key] = pkg.findtext("{*}checksum")
+    listings = {}
+
     def files(name, version, release, digest):
         filename = f"{name}-{version}-{release}.armv7l.rpm"
         url = ("http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/"
@@ -186,8 +316,38 @@ def verify_dependencies(product, work):
                 h.update(block)
         if h.hexdigest() != digest:
             raise ValueError("Base dependency RPM checksum mismatch: "+filename)
-        return subprocess.check_output(["rpm","-qlp",str(path)], text=True).splitlines()
+        listing = subprocess.check_output(["rpm","-qlp",str(path)], text=True).splitlines()
+        listings[name] = listing
+        return listing
     dependency_gate(product, meta, files)
+    # Exact additional providers installed in the retained Official GBS log.
+    # SHA-256 values are pinned in the Base 1113.1 RPM ledger.
+    helpers = {
+        "coreutils": ("6.9","14.18","a8d96a879b713d941de708e539dd7298a128dd35c0b7506fe8d7773d6dbff40f"),
+        "gawk": ("3.1.5","1.17","dc2da66c8c1e59a69cec779febe0c5111b74bc9ab300e8eb6eb8e4dcc26464fa"),
+        "rpm": ("4.14.1.1","1.65","2981b4f8e08ae19e196163e8753765a18c0bcfd20aba4f8b1c9f3f2c634c798d"),
+    }
+    for pkg,(version,release,digest) in helpers.items():
+        if not any(value == digest and (name,ver,rel,arch) == (pkg,version,release,"armv7l")
+                   for (name,_,ver,rel,arch),value in meta.items()):
+            raise ValueError("Official helper RPM digest mismatch: "+pkg)
+        files(pkg,version,release,digest)
+    providers = {"clang": BASE_PACKAGES["clang"][:3], "binutils": BASE_PACKAGES["binutils"][:3], **helpers}
+    owners = {}
+    for pkg,(version,release,_) in providers.items():
+        for path in listings[pkg]:
+            tool = Path(path).name
+            if tool in BUILD_TOOLS and path in ("/bin/"+tool,"/usr/bin/"+tool):
+                owners[tool] = (f"{pkg}-{version}-{release}.armv7l",path)
+    roster = "".join(f"{owner}\t{path}\n" for owner,path in sorted(owners.values()))
+    (work/"official-tool-filelists.tsv").write_text(roster)
+    for row in roster.splitlines():
+        print("OFFICIAL_TOOL_FILE", row)
+    fixture_dir = work/"command-fixture"
+    fixture_dir.mkdir()
+    # %build contains only doubled percent escapes, no other RPM macros.
+    body = SPEC.split("\n%build\n",1)[1].split("\n%install\n",1)[0].replace("%%","%")
+    restricted_build_fixture(fixture_dir, owners, source, body)
 
 
 def main():
@@ -213,12 +373,12 @@ def main():
         os.environ["TMPDIR"]=str(work)
         gbs.available(work,24,12)
         print("GBS_BENCH_WORKDIR",work,flush=True)
-        verify_dependencies(product_rows, work)
+        c_source = o["native_path"](args.c_source)
+        verify_dependencies(product_rows, work, c_source)
         project=work/"source"
         package=project/"packaging"
         package.mkdir(parents=True)
         (package/"pm-board-microbench.spec").write_text(SPEC)
-        c_source = o["native_path"](args.c_source)
         source_sha = o["file_hash"](c_source)
         (package/"bench.c").write_bytes(c_source.read_bytes())
         gbs.local_git(project,work)
@@ -237,6 +397,17 @@ def main():
             raise ValueError("GBS benchmark is not an ARM32 loadable ELF")
         proof = build_proof(work/"gbs.log", source_sha)
         proof["static_glibc"]["origin"] = base_glibc_source(work/"gbs.log", o["BASE"], proof)
+        proof["static_glibc"]["provider_rpm_sha256"] = BASE_PACKAGES["glibc-devel-static"][2]
+        # The Base package digest and its member digest are independent.
+        static_rpm, = work.glob("glibc-devel-static-*.armv7l.rpm")
+        libc = proof["static_glibc"]
+        if libc["path"] != "/usr/lib/libc.a":
+            raise ValueError("unexpected physical directory for static libc: "+libc["path"])
+        payload = subprocess.run(["rpm2cpio",static_rpm],capture_output=True,check=True,timeout=60)
+        member = subprocess.run(["cpio","-i","--quiet","--to-stdout","./usr/lib/libc.a","usr/lib/libc.a"],
+                                input=payload.stdout,capture_output=True,check=True,timeout=60).stdout
+        if not member.startswith(b"!<arch>\n") or hashlib.sha256(member).hexdigest() != libc["sha256"]:
+            raise ValueError("linked libc.a digest differs from verified Base RPM member")
         path=tools/"microbench"
         with path.open("xb") as f:
             f.write(elf)
@@ -249,6 +420,7 @@ def main():
         (tools/"board-tools.json").write_text(json.dumps(receipt,indent=2)+"\n")
         (tools/"microbench-provenance.json").write_text(json.dumps(receipt,indent=2)+"\n")
         print("PM_BENCH_LINKER", json.dumps(proof["linker"]))
+        print("GBS_BENCH_GCC_LOOKUP", json.dumps(proof["gcc_installation_lookup"]))
         print("GBS_BENCH_READY",path,digest)
         print("GBS_BENCH_ISA", proof["benchmark_main_isa"], result["mode"], "FLAGS", *FLAGS)
         print("GBS_BENCH_STATIC_GLIBC", o["BASE"], *proof["static_glibc"]["rpm_nevra"],
