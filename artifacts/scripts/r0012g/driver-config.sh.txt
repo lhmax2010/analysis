@@ -1,6 +1,24 @@
 # Runs before the tracing wrappers, inside the lane's fresh GBS root.
 (
-set -u
+set -eu
+for pm_tool in mkdir cat sed sort grep cp stat chmod mv sha256sum cut awk readelf tr head clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++; do
+    command -v "$pm_tool" >/dev/null || { echo "PM_BUILD_MISSING_TOOL $pm_tool" >&2; exit 2; }
+done
+# Resolve an existing cfg only inside approved tool directories. The kernel
+# follows symlink chains for -ef; cd -P supplies the physical parent.
+cfg_file() (
+    test -f "$1" || exit 1
+    for dir in /usr/bin /emul/usr/bin; do
+        test -d "$dir" || continue
+        for candidate in "$dir"/*.cfg; do
+            test -f "$candidate" && test ! -L "$candidate" && test "$candidate" -ef "$1" || continue
+            CDPATH= cd -P -- "$dir" || exit 1
+            printf '%s/%s\n' "$PWD" "${candidate##*/}"
+            exit 0
+        done
+    done
+    exit 1
+)
 d="$PWD/.pm0012g-driver"
 mkdir "$d" || exit 2
 cat > "$d/it.c" <<'END'
@@ -20,25 +38,25 @@ pm_asm_it:
     bx lr
 END
 if [ "@SCOPED@" = yes ]; then
-    for drv in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++ cc c++; do
+    for drv in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++ cc c++ gcc g++; do
         command -v "$drv" >/dev/null || continue
         "$drv" -v -### -c -x c /dev/null >"$d/$drv.discovery" 2>&1 || continue
         sed -n 's/^Configuration file: //p' "$d/$drv.discovery"
     done | sort -u > "$d/selected"
     while IFS= read -r chosen; do
-        case "$chosen" in /*) ;; *) continue;; esac
-        actual=$(readlink -f "$chosen") || continue
-        case "$actual" in /usr/bin/*-clang.cfg|/usr/bin/*-clang++.cfg|/emul/usr/bin/*-clang.cfg|/emul/usr/bin/*-clang++.cfg) ;; *) continue;; esac
-        test -f "$actual" && ! grep -Fqx '# tizen-force-options begin' "$actual" || continue
-        # A shadowing file is edited exclusively inside this package's disposable GBS root.
-        copy=$(mktemp "${actual}.pm0012g.XXXXXX") || exit 2
-        cp -p "$actual" "$copy" && chmod u+w "$copy" &&
+        if ! actual=$(cfg_file "$chosen"); then echo "PM_CFG_RESOLVE_FAILED $chosen" >&2; exit 2; fi
+        grep -Fqx '# tizen-force-options begin' "$actual" && continue
+        mode=$(stat -c %a "$actual") || { echo "PM_CFG_RESOLVE_FAILED $chosen" >&2; exit 2; }
+        stage="${actual}.pm0012g.$$"
+        (umask 077; mkdir "$stage") || exit 2
+        copy="$stage/new.cfg"
+        cp "$actual" "$copy" && chmod u+w "$copy" &&
           printf '\n# tizen-force-options begin\n-mthumb -mimplicit-it=thumb\n# tizen-force-options end\n' >> "$copy" &&
-          chmod --reference="$actual" "$copy" && mv -f "$copy" "$actual" || exit 2
+          chmod "$mode" "$copy" && mv -f "$copy" "$actual" || exit 2
         echo "PM_SELECTED_CFG_EDIT $chosen $actual"
     done < "$d/selected"
 fi
-for driver in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++ cc c++; do
+for driver in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++ cc c++ gcc g++; do
     exe=$(command -v "$driver") || { echo "PM_CFG $driver MISSING"; continue; }
     lang=c
     case "$driver" in *++) lang=c++;; esac
@@ -46,16 +64,19 @@ for driver in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-
     if ! "$exe" -v -### -c -x "$lang" "$d/it.c" >"$trace" 2>&1; then
         echo "PM_CFG $driver QUERY_FAILED"; continue
     fi
-    echo "PM_CFG $driver EXE $exe $(readlink -f "$exe")"
+    echo "PM_CFG $driver EXE $exe"
     sed -n -e "/Configuration file:/s/^/PM_CFG $driver LOADED /p" -e "/\"-cc1\"/s/^/PM_CFG $driver ARGV /p" "$trace"
-    sed -n 's/^Configuration file: //p' "$trace" | while IFS= read -r cfg; do
+    sed -n 's/^Configuration file: //p' "$trace" >"$trace.cfg"
+    while IFS= read -r cfg; do
         if test -f "$cfg"; then
-            echo "PM_CFG $driver CONFIG $(readlink -f "$cfg") $(sha256sum "$cfg" | cut -d' ' -f1)"
+            resolved=$(cfg_file "$cfg") || { echo "PM_CFG_RESOLVE_FAILED $cfg" >&2; exit 2; }
+            echo "PM_CFG $driver CONFIG $resolved $(sha256sum "$cfg" | cut -d' ' -f1)"
             awk -v drv="$driver" '/^# tizen-force-options begin$/ {block=1;next}
                  /^# tizen-force-options end$/ {block=0;next}
                  block {print "PM_CFG",drv,"OPTION",$0}' "$cfg"
+        else echo "PM_CFG_RESOLVE_FAILED $cfg" >&2; exit 2
         fi
-    done
+    done < "$trace.cfg"
     if ! grep -Fq '"-cc1"' "$trace"; then echo "PM_CFG $driver NON_CLANG_OR_UNRESOLVED"
         if grep -q 'gcc version' "$trace"; then echo "PM_CFG $driver GCC confirmed"; fi
         continue; fi
@@ -73,3 +94,4 @@ for driver in clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-
     done
 done
 )
+pm_cfg_rc=$?; test "$pm_cfg_rc" = 0 || exit "$pm_cfg_rc"

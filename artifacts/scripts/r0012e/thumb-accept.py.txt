@@ -100,6 +100,8 @@ def evaluate(directory,work,name,results,source,spec,controls):
         files=result["metrics"].get("files",[])
         report={"build_error":result["error"],"files":[],"gates":{}}
         pairs[lane]=report
+        report["T1_F2_driver_evidence"] = {label:{key:options.get(label,{}).get(key,[])
+            for key in ("gcc_family_compile_lines","F6_loaded_missing_marked_options")} for label in ("baseline",lane)}
         if not files or not base:
             report["status"]="BLOCKED_BUILD_OR_SCOPE"; continue
         def index(rows):

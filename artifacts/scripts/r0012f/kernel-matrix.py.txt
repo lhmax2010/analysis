@@ -169,6 +169,15 @@ def run(work,proof,owners):
                 if root.exists() or any((shared/"empty-repo").iterdir()): raise ValueError("GBS root/repo carried earlier lane products")
                 s.thumb["run_gbs"](s.gbs,folder,src,spec.name,cfg,s.buildconf,root,True,False)
                 toolchain=(folder/"thumb-probe.txt").read_text(errors="replace").splitlines()
+                guest_roots = list((root/"local/BUILD-ROOTS").glob("*.armv7l.*"))
+                record["compiler_paths"] = {}
+                resolver = load("thumb-options")["guest_target"]
+                with (folder/"gbs.log").open(errors="replace") as stream:
+                    for raw in stream:
+                        match = re.search(r"(?:^|\]\s*)GBS_TOOL (/\S+) invoked ",raw)
+                        if match and len(guest_roots)==1:
+                            name = match[1]
+                            record["compiler_paths"][name] = resolver(guest_roots[0],name)
                 record["rpm_identity"]=[line for line in toolchain if line.startswith("GBS_RPM ")]
                 if not any(re.search(r"^GBS_RPM clang (?:0|\(none\)) 22\.1\.8 9\.1 armv7l$",line) for line in record["rpm_identity"]):
                     raise ValueError("missing pinned 22.1.8-9.1 armv7l clang in GBS root")

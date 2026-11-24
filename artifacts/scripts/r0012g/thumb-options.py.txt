@@ -61,13 +61,103 @@ def config_gate(drivers, scoped):
     return gaps
 
 
-def summarize(work):
+GCC_NAMES = {"cc", "c++", "gcc", "g++"}
+
+
+def gcc_lines(path):
+    """Keep log locations and original arguments, including absolute driver paths."""
+    evidence = []
+    pattern = re.compile(r"(?:^|[\s/'\"])(?:[\w.-]+-)?(?:cc|c\+\+|gcc|g\+\+)(?=['\"\s]|$)")
+    for number, raw in enumerate(path.open(errors="replace"), 1):
+        text = re.sub(r"^\[\s*[\d.]+s\]\s*", "", raw).strip()
+        if not pattern.search(text) or text.startswith(("PM_CFG ", "echo ", "+ echo ", "+ printf ")):
+            continue
+        try:
+            args = shlex.split(text)
+        except ValueError:
+            evidence.append({"line":number,"status":"CHECK_QUOTING","argv":text})
+            continue
+        # Find a driver in command position; skip shell trace markers, make
+        # progress prefixes, environment and known transparent launchers.
+        command = True
+        driver = None
+        for arg in args:
+            if arg in ("&&", "||", ";", "|"):
+                command = True
+                continue
+            if not command:
+                continue
+            base = Path(arg).name
+            short = base.removeprefix("armv7l-tizen-linux-gnueabi-")
+            if short in GCC_NAMES:
+                driver = arg
+                break
+            if (arg in ("+", "++", "compile", "compile-link", "PM12_DRIVER", "PM_GCC_ARGV", "THUMB_INVOKE", "baseline", "default", "package", "libtool:", "compile:")
+                    or base in ("env","ccache","sccache","distcc","libtool") or arg.startswith(("[","--mode="))
+                    or arg.endswith(("%]","/libtool")) or re.match(r"^[A-Za-z_]\w*=",arg)):
+                continue
+            command = False
+        is_input = any(arg.endswith((".c",".cc",".cpp",".cxx",".C",".S",".s",".i",".ii")) for arg in args)
+        if not is_input and not any(arg in ("-c","-S") or arg.startswith("@") for arg in args):
+            continue
+        if "-###" in args or "/dev/null" in args or any("/.pm0012g-driver/" in x for x in args):
+            continue
+        if driver or ("-c" in args and any(Path(x).name in GCC_NAMES for x in args)):
+            evidence.append({"line":number,"driver":driver,"status":"OBSERVED" if driver else "CHECK_COMMAND_POSITION","argv":text})
+    return evidence
+
+
+def guest_target(root, raw):
+    if not Path(raw).is_absolute():
+        return None
+    pending = list(Path(raw).parts[1:])
+    resolved = []
+    hops = 0
+    while pending:
+        part = pending.pop(0)
+        if part == "..":
+            if resolved: resolved.pop()
+            continue
+        if part in (".","/"): continue
+        entry = root.joinpath(*resolved,part)
+        if entry.is_symlink():
+            hops += 1
+            if hops > 40: return None
+            link = entry.readlink()
+            if link.is_absolute(): resolved = []
+            pending = list(link.parts) + pending
+        else:
+            resolved.append(part)
+    return "/" + "/".join(resolved) if root.joinpath(*resolved).is_file() else None
+
+
+def driver_evidence(work, lane, drivers):
+    evidence = gcc_lines(work/lane/"gbs.log")
+    affected = []
+    roots = list((work/lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*.armv7l.*"))
+    for name,row in drivers.items():
+        opts = set(" ".join(row.get("OPTION",[])).split())
+        if lane=="default" and row.get("LOADED") and not FLAGS <= opts:
+            affected.append(name)
+        for spelling in row.get("EXE",[]):
+            # Old pins recorded two columns. The first is always the invoked path.
+            if len(roots)==1 and spelling.split():
+                row.setdefault("GBS_ROOT_EXE",[]).append(guest_target(roots[0],spelling.split()[0]))
+    return {"gcc_family_compile_lines":evidence, "F6_loaded_missing_marked_options":affected,
+            "argv_scope":"observed GBS log lines; silent invocations and response contents require separate evidence"}
+
+
+def summarize(work, drivers_only=False):
     result = {}
     all_units = {}
     for lane in ("baseline","default","package"):
         path = work/lane/"gbs.log"
         if not path.is_file(): continue
         drivers, units, diagnostics = parse(path)
+        driver_results = driver_evidence(work,lane,drivers)
+        if drivers_only:
+            result[lane] = {"drivers":drivers, **driver_results}
+            continue
         all_units[lane] = units
         counts = Counter(x[1:] for x in units)
         links=work/lane/"link-argv.txt"
@@ -80,7 +170,7 @@ def summarize(work):
                     continue
                 flags=[x for x in args if x in ("-flto","-fno-lto") or x.startswith("-flto=") or "LLVMgold" in x or "-plugin-opt" in x]
                 if flags: evidence.append({"flags":flags,"argv":raw})
-        result[lane] = {"link_lto_evidence":evidence,"drivers":drivers, "driver_gaps":config_gate(drivers, lane=="default"),
+        result[lane] = {**driver_results, "link_lto_evidence":evidence,"drivers":drivers, "driver_gaps":config_gate(drivers, lane=="default"),
                         "groups":[[*k,v] for k,v in sorted(counts.items())],
                         "diagnostics":diagnostics, "units":units}
     baseline = defaultdict(set)
@@ -119,8 +209,23 @@ def prior_abi(job):
 
 if __name__ == "__main__":
     folder=Path(sys.argv[1])
-    for job in sorted((folder/"jobs").glob("thumb-*")):
-        data=summarize(job)
+    jobs = sorted((folder/"jobs").glob("thumb-*"))
+    if not any((job/lane/"gbs.log").is_file() for job in jobs for lane in ("baseline","default","package")):
+        raise SystemExit("PILOT_LOGS_MISSING " + str(folder))
+    for job in jobs:
+        if not job.is_dir(): continue
+        drivers_only = "--drivers-only" in sys.argv[2:]
+        data=summarize(job,drivers_only)
+        for lane in ("baseline","default","package"):
+            if lane in data:
+                print("T1_F2_GCC_ARGV",job.name,lane,len(data[lane]["gcc_family_compile_lines"]))
+                for name in data[lane]["F6_loaded_missing_marked_options"]:
+                    print("F6_RERUN_DEFAULT",job.name,name)
+        if drivers_only:
+            out = Path.cwd()/(job.name+".json")
+            out.write_text(json.dumps(data,indent=2)+"\n")
+            print("T1_F2_REPORT",out)
+            continue
         if data["new_lto_units"]:
             try:
                 data["lto_abi"]=prior_abi(job)

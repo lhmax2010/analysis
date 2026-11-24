@@ -1,6 +1,11 @@
 # Added to the end of %check in each isolated GBS lane.
 (
-d=$(mktemp -d)
+set -eu
+for pm_tool in mkdir cat armv7l-tizen-linux-gnueabi-clang readelf grep find awk; do
+    command -v "$pm_tool" >/dev/null || { echo "PM_BUILD_MISSING_TOOL $pm_tool" >&2; exit 2; }
+done
+d="$PWD/.pm0012-smoke.$$"
+(umask 077; mkdir "$d") || exit 2
 cat >"$d/inter.c" <<'END'
 extern int callback(int);
 int thumb_call(int x) { return callback(x) + 1; }
@@ -44,6 +49,20 @@ int main(int argc, char **argv) {
   return 0;
 }
 END
+# A POSIX alarm survives exec. The smoke inputs are this probe and rpm --version.
+cat >"$d/deadline.c" <<'END'
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+int main(int argc, char **argv) {
+    if (argc < 3) return 2;
+    signal(SIGALRM, SIG_DFL);
+    alarm((unsigned)atoi(argv[1]));
+    execv(argv[2], argv + 2);
+    return 127;
+}
+END
+"$cc" "$d/deadline.c" -o "$d/deadline" || exit 2
 "$cc" "$d/load.c" -ldl -o "$d/load" || exit 1
 root=%{buildroot}
 find "$root" -type f > "$d/files"
@@ -53,11 +72,11 @@ while IFS= read -r file; do
     case "$hdr" in *ARM*) ;; *) continue ;; esac
     if readelf -lW "$file" | grep -q 'INTERP'; then
         case "$path" in /usr/bin/rpm) arg=--version ;; *) echo "PM_THUMB_SMOKE_UNQUALIFIED $path"; continue ;; esac
-        if timeout 10 "$file" "$arg" >/dev/null; then echo "PM_THUMB_SMOKE_PASS $path"; else echo "PM_THUMB_SMOKE_FAIL $path"; fi
+        if "$d/deadline" 10 "$file" "$arg" >/dev/null; then echo "PM_THUMB_SMOKE_PASS $path"; else echo "PM_THUMB_SMOKE_FAIL $path"; fi
     elif echo "$hdr" | grep -Eq 'Type: +DYN'; then
         readelf --dyn-syms -W "$file" >"$d/symbols" || exit 1
         awk '$5~/^(GLOBAL|WEAK|UNIQUE)$/ && $6~/^(DEFAULT|PROTECTED)$/ && $7!="UND" && $7!="ABS" && $8!="" {print $8}' "$d/symbols" >"$d/names"
-        if LD_LIBRARY_PATH="$root/usr/lib:$root/lib" timeout 20 "$d/load" "$file" <"$d/names"; then
+        if LD_LIBRARY_PATH="$root/usr/lib:$root/lib" "$d/deadline" 20 "$d/load" "$file" <"$d/names"; then
             echo "PM_THUMB_SMOKE_PASS $path"
         else
             echo "PM_THUMB_SMOKE_FAIL $path"

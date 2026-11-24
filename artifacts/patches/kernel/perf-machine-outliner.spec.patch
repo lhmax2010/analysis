@@ -1,8 +1,10 @@
 --- a/packaging/tztv-kernel.spec
 +++ b/packaging/tztv-kernel.spec
-@@ -2,4 +2,77 @@
- export V=1 KBUILD_VERBOSE=1
+@@ -3,8 +3,84 @@
  export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1"
++for pm_tool in mkdir cat clang armv7l-tizen-linux-gnueabi-clang make grep sha256sum cut cp find xargs touch chmod sed rpm readelf; do
++    command -v "$pm_tool" >/dev/null || { echo "PM_BUILD_MISSING_TOOL $pm_tool" >&2; exit 2; }
++done
 +# Local 0012f trial, instantiated once per GBS export.
 +pm_lane=@LANE@
 +export PM_KERNEL_LANE="$pm_lane"
@@ -58,11 +60,11 @@
 +        dest=$PM_KERNEL_EVIDENCE/$hash
 +        test ! -e "$dest/complete" || exit 0
 +        mkdir -p "$dest"
-+        cp --parents --reflink=auto -t "$dest" -- .config vmlinux arch/arm/boot/zImage kernel/sched/core.o.pm0012f-options
-+        find . -type f -name '.*.o.cmd' -exec cp --parents --reflink=auto -t "$dest" -- {} +
++        cp --parents -t "$dest" -- .config vmlinux arch/arm/boot/zImage kernel/sched/core.o.pm0012f-options
++        find . -type f -name '.*.o.cmd' -exec cp --parents -t "$dest" -- {} +
 +        # Keep the individual ELF objects needed for caller attribution. Preserve NUL-delimited names.
 +        find . -type f -name '*.o' -exec grep -alFZ OUTLINED_FUNCTION_ {} + > "$dest/candidates" || :
-+        xargs -0 -r -a "$dest/candidates" cp --parents --reflink=auto -t "$dest" --
++        xargs -0 -r -a "$dest/candidates" cp --parents -t "$dest" --
 +        touch "$dest/complete"
 +    ) || exit $?
 +fi
@@ -78,3 +80,16 @@
 +esac
  printf 'GBS_KERNEL_PATH %%s\n' "$PATH"
  rpm -q clang llvm clang-accel-x86_64-armv7l --qf 'GBS_RPM %%{NAME} %%{EPOCHNUM} %%{VERSION} %%{RELEASE} %%{ARCH}\n' || :
+-for pm_tool in "$(command -v clang || :)" "$(command -v armv7l-tizen-linux-gnueabi-clang || :)" /emul/usr/bin/clang; do
++for pm_tool in "$PM_REAL_CLANG" "$(command -v armv7l-tizen-linux-gnueabi-clang || :)" /emul/usr/bin/clang; do
+     test -n "$pm_tool" && test -f "$pm_tool" || continue
+-    pm_elf=$(readlink -f "$pm_tool") || continue
+-    printf 'GBS_TOOL %%s -> %%s\n' "$pm_tool" "$pm_elf"
++    pm_elf=$pm_tool
++    printf 'GBS_TOOL %%s invoked %%s\n' "$pm_tool" "$pm_elf"
+     if command -v readelf >/dev/null; then
+@@ -13,3 +89,3 @@
+     sha256sum "$pm_elf" | sed 's/^/GBS_TOOL_SHA256 /'
+-    rpm -qf "$pm_elf" --qf 'GBS_TOOL_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :
++    rpm -qf "$pm_elf" --qf 'GBS_TOOL_PATH_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :
+ done

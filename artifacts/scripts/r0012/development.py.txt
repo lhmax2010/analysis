@@ -170,6 +170,25 @@ def resolve(settings, label, binary_names=None):
     return {"repository": repository, "doc_source": source}, rows, selected
 
 
+# Trace GCC driver spellings without applying Clang recipe flags. Emit one
+# write per invocation to preserve parallel compile arguments in the GBS log.
+GCC_TRACE = r'''
+for name in cc c++ gcc g++ armv7l-tizen-linux-gnueabi-gcc armv7l-tizen-linux-gnueabi-g++; do
+    path=$(command -v "$name") || continue
+    {
+        echo '#!/bin/bash'
+        printf 'real=%%q\n' "$path"
+        cat <<'PM_GCC_TRACE'
+printf -v record ' %%q' "$real" "$@"
+printf 'PM_GCC_ARGV%%s\n' "$record" >&2
+exec "$real" "$@"
+PM_GCC_TRACE
+    } >"$pm12_bin/$name" || exit 2
+    chmod u+x "$pm12_bin/$name" || exit 2
+done
+'''
+
+
 def hook_source(body, edits):
     for phase in PHASES:
         if any(not isinstance(flag, str) or not re.fullmatch(r"-[^%\s]+", flag) for flag in edits[phase]):
@@ -326,7 +345,7 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
             raise ValueError("T1 refuses a protected kernel or external-module package")
         if label in {"treatment","default"}:
             text = helper["trial_config"](text, protected, "-mthumb -mimplicit-it=thumb" if recipe["id"]=="THUMB" else "-mthumb")
-        prefix = helper["PROBE"]
+        prefix = 'for pm_tool in awk sed mkdir cat chmod env bash clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++; do\n    command -v "$pm_tool" >/dev/null || { echo "PM_BUILD_MISSING_TOOL $pm_tool" >&2; exit 2; }\ndone\n' + helper["PROBE"]
         if recipe["id"] == "THUMB":
             prefix += "\n" + (directory/"driver-config.sh.txt").read_text().replace("@SCOPED@", "yes" if label=="default" else "no").replace("%","%%")
             if re.search(r"(?mi)^%files[^%]*?\.ko(?:\s|$)", original):
@@ -357,6 +376,8 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
     meta = hook_source(driver, edits if recipe["id"] != "EXP-Z1" else {**edits, "link": ["-PM12_POLICY"]})
     if recipe["id"] == "EXP-Z1":
         meta = meta.replace("-PM12_POLICY", "%{pm12_native_link_flags}" if label == "treatment" else "")
+    if recipe["id"] in ("T1","THUMB"):
+        meta = meta.replace('export PATH="$pm12_bin:$PATH"', GCC_TRACE + 'export PATH="$pm12_bin:$PATH"')
     if recipe.get("original_hook") and label == "C":
         prefix += "export CCC_OVERRIDE_OPTIONS=" + shlex.quote(recipe["original_hook"]) + "\n"
     if recipe["id"] == "THUMB":

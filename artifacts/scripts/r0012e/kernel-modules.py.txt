@@ -54,7 +54,8 @@ def build_modules(work, settings, dev, owners_file, lanes=("baseline", "thumb"))
                                                          settings.manifest,{},dest)
                 original=spec.read_text()
                 # A dependency solver may prefer the published headers despite matching NEVRA.
-                check=f"""observed=$(rpm -q --qf '%%{{SHA1HEADER}}' tztv-kernel-devel)
+                check=f"""command -v rpm >/dev/null || {{ echo PM_BUILD_MISSING_TOOL rpm; exit 2; }}
+observed=$(rpm -q --qf '%%{{SHA1HEADER}}' tztv-kernel-devel)
 test "$observed" = {sha} || {{ echo PM_MODULE_HEADER_MISMATCH; exit 2; }}
 echo PM_MODULE_HEADER_CONFIRMED "$observed"
 export KBUILD_VERBOSE=1 V=1
