@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Build the fixed target benchmark in an isolated GBS root and verify its ARM ELF."""
+import argparse
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import subprocess
+import tempfile
+from types import SimpleNamespace
+
+
+FLAGS = ("-O2", "-static", "-std=c11", "-Wall", "-Wextra", "-Werror")
+SPEC = r"""Name: pm-board-microbench
+Version: 1
+Release: 1
+Summary: KantSU2E measurement benchmark
+License: MIT
+Source0: bench.c
+BuildRequires: clang
+BuildRequires: glibc-devel
+BuildRequires: binutils
+
+%description
+Fixed target measurement benchmark.
+
+%prep
+cp -- "%{SOURCE0}" bench.c
+
+%build
+set -eu
+cc=$(command -v armv7l-tizen-linux-gnueabi-clang)
+printf 'PM_BENCH_COMPILER %%s\n' "$cc"
+printf 'PM_BENCH_FLAGS @FLAGS@\n'
+printf 'PM_BENCH_SOURCE %%s\n' "$(sha256sum bench.c | awk '{print $1}')"
+"$cc" @FLAGS@ bench.c -Wl,-Map,microbench.map -o microbench
+libc=$(awk '$1 == "LOAD" && $2 ~ /\/libc\.a$/ {print $2}' microbench.map | sort -u)
+test -n "$libc"
+test -f "$libc"
+libc=$(realpath -e -- "$libc")
+owner=$(rpm -qf --qf '%%{NAME}\t%%{EPOCHNUM}\t%%{VERSION}\t%%{RELEASE}\t%%{ARCH}\n' "$libc")
+digest=$(sha256sum "$libc")
+printf 'PM_BENCH_GLIBC\t%%s\t%%s\t%%s\n' "$libc" "${digest%% *}" "$owner"
+readelf -sW microbench >microbench.symbols
+main=$(awk '$4 == "FUNC" && $7 != "UND" && $8 == "main" {print $2}' microbench.symbols | sort -u)
+test -n "$main"
+printf 'PM_BENCH_MAIN %%s\n' "$main"
+readelf -lWd microbench >microbench.elfinfo
+if grep -Eq '^[[:space:]]*INTERP[[:space:]]|\(NEEDED\)' microbench.elfinfo; then
+    echo 'PM_BENCH_INVALID_DYNAMIC_DEPENDENCY' >&2
+    exit 1
+fi
+echo PM_BENCH_STATIC_NO_INTERP_OR_NEEDED
+
+%install
+mkdir -p %{buildroot}/usr/bin
+install -m 0755 microbench %{buildroot}/usr/bin/pm-board-microbench
+%files
+/usr/bin/pm-board-microbench
+""".replace("@FLAGS@", " ".join(FLAGS)).replace("${digest%% *}", "${digest%%%% *}")
+
+
+def build_proof(log, source_sha):
+    rows = set()
+    with log.open(errors="replace") as stream:
+        for line in stream:
+            clean = re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*", "", line).strip()
+            if clean.startswith("PM_BENCH_"):
+                rows.add(clean)
+
+    def field(name, delimiter=" "):
+        matches = [line.split(delimiter, 1)[1] for line in rows if line.startswith(name+delimiter)]
+        if len(matches) != 1:
+            raise ValueError("expected one build proof line " + name)
+        return matches[0]
+
+    if field("PM_BENCH_SOURCE") != source_sha or field("PM_BENCH_FLAGS").split() != list(FLAGS):
+        raise ValueError("built benchmark source or flag proof differs")
+    if "PM_BENCH_STATIC_NO_INTERP_OR_NEEDED" not in rows:
+        raise ValueError("missing static ELF proof")
+    libc, sha, name, epoch, version, release, arch = field("PM_BENCH_GLIBC", "\t").split("\t")
+    if not (Path(libc).is_absolute() and Path(libc).name == "libc.a"
+            and re.fullmatch(r"[0-9a-f]{64}", sha) and re.fullmatch(r"glibc(?:-[\w.-]+)?", name)):
+        raise ValueError("static libc proof did not identify a glibc-owned archive")
+    return {
+        "compiler": field("PM_BENCH_COMPILER"),
+        "compile_flags": list(FLAGS),
+        "link_evidence_flag": "-Wl,-Map,microbench.map",
+        "benchmark_main_isa": "THUMB" if int(field("PM_BENCH_MAIN"), 16) & 1 else "A32",
+        "static_glibc": {"path": libc, "sha256": sha, "rpm_nevra": [name, epoch, version, release, arch]},
+        "linkage": "STATIC_NO_PT_INTERP_OR_DT_NEEDED",
+    }
+
+
+def main():
+    a=argparse.ArgumentParser(description=__doc__)
+    for arg in ("tools","capture","c_source","olevel","gbs_lib","stager_lib","thumb_lib","scan_lib","bundle_lib"):
+        a.add_argument(arg,type=Path)
+    args=a.parse_args()
+    o=runpy.run_path(str(args.olevel))
+    tools=o["native_path"](args.tools)
+    if not tools.name.startswith("pm0010-board.") or tools.parent!=o["TEMP"]:
+        raise ValueError("expected a round 0010 board tools directory")
+    if (tools/"microbench").exists() or (tools/"microbench.sha256").exists():
+        raise ValueError("existing benchmark; use the staged hashes or prepare a new directory")
+    gbs=SimpleNamespace(**runpy.run_path(str(args.gbs_lib)))
+    thumb=runpy.run_path(str(args.thumb_lib))
+    stager=runpy.run_path(str(args.stager_lib))
+    sc=runpy.run_path(str(args.scan_lib))
+    bundle=runpy.run_path(str(args.bundle_lib))
+    with bundle["locks"]():
+        product,buildconf,_=o["capture_identity"](args.capture)
+        gbs.live_product(product)
+        work=Path(tempfile.mkdtemp(prefix="pm0010-gbs-board-bench.",dir=gbs.NATIVE))
+        os.environ["TMPDIR"]=str(work)
+        gbs.available(work,24,12)
+        print("GBS_BENCH_WORKDIR",work,flush=True)
+        project=work/"source"
+        package=project/"packaging"
+        package.mkdir(parents=True)
+        (package/"pm-board-microbench.spec").write_text(SPEC)
+        c_source = o["native_path"](args.c_source)
+        source_sha = o["file_hash"](c_source)
+        (package/"bench.c").write_bytes(c_source.read_bytes())
+        gbs.local_git(project,work)
+        root=work/"GBS-ROOT"
+        data=gbs.pinned(gbs.ROOT/"config/gbs_vd_llvm_11.16_qb37627297.conf",stager["CONFIG"]).read_bytes()
+        config=work/"gbs.conf"
+        config.write_bytes(o["configure_gbs"](gbs,data,root,product))
+        thumb["run_gbs"](gbs,work,project,"pm-board-microbench.spec",config,buildconf,root,True,False)
+        candidates=[p for p in (root/"local/repos").rglob("pm-board-microbench-1-*.armv7l.rpm")
+                    if o["rpm_query"](p,"%{NAME}")=="pm-board-microbench"]
+        (rpm,)=candidates
+        proc=subprocess.run(["rpm2cpio",str(rpm)],capture_output=True,timeout=60,check=True)
+        (elf,)=[blob for name,blob in sc["cpio_entries"](io.BytesIO(proc.stdout)) if name=="/usr/bin/pm-board-microbench"]
+        result=sc["classify"](elf)
+        if result is None or result["kind"] not in ("EXEC","DYN"):
+            raise ValueError("GBS benchmark is not an ARM32 loadable ELF")
+        proof = build_proof(work/"gbs.log", source_sha)
+        path=tools/"microbench"
+        with path.open("xb") as f:
+            f.write(elf)
+        digest=hashlib.sha256(elf).hexdigest()
+        (tools/"microbench.sha256").write_text(digest+"  microbench\n")
+        receipt={"gbs_log":str(work/"gbs.log"),"rpm":str(rpm),"rpm_sha256":o["file_hash"](rpm),
+                 "source_sha256":source_sha,"microbench_sha256":digest,"official_base":o["BASE"],
+                 "linked_image_isa":{"mode":result["mode"], "basis":result["basis"],
+                  "a32_bytes":result["arm_bytes_est"],"exec_bytes":result["exec_bytes"]}, **proof}
+        (tools/"board-tools.json").write_text(json.dumps(receipt,indent=2)+"\n")
+        (tools/"microbench-provenance.json").write_text(json.dumps(receipt,indent=2)+"\n")
+        print("GBS_BENCH_READY",path,digest)
+        print("GBS_BENCH_ISA", proof["benchmark_main_isa"], result["mode"], "FLAGS", *FLAGS)
+        print("GBS_BENCH_STATIC_GLIBC", o["BASE"], *proof["static_glibc"]["rpm_nevra"],
+              proof["static_glibc"]["path"], proof["static_glibc"]["sha256"])
+
+
+if __name__=="__main__":
+    try:
+        main()
+    except (OSError,ValueError,KeyError,subprocess.SubprocessError) as error:
+        raise SystemExit("GBS_BENCH_BLOCKED "+" ".join(str(error).splitlines())[:500])

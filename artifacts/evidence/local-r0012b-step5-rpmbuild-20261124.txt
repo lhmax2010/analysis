@@ -1,0 +1,81 @@
+Executing(%prep): /bin/sh -e /home/toolchain/Desktop/temp/.work-tmp/0012/step5/tmp/rpm-tmp.R6Lx8e
++ umask 022
++ cd /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILD
++ cp -- /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/SOURCES/bench.c bench.c
++ RPM_EC=0
++ jobs -p
++ exit 0
+Executing(%build): /bin/sh -e /home/toolchain/Desktop/temp/.work-tmp/0012/step5/tmp/rpm-tmp.Y0pgES
++ umask 022
++ cd /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILD
++ set -eu
++ command -v armv7l-tizen-linux-gnueabi-clang
++ cc=/home/toolchain/Desktop/temp/.work-tmp/0012/step5/bin/armv7l-tizen-linux-gnueabi-clang
++ printf PM_BENCH_COMPILER %s\n /home/toolchain/Desktop/temp/.work-tmp/0012/step5/bin/armv7l-tizen-linux-gnueabi-clang
+PM_BENCH_COMPILER /home/toolchain/Desktop/temp/.work-tmp/0012/step5/bin/armv7l-tizen-linux-gnueabi-clang
++ printf PM_BENCH_FLAGS -O2 -static -std=c11 -Wall -Wextra -Werror\n
+PM_BENCH_FLAGS -O2 -static -std=c11 -Wall -Wextra -Werror
++ sha256sum bench.c
++ awk {print $1}
++ printf PM_BENCH_SOURCE %s\n 04981794ea071c5d7aef39a911086abf451cb136796e4e8edc6bffa39f66796a
+PM_BENCH_SOURCE 04981794ea071c5d7aef39a911086abf451cb136796e4e8edc6bffa39f66796a
++ /home/toolchain/Desktop/temp/.work-tmp/0012/step5/bin/armv7l-tizen-linux-gnueabi-clang -O2 -static -std=c11 -Wall -Wextra -Werror bench.c -Wl,-Map,microbench.map -o microbench
++ awk $1 == "LOAD" && $2 ~ /\/libc\.a$/ {print $2} microbench.map
++ sort -u
++ libc=/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/libc.a
++ test -n /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/libc.a
++ test -f /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/libc.a
++ realpath -e -- /usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/libc.a
++ libc=/usr/lib/x86_64-linux-gnu/libc.a
++ rpm -qf --qf %{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\n /usr/lib/x86_64-linux-gnu/libc.a
++ owner=glibc-devel	0	2.39	fixture	x86_64
++ sha256sum /usr/lib/x86_64-linux-gnu/libc.a
++ digest=7f94d4d055e5a9f95328bcf9dc38ae42ee77bec6bb8284980f738860afef3b8f  /usr/lib/x86_64-linux-gnu/libc.a
++ printf PM_BENCH_GLIBC\t%s\t%s\t%s\n /usr/lib/x86_64-linux-gnu/libc.a 7f94d4d055e5a9f95328bcf9dc38ae42ee77bec6bb8284980f738860afef3b8f glibc-devel	0	2.39	fixture	x86_64
+PM_BENCH_GLIBC	/usr/lib/x86_64-linux-gnu/libc.a	7f94d4d055e5a9f95328bcf9dc38ae42ee77bec6bb8284980f738860afef3b8f	glibc-devel	0	2.39	fixture	x86_64
++ readelf -sW microbench
++ sort -u
++ awk $4 == "FUNC" && $7 != "UND" && $8 == "main" {print $2} microbench.symbols
++ main=00000000004019c0
++ test -n 00000000004019c0
++ printf PM_BENCH_MAIN %s\n 00000000004019c0
+PM_BENCH_MAIN 00000000004019c0
++ readelf -lWd microbench
++ grep -Eq ^[[:space:]]*INTERP[[:space:]]|\(NEEDED\) microbench.elfinfo
++ echo PM_BENCH_STATIC_NO_INTERP_OR_NEEDED
+PM_BENCH_STATIC_NO_INTERP_OR_NEEDED
++ RPM_EC=0
++ jobs -p
++ exit 0
+Executing(%install): /bin/sh -e /home/toolchain/Desktop/temp/.work-tmp/0012/step5/tmp/rpm-tmp.EfkqIy
++ umask 022
++ cd /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILD
++ /bin/rm -rf /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILDROOT/pm-board-microbench-1-1.x86_64
++ /bin/mkdir -p /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILDROOT
++ /bin/mkdir /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILDROOT/pm-board-microbench-1-1.x86_64
++ mkdir -p /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILDROOT/pm-board-microbench-1-1.x86_64/usr/bin
++ install -m 0755 microbench /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILDROOT/pm-board-microbench-1-1.x86_64/usr/bin/pm-board-microbench
++ /usr/lib/rpm/brp-compress /usr
++ /usr/lib/rpm/brp-elfperms
++ /usr/lib/rpm/brp-strip /usr/bin/strip
++ /usr/lib/rpm/brp-strip-static-archive /usr/bin/strip
++ /usr/lib/rpm/brp-strip-comment-note /usr/bin/strip /usr/bin/objdump
++ /usr/lib/rpm/brp-remove-la-files
+Processing files: pm-board-microbench-1-1.x86_64
+Provides: pm-board-microbench = 1-1 pm-board-microbench(x86-64) = 1-1
+Requires(rpmlib): rpmlib(CompressedFileNames) <= 3.0.4-1 rpmlib(FileDigests) <= 4.6.0-1 rpmlib(PayloadFilesHavePrefix) <= 4.0-1
+Checking for unpackaged file(s): /usr/lib/rpm/check-files /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILDROOT/pm-board-microbench-1-1.x86_64
+Wrote: /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/RPMS/x86_64/pm-board-microbench-1-1.x86_64.rpm
+Executing(%clean): /bin/sh -e /home/toolchain/Desktop/temp/.work-tmp/0012/step5/tmp/rpm-tmp.awlEp5
++ umask 022
++ cd /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILD
++ /bin/rm -rf /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILDROOT/pm-board-microbench-1-1.x86_64
++ RPM_EC=0
++ jobs -p
++ exit 0
+Executing(rmbuild): /bin/sh -e /home/toolchain/Desktop/temp/.work-tmp/0012/step5/tmp/rpm-tmp.62EPWa
++ umask 022
++ cd /home/toolchain/Desktop/temp/.work-tmp/0012/step5/rpm/BUILD
++ RPM_EC=0
++ jobs -p
++ exit 0
