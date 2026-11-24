@@ -78,6 +78,10 @@ with tempfile.TemporaryDirectory(dir=os.environ['TMPDIR']) as tmp:
     a.write_text('CONFIG_A=y\n'); b.write_text('# note\nCONFIG_A=y\n')
     with contextlib.redirect_stdout(io.StringIO()) as s:
         assert not q['config_diff'](a,b,w/'diff')
+    assert s.getvalue()==(w/'diff').read_text()
+    b.write_text(''.join(f'# {i}\n' for i in range(120)))
+    with contextlib.redirect_stdout(io.StringIO()) as s:
+        assert not q['config_diff'](a,b,w/'diff')
     assert zlib.decompress(base64.b64decode(s.getvalue().split()[-1]))==(w/'diff').read_bytes()
     # Use real readelf and objdump on the fixture ELF.
     for k in ('CONFIG_UNWINDER_FRAME_POINTER','CONFIG_UNWINDER_ARM'):
@@ -94,6 +98,7 @@ with tempfile.TemporaryDirectory(dir=os.environ['TMPDIR']) as tmp:
     assert mode('b')=='TAIL_CALL'
     assert mode('bl','mov r4, lr','mov lr, r4')=='LR_REGISTER'
     assert mode('bl','str lr, [sp, #-4]!','ldr lr, [sp], #4')=='LR_STACK'
+    assert mode('bl','str lr, [sp, #-0x8]!','ldr lr, [sp], #8')=='LR_STACK'
     assert mode('bl',end='b 0x2340 <fn>')=='THUNK'
     assert mode('bl','nop x','add r0, r1')=='NO_LOCAL_LR_SAVE'
     assert mode('bne')=='UNRESOLVED'
@@ -108,4 +113,18 @@ with tempfile.TemporaryDirectory(dir=os.environ['TMPDIR']) as tmp:
         assert forbidden not in section,forbidden
     assert set(section.split('for pm_tool in ',1)[1].split(';')[0].split())==set(
         'mkdir cat clang ld.lld armv7l-tizen-linux-gnueabi-clang make grep sha256sum cut cp find xargs touch chmod sed rpm readelf'.split())
+    # Exercise the exact injected make wrapper in a constrained buildroot-style PATH.
+    tools=w/'allowed';tools.mkdir()
+    import shutil
+    for name in ('cp','find','xargs','grep','chmod','mkdir','sha256sum','cut','touch'):
+        (tools/name).symlink_to(shutil.which(name))
+    script=w/'make-wrapper';script.write_text(section.partition("<<'PMMAKE'\n")[2].partition('\nPMMAKE\n')[0])
+    for name in ('arch/arm/Makefile','scripts/Kbuild.include','arch/arm/boot/zImage','kernel/sched/core.o.pm0012f-options','.core.o.cmd','core.o'):
+        f=w/name;f.parent.mkdir(exist_ok=True,parents=True);f.write_text('OUTLINED_FUNCTION_0')
+    with tempfile.TemporaryDirectory(dir=os.environ['TMPDIR']) as receipt_dir:
+        env={**os.environ,'PATH':str(tools),'PM_KERNEL_LANE':'K1','PM_REAL_MAKE':'/bin/true','PM_KERNEL_EVIDENCE':receipt_dir}
+        subprocess.run(['/bin/sh',script],env=env,cwd=w,check=True)
+        snapshot=Path(env['PM_KERNEL_EVIDENCE'])/sha((w/'arch/arm/boot/zImage').read_bytes())
+        assert (snapshot/'complete').exists() and (snapshot/'System.map').read_bytes()==table.read_bytes()
+        assert (snapshot/'core.o').is_file()
 print('PASS K0 identity and raw-only gates, config diff packet, retained symbols, static sizes, real ARM ELF direct edge and EHABI range, LR shapes, offline trace parser and buildroot command inventory')

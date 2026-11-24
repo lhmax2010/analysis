@@ -113,10 +113,11 @@ def classify(call, body):
     reg=re.fullmatch(r"mov (r\d+|ip|fp|sl|sb),lr",prev)
     if reg and nxt=="mov lr,"+reg[1]:
         return "LR_REGISTER"
-    stack_pairs=(("push {lr}","pop {lr}"),("stmdb sp!,{lr}","ldmia sp!,{lr}"),
-                 ("str lr,[sp,#-4]!","ldr lr,[sp],#4"),
-                 ("str lr,[sp,#-0x4]!","ldr lr,[sp],#0x4"))
-    if (prev,nxt) in stack_pairs:
+    save=re.fullmatch(r"str lr,\[sp,#-(0x[0-9a-f]+|[0-9]+)\]!",prev)
+    restore=re.fullmatch(r"ldr lr,\[sp\],#(0x[0-9a-f]+|[0-9]+)",nxt)
+    if save and restore and int(save[1],0)==int(restore[1],0)>0:
+        return "LR_STACK"
+    if (prev,nxt) in (("push {lr}","pop {lr}"),("stmdb sp!,{lr}","ldmia sp!,{lr}")):
         return "LR_STACK"
     if not body or any(x[1] in ("<unknown>",".word",".short") for x in body): return "UNRESOLVED"
     last=instruction(body[-1])

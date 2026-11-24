@@ -31,11 +31,11 @@ SELF	artifacts/patches/thumb2/org.tizen.AVControl.patch	63a9181ab32c66f479130a90
 SELF	artifacts/patches/thumb2/libpisa-ipc.patch	dafdd9405cf2c39e60a027cde1fcd083c4a46c4b860ba39e88964aed3c35ca85	libpisa-ipc.patch
 SELF	artifacts/ledger/official-37736448-thumb-reviewed.tsv	69ee47e738a29843359fab944c1f63334aa675d8d857dd67eec597da8d2bfb58	thumb-causes.tsv
 SELF	artifacts/patches/kernel/perf-machine-outliner.spec.patch	1f7ff1a4a34b2403266c34c661a06e871e52f2c9af094e711c211d08412f7a69	perf-machine-outliner.spec.patch
-SELF	artifacts/scripts/r0012f/kernel-audit.py.txt	a1ac9e4d01722b632938c90d9b136899eb685dedafe302ad2b7fe12c9a4fdc24	kernel-audit.py.txt
-SELF	artifacts/scripts/r0012f/kernel-matrix.py.txt	04f9ccbfc708e8d493af3397de81ce8b3d000ee8fa321895837a067296c54b43	kernel-matrix.py.txt
+SELF	artifacts/scripts/r0012f/kernel-audit.py.txt	e6664cd84408d87296a5adb38c1bb75928b595fbcf089f7a2a576d2b2b30a65b	kernel-audit.py.txt
+SELF	artifacts/scripts/r0012f/kernel-matrix.py.txt	ffafb5282f52decaf9a737c5b90217bd3fa485814bdbf3a119c1ddf0daa38ebd	kernel-matrix.py.txt
 SELF	artifacts/scripts/r0012g/driver-config.sh.txt	3f1bfdac3eece3ab5a15d4a2c87f12bb0eb7e9a86b984c0ca214ef4c02be41c9	driver-config.sh.txt
 SELF	artifacts/scripts/r0012g/thumb-options.py.txt	c7cc48244c20ee4982a75c79780adfb4594bb7231f53e1919ca4b73908b49a10	thumb-options.py.txt
 SELF	artifacts/scripts/r0012k/official-config.py.txt	4d5ea74ef97454f87085dc5869be39478a283138a4d256cdce1b69a5e4a5d200	official-config.py.txt
 SELF	artifacts/scripts/r0012k/outliner-phase.py.txt	ee56e8af285fc5f1fe5bd29fb202f506b2c904ed4ba9d95a07c834cf6ca60603	outliner-phase.py.txt
-SELF	artifacts/scripts/r0012l/kernel-qualification.py.txt	d65518d04184ea610c2750083662af41803412888b71331582b04900b25616de	kernel-qualification.py.txt
+SELF	artifacts/scripts/r0012l/kernel-qualification.py.txt	2a0734efc35b3d03f2208b24bd84578bbc5297cc21bb56f21256859314d2f119	kernel-qualification.py.txt
 SELF	artifacts/scripts/r0012l/trace-symbolize.py.txt	513132683202f1dd088f1456f9b493eaa41787f8822bab7568f5b4dda1aa4069	trace-symbolize.py.txt

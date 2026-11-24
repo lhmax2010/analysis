@@ -184,6 +184,7 @@ def run(work,proof,owners):
             finally:
                 if lane in ("K4","K5") and (folder/"gbs.log").exists():
                     record["asm_review"]=qual["asm_review"](folder,src)
+                record["interpretation"]="QUALIFIED_BASELINE" if qualified_k0 else "RAW_ONLY"
                 if root.exists(): root.rename(folder/"GBS-ROOT")
                 (work/"kernel-matrix.json").write_text(json.dumps(results,indent=2)+"\n")
                 qual["write_table"](work,results)

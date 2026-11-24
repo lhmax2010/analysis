@@ -42,7 +42,10 @@ def config_diff(before, after, path):
     path.write_bytes(diff)
     if diff:
         # Lossless terminal return also when the unified diff exceeds the line limit.
-        print("CONFIG_UNIFIED_DIFF", path.name, "zlib+base64", base64.b64encode(zlib.compress(diff)).decode())
+        if len(diff.splitlines()) <= 100:
+            print(diff.decode(),end="")
+        else:
+            print("CONFIG_UNIFIED_DIFF", path.name, "zlib+base64", base64.b64encode(zlib.compress(diff)).decode())
     return a == b
 
 
@@ -107,7 +110,9 @@ def qualify(work, tree, rec, cfg, q, scan, same):
     # The installed vmlinux is BTF. Only a linked ELF demonstrably paired to the flat image can supply BSS.
     paths = [q["local_paths"]("official")[1], kr]
     if os.environ.get("PM12_OFFICIAL_PERF_ELF"):
-        paths.append(Path(os.environ["PM12_OFFICIAL_PERF_ELF"]))
+        extra=Path(os.environ["PM12_OFFICIAL_PERF_ELF"]).resolve(strict=True)
+        if not extra.is_relative_to(cfg["ROOT"]): raise ValueError("reference outside native workspace")
+        paths.append(extra)
     for p in paths:
         if not p.is_file():
             continue
