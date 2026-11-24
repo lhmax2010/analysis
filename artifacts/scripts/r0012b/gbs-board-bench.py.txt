@@ -43,7 +43,7 @@ test -f "$libc"
 libc=$(realpath -e -- "$libc")
 owner=$(rpm -qf --qf '%%{NAME}\t%%{EPOCHNUM}\t%%{VERSION}\t%%{RELEASE}\t%%{ARCH}\n' "$libc")
 digest=$(sha256sum "$libc")
-printf 'PM_BENCH_GLIBC\t%%s\t%%s\t%%s\n' "$libc" "${digest%% *}" "$owner"
+printf 'PM_BENCH_GLIBC\t%%s\t%%s\t%%s\n' "$libc" "${digest%%%% *}" "$owner"
 readelf -sW microbench >microbench.symbols
 main=$(awk '$4 == "FUNC" && $7 != "UND" && $8 == "main" {print $2}' microbench.symbols | sort -u)
 test -n "$main"
@@ -60,7 +60,7 @@ mkdir -p %{buildroot}/usr/bin
 install -m 0755 microbench %{buildroot}/usr/bin/pm-board-microbench
 %files
 /usr/bin/pm-board-microbench
-""".replace("@FLAGS@", " ".join(FLAGS)).replace("${digest%% *}", "${digest%%%% *}")
+""".replace("@FLAGS@", " ".join(FLAGS))
 
 
 def build_proof(log, source_sha):
@@ -93,6 +93,18 @@ def build_proof(log, source_sha):
         "static_glibc": {"path": libc, "sha256": sha, "rpm_nevra": [name, epoch, version, release, arch]},
         "linkage": "STATIC_NO_PT_INTERP_OR_DT_NEEDED",
     }
+
+
+def base_glibc_source(log, base, proof):
+    name, _, version, release, arch = proof["static_glibc"]["rpm_nevra"]
+    rpm_name = f"{name}-{version}-{release}.{arch}.rpm"
+    needle = re.compile(r"https?://repos\.vd\.sec\.samsung\.net/\S*/"
+                        r"tizen-10\.0-base-dev-llvm-standard_" + re.escape(base) +
+                        r"/repos/base/armv7l/packages/\S*/" + re.escape(rpm_name) + r"(?=\s|$)")
+    with log.open(errors="replace") as stream:
+        matches = {match[0] for line in stream for match in needle.finditer(line)}
+    return {"status": "BASE_PROVEN_FROM_GBS_DOWNLOAD" if len(matches) == 1 else "BASE_ORIGIN_REVIEW",
+            "artifact": next(iter(matches)) if len(matches) == 1 else None}
 
 
 def main():
@@ -140,6 +152,7 @@ def main():
         if result is None or result["kind"] not in ("EXEC","DYN"):
             raise ValueError("GBS benchmark is not an ARM32 loadable ELF")
         proof = build_proof(work/"gbs.log", source_sha)
+        proof["static_glibc"]["origin"] = base_glibc_source(work/"gbs.log", o["BASE"], proof)
         path=tools/"microbench"
         with path.open("xb") as f:
             f.write(elf)
@@ -155,6 +168,8 @@ def main():
         print("GBS_BENCH_ISA", proof["benchmark_main_isa"], result["mode"], "FLAGS", *FLAGS)
         print("GBS_BENCH_STATIC_GLIBC", o["BASE"], *proof["static_glibc"]["rpm_nevra"],
               proof["static_glibc"]["path"], proof["static_glibc"]["sha256"])
+        print("GBS_BENCH_GLIBC_ORIGIN", proof["static_glibc"]["origin"]["status"],
+              proof["static_glibc"]["origin"]["artifact"] or "-")
 
 
 if __name__=="__main__":
