@@ -73,3 +73,7 @@ These mutually exclusive groups prioritize archive members before package famili
 `FILE_OBSERVED` joins retained exact board path and RPM owner evidence. `INSTALLED_RPM_PAYLOAD` joins the ELF payload to its installed RPM header SOURCERPM on the observed PERF board. An installed RPM can contain preload archive members, and this status leaves per-file on-disk verification open. Preserve this distinction when reporting actual runtime residency or presence in a future production release.
 
 `sys-tools-0-0.armv7l`, `wifi-drivers-MTK-7668-perf`, `vdlinux-usb-modules-perf`, `zone-manager-perf`, `playready-test` and `widevine-cdm-test` are in the recorded board RPM inventory. The `sys-tools` payload has ARM32 application and Python side libraries in this build. The Doc 05 build-host-only statement does not apply to the measured PERF board. Evidence for inclusion in a retail build remains open. [Installed header roster](../ledger/README.md)
+
+## Round 0011b exact top 211
+
+The verified native packet now supplies the exact values and basis for ranks 1–211, superseding the earlier missing-evidence note. Its `A32_MISMATCHES 42 0` counts 42 rows with changed metadata in the top 211 and zero in the tail. 38 differ in A32 KiB and six in A32 share, with two overlaps. The native packet did not check paths against a mounted installed tree. [Exact per-file TSV](a32-exact-top211-20261124.tsv) [Readback method and scope](../../comms/codex_to_claude/0011b_reply.md#docs-04-06-and-07)

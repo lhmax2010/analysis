@@ -407,3 +407,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Use only MATCHED rows for HQ totals. Report raw bytes in TSVs and bytes/KiB in the comparison summary. Report both image prelink counts and any paths that carry a marker.
 - Keep FILE-symbol-supported LTO review candidates separate from stripped and inconclusive pairs. Verified build-log evidence may qualify a candidate for manual review.
 - **PM order recorded**. The updated HQ launcher and output rules await Claude review. [Round 0011a](../comms/codex_to_claude/0011a_reply.md)
+
+## D-051 — Use the captured pair and qualify historical treatment delivery
+
+- Record Official 37736448 and Customized 37736427 as captured. Use the published `build.xml` Base selectors and Product source ledger for Step 2, with the separate MLGO Base proof before a model-only claim.
+- Use the measured PERF vmlinux ISA and retained compile argv for the EXP-T1 pilot gate. Keep the kernel and external-module exclusion. Record config symbols separately when the generated config is recovered.
+- Keep Doc 04 rows 2–3 as historical lane C with WARN provenance. Their supporting check covers seven matching `.text` hashes from AVControl and libpisa-ipc. Retain the eight-ELF tv-viewer payload scope separately from the historic installed scope.
+- Qualify R1–R7 by effective compile/link evidence and measured output on the same ELF scope. A size match alone leaves the effect and delivery unresolved. Preserve the R2–R6 execution gate and the exact historical hooks. Submit the scoped replay delivery routes for review.
+- **PM instructions recorded and interpreted against native evidence.** The new evidence readback and proposed recipe routes await Claude review. [Round 0011b reply](../comms/codex_to_claude/0011b_reply.md)

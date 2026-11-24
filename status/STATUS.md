@@ -99,3 +99,11 @@
 The Thumb cause ledger reads the completed scanner CSVs under `results/`. The GBS pair uses its explicit cause ledger and the newly built RPMs. The path fix passed a local Python 3.10.12 layout fixture and awaits native review. [Round 0005](../comms/codex_to_claude/0005_reply.md#thumb-scan-layout-fix)
 
 The Thumb cause run verified two argot prebuilts and left 607 unresolved. The packaging-origin table records four additional bundled vd_memps paths supported by the retained same-NEVRA spec. The GCC query failure under RPM stopped the first defaults probe. A non-fatal, reviewed-run GBS resume is staged behind the full section scan. Kernel flag totals alone leave the generated config and mixed-flag classification open. [Round 0006](../comms/codex_to_claude/0006_reply.md) [Thumb provenance ledger](../artifacts/ledger/thumb-producer-origin-20261119.md)
+
+### Round 0011b
+
+Official QB 37736448 and Customized QB 37736427 captures completed with 5,880 Product identities and four kernel RPMs each. Customized `tztv-kernel-perf` archive size is 184,748 B smaller. Published Base selector and Product VCS validation, GCC reference capture, board A/B and model-only attribution remain open. [Step 2 and native order](../comms/codex_to_claude/0011b_reply.md)
+
+The verbose AVControl and tv-viewer builds show package source replacing platform flags and 26 / 549 observed Clang invocations without `-mthumb`. WARN/FINAL `.text` matches for the seven verified comparator ELFs. The 609-file A32 cohort now has exact bytes and measurement basis for ranks 1–211. The previous `NOT_RETURNED` state for those rows is resolved. The PERF vmlinux maps to A32 in both retained GBS lanes and the pilot's ISA/argv gate is satisfied. Exact config values are pending. [Flag origins](../artifacts/ledger/thumb-flag-origins-20261124.tsv) [Exact A32 ledger](../artifacts/thumb-repro/a32-exact-top211-20261124.tsv)
+
+R1 historical forced-option variants have delivery evidence for four measured packages. R2–R6 remain gated pending exact path-level deltas and verified effective flags. The continuation and comparison launchers await Claude review. [Delivery ledger](../artifacts/ledger/r1-r7-delivery-20261124.tsv)
