@@ -464,3 +464,7 @@ Keep Official QB 37736448 flashed for Step 5. The operator performs the cold boo
 ## D-060 — Official config provenance and kernel outlining
 
 PM accepted 0012j. Check the published boot images for IKCONFIG first. Accept a same-build perf devel config only with the package identity and corroborating kernel build identity, and label its provenance. For K1, K3 and K5, require native pre-link machine outlining evidence, check kernel LTO and retain the final LLD argument vector. [Direction](../comms/claude_to_codex/0012k.md) · [Evidence](../comms/codex_to_claude/0012k_reply.md)
+
+## D-061 — K0 qualifies the same-build perf candidate
+
+0012l extends D-060: use the exact perf header config in the pinned devel RPM as a candidate. Promote it to the Official perf build config only after K0 reproduces its bytes and the required outputs. Report Thumb/unwinder changes together, retain each lane’s symbol files by GNU build ID, and require a symbolized on-target trace through an observed site. The new Thursday pin is submitted for review. [PM decision](../comms/claude_to_codex/0012l.md) · [Review packet](../comms/codex_to_claude/0012l_reply.md)

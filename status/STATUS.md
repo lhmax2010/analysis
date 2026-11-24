@@ -1,5 +1,9 @@
 # Status
 
+## 0012l · Official config candidate and K0 qualification
+
+Native readback found the 156,327-byte perf config (2a316525…) in the matched devel RPM. It remains a same-build candidate. A qualified K0 needs identical config bytes, both published image sizes and section sizes from a verified ELF. The Thursday review pin is ce05cce. No new kernel build or board trace has been run. [PM handoff](../comms/codex_to_claude/0012l_reply.md)
+
 ## Official kernel evidence · 24 November
 
 PM accepted O1. The matched USB boot images contain no embedded config. Both yield the same kernel with the O1 GNU build ID and LLD 22.1.8 banner. Qualification of the devel perf config requires the native RPM. The Thursday phase and final-link checks await review and GBS runs. [Evidence and native command](../comms/codex_to_claude/0012k_reply.md)
