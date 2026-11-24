@@ -1,0 +1,31 @@
+04000000-2ef3ffff : System RAM
+  040082c0-04833257 : Kernel code
+  04834000-049cdfff : Kernel rodata
+  04a34000-04ec8bc7 : Kernel data
+80000000-989fffff : System RAM
+a0000000-bfffffff : System RAM
+fc000000-fc0001ff : fc000000.ehci ehci@fc000000
+fc040000-fc040fff : fc040000.nvtstbcgpio nvtstbcgpio@fc040400
+fc048000-fc0481ff : fc048300.mmc mmc@fc048300
+fc048200-fc0482ff : fc048300.mmc mmc@fc048300
+fc048300-fc0483ff : fc048300.mmc mmc@fc048300
+fc090000-fc0900ff : ntkxdma
+fc0c0000-fc0c02ff : ntkhdma
+fc1a0000-fc1a01ff : fc1a0000.ehci ehci@fc1a0000
+fc1c0000-fc1c00ff : fc1c0000.frc_leon2 frc_leon2
+fc1f0000-fc1f01ff : fc1f0000.ehci ehci@fc1f0000
+fc390000-fc3900ff : fc1c0000.frc_leon2 frc_leon2
+fc440000-fc44ffff : fc1c0000.frc_leon2 frc_leon2
+fd020000-fd020000 : imvq-venc
+fd058000-fd058fff : fd770000.auth auth@0xfd770000
+fd081000-fd08107f : fd081000.sfc sfc@0xfd081000
+fd081100-fd08117f : fd081100.sfc sfc@0xfd081100
+fd090000-fd090fff : serial
+fd099000-fd099fff : serial
+fd0b0000-fd0b3000 : imvq-img-dec
+fd0f0c28-fd0f0d27 : fd0f0c28.tsensor tsensor@fd0f0c28
+fd170000-fd1704ff : fd170000.nvt_usb2_phy
+fd174000-fd1744ff : fd174000.nvt_usb2_phy
+fd184000-fd1844ff : fd184000.nvt_usb2_phy
+fd770000-fd7704ff : fd770000.auth auth@0xfd770000
+ffe00000-ffe03fff : ffe00000.gpu

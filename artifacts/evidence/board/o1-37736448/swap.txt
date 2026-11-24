@@ -1,0 +1,4 @@
+Filename				Type		Size		Used		Priority
+/dev/zram0                              partition	1041012		108284		-2
+/sys/block/zram0/disksize 1066000384
+/sys/block/zram0/mm_stat 109150208 20239883 34611200        0 44818432      277        0       18       46        0        0  3243056

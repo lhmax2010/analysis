@@ -1,0 +1,47 @@
+[0;1;39mNo journal files were found.[0m
+total 0
+-r--r--r-- 1 root root  4 Nov 24 05:46 #region-cells
+drwxr-xr-x 2 root root  0 Nov 24 05:46 DDR_MAU0
+drwxr-xr-x 2 root root  0 Nov 24 05:46 DDR_MAU1
+drwxr-xr-x 2 root root  0 Nov 24 05:46 atsc3ps
+drwxr-xr-x 2 root root  0 Nov 24 05:46 atv
+drwxr-xr-x 2 root root  0 Nov 24 05:46 atv_mau1
+drwxr-xr-x 2 root root  0 Nov 24 05:46 atvsub_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 aud
+drwxr-xr-x 2 root root  0 Nov 24 05:46 board_info
+drwxr-xr-x 2 root root  0 Nov 24 05:46 cars_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 default_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 demura
+drwxr-xr-x 2 root root  0 Nov 24 05:46 demux
+drwxr-xr-x 2 root root  0 Nov 24 05:46 demux_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 dsp
+drwxr-xr-x 2 root root  0 Nov 24 05:46 dtv
+drwxr-xr-x 2 root root  0 Nov 24 05:46 dtv_cma_0
+drwxr-xr-x 2 root root  0 Nov 24 05:46 enc_capture_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 encrypt
+drwxr-xr-x 2 root root  0 Nov 24 05:46 isdb_buffer
+drwxr-xr-x 2 root root  0 Nov 24 05:46 kernel_part1
+drwxr-xr-x 2 root root  0 Nov 24 05:46 kernel_part2
+drwxr-xr-x 2 root root  0 Nov 24 05:46 kernel_part3
+drwxr-xr-x 2 root root  0 Nov 24 05:46 l2dec
+drwxr-xr-x 2 root root  0 Nov 24 05:46 nagsam_cma
+-r--r--r-- 1 root root 11 Nov 24 05:46 name
+drwxr-xr-x 2 root root  0 Nov 24 05:46 od
+drwxr-xr-x 2 root root  0 Nov 24 05:46 osd
+drwxr-xr-x 2 root root  0 Nov 24 05:46 osd_0
+drwxr-xr-x 2 root root  0 Nov 24 05:46 osd_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 pq_frc
+drwxr-xr-x 2 root root  0 Nov 24 05:46 pvr_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 samsung,secos_emmc
+drwxr-xr-x 2 root root  0 Nov 24 05:46 sbm_audio
+drwxr-xr-x 2 root root  0 Nov 24 05:46 sbm_video
+drwxr-xr-x 2 root root  0 Nov 24 05:46 section_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 secure_os
+drwxr-xr-x 2 root root  0 Nov 24 05:46 trustware_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 tvkey_cma
+drwxr-xr-x 2 root root  0 Nov 24 05:46 va
+drwxr-xr-x 2 root root  0 Nov 24 05:46 vbi
+drwxr-xr-x 2 root root  0 Nov 24 05:46 video_capture
+drwxr-xr-x 2 root root  0 Nov 24 05:46 video_enc
+95a235d0-bd02-49e2-a301-8e762878f47e
+4096

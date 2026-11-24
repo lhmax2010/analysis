@@ -1,0 +1,8 @@
+250
+1236	home-mainhub	/opt/usr/apps/com.samsung.tv.home.mainhub/bin/home-mainhub
+1561	at-spi-bus-laun	/usr/libexec/at-spi-bus-launcher
+2227	usb-launcher-se	/usr/bin/usb-launcher-service
+2340	com.samsung.tv.	/usr/apps/com.samsung.tv.home-service/bin/com.samsung.tv.home-service
+458	TA_native-home	team:com.samsung.tv.native-home
+/bin/sh: line 1: /proc/4kbtin/comm: Not a directory
+848	launcher-securi	/usr/sbin/launcher-security

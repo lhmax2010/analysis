@@ -1,0 +1,5 @@
+PACKAGE	org.tizen.AVControl
+ELF	org.tizen.AVControl	/usr/apps/org.tizen.AVControl/bin/AVControl	1061724	fa474d0ea3a18677dceec81deeecc50123e9a31f9c113bb45e0050122626c209	7f454c4601010100000000000000000003002800
+PACKAGE	org.tizen.tv-viewer
+ELF	org.tizen.tv-viewer	/usr/apps/org.tizen.tv-viewer/bin/tv-viewer	6719102	ac95b4f07e7277b29be385e99acdc950e519635a752f0c8992163e151f307f46	7f454c4601010100000000000000000003002800
+ELF	org.tizen.tv-viewer	/usr/apps/org.tizen.tv-viewer/bin/tvcontrol-notify-manager	416180	6592c8993508bcef2c6b1d697d3134e4ad3f2c46de2f25e95600173e1f14c867	7f454c4601010100000000000000000003002800

@@ -1,0 +1,25 @@
+/lib/modules/perf/6.12.60/kernel/vmlinux 3696242 1795416174 a4cf6f3bd33433e035f348c78b2600fe9e5595bd3aab7a4525cf3ea2d87e810d 0100640 root root 0 0 0 X
+/perf/uImage 11348968 1795416072 eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6 0100644 root root 0 0 0 X
+/perf/zImage 5326504 1795416072 f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab 0100755 root root 0 0 0 X
+/usr/apps/org.tizen.tv-viewer/bin/tv-viewer
+/usr/apps/org.tizen.tv-viewer/bin/tvcontrol-notify-manager
+/usr/bin/tv-viewer.sh
+/usr/apps/org.tizen.AVControl/bin/AVControl
+ls: cannot access /sys/kernel/btf: No such file or directory
+ls: cannot access /proc/config.gz: No such file or directory
+drwxr-xr-x 4 root root 459 Nov 23 03:30 /lib/modules/6.12.60
+lrwxrwxrwx 1 root root   7 Nov 23 03:30 /lib/modules/linux -> 6.12.60
+drwxr-xr-x 2 root root  56 Nov 23 04:26 /lib/modules/modprobe.d
+lrwxrwxrwx 1 root root  16 Aug 18 22:35 /lib/modules/modules -> /prd/lib/modules
+drwxr-xr-x 2 root root  50 Nov 23 04:26 /lib/modules/modules-load.d
+8524ea1e55e0ac6c99134cb3356fcaaf0323eb8f89b28203d97ae1c6975edb3d  /etc/prd_info.ini
+[Version]
+Model=T-KSU2EJAKUC-0101;
+Version=T-KSU2EJAKUC-0101-0823.20;
+Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2;
+BuildType=perf;
+Operator=;
+
+[Build]
+Date=2026-11-23;
+Time=12:22:11;

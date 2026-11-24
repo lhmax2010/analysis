@@ -1,0 +1,71 @@
+NODE	/proc/device-tree
+PROP	#address-cells	00000001
+PROP	#size-cells	00000001
+PROP	compatible	6e6f766174656b2c6e74373236373164006e76742c6361353300
+NODE	/proc/device-tree/memory
+PROP	device_type	6d656d6f727900
+PROP	reg	0000000000000000
+NODE	/proc/device-tree/memory_tbl
+NODE	/proc/device-tree/reserved-memory
+PROP	#address-cells	00000001
+PROP	#size-cells	00000001
+NODE	/proc/device-tree/reserved-memory/cma_1
+PROP	reg	2640000000400000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_10
+PROP	reg	9500000000800000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_11
+PROP	reg	9580000000800000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_12
+PROP	reg	9600000000800000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_13
+PROP	reg	2680000004000000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_14
+PROP	reg	2a80000000800000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_2
+PROP	reg	9680000002000000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_3
+PROP	reg	2b00000002400000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_4
+PROP	reg	2d40000000c00000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_5
+PROP	reg	2e00000000c00000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_6
+PROP	reg	91c0000001800000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_7
+PROP	reg	9340000000800000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_8
+PROP	reg	93c0000001000000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/cma_9
+PROP	reg	94c0000000400000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00
+NODE	/proc/device-tree/reserved-memory/default_cma
+PROP	reg	8e00000003c00000
+PROP	reusable	
+PROP	compatible	7368617265642d646d612d706f6f6c00

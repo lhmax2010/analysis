@@ -1,0 +1,36 @@
+Linux version 6.12.60 (abuild@A1106DJG) (clang version 22.1.8, LLD 22.1.8) #1 SMP PREEMPT Mon Nov 23 06:24:04 UTC 2026
+Linux localhost 6.12.60 #1 SMP PREEMPT Mon Nov 23 06:24:04 UTC 2026 armv7l GNU/Linux
+95a235d0-bd02-49e2-a301-8e762878f47e
+FILE /etc/info.ini
+[Version]
+Model=Tizen10/TV;
+Build=latest;
+Release=latest;
+[Build]
+Type=eng;
+Date=20261123_121402;
+Time=12:14:02;
+Variant=NONE;
+ID=latest;
+FILE /etc/tizen-release
+Tizen10/TV 10.0.0 (arm)
+VERSION = 10.0.0
+CODENAME = TTEN
+BUILD_ID=T-KSU2EJAKUC-0101-PERF-202611232029
+FILE /etc/os-release
+NAME=Tizen
+VERSION="10.0.0 (Tizen10/TV)"
+ID=tizen
+VERSION_ID=10.0.0
+PRETTY_NAME="Tizen 10.0.0 (Tizen10/TV)"
+ANSI_COLOR="0;36"
+CPE_NAME="cpe:/o:tizen:tizen:10.0.0"
+BUILD_ID=T-KSU2EJAKUC-0101-PERF-202611232029
+KERNEL_ELF_NOTES
+ 06 00 00 00 01 00 00 00 00 01 00 00 4c 69 6e 75
+ 78 00 00 00 00 00 00 00 06 00 00 00 04 00 00 00
+ 01 01 00 00 4c 69 6e 75 78 00 00 00 00 00 00 00
+ 04 00 00 00 14 00 00 00 03 00 00 00 47 4e 55 00
+ 41 98 13 f2 6f 2d 03 be e0 0b de 1d 71 73 b0 c2
+ fd 88 75 30
+tztv-kernel-perf-1-1.armv7l
