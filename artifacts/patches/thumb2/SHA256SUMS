@@ -1,3 +1,4 @@
+dafdd9405cf2c39e60a027cde1fcd083c4a46c4b860ba39e88964aed3c35ca85  artifacts/patches/thumb2/libpisa-ipc.patch
 63a9181ab32c66f479130a902fba47dfaceda0b3c8b070768552ac0f700bf85e  artifacts/patches/thumb2/org.tizen.AVControl.patch
 a3fc755f82372ab178e6f0b539e55713799c4f001894fc97ca5ba570cf4d2a2c  artifacts/patches/thumb2/org.tizen.tv-viewer.patch
 c4b41b00ee6a5b4f557b338b1decd9a84f33da25ab3798daa7cc73c019b863a6  artifacts/patches/thumb2/scoped-clang.cfg.diff

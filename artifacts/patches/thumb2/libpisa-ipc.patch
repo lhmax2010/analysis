@@ -1,0 +1,13 @@
+--- a/packaging/libpisa-ipc.spec
++++ b/packaging/libpisa-ipc.spec
+@@ -92,8 +92,8 @@
+ %endif
+ 
+ %build
+-export CFLAGS="-Wall -Werror -fPIE -Wl,-z,relro -fstack-protector-strong -DTIZEN -D_FORTIFY_SOURCE=2 -O2" LDFLAGS="-pie"
+-export CXXFLAGS="-Wall -Werror -fPIE -Wl,-z,relro -fstack-protector-strong -DTIZEN -D_FORTIFY_SOURCE=2 -O2" LDFLAGS="-pie"
++export CFLAGS="$CFLAGS -Wall -Werror -fPIE -Wl,-z,relro -fstack-protector-strong -DTIZEN -D_FORTIFY_SOURCE=2 -O2" LDFLAGS="-pie"
++export CXXFLAGS="$CXXFLAGS -Wall -Werror -fPIE -Wl,-z,relro -fstack-protector-strong -DTIZEN -D_FORTIFY_SOURCE=2 -O2" LDFLAGS="-pie"
+ export LDFLAGS="-Wl,--as-needed $LDFLAGS"
+ 
+ ##UT PACKAGE

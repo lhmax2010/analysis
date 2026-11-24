@@ -5,7 +5,7 @@ import runpy
 import sys
 from pathlib import Path
 
-def run(work, proof):
+def run(work, proof, owners):
     here = Path(__file__).resolve().parent
     dev = runpy.run_path(str(here/"development.py.txt"))
     proof = dev["input_path"](proof)
@@ -44,10 +44,11 @@ def run(work, proof):
             results[lane]=result
         s.gbs.compare_metrics(results["baseline"],results["thumb"])
         print("KERNEL_THUMB_TEXT",*[v["sections"][".text"] for v in results.values()])
-        print("EXTERNAL_MODULES separately shipped vendor modules require individual Kbuilds; this trial covers in-tree modules")
+        modules = runpy.run_path(str(here/"kernel-modules.py.txt"))
+        modules["build_modules"](work,s,dev,dev["input_path"](owners))
 if __name__ == "__main__":
     try:
-        run(Path.cwd(),Path(sys.argv[1]))
+        run(Path.cwd(),Path(sys.argv[1]),Path(sys.argv[2]))
     except (ValueError,OSError) as exc:
         print("KERNEL_THUMB_BLOCKED",exc)
         sys.exit(2)
