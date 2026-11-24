@@ -41,14 +41,15 @@ These are estimates for one native heavy slot. The cap is seven priority package
   cd /home1/chengkai/vd-tree
   stage=$(mktemp -d "$PWD/workspace/temp/pm0012-entry.XXXXXX")
   runner="$stage/batch.sh.txt"
-  pin=0cfa23d906cb21f22ec00186d8fb794fab592018
-  sum=5b520987d03c8ae128fbb11e6075174d796df94ef32676ec682e41ddf14426c1
+  pin=c1a7bea33aa5480e83ca97301e4369544d4f0e79
+  sum=96ad05f83379a545c597bbb00bb039a8d59da55999276ba7d1a33953f7715d09
   ok=0
   for attempt in 1 2 3 4 5; do
     if curl -fsS --connect-timeout 15 --max-time 120 \
       "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012/batch.sh.txt" -o "$runner" &&
       printf '%s  %s\n' "$sum" "$runner" | sha256sum -c - >/dev/null; then ok=1; break; fi
-    sleep "$attempt"
+    printf 'DOWNLOAD_FAILED attempt=%s/5 batch.sh.txt\n' "$attempt" >&2
+    if ((attempt < 5)); then sleep 10; fi
   done
   [[ "$ok" == 1 ]]
   bash "$runner" launch "$pin" 4fec6ee2784632c2659872e5977662684e695f755ab6cc76537ef06ad39a2e38 tue "$tue"
@@ -63,14 +64,15 @@ These are estimates for one native heavy slot. The cap is seven priority package
   cd /home1/chengkai/vd-tree
   stage=$(mktemp -d "$PWD/workspace/temp/pm0012-entry.XXXXXX")
   runner="$stage/batch.sh.txt"
-  pin=0cfa23d906cb21f22ec00186d8fb794fab592018
-  sum=5b520987d03c8ae128fbb11e6075174d796df94ef32676ec682e41ddf14426c1
+  pin=c1a7bea33aa5480e83ca97301e4369544d4f0e79
+  sum=96ad05f83379a545c597bbb00bb039a8d59da55999276ba7d1a33953f7715d09
   ok=0
   for attempt in 1 2 3 4 5; do
     if curl -fsS --connect-timeout 15 --max-time 120 \
       "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012/batch.sh.txt" -o "$runner" &&
       printf '%s  %s\n' "$sum" "$runner" | sha256sum -c - >/dev/null; then ok=1; break; fi
-    sleep "$attempt"
+    printf 'DOWNLOAD_FAILED attempt=%s/5 batch.sh.txt\n' "$attempt" >&2
+    if ((attempt < 5)); then sleep 10; fi
   done
   [[ "$ok" == 1 ]]
   bash "$runner" launch "$pin" 4fec6ee2784632c2659872e5977662684e695f755ab6cc76537ef06ad39a2e38 wed
@@ -85,14 +87,15 @@ These are estimates for one native heavy slot. The cap is seven priority package
   cd /home1/chengkai/vd-tree
   stage=$(mktemp -d "$PWD/workspace/temp/pm0012-entry.XXXXXX")
   runner="$stage/batch.sh.txt"
-  pin=0cfa23d906cb21f22ec00186d8fb794fab592018
-  sum=5b520987d03c8ae128fbb11e6075174d796df94ef32676ec682e41ddf14426c1
+  pin=c1a7bea33aa5480e83ca97301e4369544d4f0e79
+  sum=96ad05f83379a545c597bbb00bb039a8d59da55999276ba7d1a33953f7715d09
   ok=0
   for attempt in 1 2 3 4 5; do
     if curl -fsS --connect-timeout 15 --max-time 120 \
       "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012/batch.sh.txt" -o "$runner" &&
       printf '%s  %s\n' "$sum" "$runner" | sha256sum -c - >/dev/null; then ok=1; break; fi
-    sleep "$attempt"
+    printf 'DOWNLOAD_FAILED attempt=%s/5 batch.sh.txt\n' "$attempt" >&2
+    if ((attempt < 5)); then sleep 10; fi
   done
   [[ "$ok" == 1 ]]
   bash "$runner" launch "$pin" 4fec6ee2784632c2659872e5977662684e695f755ab6cc76537ef06ad39a2e38 wed-night
@@ -109,14 +112,15 @@ These are estimates for one native heavy slot. The cap is seven priority package
   cd /home1/chengkai/vd-tree
   stage=$(mktemp -d "$PWD/workspace/temp/pm0012-entry.XXXXXX")
   runner="$stage/batch.sh.txt"
-  pin=0cfa23d906cb21f22ec00186d8fb794fab592018
-  sum=5b520987d03c8ae128fbb11e6075174d796df94ef32676ec682e41ddf14426c1
+  pin=c1a7bea33aa5480e83ca97301e4369544d4f0e79
+  sum=96ad05f83379a545c597bbb00bb039a8d59da55999276ba7d1a33953f7715d09
   ok=0
   for attempt in 1 2 3 4 5; do
     if curl -fsS --connect-timeout 15 --max-time 120 \
       "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012/batch.sh.txt" -o "$runner" &&
       printf '%s  %s\n' "$sum" "$runner" | sha256sum -c - >/dev/null; then ok=1; break; fi
-    sleep "$attempt"
+    printf 'DOWNLOAD_FAILED attempt=%s/5 batch.sh.txt\n' "$attempt" >&2
+    if ((attempt < 5)); then sleep 10; fi
   done
   [[ "$ok" == 1 ]]
   bash "$runner" launch "$pin" 4fec6ee2784632c2659872e5977662684e695f755ab6cc76537ef06ad39a2e38 thu "$wed" "$tue"
@@ -133,14 +137,15 @@ These are estimates for one native heavy slot. The cap is seven priority package
   cd /home1/chengkai/vd-tree
   stage=$(mktemp -d "$PWD/workspace/temp/pm0012-entry.XXXXXX")
   runner="$stage/batch.sh.txt"
-  pin=0cfa23d906cb21f22ec00186d8fb794fab592018
-  sum=5b520987d03c8ae128fbb11e6075174d796df94ef32676ec682e41ddf14426c1
+  pin=c1a7bea33aa5480e83ca97301e4369544d4f0e79
+  sum=96ad05f83379a545c597bbb00bb039a8d59da55999276ba7d1a33953f7715d09
   ok=0
   for attempt in 1 2 3 4 5; do
     if curl -fsS --connect-timeout 15 --max-time 120 \
       "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012/batch.sh.txt" -o "$runner" &&
       printf '%s  %s\n' "$sum" "$runner" | sha256sum -c - >/dev/null; then ok=1; break; fi
-    sleep "$attempt"
+    printf 'DOWNLOAD_FAILED attempt=%s/5 batch.sh.txt\n' "$attempt" >&2
+    if ((attempt < 5)); then sleep 10; fi
   done
   [[ "$ok" == 1 ]]
   bash "$runner" launch "$pin" 4fec6ee2784632c2659872e5977662684e695f755ab6cc76537ef06ad39a2e38 thu-night "$thu" "$wednight"
@@ -159,14 +164,15 @@ These are estimates for one native heavy slot. The cap is seven priority package
   cd /home1/chengkai/vd-tree
   stage=$(mktemp -d "$PWD/workspace/temp/pm0012-entry.XXXXXX")
   runner="$stage/batch.sh.txt"
-  pin=0cfa23d906cb21f22ec00186d8fb794fab592018
-  sum=5b520987d03c8ae128fbb11e6075174d796df94ef32676ec682e41ddf14426c1
+  pin=c1a7bea33aa5480e83ca97301e4369544d4f0e79
+  sum=96ad05f83379a545c597bbb00bb039a8d59da55999276ba7d1a33953f7715d09
   ok=0
   for attempt in 1 2 3 4 5; do
     if curl -fsS --connect-timeout 15 --max-time 120 \
       "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012/batch.sh.txt" -o "$runner" &&
       printf '%s  %s\n' "$sum" "$runner" | sha256sum -c - >/dev/null; then ok=1; break; fi
-    sleep "$attempt"
+    printf 'DOWNLOAD_FAILED attempt=%s/5 batch.sh.txt\n' "$attempt" >&2
+    if ((attempt < 5)); then sleep 10; fi
   done
   [[ "$ok" == 1 ]]
   bash "$runner" launch "$pin" 4fec6ee2784632c2659872e5977662684e695f755ab6cc76537ef06ad39a2e38 fri "wed=$wed" "wed-night=$wednight" "thu=$thu" "thu-night=$thunight"
@@ -233,14 +239,15 @@ For the gated recipes, Claude or the operator can point the same launcher at a r
   cd /home1/chengkai/vd-tree
   stage=$(mktemp -d "$PWD/workspace/temp/pm0012-entry.XXXXXX")
   runner="$stage/batch.sh.txt"
-  pin=0cfa23d906cb21f22ec00186d8fb794fab592018
-  sum=5b520987d03c8ae128fbb11e6075174d796df94ef32676ec682e41ddf14426c1
+  pin=c1a7bea33aa5480e83ca97301e4369544d4f0e79
+  sum=96ad05f83379a545c597bbb00bb039a8d59da55999276ba7d1a33953f7715d09
   ok=0
   for attempt in 1 2 3 4 5; do
     if curl -fsS --connect-timeout 15 --max-time 120 \
       "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012/batch.sh.txt" -o "$runner" &&
       printf '%s  %s\n' "$sum" "$runner" | sha256sum -c - >/dev/null; then ok=1; break; fi
-    sleep "$attempt"
+    printf 'DOWNLOAD_FAILED attempt=%s/5 batch.sh.txt\n' "$attempt" >&2
+    if ((attempt < 5)); then sleep 10; fi
   done
   [[ "$ok" == 1 ]]
   bash "$runner" launch "$pin" 4fec6ee2784632c2659872e5977662684e695f755ab6cc76537ef06ad39a2e38 research "$experiment" "$gate"

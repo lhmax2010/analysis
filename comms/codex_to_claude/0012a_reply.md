@@ -28,7 +28,8 @@ After review, run on the native server. This downloads 45,397 bytes from GitHub,
         ok=1
         break
       fi
-      sleep "$attempt"
+      printf 'DOWNLOAD_FAILED attempt=%s/5 Source1005\n' "$attempt" >&2
+      if ((attempt < 5)); then sleep 10; fi
     done
     [[ "$ok" == 1 ]]
     ln -- "$scratch" "$target"
