@@ -82,7 +82,12 @@ def elf_metrics(data, modes):
                 if stem:
                     symbols.add(stem)
     project=sorted(name for name in symbols if not CRT.fullmatch(name) and not name.startswith("<"))
-    policy="PROJECT_FILE_PRESENT" if project else "LTO_FILE_HEURISTIC" if has_symtab else "NO_SYMTAB"
+    if project:
+        policy="PROJECT_FILE_PRESENT"
+    elif symbols:
+        policy="LTO_FILE_HEURISTIC"
+    else:
+        policy="NO_FILE_SYMBOLS" if has_symtab else "NO_SYMTAB"
     metrics=dict(machine=machine,kind=kind,bytes=len(data),text=text_size,lto_file_status=policy,
                  file_symbols=",".join(sorted(symbols)),prelink_marker=prelink)
     try:
@@ -134,7 +139,7 @@ def scan(args):
     os.environ["TMPDIR"]=str(work)
     print("HQ_ELF_WORKDIR",work,flush=True)
     data=work/"image-elf.tsv"
-    sizes=Counter()
+    sizes=Counter(prelink_marker=0)
     catalog=args.capture/"rpm-identities.tsv"
     raw=catalog.read_bytes()
     if hashlib.sha256(raw).hexdigest()!=identity["files"].get(catalog.name):
@@ -174,14 +179,17 @@ def scan(args):
                     return
                 sizes["elfs"]+=1
                 sizes["prelink_marker"]+=metrics["prelink_marker"]==1
-                sizes["lto_unknown"]+=metrics["lto_file_status"] in ("NO_SYMTAB","NO_SECTION_TABLE")
+                sizes["lto_unknown"]+=metrics["lto_file_status"] not in {"LTO_FILE_HEURISTIC","PROJECT_FILE_PRESENT"}
                 writer.writerow(dict(path=path,**metrics))
 
         audit=ImageAudit(None,False)
         with perf["locks"]():
             traversal["capture_scan"](args.capture,work,audit,args.bundle)
         sizes["installed_headers"]=len(audit.packages)
-    with observed.open(newline="") as source,data.open("w",newline="") as out:
+    prelink=work/"prelink-marked.tsv"
+    with observed.open(newline="") as source, data.open("w",newline="") as out, prelink.open("w",newline="") as evidence:
+        markers=csv.writer(evidence,delimiter="\t",lineterminator="\n")
+        markers.writerow(("path","rpm","rpm_arch","machine","text_bytes","elf_bytes"))
         writer=csv.DictWriter(out,fieldnames=COLUMNS,delimiter="\t",lineterminator="\n")
         writer.writeheader()
         for row in csv.DictReader(source,delimiter="\t"):
@@ -193,6 +201,13 @@ def scan(args):
             else:
                 sizes["owner_unresolved"]+=1
             writer.writerow(row)
+            if row["prelink_marker"]=="1":
+                markers.writerow([row[k] for k in ("path","rpm","rpm_arch","machine","text","bytes")])
+    if sizes["prelink_marker"]:
+        print("HQ_PRELINK_MARKED",qb,sizes["prelink_marker"],prelink,hashlib.sha256(prelink.read_bytes()).hexdigest())
+        print(*prelink.read_text().splitlines()[1:21],sep="\n")
+    else:
+        print("HQ_PRELINK_MARKED",qb,0)
     receipt={"qb":qb,"lane":LANES[qb],"archive":archive.name,"archive_sha256":digest,
              "elf_sha256":hashlib.sha256(data.read_bytes()).hexdigest(),"counts":dict(sizes)}
     (work/"identity.json").write_text(json.dumps(receipt,indent=2)+"\n")
@@ -222,23 +237,21 @@ def read_scan(directory,qb):
 
 def source_state(left,right):
     if not left or not right:
-        return "ONLY_ONE_IMAGE"
+        return "UNPROVED"
     def identity(rows):
         return {tuple(row[k] for k in ("epoch","version","release","srpm","vcs")) for row in rows.values()}
     a,b=identity(left),identity(right)
     if len(a)!=1 or len(b)!=1:
-        return "SOURCE_UNPROVED"
+        return "UNPROVED"
     (old,),(new,)=a,b
     if not all(re.fullmatch(r".+-[^-]+-[^-]+\.src\.rpm",rec[3]) for rec in (old,new)):
-        return "SOURCE_UNPROVED"
+        return "UNPROVED"
     if old[3].rsplit("-",1)[0]!=new[3].rsplit("-",1)[0]:
         return "SOURCE_DIFFERS"
     pins=[bool(re.fullmatch(r"//[^#@\s]+(?:[#@]=?\d+|#vbs-[\w.-]+)",rec[4])) for rec in (old,new)]
     if all(pins):
-        return "VCS_MATCH" if old[4]==new[4] else "SOURCE_DIFFERS"
-    if old[:4]==new[:4] and not any(pins):
-        return "SRPM_NEVRA_MATCH"
-    return "SOURCE_UNPROVED"
+        return "MATCHED" if old[4]==new[4] else "SOURCE_DIFFERS"
+    return "UNPROVED"
 
 
 def totals(rows):
@@ -254,19 +267,24 @@ def compare(args):
     work=Path(tempfile.mkdtemp(prefix="pm0011-hq-join.",dir=TEMP))
     statuses=Counter()
     headline=Counter()
+    lto_counts=Counter(candidates=0,unverifiable=0,unverifiable_packages=0)
+    unverifiable_packages=set()
     fields=("elf_count","lto_heuristic","lto_unknown","text_bytes","elf_bytes","a32_bytes","code_bytes")
-    with (work/"packages.tsv").open("w",newline="") as f,(work/"lto-gap-candidates.tsv").open("w",newline="") as g:
-        packages,lto=(csv.writer(s,delimiter="\t",lineterminator="\n") for s in (f,g))
+    with ((work/"packages.tsv").open("w",newline="") as f,
+          (work/"lto-gap-candidates.tsv").open("w",newline="") as g,
+          (work/"lto-unverifiable.tsv").open("w",newline="") as h):
+        packages,lto,unknown=(csv.writer(s,delimiter="\t",lineterminator="\n") for s in (f,g,h))
         packages.writerow(("rpm","arch","source_status","gcc_srpm","llvm_srpm","gcc_nevr","llvm_nevr",
                            "gcc_vcs","llvm_vcs","common_elf_count","elf_set_equal","headline_eligible",
                            *(lane+"_"+field for lane in ("gcc","llvm") for field in fields)))
         lto.writerow(("rpm","arch","path","source_status","gcc_file_symbols","llvm_file_symbols"))
+        unknown.writerow(("rpm","arch","path","source_status","gcc_lto_status","llvm_lto_status"))
         for key in sorted(left.keys() | right.keys()):
             a,b=left.get(key,{}),right.get(key,{})
             outcome=source_state(a,b)
             statuses[outcome]+=1
             common={path for path in a.keys()&b.keys() if a[path]["machine"]==b[path]["machine"]}
-            eligible=(outcome in {"VCS_MATCH","SRPM_NEVRA_MATCH"} and common==a.keys()==b.keys()
+            eligible=(outcome=="MATCHED" and common==a.keys()==b.keys()
                       and bool(common) and all(row["text"]!="" for lane in (a,b) for row in lane.values()))
             x,y=(next(iter(lane.values()),{}) for lane in (a,b))
             av,bv=totals(a.values()),totals(b.values())
@@ -281,19 +299,28 @@ def compare(args):
                 headline["packages"]+=1
             for path in sorted(common):
                 l,r=a[path],b[path]
-                if l["lto_file_status"]=="LTO_FILE_HEURISTIC" and r["lto_file_status"]=="PROJECT_FILE_PRESENT":
+                a_lto,b_lto=l["lto_file_status"],r["lto_file_status"]
+                if not l["file_symbols"] or not r["file_symbols"]:
+                    unknown.writerow((*key,path,outcome,a_lto,b_lto))
+                    lto_counts["unverifiable"]+=1
+                    unverifiable_packages.add(key)
+                elif outcome=="MATCHED" and a_lto=="LTO_FILE_HEURISTIC" and b_lto=="PROJECT_FILE_PRESENT":
                     lto.writerow((*key,path,outcome,l["file_symbols"],r["file_symbols"]))
+                    lto_counts["candidates"]+=1
     complete=not any(data["counts"].get(key) for data in (first,second) for key in ("read_errors","owner_unresolved"))
+    lto_counts["unverifiable_packages"]=len(unverifiable_packages)
     notes={"inputs":[first,second],"source_rows":dict(statuses),"matched_owned_subset_totals":dict(headline),
-           "coverage_complete":complete}
+           "matched_owned_subset_kib":{k.removesuffix("_bytes")+"_kib":v/1024
+                                       for k,v in headline.items() if k.endswith("_bytes")},
+           "lto_review":dict(lto_counts),"coverage_complete":complete}
     (work/"summary.json").write_text(json.dumps(notes,indent=2)+"\n")
     print("HQ_JOIN_RESULT",work,json.dumps(notes,sort_keys=True))
-    print("HQ_JOIN_SCOPE LTO gap rows are heuristic review candidates; totals cover the matched RPM-owned subset only")
+    print("HQ_JOIN_SCOPE LTO gap rows are FILE-supported review candidates. Totals cover the matched RPM-owned subset.")
 
 
 def page(path,num,filter_name=None):
     resolved=path.resolve(strict=True)
-    allowed={"packages.tsv","lto-gap-candidates.tsv","image-elf.tsv","coverage.txt","summary.json",
+    allowed={"packages.tsv","lto-gap-candidates.tsv","lto-unverifiable.tsv","prelink-marked.tsv","image-elf.tsv","coverage.txt","summary.json",
              "product-source-review.tsv","build-xml-fields.tsv"}
     if (resolved.parent.parent!=TEMP.resolve() or not resolved.parent.name.startswith("pm0011-")
             or resolved.name not in allowed or num<0):

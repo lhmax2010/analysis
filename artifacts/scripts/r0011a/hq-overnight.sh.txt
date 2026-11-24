@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+job_dir=$(realpath -e "$1")
+gcc_capture=$2
+llvm_capture=$3
+native=/home1/chengkai/vd-tree/workspace/temp
+[[ "$job_dir" == "$native"/pm0011a-hq-batch.* && ! -e "$job_dir/status.txt" ]]
+export TMPDIR="$job_dir"
+status="$job_dir/status.txt"
+
+note() {
+  printf '%s %s\n' "$(date -Is)" "$*" >>"$status"
+}
+
+finish() {
+  local rc=$?
+  trap - EXIT
+  note "DONE rc=$rc"
+  {
+    printf 'HQ_BATCH_DIR %s\n' "$job_dir"
+    cat "$status"
+    for name in gcc llvm compare; do
+      file="$job_dir/$name.log"
+      [[ -f "$file" ]] || continue
+      printf '\n===== %s =====\n' "$name"
+      awk 'NR<=12 || /^(HQ_|Traceback|  File |[A-Za-z_]*(Error|Exception):)/ { if (++n<=68) print }' "$file"
+      lines=$(wc -l < "$file")
+      if ((lines>12)); then
+        printf 'log lines %s; final lines\n' "$lines"
+        tail -n 7 "$file"
+      fi
+      sha256sum "$file"
+    done
+  } >"$job_dir/combined.txt"
+  exit "$rc"
+}
+
+run() {
+  local label=$1
+  shift
+  local rc=0
+  note "$label START"
+  "$@" >"$job_dir/$label.log" 2>&1 || rc=$?
+  note "$label END rc=$rc"
+  return "$rc"
+}
+
+find_scan() {
+  local result
+  result=$(awk '/^HQ_ELF_WORKDIR / {print $2}' "$1")
+  [[ "$result" == "$native"/pm0011-hq-elf.* && -f "$result/identity.json" ]]
+  printf '%s\n' "$result"
+}
+
+trap finish EXIT
+note "START GCC then LLVM then compare"
+scan=(python3 -B -u "$job_dir/hq-elf-rebaseline.py.txt" scan "$job_dir/perf-bundle.py.txt"
+      "$job_dir/perf-relocations.py.txt" "$job_dir/image_mode_scan.py.txt")
+run gcc "${scan[@]}" "$gcc_capture"
+gcc_work=$(find_scan "$job_dir/gcc.log")
+note "GCC_ELF_WORKDIR $gcc_work"
+run llvm "${scan[@]}" "$llvm_capture"
+llvm_work=$(find_scan "$job_dir/llvm.log")
+note "LLVM_ELF_WORKDIR $llvm_work"
+run compare python3 -B -u "$job_dir/hq-elf-rebaseline.py.txt" compare "$gcc_work" "$llvm_work"
