@@ -1,0 +1,18 @@
+/home1/chengkai/vd-tree/workspace/temp/pm0011-tools.hR9tIu/qb-pair-gate.py.txt: OK
+QB_PAIR_FILE /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/build.xml 702a10dd6d6d77eb9d80c9d7ca6d40573d5eef6872f8c53f92bcada14011b1f7 True
+QB_PAIR_FILE /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/published-build.conf 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 True
+QB_PAIR_FILE /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/rpm-identities.tsv f33d3541bef5c76796dc6d23bb256bbb69cf8d399253dff36524da81e9494b5e True
+QB_PAIR_PUBLISHED 37736448 TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2 20261113.1 PRODUCT_IDENTITIES 5880
+QB_PAIR_FILE /home1/chengkai/vd-tree/workspace/qb-evidence/37736427-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/build.xml 82047035a83becbdbacda0255febc42d6b653f28e6378ef371e9c51f05fd0b80 True
+QB_PAIR_FILE /home1/chengkai/vd-tree/workspace/qb-evidence/37736427-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/published-build.conf 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 True
+QB_PAIR_FILE /home1/chengkai/vd-tree/workspace/qb-evidence/37736427-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/rpm-identities.tsv dceb66296ae8f13f57206b35bf17be9cf852f25b56f442a18751da319aed506a True
+QB_PAIR_PUBLISHED 37736427 TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1 20261118.1 PRODUCT_IDENTITIES 5880
+QB_PAIR_FILE /home1/chengkai/vd-tree/manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736 True
+QB_PAIR_FILE /home1/chengkai/vd-tree/manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736 True
+QB_PAIR_FILE /home1/chengkai/vd-tree/manifest/tizen10.0_base_urls_1114_noprelink.txt bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3 True
+QB_PAIR_FILE /home1/chengkai/vd-tree/manifest/tizen10.0_base_urls_1114_noprelink.txt bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3 True
+QB_PAIR_CONFIG_GATE_PASS published config and supplied submitted-list copies match the reviewed pins
+QB_PAIR_SOURCE_ROWS {"SOURCE_VCS_MATCH": 5880} /home1/chengkai/vd-tree/workspace/temp/pm0011-pair.4id81kz4/product-source-review.tsv f2f1b5fa67ca614bf6a067ae6e4dcd1533d758dcb4b943419db50a43b44cfb9e
+QB_PAIR_XML_FIELDS /home1/chengkai/vd-tree/workspace/temp/pm0011-pair.4id81kz4/build-xml-fields.tsv 5b565f5df6ee094adce42333e5883a4d0789199736ef4a88df1be33455ecf95f
+QB_PAIR_XML_SOURCE_FIELDS_DIFFER 0
+QB_PAIR_PRODUCT_VCS_MATCH all published Product rows have matching source versions and pinned VCS

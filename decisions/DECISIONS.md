@@ -415,3 +415,8 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Keep Doc 04 rows 2–3 as historical lane C with WARN provenance. Their supporting check covers seven matching `.text` hashes from AVControl and libpisa-ipc. Retain the eight-ELF tv-viewer payload scope separately from the historic installed scope.
 - Qualify R1–R7 by effective compile/link evidence and measured output on the same ELF scope. A size match alone leaves the effect and delivery unresolved. Preserve the R2–R6 execution gate and the exact historical hooks. Submit the scoped replay delivery routes for review.
 - **PM instructions recorded and interpreted against native evidence.** The new evidence readback and proposed recipe routes await Claude review. [Round 0011b reply](../comms/codex_to_claude/0011b_reply.md)
+
+## D-052 — Accept the Step 2 source match and finish the native chain first
+
+- Step 2 passed for Official QB 37736448 and Customized QB 37736427. Accept the published Base selectors and all 5,880 same-source Product identities. The parallel build-input comparison is now a source-matched LLVM Base swap. Model-only attribution awaits the Base payload and dependency evidence.
+- Record Claude's acceptance of 0011a and 0011b. Keep the operator's running chain intact and verify each job's completion signal. Use the two verified USB stages for board Step 5. Schedule the approved overnight batch after the chain and board slot. Run Steps 9 and 8 after the batch exits. [PM review](../comms/claude_to_codex/0011c_review.md) [Step 2 evidence](../artifacts/evidence/native-run-r0011-step2-pair-gate-20261124.txt)

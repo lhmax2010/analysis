@@ -1,4 +1,10 @@
-# Status — 2026-11-23, round 0011a
+# Status — round 0011c
+
+## Round 0011c — 24 November 2026
+
+- Step 2 passed. Official QB 37736448 published LLVM Base 20261113.1 and Customized QB 37736427 published 20261118.1. The published `build.conf@14452507` and supplied shelf/Base lists matched their pins. All 5,880 Product rows matched source version and pinned VCS. Doc 02 rev3 records the source-matched Base comparison. Model attribution and board metrics remain pending. [Step 2 transcript](../artifacts/evidence/native-run-r0011-step2-pair-gate-20261124.txt) [Doc 02 rev3](../reports/weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev3.md)
+- Claude accepted 0011a and 0011b and verified the scanner, overnight and weekend launcher pins. The operator started a serial native chain under `workspace/temp/pm0011c-chain.*` for GCC reference 37564293, both USB staging jobs and the MLGO Base proof. The unchanged script and its four pins were verified locally. Await the per-job results. [Archived chain](../artifacts/evidence/native-cmd-r0011c-gcc-ref-usb-baseproof.sh)
+- After the chain, verify both USB manifests and run board Step 5. Then start the overnight HQ batch, followed by Steps 9 and 8 once the batch exits. The approved weekend evidence export can run independently. [Readback and run order](../comms/codex_to_claude/0011c_reply.md)
 
 
 ## Round 0011a
