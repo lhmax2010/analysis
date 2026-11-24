@@ -13,7 +13,8 @@ get() {
             printf '%s  %s\n' "$sha" "$destination" | sha256sum -c - >/dev/null; then
             return 0
         fi
-        sleep "$attempt"
+        printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${file##*/}" >&2
+        if ((attempt < 5)); then sleep 10; fi
     done
     return 1
 }
@@ -49,10 +50,18 @@ finish() {
     {
         printf 'PM12_BATCH_DIR %s\n' "$here"
         tail -n 85 "$status"
-        find "$here/jobs" -mindepth 2 -maxdepth 2 -name job.log -print0 |
-            sort -z |
-            xargs -0 -r awk '/^PM12_(EXPERIMENT|ERROR|AUDIT|ABI|T7|PREVIOUS_BATCH)|^T7_RUNTIME |^SOURCE1005_SRPM / { if (++n[FILENAME] <= 3) print $0 }' |
-            cut -c1-900 | head -n 135 || true
+        if [[ "$day" == tue || "$day" == fri ]]; then
+            for file in "$here"/jobs/*/job.log; do
+                [[ -f "$file" ]] || continue
+                printf '\nREADBACK %s\n' "$file"
+                awk 'NR<=38 {print substr($0,1,900)}' "$file"
+            done
+        else
+            find "$here/jobs" -mindepth 2 -maxdepth 2 -name job.log -print0 |
+                sort -z |
+                xargs -0 -r awk '/^PM12_(EXPERIMENT|ERROR|AUDIT|ABI|T7|PREVIOUS_BATCH)|^T7_RUNTIME |^SOURCE1005_SRPM / { if (++n[FILENAME] <= 3) print $0 }' |
+                cut -c1-900 | head -n 135 || true
+        fi
     } >"$here/combined.txt"
     exit "$rc"
 }
@@ -100,10 +109,10 @@ run_dir() {
 read_batch() {
     local path=$1
     printf 'PM12_PREVIOUS_BATCH %s\n' "$path"
-    tail -n 70 "$path/status.txt"
+    tail -n 12 "$path/status.txt"
     if [[ -f "$path/combined.txt" ]]; then
         sha256sum "$path/combined.txt"
-        sed -n '1,85p' "$path/combined.txt"
+        awk '/^PM12_(EXPERIMENT|AUDIT|ABI|T7|ERROR)/ { if (++n<=22) print }' "$path/combined.txt"
     else
         for part in "$path"/[1-8]-*.txt; do
             [[ -f "$part" ]] || continue
@@ -136,10 +145,6 @@ if [[ "$day" == fri ]]; then
         (( index += 1 ))
         path=$(run_dir "${pair#*=}" "pm0012-$phase")
         job "$index-$phase" read_batch "$path"
-    done
-    for file in "$here"/jobs/*/job.log; do
-        printf '\nREADBACK %s\n' "$file"
-        awk 'NR<=39 {print substr($0, 1, 850)}' "$file"
     done
     exit "$failed"
 fi
