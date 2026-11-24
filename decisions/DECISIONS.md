@@ -445,3 +445,9 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 
 - Use a fresh Official 37736448 baseline, one package-fix lane preserving package flags, and an independent scoped default lane. Keep explicit A32 controls, kernel and external-module exemptions. For A32 cause shares record verified mapped ranges, source owner and unknown bytes. Gate each proposed package on T1–T8. Measure runtime and soak when boards return. Keep this week's kernel trial local. PM decides on any future QB. [Scope and decisions](../comms/claude_to_codex/0012e.md)
 - Share checksum- and filesystem-verified image extraction across roster, ABI, TEXTREL and compiler audits. Keep the within-Base model attribution open until direct package evidence returns. [Batch evidence and updated review](../comms/codex_to_claude/0012c_reply.md)
+
+## D-057 — Require actual driver, LTO and kernel evidence before reporting the scoped Thumb trial
+
+- Adopt Claude’s run order and preserve the earlier approved pin for Step 5 and Wed-A. Gate the next Wed-night pin on the verified Official image cause ledger. Classify applicable old assembler failures as F1.
+- Pair the scoped Thumb default with driver-level implicit IT, verify actual driver selection, preserve explicit ARM overrides, and qualify newly enabled LTO under the ABI rule. Maintain libpisa’s -Werror. Trace tv-viewer C and C++ separately.
+- Test machine outlining with the Official kernel advisors in the existing Thursday job. Require the matched source and full effective perf config, real TU advisor diagnostics and observed output before drawing a conclusion. Preserve linked ELF and BTF provenance separately. [PM instructions](../comms/claude_to_codex/0012g.md) · [Review handoff](../comms/codex_to_claude/0012g_reply.md)

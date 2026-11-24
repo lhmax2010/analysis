@@ -1,5 +1,9 @@
 # Status — round 0012b
 
+## Round 0012f/g • 24 November
+
+Claude approved Step 5 rev2 in the foreground and Wed-A under screen at the existing pin. Wednesday's image scan follows Wed-A. The new review pin `b048780` covers actual driver configs and implicit IT, per-language optimization/LTO and ABI checks, plus Thursday's integrated six-lane kernel job. Await the Wed-A logs and Official image roster before publishing the Wed-night package list. Kernel matrix status is blocked on an authenticated effective Official perf config. No new native sizes, ABI or board results were received. [PM review response](../comms/codex_to_claude/0012g_reply.md) · [Kernel prerequisites and board protocol](../comms/codex_to_claude/0012f_reply.md)
+
 ## Round 0012c+d / 0012e • 24 November
 
 - The r0011f transcript and benchmark retry are archived byte-for-byte. Jobs 1–7 completed. Job 8 had zero installed headers on GPT/EROFS; source-attribution and real-image ownership checks remain open. The replacement EROFS reader passed local tests at two offsets and rejected corrupt superblocks. The Step 5 dependency gate now requires glibc-devel-static from Base 1113.1. No native benchmark artifact returned. [Measurements and launchers](../comms/codex_to_claude/0012c_reply.md)
