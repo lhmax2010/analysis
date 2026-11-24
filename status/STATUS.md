@@ -1,5 +1,10 @@
 # Status — round 0012b
 
+## Round 0012c+d / 0012e • 24 November
+
+- The r0011f transcript and benchmark retry are archived byte-for-byte. Jobs 1–7 completed. Job 8 had zero installed headers on GPT/EROFS; source-attribution and real-image ownership checks remain open. The replacement EROFS reader passed local tests at two offsets and rejected corrupt superblocks. The Step 5 dependency gate now requires glibc-devel-static from Base 1113.1. No native benchmark artifact returned. [Measurements and launchers](../comms/codex_to_claude/0012c_reply.md)
+- Three retained spec resets have zero-fuzz patches. Seven pilot packages and two controls are scheduled. Native acceptance T1–T8, the complete Official QB 37736448 roster and per-cause bytes await evidence. Four pilot packages need matched source/build evidence before a package patch. The perf kernel trial and its external modules use separate GBS roots. Board checks follow when KantSU2E is available. Claude review of the new pin is pending. [Thumb testing and schedule](../comms/codex_to_claude/0012e_reply.md)
+
 ## Rounds 0012–0012b — 24 November 2026
 
 - The board is unavailable. Step 5 hit an RPM source-staging error before producing the benchmark. The replacement spec passed local RPM staging and build. Native ARM ISA, library provenance and benchmark handoff await a rerun. The revised board-free overnight batch supersedes the original start guard. Both originals and the failure transcript are retained. [Replacement pin and command](../comms/codex_to_claude/0012b_reply.md)

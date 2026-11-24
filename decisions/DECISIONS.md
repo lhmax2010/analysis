@@ -440,3 +440,8 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Run the r0011f rev2 diagnostics independently of board staging. Use the fixed Step 5 source package after the heavy slot is clear. Reuse one hashed benchmark binary in both board lanes.
 - Archive Source1005 and the independent review request. Treat the retained OBS source match and direct SRPM member verification as separate evidence.
 - **PM direction recorded.** Implementation and local tests complete for the staged entry points. Claude review and native results are pending. [Development queue](../comms/codex_to_claude/0012_reply.md) [Independent review](../comms/codex_to_claude/0012a_reply.md) [Step 5 repair](../comms/codex_to_claude/0012b_reply.md)
+
+## D-056 — Qualify Thumb-2 on the complete Official image
+
+- Use a fresh Official 37736448 baseline, one package-fix lane preserving package flags, and an independent scoped default lane. Keep explicit A32 controls, kernel and external-module exemptions. For A32 cause shares record verified mapped ranges, source owner and unknown bytes. Gate each proposed package on T1–T8. Measure runtime and soak when boards return. Keep this week's kernel trial local. PM decides on any future QB. [Scope and decisions](../comms/claude_to_codex/0012e.md)
+- Share checksum- and filesystem-verified image extraction across roster, ABI, TEXTREL and compiler audits. Keep the within-Base model attribution open until direct package evidence returns. [Batch evidence and updated review](../comms/codex_to_claude/0012c_reply.md)
