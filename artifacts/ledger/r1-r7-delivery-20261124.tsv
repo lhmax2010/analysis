@@ -1,0 +1,154 @@
+experiment	package	variant	control	classification	scope_or_evidence	base_rpms	variant_rpms	base_elfs	variant_elfs	base_text_bytes	variant_text_bytes	base_alloc_bytes	variant_alloc_bytes	transcript_base_line	transcript_variant_line
+baseline	abseil-cpp	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	0	0	0	0	0	0	0	0	427	427
+R2	abseil-cpp	vih	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	0	0	0	0	0	0	0	0	427	428
+baseline	app-installers	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	3	3	14	14	1556160	1556160	2151413	2151413	429	429
+HINT	app-installers	hintO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	14	14	1556160	1486796	2151413	2099936	429	430
+MLREL	app-installers	mlrel	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	14	14	1556160	1779564	2151413	2416160	429	431
+NOINL	app-installers	noinl	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	14	14	1556160	841642	2151413	1475679	429	432
+NOLTO	app-installers	nolto	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	14	14	1556160	1527986	2151413	2419325	429	433
+NOMLGO	app-installers	nomlgo	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	3	3	14	14	1556160	1556160	2151413	2151413	429	434
+OZ	app-installers	oz	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	3	3	14	14	1556160	1556160	2151413	2151413	429	435
+R4-25	app-installers	thr25	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	14	14	1556160	1242256	2151413	1846744	429	436
+R4-50	app-installers	thr50	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	3	3	14	14	1556160	1556160	2151413	2151413	429	437
+baseline	aurum	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	0	0	0	0	0	0	0	0	438	438
+R2	aurum	vih	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	0	0	0	0	0	0	0	0	438	439
+baseline	avoc-daemon	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	2	2	3	3	4103102	4103102	7697854	7697854	440	440
+HINT	avoc-daemon	hintO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	3	3	4103102	2875768	7697854	6498411	440	441
+R6-lld	avoc-daemon	lld	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	3	3	4103102	4103292	7697854	7728626	440	442
+R6-icf	avoc-daemon	lldicf	lld	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	3	3	4103292	4007636	7728626	7446030	442	443
+MLREL	avoc-daemon	mlrel	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	2	0	3	0	4103102	0	7697854	0	440	444
+NOINL	avoc-daemon	noinl	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	3	3	4103102	2795232	7697854	6451717	440	445
+NOLTO	avoc-daemon	nolto	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	2	0	3	0	4103102	0	7697854	0	440	446
+NOMLGO	avoc-daemon	nomlgo	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	2	0	3	0	4103102	0	7697854	0	440	447
+R5	avoc-daemon	outliner	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	2	0	3	0	4103102	0	7697854	0	440	448
+OZ	avoc-daemon	oz	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	3	3	4103102	4103102	7697854	7697854	440	449
+SSP	avoc-daemon	ssp	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	3	3	4103102	4227404	7697854	7823720	440	450
+R3	avoc-daemon	thin	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	3	3	4103102	4225366	7697854	7846760	440	451
+R4-25	avoc-daemon	thr25	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	2	0	3	0	4103102	0	7697854	0	440	452
+R4-50	avoc-daemon	thr50	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	2	0	3	0	4103102	0	7697854	0	440	453
+baseline	boost	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	0	0	0	0	0	0	0	0	454	454
+R2	boost	vih	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	0	0	0	0	0	0	0	0	454	455
+baseline	dali2-adaptor	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	6	6	10	10	2121302	2121302	3300207	3300207	456	456
+HINT	dali2-adaptor	hintO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	2087184	3300207	3346171	456	457
+R6-lld	dali2-adaptor	lld	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	6	0	10	0	2121302	0	3300207	0	456	458
+R6-icf	dali2-adaptor	lldicf	lld	NOT_MEASURED	NO_LOADABLE_ARM_ELF	0	0	0	0	0	0	0	0	458	459
+MLREL	dali2-adaptor	mlrel	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	2135626	3300207	3330655	456	460
+NOINL	dali2-adaptor	noinl	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	1962202	3300207	3351147	456	461
+NOLTO	dali2-adaptor	nolto	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	2201682	3300207	3589488	456	462
+NOMLGO	dali2-adaptor	nomlgo	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	6	6	10	10	2121302	2121302	3300207	3300207	456	463
+R5	dali2-adaptor	outliner	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	1867360	3300207	3087429	456	464
+OZ	dali2-adaptor	oz	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	2120950	3300207	3299801	456	465
+SSP	dali2-adaptor	ssp	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	2165274	3300207	3345796	456	466
+R3	dali2-adaptor	thin	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	2160032	3300207	3365303	456	467
+R4-25	dali2-adaptor	thr25	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	6	6	10	10	2121302	1748642	3300207	2953467	456	468
+R4-50	dali2-adaptor	thr50	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	6	6	10	10	2121302	2121302	3300207	3300207	456	469
+VERBOSE	dali2-adaptor	verbose	base	CONTROL	Baseline, historical GCC reference or diagnostic	6	6	10	10	2121302	2121302	3300207	3300207	456	470
+baseline	freetype2	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	2	2	1	1	285904	285904	421906	421906	471	471
+R6-lld	freetype2	lld	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	1	1	285904	286144	421906	426175	471	472
+R6-icf	freetype2	lldicf	lld	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	1	1	286144	286144	426175	426175	472	473
+R5	freetype2	outliner	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	2	0	1	0	285904	0	421906	0	471	474
+SSP	freetype2	ssp	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	1	1	285904	285904	421906	421906	471	475
+R3	freetype2	thin	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	1	1	285904	295236	421906	429822	471	476
+R2	freetype2	vihL	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	1	1	285904	285904	421906	421906	471	477
+baseline	grpc	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	2	2	27	27	5962864	5962864	17301503	17301503	478	478
+R1	grpc	final	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	27	27	5962864	5959092	17301503	13814788	478	479
+HINT	grpc	hintO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	27	27	5962864	5983714	17301503	18449600	478	480
+R6-lld	grpc	lld	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	27	27	5962864	6002004	17301503	17538480	478	481
+R6-icf	grpc	lldicf	lld	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	27	27	6002004	6002004	17538480	17419688	481	482
+NOINL	grpc	noinlO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	27	27	5962864	7616772	17301503	48299705	478	483
+R5	grpc	outliner	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	2	0	27	0	5962864	0	17301503	0	478	484
+SSP	grpc	ssp	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	27	27	5962864	5962864	17301503	17301503	478	485
+SSP	grpc	sspO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	27	27	5962864	6417274	17301503	17769531	478	486
+R3	grpc	thin	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	27	27	5962864	5962864	17301503	17301503	478	487
+R2	grpc	vih	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	27	27	5962864	5962864	17301503	17301503	478	488
+R2	grpc	vihL	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	27	27	5962864	5959092	17301503	13814788	478	489
+R2	grpc	vihO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	27	27	5962864	5959092	17301503	13814788	478	490
+baseline	icu	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	0	0	0	0	0	0	0	0	491	491
+R2	icu	vih	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	0	0	0	0	0	0	0	0	491	492
+baseline	libpisa-ipc	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	2	2	6	6	897836	897836	1641777	1641777	493	493
+R1	libpisa-ipc	final	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	6	6	897836	408688	1641777	1251459	493	494
+R1	libpisa-ipc	final2	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	6	6	897836	408688	1641777	1251459	493	495
+R1	libpisa-ipc	forceL	base	DELIVERED	Historical forced-options hook and differing measured output	2	2	6	6	897836	408688	1641777	1251459	493	496
+NOINL	libpisa-ipc	noinl	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	6	6	897836	897836	1641777	1641777	493	497
+NOLTO	libpisa-ipc	nolto	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	6	6	897836	897836	1641777	1641777	493	498
+NOMLGO	libpisa-ipc	nomlgo	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	6	6	897836	897836	1641777	1641777	493	499
+OZ	libpisa-ipc	oz	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	6	6	897836	897836	1641777	1641777	493	500
+baseline	native-home	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	0	0	0	0	0	0	0	0	501	501
+R2	native-home	vih	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	0	0	0	0	0	0	0	0	501	502
+baseline	openusd	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	2	2	19	19	9185842	9185842	18722095	18722095	503	503
+R1	openusd	final	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	19	19	9185842	9185842	18722095	18722095	503	504
+HINT	openusd	hintO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	8507498	18722095	18252354	503	505
+R6-lld	openusd	lld	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	9175564	18722095	18792011	503	506
+R6-icf	openusd	lldicf	lld	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9175564	8591340	18792011	17944051	506	507
+MLREL	openusd	mlrel	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	8571486	18722095	18151000	503	508
+NOINL	openusd	noinl	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	6092432	18722095	16547423	503	509
+NOLTO	openusd	nolto	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	8922356	18722095	21317730	503	510
+NOMLGO	openusd	nomlgo	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	19	19	9185842	9185842	18722095	18722095	503	511
+R5	openusd	outliner	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	7607950	18722095	17365852	503	512
+OZ	openusd	oz	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	8889810	18722095	18423941	503	513
+SSP	openusd	ssp	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	9428590	18722095	18977676	503	514
+R3	openusd	thin	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	9136306	18722095	18770956	503	515
+R4-25	openusd	thr25	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	5694970	18722095	15210742	503	516
+R4-50	openusd	thr50	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	6372190	18722095	15923191	503	517
+R2	openusd	vih	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	2	2	19	19	9185842	9188694	18722095	16957426	503	518
+R2	openusd	vihL	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	19	19	9185842	9185842	18722095	18722095	503	519
+baseline	org.tizen.AVControl	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	1	1	1	1	736944	736944	1055461	1055461	520	520
+R1	org.tizen.AVControl	final	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	1	1	1	1	736944	177156	1055461	376306	520	521
+R1	org.tizen.AVControl	final2	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	1	1	1	1	736944	177156	1055461	376306	520	522
+R1	org.tizen.AVControl	forceL	base	DELIVERED	Historical forced-options hook and differing measured output	1	1	1	1	736944	177156	1055461	376306	520	523
+GCC-REF	org.tizen.AVControl	gccL	base	CONTROL	Baseline, historical GCC reference or diagnostic	1	1	1	1	736944	250688	1055461	441297	520	524
+NOINL	org.tizen.AVControl	noinl	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	1	1	1	1	736944	736944	1055461	1055461	520	525
+NOLTO	org.tizen.AVControl	nolto	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	1	1	1	1	736944	736944	1055461	1055461	520	526
+NOMLGO	org.tizen.AVControl	nomlgo	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	1	0	1	0	736944	0	1055461	0	520	527
+OZ	org.tizen.AVControl	oz	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	1	1	1	1	736944	736944	1055461	1055461	520	528
+VERBOSE	org.tizen.AVControl	verbose	base	CONTROL	Baseline, historical GCC reference or diagnostic	1	1	1	1	736944	736944	1055461	1055461	520	529
+baseline	org.tizen.mbr-daemon	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	0	0	0	0	0	0	0	0	530	530
+R2	org.tizen.mbr-daemon	vih	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	0	0	0	0	0	0	0	0	530	531
+baseline	org.tizen.tv-viewer	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	3	3	8	8	10760504	10760504	21916271	21916271	532	532
+R1	org.tizen.tv-viewer	forceL	base	DELIVERED	Historical forced-options hook and differing measured output	3	3	8	8	10760504	5005836	21916271	11719189	532	533
+GCC-REF	org.tizen.tv-viewer	gccL	base	CONTROL	Baseline, historical GCC reference or diagnostic	3	3	8	8	10760504	7568568	21916271	13966667	532	534
+NOINL	org.tizen.tv-viewer	noinl	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	3	3	8	8	10760504	10760504	21916271	21916271	532	535
+NOLTO	org.tizen.tv-viewer	nolto	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	3	3	8	8	10760504	10760504	21916271	21916271	532	536
+NOMLGO	org.tizen.tv-viewer	nomlgo	base	NOT_MEASURED	NO_LOADABLE_ARM_ELF	3	0	8	0	10760504	0	21916271	0	532	537
+OZ	org.tizen.tv-viewer	oz	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	3	3	8	8	10760504	10760504	21916271	21916271	532	538
+VERBOSE	org.tizen.tv-viewer	verbose	base	CONTROL	Baseline, historical GCC reference or diagnostic	3	3	8	8	10760504	10760504	21916271	21916271	532	539
+baseline	org.tizen.webappservice	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	3	3	12	12	6690456	6690456	8503952	8503952	540	540
+R1	org.tizen.webappservice	forceL	base	DELIVERED	Historical forced-options hook and differing measured output	3	3	12	12	6690456	5335102	8503952	7149597	540	541
+HINT	org.tizen.webappservice	hintO	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	12	12	6690456	6023972	8503952	7849204	540	542
+MLREL	org.tizen.webappservice	mlrel	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	12	12	6690456	3123516	8503952	4898252	540	543
+NOINL	org.tizen.webappservice	noinl	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	12	12	6690456	3697560	8503952	5584271	540	544
+NOLTO	org.tizen.webappservice	nolto	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	12	12	6690456	3564712	8503952	5695488	540	545
+NOMLGO	org.tizen.webappservice	nomlgo	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	3	3	12	12	6690456	6690456	8503952	8503952	540	546
+OZ	org.tizen.webappservice	oz	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	12	12	6690456	3770900	8503952	5571570	540	547
+R4-25	org.tizen.webappservice	thr25	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	12	12	6690456	3934260	8503952	5750742	540	548
+R4-50	org.tizen.webappservice	thr50	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	3	3	12	12	6690456	5263236	8503952	7086495	540	549
+baseline	pkgmgr-info	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	5	5	7	7	793658	793658	1413103	1413103	550	550
+R2	pkgmgr-info	vih	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	5	5	7	7	793658	793494	1413103	1411997	550	551
+baseline	protobuf	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	8	8	4	4	2529324	2529324	5619043	5619043	552	552
+VERBOSE	protobuf	verbose	base	CONTROL	Baseline, historical GCC reference or diagnostic	8	8	4	4	2529324	2529324	5619043	5619043	552	553
+R2	protobuf	vih	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	8	8	4	4	2529324	2529324	5619043	5619043	552	554
+R2	protobuf	vihO	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	8	8	4	4	2529324	2529324	5619043	5619043	552	555
+baseline	qte-bm	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	2	2	14	14	14409776	14409776	21148526	21148526	556	556
+NOINL	qte-bm	noinl	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	14	14	14409776	14409776	21148526	21148526	556	557
+NOLTO	qte-bm	nolto	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	14	14	14409776	14409776	21148526	21148526	556	558
+NOMLGO	qte-bm	nomlgo	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	14	14	14409776	14409776	21148526	21148526	556	559
+OZ	qte-bm	oz	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	14	14	14409776	14409776	21148526	21148526	556	560
+baseline	security-manager	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	8	8	16	16	2245404	2245404	3919655	3919655	561	561
+R2	security-manager	vih	base	OUTPUT_SIZE_DIFFERS	Equal counts only, path scope and delivery pending	8	8	16	16	2245404	2244708	3919655	3673443	561	562
+baseline	soc-ai-acl	base	base	CONTROL	Baseline, historical GCC reference or diagnostic	2	2	4	4	3678676	3678676	7359682	7359682	563	563
+NOINL	soc-ai-acl	noinl	base	UNPROVED	Equal .text/alloc totals, path hashes and effective argv pending	2	2	4	4	3678676	3678676	7359682	7359682	563	564
+NOLTO	soc-ai-acl	nolto	base	PENDING_PAGE	Variant beyond the returned size page	2		4		3678676		7359682		563	—
+NOMLGO	soc-ai-acl	nomlgo	base	PENDING_PAGE	Variant beyond the returned size page	2		4		3678676		7359682		563	—
+OZ	soc-ai-acl	oz	base	PENDING_PAGE	Variant beyond the returned size page	2		4		3678676		7359682		563	—
+R2	soc-ai-acl	vih	base	PENDING_PAGE	Variant beyond the returned size page	2		4		3678676		7359682		563	—
+baseline	tee_test_suite	base	base	CONTROL	Baseline, historical GCC reference or diagnostic										—
+R2	tee_test_suite	vih	base	PENDING_PAGE	Variant beyond the returned size page										—
+baseline	trustzone-nwd	base	base	CONTROL	Baseline, historical GCC reference or diagnostic										—
+R2	trustzone-nwd	vih	base	PENDING_PAGE	Variant beyond the returned size page										—
+baseline	tvs-si	base	base	CONTROL	Baseline, historical GCC reference or diagnostic										—
+R1	tvs-si	final	base	PENDING_PAGE	Variant beyond the returned size page										—
+R1	tvs-si	final2	base	PENDING_PAGE	Variant beyond the returned size page										—
+R2	tvs-si	vih	base	PENDING_PAGE	Variant beyond the returned size page										—
+R2	tvs-si	vihL	base	PENDING_PAGE	Variant beyond the returned size page										—
+baseline	webauthn	base	base	CONTROL	Baseline, historical GCC reference or diagnostic										—
+R2	webauthn	vih	base	PENDING_PAGE	Variant beyond the returned size page										—

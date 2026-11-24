@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""Export verified weekend continuation pages and inspect retained GBS evidence."""
+
+import argparse
+import base64
+from collections import Counter
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import shlex
+import tempfile
+import textwrap
+import zlib
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+REPORTS = {
+    "verbose": ("bzzyz6hp", "77e04bf3ddd0b48708e59c93903cf9d7ccfa3ad4d9eedc414a3fc71456ed1793", 11),
+    "treatments": ("alx_e0jn", "8ea42df243dc853ec00937696f0cf06a2bafb7d974bdcdfb96982eabb6927237", 2),
+    "sizes": ("k1onokoi", "d69dc3796c2ed3774f44cbb7140e0849eb28c9b4e968aeee25a5811d14ce914b", 1),
+}
+PROOF = "pm0009-kernel-isa.3sx1qo1w/isa-proof.json"
+CONFIG_FILES = (".config", "include/config/auto.conf", "include/generated/autoconf.h")
+CONFIG_LINE = re.compile(r"^(?:# (?:define )?)?CONFIG_(?:THUMB2_KERNEL|ARM_THUMB)(?:[ =]|$)")
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def read_pages():
+    result = {}
+    for name, (token, digest, last) in REPORTS.items():
+        path = TEMP / f"pm0010e-exp8.{token}" / "result.txt"
+        if path.resolve(strict=True) != path:
+            raise ValueError(f"unexpected report location: {path}")
+        raw = path.read_bytes()
+        if sha(raw) != digest:
+            raise ValueError(f"report hash mismatch: {path}")
+        lines = raw.decode().splitlines()
+        if (len(lines) - 1) // 140 != last:
+            raise ValueError(f"page count changed: {path}")
+        print("WEEKEND_REPORT", name, path, digest, 1, last)
+        result[name] = {"path": str(path), "sha256": digest, "pages": {
+            page: lines[page * 140:(page + 1) * 140] for page in range(1, last + 1)
+        }}
+    return result
+
+
+def export(mode, result, part):
+    record = json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode()
+    digest = sha(record)
+    packet = base64.b64encode(zlib.compress(record, 9)).decode()
+    lines = textwrap.wrap(packet, width=120)
+    parts = [lines[start:start + 120] for start in range(0, len(lines), 120)]
+    if part is not None and not 1 <= part <= len(parts):
+        raise ValueError(f"part must be in 1..{len(parts)}")
+    work = Path(tempfile.mkdtemp(dir=TEMP, prefix=f"pm0011b-{mode}."))
+    path = work / f"{mode}.json"
+    path.write_bytes(record)
+    print("WEEKEND_PACKET_SHA256", mode, digest, path)
+    for index, block in enumerate(parts, 1):
+        if part is None or index == part:
+            print("WEEKEND_PART", index, len(parts))
+            print("WEEKEND_BASE64_BEGIN")
+            print(*block, sep="\n")
+            print("WEEKEND_BASE64_END")
+
+
+def kernel_config():
+    proof = json.loads((TEMP / PROOF).read_text())
+    if not proof["isa_and_argv_complete"]:
+        raise ValueError("kernel ISA/argv proof is incomplete")
+    for lane, row in proof["lanes"].items():
+        image = Path(row["mapping"]["path"]).resolve(strict=True)
+        if not image.is_relative_to(TEMP) or image.name != "vmlinux":
+            raise ValueError(f"unexpected vmlinux path: {image}")
+        checksum = hashlib.sha256()
+        with image.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                checksum.update(block)
+        if checksum.hexdigest() != row["mapping"]["sha256"]:
+            raise ValueError(f"vmlinux has changed: {image}")
+        matches = 0
+        for name in CONFIG_FILES:
+            path = image.parent / name
+            if not path.is_file() or path.resolve() != path:
+                continue
+            data = path.read_bytes()
+            values = [line for line in data.decode(errors="replace").splitlines()
+                      if CONFIG_LINE.match(line)]
+            print("KERNEL_CONFIG", lane, path, sha(data), json.dumps(values))
+            matches += 1
+        if not matches:
+            print("KERNEL_CONFIG_UNAVAILABLE", lane, image.parent)
+
+
+def tv_viewer(readback_path, scan_path):
+    readback = runpy.run_path(str(readback_path))
+    scan = runpy.run_path(str(scan_path))
+    package = "org.tizen.tv-viewer"
+    directory = TEMP / "z901" / "exp8" / package
+    if directory.resolve(strict=True) != directory:
+        raise ValueError(f"unexpected package location: {directory}")
+    for variant in ("base", "forceL", "gccL"):
+        folder = directory / variant
+        if folder.resolve(strict=True) != folder:
+            raise ValueError(f"unexpected variant location: {folder}")
+        files, headers, errors = readback["rpm_metrics"](scan, folder)
+        rows = [{"key": key, "source_rpm": headers[key[:2]], "text": value[0], "alloc": value[1],
+                 "text_sha256": value[2], "elf_sha256": value[3]} for key, value in sorted(files.items())]
+        result = {"variant": variant, "rpm_count": len(headers), "files": rows, "errors": errors}
+        # Only three rows, independent of the number of ELF members.
+        print("TV_VIEWER_PAYLOAD", json.dumps(result, ensure_ascii=False, separators=(",", ":")))
+
+
+PHASE_FLAGS = {
+    "R1": (("-mthumb",), ()),
+    "R2": (("-fvisibility-inlines-hidden",), ()),
+    "R3": (("-flto=thin",), ("-flto=thin",)),
+    "R4-25": (("-mllvm -inline-threshold=25",), ("-Wl,-plugin-opt=-inline-threshold=25",)),
+    "R4-50": (("-mllvm -inline-threshold=50",), ("-Wl,-plugin-opt=-inline-threshold=50",)),
+    "R5": (("-mllvm -enable-machine-outliner",), ("-Wl,-plugin-opt=-enable-machine-outliner",)),
+    "R6-lld": ((), ("-fuse-ld=lld",)),
+    "R6-icf": ((), ("-fuse-ld=lld", "-Wl,--icf=safe")),
+    "HINT": (("-finline-hint-functions",), ()),
+    "MLREL": (("-mllvm -enable-ml-inliner=release",), ("-Wl,-plugin-opt=-enable-ml-inliner=release",)),
+    "NOINL": (("-fno-inline-functions",), ()),
+    "NOLTO": (("-fno-lto",), ("-fno-lto",)),
+    "OZ": (("-Oz",), ()),
+    "SSP": (("-fstack-protector-strong",), ()),
+}
+
+
+def is_final_option(flag, args):
+    if flag in {"-mthumb", "-marm"}:
+        group = [arg for arg in args if arg in {"-mthumb", "-marm"}]
+    elif flag.startswith(("-flto", "-fno-lto")):
+        group = [arg for arg in args if arg.startswith(("-flto", "-fno-lto"))]
+    else:
+        family = "-fuse-ld=" if flag.startswith("-fuse-ld=") else "-O"
+        group = [arg for arg in args if arg.startswith(family)]
+    return group[-1] == flag
+
+
+def command_evidence(readback, log, phase_flags):
+    counts = Counter()
+    first = {}
+    with log.open(errors="replace") as stream:
+        for number, line in enumerate(stream, 1):
+            compile_args = readback["compile_argv"](line)
+            if compile_args:
+                phase, args = "compile", compile_args
+            else:
+                body = readback["PREFIX"].sub("", line).strip()
+                try:
+                    args = shlex.split(body)
+                except ValueError:
+                    continue
+                if len(args) > 3 and args[0] == "cd" and args[2] == "&&":
+                    args = args[3:]
+                if "&&" in args:
+                    args = args[:args.index("&&")]
+                if not args or not readback["DRIVER"].fullmatch(Path(args[0]).name) or "-o" not in args:
+                    continue
+                if {"-c", "-E", "-S", "-###", "-fsyntax-only"} & set(args):
+                    continue
+                if not any(arg.endswith((".o", ".a", ".so")) or arg.startswith("-l") for arg in args[1:]):
+                    continue
+                phase = "link"
+            if any(argument.startswith("@") for argument in args[1:]):
+                counts[f"{phase}_response_file"] += 1
+                continue
+            counts[phase] += 1
+            flags = phase_flags[0 if phase == "compile" else 1]
+            joined = " " + " ".join(args[1:]) + " "
+            if flags and all(f" {flag} " in joined for flag in flags):
+                ordered = [arg for arg in args[1:] if arg.startswith(("-flto", "-fno-lto", "-fuse-ld=", "-O"))
+                           or arg in {"-mthumb", "-marm"}]
+                if any(flag in ordered and not is_final_option(flag, ordered) for flag in flags):
+                    continue
+                counts[f"{phase}_with_flag"] += 1
+                first.setdefault(phase, {"line": number, "excerpt": joined[-1400:].strip()})
+    return {"log": str(log), "counts": counts, "first": first}
+
+
+def compare_payloads(baseline, treatment):
+    before, before_headers, before_errors = baseline
+    after, after_headers, after_errors = treatment
+    scope = bool(before) and before.keys() == after.keys() and before_headers.keys() == after_headers.keys()
+    result = {"before_files": len(before), "after_files": len(after), "path_scope_matches": scope,
+              "errors": before_errors + after_errors}
+    if not scope or result["errors"] or any(row[2] == "-" for row in (*before.values(), *after.values())):
+        return result
+    result.update(
+        text_differences=sum(before[key][2] != after[key][2] for key in before),
+        elf_differences=sum(before[key][3] != after[key][3] for key in before),
+        before_text=sum(row[0] for row in before.values()), after_text=sum(row[0] for row in after.values()),
+        before_alloc=sum(row[1] for row in before.values()), after_alloc=sum(row[1] for row in after.values()))
+    return result
+
+
+def delivery_audit(readback_path, scan_path, ledger_path, part):
+    readback = runpy.run_path(str(readback_path))
+    scanner = runpy.run_path(str(scan_path))
+    results = []
+    control_payloads = {}
+    with ledger_path.open(newline="") as stream:
+        rows = list(csv.DictReader(stream, delimiter="\t"))
+    for row in rows:
+        package, experiment = row["package"], row["experiment_id"]
+        if experiment in {"baseline", "VERBOSE", "GCC-REF"}:
+            continue
+        folder = TEMP / "z901" / row["dir"]
+        control = "lld" if experiment == "R6-icf" else "base"
+        baseline = TEMP / "z901" / "exp8" / package / control
+        for path in (folder, baseline):
+            if path.resolve() != path or not path.is_relative_to(TEMP / "z901" / "exp8"):
+                raise ValueError(f"unexpected variant location: {path}")
+        key = package, control
+        if key not in control_payloads:
+            control_payloads[key] = readback["rpm_metrics"](scanner, baseline)
+        paired = compare_payloads(control_payloads[key], readback["rpm_metrics"](scanner, folder))
+        before_logs = readback["log_files"](baseline)
+        after_logs = readback["log_files"](folder)
+        flags = PHASE_FLAGS.get(experiment, ((), ()))
+        before = command_evidence(readback, before_logs[0], flags) if before_logs else {}
+        after = command_evidence(readback, after_logs[0], flags) if after_logs else {}
+        counts = after.get("counts", {})
+        old_counts = before.get("counts", {})
+        argv = any(flags) and all(
+            not phase_flags or (counts.get(f"{phase}_with_flag") and old_counts.get(phase)
+                                and not old_counts.get(f"{phase}_with_flag"))
+            for phase, phase_flags in zip(("compile", "link"), flags)
+        )
+        output_differs = paired.get("text_differences", 0) or paired.get("before_alloc") != paired.get("after_alloc")
+        if argv and paired.get("elf_differences") == 0:
+            status, reason = "NO_EFFECT", "observed treatment argv and identical paired ELF hashes"
+        elif (argv and paired.get("elf_differences") is not None) or output_differs:
+            status, reason = "DELIVERED", ("observed treatment argv" if argv else "paired payload output differs")
+        else:
+            status, reason = "UNPROVED", "insufficient evidence of active or absent treatment"
+        results.append({"package": package, "variant": folder.name, "experiment": experiment,
+                        "control": control, "status": status, "reason": reason, "payload": paired,
+                        "base_argv": before, "treatment_argv": after})
+    print("WEEKEND_DELIVERY_COUNTS", json.dumps(Counter(row["status"] for row in results), sort_keys=True))
+    export("delivery", results, part)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="mode", required=True)
+    commands.add_parser("pages").add_argument("--part", type=int)
+    delivery = commands.add_parser("delivery")
+    delivery.add_argument("readback", type=Path)
+    delivery.add_argument("scan", type=Path)
+    delivery.add_argument("ledger", type=Path)
+    delivery.add_argument("--part", type=int)
+    commands.add_parser("kernel-config")
+    payload = commands.add_parser("tv-viewer")
+    payload.add_argument("readback", type=Path)
+    payload.add_argument("scan", type=Path)
+    args = parser.parse_args()
+    if args.mode == "pages":
+        export("continuations", read_pages(), args.part)
+    elif args.mode == "kernel-config":
+        kernel_config()
+    elif args.mode == "delivery":
+        delivery_audit(args.readback, args.scan, args.ledger, args.part)
+    else:
+        tv_viewer(args.readback, args.scan)
+
+
+if __name__ == "__main__":
+    main()
