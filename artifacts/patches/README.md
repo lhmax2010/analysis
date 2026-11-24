@@ -8,6 +8,7 @@
 - [avcontrol-global-options.patch.txt](avcontrol-global-options.patch.txt)
 - [driver-O4-as-O3-upstream-85e76ec53ae4.patch.txt](driver-O4-as-O3-upstream-85e76ec53ae4.patch.txt)
 - [driver-pass-llvmgold-to-gnu-ld-by-default.patch.txt](driver-pass-llvmgold-to-gnu-ld-by-default.patch.txt)
+- [lto-nonpic-in-pic-output-fallback.patch](lto-nonpic-in-pic-output-fallback.patch)
 - [lto-nonpic-in-pic-output-fallback.patch-part-01.txt](lto-nonpic-in-pic-output-fallback.patch-part-01.txt)
 - [lto-nonpic-in-pic-output-fallback.patch-part-02.txt](lto-nonpic-in-pic-output-fallback.patch-part-02.txt)
 - [lto-nonpic-in-pic-output-fallback.patch-part-03.txt](lto-nonpic-in-pic-output-fallback.patch-part-03.txt)
