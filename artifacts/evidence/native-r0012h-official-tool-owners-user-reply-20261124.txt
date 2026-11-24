@@ -1,0 +1,55 @@
+Official armv7l build-root owners (rpm --root … -qf): clang-22.1.8-9.1, binutils-2.43-3.49 (ld, readelf), coreutils-6.9-14.18 (sha256sum, tail, readlink), gawk-3.1.5-1.17, rpm-4.14.1.1-1.65, gcc-14.2.0-1.77 and gcc-c++-14.2.0-1.77 (cc→gcc, c++). realpath is the only missing tool in the list, consistent with coreutils 6.9.
+Treat coreutils 6.9 and gawk 3.1.5 as the compatibility floor for everything injected into %prep, %build or %check (Step 5, thumb-check, driver-config, kernel matrix):
+- no realpath, sort -V, timeout, truncate, sha256sum --strict/--ignore-missing;
+- in gawk: no {n,m} regex intervals without --re-interval, no PROCINFO["sorted_in"], no @include, no -i.
+Verify mktemp's owner before relying on it. Add these to the command-inventory preflight, and make the local fixture run with these versions or their documented behaviour.
+Also: cc/c++ are GCC 14.2.0. Report under T1 and F2 every Wed-A compile line that uses cc, c++, gcc or g++.
+BUILDROOT /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0
+TOOL armv7l-tizen-linux-gnueabi-clang        /usr/bin/armv7l-tizen-linux-gnueabi-clang->clang /bin/armv7l-tizen-linux-gnueabi-clang->clang
+TOOL armv7l-tizen-linux-gnueabi-clang++      /usr/bin/armv7l-tizen-linux-gnueabi-clang++->clang++ /bin/armv7l-tizen-linux-gnueabi-clang++->clang++
+TOOL clang                                   /usr/bin/clang->clang-22 /bin/clang->clang-22
+TOOL clang++                                 /usr/bin/clang++->clang /bin/clang++->clang
+TOOL cc                                      /usr/bin/cc->gcc /bin/cc->gcc
+TOOL c++                                     /usr/bin/c++ /bin/c++
+TOOL ld                                      /usr/bin/ld /bin/ld
+TOOL ld.bfd                                  /usr/bin/ld.bfd /bin/ld.bfd
+TOOL ld.lld                                  /usr/bin/ld.lld->lld /bin/ld.lld->lld
+TOOL readelf                                 /usr/bin/readelf /bin/readelf
+TOOL sha256sum                               /usr/bin/sha256sum /bin/sha256sum
+TOOL tail                                    /usr/bin/tail /bin/tail
+TOOL head                                    /usr/bin/head /bin/head
+TOOL awk                                     /usr/bin/awk->gawk /bin/awk->gawk
+TOOL gawk                                    /usr/bin/gawk /bin/gawk
+TOOL sort                                    /usr/bin/sort /bin/sort
+TOOL cut                                     /usr/bin/cut /bin/cut
+TOOL tr                                      /usr/bin/tr /bin/tr
+TOOL sed                                     /usr/bin/sed /bin/sed
+TOOL grep                                    /usr/bin/grep /bin/grep
+TOOL rpm                                     /usr/bin/rpm /bin/rpm
+TOOL realpath                                MISSING
+TOOL readlink                                /usr/bin/readlink /bin/readlink
+TOOL stat                                    /usr/bin/stat /bin/stat
+TOOL dirname                                 /usr/bin/dirname /bin/dirname
+TOOL basename                                /usr/bin/basename /bin/basename
+TOOL chmod                                   /usr/bin/chmod /bin/chmod
+TOOL mktemp                                  /usr/bin/mktemp /bin/mktemp
+TOOL find                                    /usr/bin/find /bin/find
+TOOL xargs                                   /usr/bin/xargs /bin/xargs
+HOST_RPM RPM version 4.18.2
+OWNER /usr/bin/armv7l-tizen-linux-gnueabi-clang  error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/ld                                error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/readelf                           error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/sha256sum                         error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/tail                              error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/awk                               error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/gawk                              error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/rpm                               error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /bin/rpm                                   error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/readlink                          error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+OWNER /usr/bin/stat                              error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG clang     error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG binutils  error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG coreutils error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG gawk      error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+PKG rpm       error: cannot open Packages database in /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home1/chengkai/.rpmdb
+chengkai@risc-v-Alienware-Aurora-R16:config$
