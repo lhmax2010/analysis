@@ -14,4 +14,8 @@ Doc 05 rev2: row 18 sys-tools cause corrected to 'Installed in the PERF image (d
 
 The 0011b working evidence for Docs 04, 06 and 07 records the two source-proven flag replacements, WARN/FINAL `.text` scope, historical GCC versus LLVM payload figures, and exact top-211 A32 estimates. [Report row review](../comms/codex_to_claude/0011b_reply.md#docs-04-06-and-07)
 
-Doc 02 rev3 records the 24 November source-matched QuickBuild pair and the verified LLVM Base change. Attribution to the models remains pending Base evidence. [Doc 02 rev3](weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev3.md) [Rev3 checksum](weekly/2026-11-20/SHA256SUMS.rev3)
+Doc 02 rev3 is superseded by rev4 (repo-authored, not the HQ text). [Retained rev3](weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev3.md) [Rev3 checksum](weekly/2026-11-20/SHA256SUMS.rev3)
+
+Doc 02 rev4 is the verbatim export of the live Claude Doc with the Step 2 result. [Doc 02 rev4](weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev4.md) [Rev4 checksum](weekly/2026-11-20/SHA256SUMS.rev4)
+
+Claude authors the live HQ docs. Keep proposed wording in the round reply and archive the exports verbatim.

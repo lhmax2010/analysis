@@ -22,9 +22,16 @@ Run on the native server. This takes seconds, uses one process, writes a small r
   d=$(mktemp -d "$PWD/workspace/temp/pm0011-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'aaa44c847bfc6b5313de6fd579be853d01d6f684' 'artifacts/scripts/r0011/qb-pair-gate.py.txt' 'e7813282ec962391d5cb36b4a42251753b154dbaeee7ff062625f974c85335c0'
   official="$PWD/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2"
@@ -112,9 +119,16 @@ Use the same launcher with `WEEKEND_MODE=kernel-config` to print config evidence
   d=$(mktemp -d "$PWD/workspace/temp/pm0011b-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'be35ba2b4a6b56d78b0c0309b78eb6194506022b' 'artifacts/scripts/r0011b/weekend-readback.py.txt' 'c5d0facb0a8ddef6dd404655f82dbeb6b2cf3145992c5d30483e79112f19114f'
   part=()
@@ -164,9 +178,16 @@ Step 9 uses Official 37736448 as the dependency Product and the returned kernel 
   d=$(mktemp -d "$PWD/workspace/temp/pm0011b-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'b4e88f29f06ca8aeea921ee6205834022038fc42' 'artifacts/scripts/r0009/thumb-force-pilot.py.txt' 'f03c13e908726adc50415b6721ac75abee7164d355b30fbdac7db7593d3fd7a9'
   get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-bundle.py.txt' '4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b'

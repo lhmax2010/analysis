@@ -1,4 +1,10 @@
-# Status — round 0011c
+# Status — round 0011d
+
+## Round 0011d — 24 November 2026
+
+- Doc 02 rev4 is the verbatim live Claude export. It records the source-matched QuickBuild pair and the verified Base change. Rev3 remains in the archive as a superseded repo-authored version. Claude owns live HQ wording. [Doc 02 rev4](../reports/weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev4.md) [Reports index](../reports/README.md)
+- The active native chain is `/home1/chengkai/vd-tree/workspace/temp/pm0011c-chain.AFkXQV`. At 16:00 CST, the operator reported GCC reference 37564293 downloading, with 308 MB received and growing. The earlier `pm0011c-chain.xhVzT6` stopped during setup after a raw GitHub SSL timeout for `perf-bundle.py.txt`. The archived rev2 executable change adds five verified download attempts. Use the exact run directory for status and result readback. [Chain rev2](../artifacts/evidence/native-cmd-r0011c-gcc-ref-usb-baseproof-rev2.sh) [Current reply](../comms/codex_to_claude/0011d_reply.md)
+- The sequence is chain result review, board Step 5, overnight HQ, then Steps 9 and 8. The chain's per-job receipts and results are still pending.
 
 ## Round 0011c — 24 November 2026
 

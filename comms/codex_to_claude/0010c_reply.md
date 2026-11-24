@@ -15,9 +15,16 @@ Claude approved the replacement below for Monday step 8 at `fb98eefaf6d924422466
   d=$(mktemp -d "$PWD/workspace/temp/pm0010b-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'fb98eefaf6d924422466be70f4f95446583adeb1' 'artifacts/scripts/r0010/olevel.py.txt' '874194ebbdbb2165b15030b97d6b5cdc1a0119df62ee605b8b2426a6f4dc9f6c'
   get '07883080780af09b3f195ac6efaba639b0ab7bb8' 'artifacts/ledger/olevel-sources-20261120.tsv' '788481656fce951e1434ee44df0acb40c83c44551d2fb590b381664e14151346'

@@ -43,9 +43,16 @@ Budget 10–35 minutes, one archive reader under the existing heavy lock, two ex
   d=$(mktemp -d "$PWD/workspace/temp/pm0010b-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'd3cea65aac76d438b82b55a2857a5ee18546edad' 'artifacts/scripts/r0005/image-repo-lib.py.txt' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'
   get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-bundle.py.txt' '4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b'
@@ -83,9 +90,16 @@ The first locator missed the lowercase `gbs-root-*` names. Its R8 paths show AVC
   d=$(mktemp -d "$PWD/workspace/temp/pm0010b-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'cfde38f9e4c6041069d28adc8b9da35894df0de9' 'artifacts/scripts/r0010b/nov11-roster.py.txt' 'acfce14ad6e18b0c85198662d13f1dae41ece9094d53b03187236c0c20edda29'
   if [[ -n "${NOV11_ROSTER_REPORT:-}" ]]; then
@@ -118,9 +132,16 @@ Sample these two first. The source reader records file:line build references fro
   d=$(mktemp -d "$PWD/workspace/temp/pm0010b-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get '97a50bcacc7402d8297b25a47b1f2117b40c6d72' 'artifacts/scripts/r0010/olevel.py.txt' '7ea4a4c99204ae9a280e83d46a1e3de2b7ff721ce7a8079294e36393401259bf'
   get 'd3cea65aac76d438b82b55a2857a5ee18546edad' 'artifacts/scripts/r0005/image-repo-lib.py.txt' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'

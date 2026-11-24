@@ -21,9 +21,16 @@ Run once on the native server with `GCC_CAPTURE` and `OFFICIAL_CAPTURE` set to t
   d=$(mktemp -d "$PWD/workspace/temp/pm0011a-hq-batch.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'a134afbc404508dfc32e479a2c88dd4a850f4c62' 'artifacts/scripts/r0011/hq-elf-rebaseline.py.txt' '55ea44b32389fe60137e5d06e314def73d695f7b86e879d707ed7533afbc6120'
   if [[ -n "${HQ_REPORT:-}" ]]; then
@@ -76,9 +83,16 @@ The 517-line combined transcript has yet to arrive in the local workspace. The p
   d=$(mktemp -d "$PWD/workspace/temp/pm0011a-weekend-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'fb98eefaf6d924422466be70f4f95446583adeb1' 'artifacts/scripts/r0010e/exp8-readback.py.txt' 'feeff8d1e1521a70b17a05ce85a1e2fa42cefd31f37777064ac59864cd46f96d'
   combined="$PWD/workspace/temp/pm0010w-weekend.BcoAvm/combined.txt"

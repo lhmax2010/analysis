@@ -43,9 +43,16 @@ The gate verifies each published ID, Base URL and build.conf, then compares sour
   d=$(mktemp -d "$PWD/workspace/temp/pm0011-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'aaa44c847bfc6b5313de6fd579be853d01d6f684' 'artifacts/scripts/r0011/qb-pair-gate.py.txt' 'e7813282ec962391d5cb36b4a42251753b154dbaeee7ff062625f974c85335c0'
   python3 -B -u "$d/qb-pair-gate.py.txt" "${OFFICIAL_CAPTURE:?}" "${CUSTOM_CAPTURE:?}" \
@@ -64,9 +71,16 @@ The Step 3 command defaults to the existing Official PERF audit. Set `PERF_ACTIO
   d=$(mktemp -d "$PWD/workspace/temp/pm0011-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-bundle.py.txt' '4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b'
   get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-relocations.py.txt' 'f678d0f9c479d6a183c3f83d7a14917ea46c15533f41d97a3baeb732b6905cf7'
@@ -94,9 +108,16 @@ Run the approved Base proof with the capture variables above. It precedes the Do
   d=$(mktemp -d "$PWD/workspace/temp/pm0011-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'd3cea65aac76d438b82b55a2857a5ee18546edad' 'artifacts/scripts/r0005/image-repo-lib.py.txt' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'
   get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-bundle.py.txt' '4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b'
@@ -126,9 +147,16 @@ The fixed `DO_NOT_DELETE` URL is accepted only in the new `reference` mode for Q
   d=$(mktemp -d "$PWD/workspace/temp/pm0011-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'aaa44c847bfc6b5313de6fd579be853d01d6f684' 'artifacts/scripts/r0011/qb-retain.py.txt' '437135b56bc69c64571c906fe704a74c761f5d3414f5010122ed79cd31b5dc91'
   get 'd3cea65aac76d438b82b55a2857a5ee18546edad' 'artifacts/scripts/r0005/image-repo-lib.py.txt' '8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f'
@@ -163,9 +191,16 @@ The reference removes the known prelink-policy mismatch. The ELF scan reports sa
   d=$(mktemp -d "$PWD/workspace/temp/pm0011-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'aaa44c847bfc6b5313de6fd579be853d01d6f684' 'artifacts/scripts/r0011/hq-elf-rebaseline.py.txt' 'd07075cdeee20e73036a82e6951e7a8779f46d8f69f2bbe6177d5ccc3ea67efb'
   get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-bundle.py.txt' '4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b'
@@ -207,9 +242,16 @@ The retained Nov 12 `gccL` and `gbs-root-r8-G1/G2` evidence identifies AVControl
   d=$(mktemp -d "$PWD/workspace/temp/pm0011-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'aaa44c847bfc6b5313de6fd579be853d01d6f684' 'artifacts/scripts/r0011/gcc-gbs-config.py.txt' 'ad6961a59ff3399e05c500e69ea4b941ec45f371abb2c3c19256f9df2363528f'
   args=()
@@ -230,9 +272,16 @@ The PM reports six jobs with rc=0. The combined transcript is 517 lines, and the
   d=$(mktemp -d "$PWD/workspace/temp/pm0011-tools.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'fb98eefaf6d924422466be70f4f95446583adeb1' 'artifacts/scripts/r0010e/exp8-readback.py.txt' 'feeff8d1e1521a70b17a05ce85a1e2fa42cefd31f37777064ac59864cd46f96d'
   report=/home1/chengkai/vd-tree/workspace/temp/pm0010w-weekend.BcoAvm/combined.txt

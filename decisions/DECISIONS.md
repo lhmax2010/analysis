@@ -420,3 +420,9 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 
 - Step 2 passed for Official QB 37736448 and Customized QB 37736427. Accept the published Base selectors and all 5,880 same-source Product identities. The parallel build-input comparison is now a source-matched LLVM Base swap. Model-only attribution awaits the Base payload and dependency evidence.
 - Record Claude's acceptance of 0011a and 0011b. Keep the operator's running chain intact and verify each job's completion signal. Use the two verified USB stages for board Step 5. Schedule the approved overnight batch after the chain and board slot. Run Steps 9 and 8 after the batch exits. [PM review](../comms/claude_to_codex/0011c_review.md) [Step 2 evidence](../artifacts/evidence/native-run-r0011-step2-pair-gate-20261124.txt)
+
+## D-053 — Archive live HQ exports and use verified download retries
+
+- Claude authors and updates the live HQ docs. Put proposed wording in round replies. Archive each supplied live export verbatim with its checksum. Retain repo-authored Doc 02 rev3 as superseded by the live rev4 export.
+- In native launcher `get()`, allow up to five attempts, with a 15-second connection timeout, a 120-second transfer timeout and 10 seconds between failed attempts. Require SHA-256 verification before using a downloaded file. Record failures with the attempt and filename.
+- Read status from the exact launch directory. When a lookup is unavoidable, select by modification time. The active chain for 0011c is `pm0011c-chain.AFkXQV`. [PM review](../comms/claude_to_codex/0011d_review.md) [Current reply](../comms/codex_to_claude/0011d_reply.md)

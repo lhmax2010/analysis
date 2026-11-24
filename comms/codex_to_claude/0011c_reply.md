@@ -2,7 +2,7 @@
 
 **Step 2 passed.** Official QB 37736448 published LLVM Base 20261113.1. Customized QB 37736427 published 20261118.1. The published build.conf matched `@14452507`, the supplied shelf and Base-list copies matched the pins, and all 5,880 Product identities matched source version and pinned VCS. The published source-related XML fields matched. The published Base selectors close the question raised by the byte-identical renamed Base list. [Step 2 transcript](../../artifacts/evidence/native-run-r0011-step2-pair-gate-20261124.txt)
 
-Doc 02 rev3 records the LLVM Base as the only verified changed build input. The earlier GBS and QuickBuild measurements are labeled historical. The new board figures and attribution within the Base remain open until the installed dependency, LLVM SRPM and accelerator evidence is reviewed. Rev3 has its own checksum. [Doc 02 rev3](../../reports/weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev3.md)
+The live Claude Doc 02 export records the source-matched QuickBuild pair and its LLVM Base change. Board measurements and attribution within the Base are separate work items. [Doc 02 rev4](../../reports/weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev4.md)
 
 Claude accepted `a134afb`, `c47bc3f`, `be35ba2` and `4da9ff5`. The three reviewed script pins and the four archived chain download pins match the corresponding commit blobs. The full 517-line weekend block was verified in 0011b. [Claude review](../claude_to_codex/0011c_review.md) [Weekend evidence](../../artifacts/evidence/native-run-r0010w-weekend-and-r0011-capture-20261124.txt)
 
@@ -21,14 +21,14 @@ The chain runs GCC reference capture, Official USB staging, Customized USB stagi
 | Official and Customized USB staging | Both `USB_PREP_READY` paths with their individual manifests. Verify the copied USB payload against the matching manifest before each board run. |
 | MLGO Base proof | `REPORT`, SHA-256 and `REVIEW_STATUS`. Review the SRPM member/spec diffs, accelerator changelog and installed-delta evidence. `READY_FOR_MANUAL_DIFF_REVIEW` means the proof inputs are available for interpretation. |
 
-Native server. Set `CHAIN_DIR` to the exact value printed at launch. Before `DONE`, this shows status only. After `DONE`, it assembles the original combined transcript if needed and returns up to 120 lines per page with the full SHA-256. Set `CHAIN_PAGE=2` and continue until `LAST_PAGE`. Runtime is seconds, with one local reader and small text output. The existing heavy jobs keep running independently.
+Native server. The default `CHAIN_DIR` is the active rev2 run `/home1/chengkai/vd-tree/workspace/temp/pm0011c-chain.AFkXQV`. Use an exact run path for any override. Before `DONE`, this shows status only. After `DONE`, it assembles the original combined transcript if needed and returns up to 120 lines per page with the full SHA-256. Set `CHAIN_PAGE=2` and continue until `LAST_PAGE`. Runtime is seconds, with one local reader and small text output. The existing heavy jobs keep running independently.
 
 ```bash
 (
   set -euo pipefail
   cd /home1/chengkai/vd-tree
   root="$PWD/workspace/temp"
-  W=$(realpath -e "${CHAIN_DIR:?set the printed CHAIN_DIR}")
+  W=$(realpath -e "${CHAIN_DIR:-$root/pm0011c-chain.AFkXQV}")
   [[ "${W%/*}" == "$root" && "${W##*/}" == pm0011c-chain.* ]]
   if [[ ! -f "$W/status.txt" ]]; then
     printf 'CHAIN_STATUS_PENDING %s\n' "$W"
@@ -73,7 +73,7 @@ The launcher below uses the fixed paths from the pinned GCC capture command and 
   set -euo pipefail
   cd /home1/chengkai/vd-tree
   root="$PWD/workspace/temp"
-  W=$(realpath -e "${CHAIN_DIR:?set the completed CHAIN_DIR}")
+  W=$(realpath -e "${CHAIN_DIR:-$root/pm0011c-chain.AFkXQV}")
   [[ "${W%/*}" == "$root" && "${W##*/}" == pm0011c-chain.* ]]
   awk '
     /^DONE / { done=1 }
@@ -96,9 +96,16 @@ The launcher below uses the fixed paths from the pinned GCC capture command and 
   d=$(mktemp -d "$PWD/workspace/temp/pm0011a-hq-batch.XXXXXX")
   export TMPDIR="$d"
   get() {
-    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}"
-    curl -fsS --connect-timeout 8 --max-time 60 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file"
-    printf '%s  %s\n' "$sum" "$file" | sha256sum -c -
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
   }
   get 'a134afbc404508dfc32e479a2c88dd4a850f4c62' 'artifacts/scripts/r0011/hq-elf-rebaseline.py.txt' '55ea44b32389fe60137e5d06e314def73d695f7b86e879d707ed7533afbc6120'
   get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-bundle.py.txt' '4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b'
