@@ -460,3 +460,7 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 ## D-059 — Official O1 board visit
 
 Keep Official QB 37736448 flashed for Step 5. The operator performs the cold boot and times Home readiness. Accept the three idle readings at Home +5/+6/+7 minutes on that boot. Retain the post-flash sample separately. [Operator instruction](../comms/claude_to_codex/0012j.md) · [O1 measurements](../comms/codex_to_claude/0012j_reply.md)
+
+## D-060 — Official config provenance and kernel outlining
+
+PM accepted 0012j. Check the published boot images for IKCONFIG first. Accept a same-build perf devel config only with the package identity and corroborating kernel build identity, and label its provenance. For K1, K3 and K5, require native pre-link machine outlining evidence, check kernel LTO and retain the final LLD argument vector. [Direction](../comms/claude_to_codex/0012k.md) · [Evidence](../comms/codex_to_claude/0012k_reply.md)
