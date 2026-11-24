@@ -90,7 +90,7 @@
 +        dest=$PM_KERNEL_EVIDENCE/$hash
 +        test ! -e "$dest/complete" || exit 0
 +        mkdir -p "$dest"
-+        cp --parents -t "$dest" -- .config vmlinux arch/arm/boot/zImage kernel/sched/core.o.pm0012f-options
++        cp --parents -t "$dest" -- .config vmlinux System.map arch/arm/boot/zImage kernel/sched/core.o.pm0012f-options
 +        if [ -d vmlinux.pm0012k-link ]; then cp -R vmlinux.pm0012k-link "$dest/"; fi
 +        find . -type f -name '.*.o.cmd' -exec cp --parents -t "$dest" -- {} +
 +        # Keep the individual ELF objects needed for caller attribution. Preserve NUL-delimited names.

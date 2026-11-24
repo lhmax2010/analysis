@@ -1,0 +1,52 @@
+"""Symbolize a board trace off-board. Keep unmapped addresses visible for module follow-up."""
+import argparse
+import json
+from pathlib import Path
+import re
+import subprocess
+
+def frames(line):
+    pairs=re.findall(r'\[<([0-9a-fA-F]{8})>\]',line)
+    if pairs: return pairs
+    # Older ARM oopses also print bare PC/LR registers.
+    perf=re.match(r"^\s*(?:0x)?([89a-fA-F][0-9a-fA-F]{7})\s+(?:\[unknown\]|\S+\s+\()",line)
+    if perf: return [perf[1]]
+    return re.findall(r'\b(?:pc|lr)\s*:\s*(?:0x)?([0-9a-fA-F]{8})\b',line,re.I)
+
+def main():
+    p=argparse.ArgumentParser()
+    p.add_argument("symbols",type=Path)
+    p.add_argument("trace",type=Path)
+    p.add_argument("--running-id",required=True)
+    p.add_argument("--slide",type=lambda s:int(s,0),required=True)
+    p.add_argument("--output",type=Path,required=True)
+    a=p.parse_args()
+    dest=a.symbols.resolve()
+    subprocess.run(["sha256sum","-c","SHA256SUMS"],cwd=dest,check=True)
+    elf=dest/"vmlinux"
+    ids=re.findall(r"Build ID:\s*([0-9a-f]+)",subprocess.check_output(["readelf","-nW",elf],text=True))
+    if ids!=[a.running_id] or dest.parent.name!=a.running_id:
+        p.error("running and retained ELF identities differ")
+    bounds={}
+    for line in (dest/"System.map").read_text().splitlines():
+        v=line.split()
+        if len(v)==3 and v[2] in ("_text","_etext","_end"):
+            bounds[v[2]]=int(v[0],16)
+    if "_text" not in bounds or "_end" not in bounds: p.error("missing image bounds")
+    rows=[]
+    for n,line in enumerate(a.trace.read_text(errors="replace").splitlines(),1):
+        for address in frames(line):
+            pc=(int(address,16)&~1)-a.slide
+            row={"line":n,"raw":address,"linked":hex(pc)}
+            if bounds["_text"]<=pc<bounds["_end"]:
+                result=subprocess.check_output(["addr2line","-f","-i","-e",elf,hex(pc)],text=True).splitlines()
+                row["symbolization"]=result
+                row["status"]="SYMBOLIZED" if result and "??" not in result and all(not s.startswith("??:") for s in result) else "REVIEW_DEBUG_INFO"
+            else:
+                row["status"]="OUTSIDE_IMAGE_CHECK_MODULE_SECTIONS"
+            rows.append(row)
+    a.output.write_text(json.dumps(rows,indent=2)+"\n")
+    print("TRACE",a.output,"frames",len(rows),"symbolized",sum(r["status"]=="SYMBOLIZED" for r in rows))
+    if not rows: p.error("no recognized PC/LR frames; retain and inspect the raw trace format")
+if __name__=="__main__":
+    main()

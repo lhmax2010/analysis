@@ -1,5 +1,4 @@
 """Run the six local perf kernel lanes serially in the existing Thursday job."""
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -19,26 +18,14 @@ def load(name):
 
 
 def official_inputs(work,q,s):
-    cap,receipt,pkgs=q["retained"]("official",s.lib)
+    _,_,pkgs=q["retained"]("official",s.lib)
     row=pkgs["tztv-kernel-perf"]
     if row["vcs"]!=s.gbs.DEPOT.rstrip("/")+"#14293732" or not re.search(
         re.escape(s.gbs.DEPOT)+r"\.\.\.@14427407\s*$",s.manifest.read_text(),re.M):
         raise ValueError("unmatched Official source or shelf")
     config=load("official-config")
-    base=config["config_map"](config["select"](work,q))
-    if any(base.get(k)!="y" for k in ("CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC")) or base.get("CONFIG_THUMB2_KERNEL")!="n":
-        raise ValueError("Official perf config does not select expected A32/release advisors")
-    perf=q["matched_payload"](cap,receipt,row,s.lib)
-    members=q["member_checksums"](perf)
-    sizes={"uImage":members["/perf/uImage"][0]}
-    if members["/perf/uImage"][1]!=config["PINS"]["uImage"]:
-        raise ValueError("capture RPM and USB uImage differ")
-    for key,(size,digest) in members.items():
-        if Path(key).name=="vmlinux" and "perf" in Path(key).parts and digest:
-            dest=work/"perf-rpm-vmlinux"
-            q["extract_member"](perf,key,dest,digest,s.lib)
-            if s.scan["secs_of"](dest.read_bytes()): sizes["vmlinux"]=size
-    return base,sizes
+    return load("kernel-qualification")["candidate"](work,q,config)
+
 
 
 def argv_proof(tree,lane):
@@ -82,8 +69,12 @@ def run(work,proof,owners):
     results={}
     with s.perf["locks"]():
         s.gbs.available(work,55,16)
-        base,ref=official_inputs(work,q,s)
-        if "uImage" not in ref: raise ValueError("missing matched QB perf uImage")
+        qual=load("kernel-qualification")
+        baseline=load("official-config")
+        base=official_inputs(work,q,s)
+        if any(base.get(k)!="y" for k in ("CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC","CONFIG_LTO_NONE","CONFIG_UNWINDER_FRAME_POINTER")):
+            raise ValueError("pinned candidate lacks expected A32/no-LTO/advisor settings")
+        qualified_k0=False
         src=s.gbs.stage_kernel(work)
         spec=src/"packaging/tztv-kernel.spec"
         subprocess.run(["patch","--batch","--fuzz=0","-p1","-i",HERE/"perf-machine-outliner.spec.patch"],cwd=src,check=True)
@@ -119,6 +110,7 @@ def run(work,proof,owners):
                 rpm,=[p for p in s.gbs.kernel_rpms(root) if q["query"](p,"%{NAME}")=="tztv-kernel-perf"]
                 members=q["member_checksums"](rpm)
                 record["images"]={n:members["/perf/"+n] for n in ("uImage","zImage")}
+                record["modules"]={k:v for k,v in members.items() if re.search(r"\.ko(?:\.(?:gz|xz|zst))?$",k)}
                 record["module_bytes"]=sum(z for n,(z,_) in members.items() if re.search(r"\.ko(?:\.(?:gz|xz|zst))?$",n))
                 # Join the real output tree to its RPM; multiple other kernel flavours can be present.
                 matches=[p.parents[3] for p in root.glob("**/rpmbuild/BUILD/**/arch/arm/boot/zImage")
@@ -131,14 +123,32 @@ def run(work,proof,owners):
                 if lane in ("K1","K3","K5"):
                     matches=[t for t in matches if (t/"vmlinux.pm0012k-link/argv").is_file()]
                 if not matches: raise ValueError("missing perf TU diagnostics or final LLD receipt")
-                tree=matches[0]
+                tree=next((t for t in matches if (t/"System.map").is_file()),matches[0])
+                config_file=tree/".config"
+                (folder/"generated.config").write_bytes(config_file.read_bytes())
+                paired={"K0":work/"official.config","K4":work/"K0/generated.config","K5":work/"K1/generated.config"}.get(lane)
+                config_equal=None
+                if paired and paired.is_file():
+                    config_equal=qual["config_diff"](paired,config_file,folder/"config.diff")
+                    if lane=="K0" and not config_equal: print("K0_CONFIG_MISMATCH",flush=True)
+                if lane in ("K4","K5") and config_equal is None:
+                    raise ValueError("missing paired generated config for full diff")
+                record["symbols"]=qual["keep_symbols"](work,tree,lane,s.gbs.sha)
+                if lane=="K0":
+                    record["qualification"]=qual["qualify"](work,tree,record,baseline,q,s.scan["secs_of"],config_equal)
+                    print("K0_REPRODUCTION",json.dumps(record["qualification"]),flush=True)
                 effective=load("official-config")["config_map"]((tree/".config").read_bytes())
                 record["config_delta"]={k:[base.get(k),effective.get(k)] for k in sorted(base.keys()|effective.keys()) if base.get(k)!=effective.get(k)}
                 if lane in ("K4","K5"):
-                    if effective.get("CONFIG_THUMB2_KERNEL")!="y": raise ValueError("Thumb Kconfig not delivered")
+                    if effective.get("CONFIG_THUMB2_KERNEL")!="y" or effective.get("CONFIG_UNWINDER_ARM")!="y" or effective.get("CONFIG_UNWINDER_FRAME_POINTER")=="y":
+                        raise ValueError("Thumb / EHABI config transition unverified")
                     if thumb_config and thumb_config!=effective: raise ValueError("K4/K5 config drift")
                     thumb_config=effective
-                elif record["config_delta"]: raise ValueError("effective config differs from matched Official")
+                elif lane!="K0" and record["config_delta"]: raise ValueError("effective config differs from matched Official")
+                if effective.get("CONFIG_LTO_NONE")!="y":
+                    raise ValueError("generated config does not confirm no kernel LTO")
+                if lane not in ("K4","K5") and effective.get("CONFIG_UNWINDER_FRAME_POINTER")!="y":
+                    raise ValueError("frame-pointer unwinder not confirmed")
                 record["samples"],record["advisor_options"]=argv_proof(tree,lane)
                 if lane in ("K1","K3","K5"):
                     phase=load("outliner-phase")["verify"]
@@ -149,27 +159,41 @@ def run(work,proof,owners):
                     print("KERNEL_THUMB_FINAL_LLD",lane,link["version"],"argc",len(link["argv"]),
                           "full argv in",work/"kernel-matrix.json",flush=True)
                 record["static"]=audit(tree,tree/"vmlinux",s.scan["secs_of"],effective)
+                static=record["static"]
+                static["resident_linked_bytes"]=qual["resident"](tree/"System.map")
                 if lane=="K0":
-                    if ref["uImage"]!=record["images"]["uImage"][0]: raise ValueError("K0 shipped uImage size mismatch")
-                    record["linked_QB_size"]=ref.get("vmlinux")
-                    if "vmlinux" in ref and ref["vmlinux"]!=record["static"]["vmlinux_bytes"]:
-                        raise ValueError("K0 shipped linked vmlinux size mismatch")
+                    qualified_k0=record["qualification"]["status"]=="OFFICIAL_PERF_BUILD_CONFIG"
+                if qualified_k0 and lane in ("K4","K5"):
+                    peer=results[{"K4":"K0","K5":"K1"}[lane]]
+                    if peer.get("status")=="STATIC_MEASURED":
+                        record["in_tree_module_paths"]={
+                            "missing":sorted(peer["modules"].keys()-record["modules"].keys()),
+                            "added":sorted(record["modules"].keys()-peer["modules"].keys())}
+                        prev=peer["static"]
+                        record["delta_bytes"]={"text":static["sections"][".text"]-prev["sections"][".text"],
+                            "exidx_plus_extab":static["ehabi_bytes"]-prev["ehabi_bytes"],
+                            "resident_linked":None if None in (static["resident_linked_bytes"],prev["resident_linked_bytes"])
+                            else static["resident_linked_bytes"]-prev["resident_linked_bytes"]}
                 if lane in ("K1","K3","K5") and not record["static"]["helper_count"]:
                     raise ValueError("flag delivered but zero surviving linked helpers")
-                record["status"]="STATIC_MEASURED"
+                record["status"]="STATIC_MEASURED" if qualified_k0 else "RAW_ONLY"
             except (ValueError,OSError,IndexError,subprocess.SubprocessError) as exc:
                 record["status"]="BLOCKED_OR_FAILED"
                 record["diagnostic"]=str(exc)
+                record["file_diagnostics"]=qual["build_errors"](folder,root)
             finally:
+                if lane in ("K4","K5") and (folder/"gbs.log").exists():
+                    record["asm_review"]=qual["asm_review"](folder,src)
                 if root.exists(): root.rename(folder/"GBS-ROOT")
                 (work/"kernel-matrix.json").write_text(json.dumps(results,indent=2)+"\n")
+                qual["write_table"](work,results)
                 print("KERNEL_THUMB_LANE",lane,record["status"],record.get("diagnostic",""),flush=True)
-            if lane=="K0" and record["status"]!="STATIC_MEASURED": break
+            if lane=="K0" and record["status"]=="BLOCKED_OR_FAILED": break
         qualified=[lane for lane in ("K0","K1","K4","K5") if results.get(lane,{}).get("status")=="STATIC_MEASURED"]
         if qualified:
             load("kernel-modules")["build_modules"](work,s,dev,dev["input_path"](owners),qualified)
-        if len(qualified)!=4 or len(results)!=6 or any(r["status"]!="STATIC_MEASURED" for r in results.values()) or "vmlinux" not in ref:
-            raise ValueError("kernel matrix or shipped linked-vmlinux reference incomplete; see kernel-matrix.json")
+        if len(qualified)!=4 or len(results)!=6 or any(r["status"]!="STATIC_MEASURED" for r in results.values()):
+            raise ValueError("kernel matrix or K0 qualification incomplete; see kernel-matrix.json")
 
 
 if __name__=="__main__":

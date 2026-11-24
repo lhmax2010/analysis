@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import re
+import runpy
 import shutil
 import subprocess
 
@@ -44,6 +45,7 @@ def build_modules(work, settings, dev, owners_file, lanes=("baseline", "thumb"))
             dest.mkdir(parents=True)
             item = {"expected_modules": sorted(paths), "devel_rpm_sha256":settings.gbs.sha(header)}
             report.setdefault(package,{})[lane] = item
+            root=project=None
             try:
                 disk, ram = (55, 16) if lane.startswith("K") else (24, 12)
                 settings.gbs.available(dest, disk, ram)
@@ -91,7 +93,12 @@ export KBUILD_VERBOSE=1 V=1
                 item.update(missing_paths=sorted(paths-found),compile_examples=compile_examples,modpost_commands=modpost,modpost_diagnostics=unsafe)
                 item["status"]="BUILT_HEADER_AND_MODULE_PATHS_OBSERVED" if seen and paths<=found and compile_examples and modpost and not unsafe else "REVIEW_BUILD_INPUTS"
             except (ValueError,OSError,subprocess.SubprocessError) as exc:
-                item.update(status="BLOCKED_OR_FAILED",diagnostic=str(exc),log=str(dest/"gbs.log"))
+                diag=runpy.run_path(str(Path(__file__).with_name("kernel-qualification.py.txt")))["build_errors"]
+                item.update(status="BLOCKED_OR_FAILED",diagnostic=str(exc),log=str(dest/"gbs.log"),
+                            file_diagnostics=diag(dest,root))
+            if lane in ("K4","K5") and project and (dest/"gbs.log").is_file():
+                audit=runpy.run_path(str(Path(__file__).with_name("kernel-qualification.py.txt")))
+                item["asm_review"]=audit["asm_review"](dest,project)
             (work/"external-modules.json").write_text(json.dumps(report,indent=2)+"\n")
             print("KERNEL_THUMB_EXTERNAL",package,lane,item["status"],flush=True)
     if not inputs or any(v["status"]!="BUILT_HEADER_AND_MODULE_PATHS_OBSERVED" for pair in report.values() for v in pair.values()):

@@ -1,0 +1,17 @@
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0012k-config._udmxdk9
+BOOT_IMAGE zImage 5326504 f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab outer_IKCFG_ST 0
+BOOT_IMAGE uImage 11348968 eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6 outer_IKCFG_ST 0
+BOOT_PAYLOAD_EQUAL gzip_offset 30065 bytes 11348644 sha256 6073c4278bf03cdcd7c978cea072682444081f3a8764e52cde08ffce43836e83
+MATCHED_RUNNING_BUILD_ID 419813f26f2d03bee00bde1d7173b0c2fd887530
+BOOT_BANNER Linux version 6.12.60 (abuild@A1106DJG) (clang version 22.1.8, LLD 22.1.8) #1 SMP PREEMPT Mon Nov 23 06:24:04 UTC 2026
+DECODED_IKCFG_ST_COUNT 0
+EMBEDDED_CONFIG_ABSENT
+KERNEL_SOURCE official tztv-kernel / -devel / -perf / -release  0:1-1 armv7l  tztv-kernel-1-1.src.rpm  //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732
+PINNED_RPM tztv-kernel-perf  ... 91254010607414093524cf675f51c766a0d72a84fc631b521a303e8ea060a8a6
+PINNED_RPM tztv-kernel-devel ... de747ed8eef098e77bbf6edc372a7480bca3e1827b30a530ea1940adc9a4321e
+DEVEL_CANDIDATE /seret/debug/vmlinux 8087726 08a925ce…
+DEVEL_CANDIDATE /seret/release/vmlinux 5703082 bf8c5eff…
+DEVEL_CANDIDATE /usr/include/kernel_header/debug/.config 163677 852ec63f…
+DEVEL_CANDIDATE /usr/include/kernel_header/perf/.config 156327 2a31652557d89d100d3c1bc6b0116556e32a56f03b0145eba12af425c75379f3
+DEVEL_CANDIDATE /usr/include/kernel_header/release/.config 155535 6b74e278…
+DEVEL_BUILD_CONFIG_UNVERIFIED perf_config_count=1 matching_perf_artifacts=0

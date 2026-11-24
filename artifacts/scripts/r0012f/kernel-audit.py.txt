@@ -9,7 +9,7 @@ import subprocess
 
 HELPER = re.compile(r"^OUTLINED_FUNCTION_\d+(?:[.$].*)?$")
 BRANCH = re.compile(r"^b(?:l|lx)?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?(?:\.[nw])?$")
-SPECIAL = (".noinstr.text",".head.text",".entry.text",".idmap.text",".hyp.text",".kprobes.text","__kprobes")
+SPECIAL = (".noinstr.text",".head.text",".entry.text",".idmap.text",".hyp.text")
 
 
 def symbols(blob, sections):
@@ -37,35 +37,136 @@ def unwind(blob, sections):
     return sorted(entries)
 
 
-def disassemble(exe, path, targets, linked):
-    cmd=[exe,"-d","--no-show-raw-insn",str(path)]
-    records=[]
-    section=caller=None
-    base=0
+def functions(exe, path, relocations=False):
+    """Stream one symbol at a time so kernel disassembly never accumulates in RAM."""
+    cmd=[exe,"-dr" if relocations else "-d","--no-show-raw-insn",str(path)]
+    section = label = None
+    instructions = []
     with subprocess.Popen(cmd,stdout=subprocess.PIPE,text=True,errors="replace") as proc:
         for raw in proc.stdout:
             line=raw.strip()
-            if line.startswith("Disassembly of section "):
-                section=line.split()[-1].rstrip(":")
-                caller=None
+            symbol=re.fullmatch(r"([0-9a-fA-F]+) <(.+)>:",line)
+            if line.startswith("Disassembly of section ") or symbol:
+                if label:
+                    yield section,label,base,instructions
+                instructions=[]
+                label=None
+                if symbol:
+                    base,label=int(symbol[1],16),symbol[2]
+                else:
+                    section=line.split()[-1].rstrip(":")
                 continue
-            label=re.fullmatch(r"([\da-fA-F]+) <(.+)>:",line)
-            if label:
-                base,caller=int(label[1],16),label[2]
+            relocation=re.fullmatch(r"(?:0x)?([0-9a-fA-F]+):?\s+R_ARM_(?:THM_)?(?:CALL|JUMP24|PC24)\s+(\S+)",line)
+            if relocations and relocation and instructions and instructions[-1][0]==int(relocation[1],16):
+                addr,op,_=instructions[-1]
+                instructions[-1]=(addr,op,"0 <"+relocation[2]+">")
                 continue
-            if not caller: continue
-            ins=re.match(r"(\w+):\s+(\S+)\s+(?:0x)?([a-fA-F0-9]+)\s+<([^>]+)>",line)
-            if not ins or not BRANCH.fullmatch(ins[2]): continue
-            target=int(ins[3],16)&~1
-            callee=ins[4]
+            ins=re.match(r"^([\da-fA-F]+):\s+(\S+)\s*(.*)",line)
+            if label and ins:
+                instructions.append((int(ins[1],16),ins[2].lower(),ins[3].split('@')[0].strip()))
+        if label:
+            yield section,label,base,instructions
+        if proc.wait(): raise ValueError("disassembly failed: "+str(path))
+
+
+def direct(operand):
+    return re.match(r"(?:0x)?([\da-fA-F]+)\s+<([^>]+)>",operand)
+
+
+def disassemble(exe, path, targets, linked, bodies=None, graph=None):
+    records=[]
+    for section,caller,base,ins in functions(exe,path,relocations=not linked):
+        if bodies is not None and base in targets:
+            bodies[base]=ins
+        for i,(pc,op,args) in enumerate(ins):
+            if not BRANCH.fullmatch(op): continue
+            match=direct(args)
+            if not match: continue
+            target=int(match[1],16)&~1
             if linked:
+                if graph is not None and (op.split(".")[0] in ("bl","blx","b") and "+" not in match[2]
+                                          and "-" not in match[2] and target!=base):
+                    graph[base].add((target,match[2]))
                 if target not in targets: continue
                 callee=targets[target]
-            elif not HELPER.fullmatch(callee): continue
-            records.append(dict(caller=caller,section=section,offset=int(ins[1],16)-base,
-                                dest=callee,addr=target,op=ins[2]))
-        if proc.wait(): raise ValueError("disassembly failed: "+str(path))
+            else:
+                callee=match[2]
+                if not HELPER.fullmatch(callee): continue
+            # The prologue is evidence for manual FP tracing; it need not dominate every edge.
+            prologue=ins[:min(i,10)] if linked else []
+            records.append(dict(caller_prologue=prologue,caller=caller,section=section,offset=pc-base,pc=pc,caller_addr=base,dest=callee,
+                                addr=target,op=op,before=ins[max(0,i-2):i],after=ins[i+1:i+3]))
     return records
+
+
+def instruction(item):
+    _,op,args=item
+    return op.split(".")[0]+" "+re.sub(r"\s+","",args.lower()).replace("r14","lr").replace("r13","sp")
+
+
+def classify(call, body):
+    op=call["op"].split(".")[0]
+    if op not in ("bl","blx"):
+        return "TAIL_CALL" if op=="b" else "UNRESOLVED"
+    prev=instruction(call["before"][-1]) if call["before"] else ""
+    nxt=instruction(call["after"][0]) if call["after"] else ""
+    reg=re.fullmatch(r"mov (r\d+|ip|fp|sl|sb),lr",prev)
+    if reg and nxt=="mov lr,"+reg[1]:
+        return "LR_REGISTER"
+    stack_pairs=(("push {lr}","pop {lr}"),("stmdb sp!,{lr}","ldmia sp!,{lr}"),
+                 ("str lr,[sp,#-4]!","ldr lr,[sp],#4"),
+                 ("str lr,[sp,#-0x4]!","ldr lr,[sp],#0x4"))
+    if (prev,nxt) in stack_pairs:
+        return "LR_STACK"
+    if not body or any(x[1] in ("<unknown>",".word",".short") for x in body): return "UNRESOLVED"
+    last=instruction(body[-1])
+    target=direct(body[-1][2])
+    if (body[-1][1].split(".")[0]=="b" and target and int(target[1],16)&~1!=call["addr"]
+        and not (body[0][0] <= int(target[1],16) <= body[-1][0])):
+        return "THUNK"
+    if last=="bx lr" and prev and nxt:
+        return "NO_LOCAL_LR_SAVE" if "lr" not in prev+nxt else "UNRESOLVED"
+    return "UNRESOLVED"
+
+
+def decoded_unwind(image):
+    result={}
+    text=subprocess.check_output(["readelf","--unwind","--wide",image],text=True,errors="replace")
+    row=None
+    for line in text.splitlines():
+        hit=re.match(r"^\s*0x([0-9a-fA-F]+)(?:\s+<[^>]+>)?:\s*(.*)",line)
+        if hit:
+            row=result.setdefault(int(hit[1],16),[])
+            row.append(hit[2])
+        elif row is not None and line.strip():
+            row.append(line.strip())
+    return result
+
+
+# These read paths are candidates only if the exact function calls a surviving helper.
+TRIGGERS={"meminfo_proc_show":"/proc/meminfo","version_proc_show":"/proc/version",
+          "uptime_proc_show":"/proc/uptime","loadavg_proc_show":"/proc/loadavg",
+          "vmstat_show":"/proc/vmstat","show_stat":"/proc/stat","diskstats_show":"/proc/diskstats",
+          "show_cpuinfo":"/proc/cpuinfo","dev_seq_show":"/proc/net/dev"}
+
+
+def frame_review(kind, body, prologue):
+    ops=[instruction(x) for x in body]
+    calls=[x for x in body if re.fullmatch(r"blx?(?:\..*)?",x[1])]
+    fp_touched=any(re.search(r"\b(?:fp|r11)\b",op) for op in ops)
+    caller_ops=[instruction(x) for x in prologue]
+    caller_fp_setup=any(re.match(r"(?:add|mov) (?:r11|fp),sp(?:,|$)",op) for op in caller_ops)
+    if kind=="UNRESOLVED" or not ops or any(x.startswith("<unknown>") for x in ops):
+        inside="UNKNOWN_CALL_OR_BODY"
+    elif fp_touched:
+        inside="CHECK_FP_CHANGES_AT_EACH_PC"
+    elif kind=="TAIL_CALL":
+        inside="TAIL_EDGE_HAS_NO_SEPARATE_RETURN_ADDRESS"
+    else:
+        inside="NO_HELPER_FP_RECORD_CALLER_FRAME_MAY_BE_SKIPPED"
+    return dict(caller_fp_setup_visible=caller_fp_setup,start_in_body=inside,start_in_callee=(
+        "CHECK_CALLEE_TO_HELPER_AND_PARENT" if calls or kind=="THUNK" else "NO_DIRECT_CALLEE_OBSERVED"),
+        calls_in_body=calls)
 
 
 def audit(tree, image, scan, config):
@@ -76,7 +177,12 @@ def audit(tree, image, scan, config):
     if not syms: raise ValueError("vmlinux has no function symbol table")
     helpers={va:dict(name=name,section=sec,bytes=size,calls=[]) for name,va,size,sec in syms if HELPER.fullmatch(name)}
     totals={name:sec[5] for name,sec in secs}
-    report={"sections":{k:totals.get(k) for k in (".text",".rodata",".init.text",".ARM.exidx")},
+    arm=config.get("CONFIG_UNWINDER_ARM")=="y"
+    fp=config.get("CONFIG_UNWINDER_FRAME_POINTER")=="y"
+    report={"sections":{k:v for k,v in totals.items() if k in (".text",".rodata",".data",".bss",".ARM.exidx",".ARM.extab") or k.startswith(".init.")},
+            "unwinder":"ARM_EHABI" if arm else "FRAME_POINTER" if fp else "UNKNOWN",
+            "ehabi_bytes":sum(size for name,size in totals.items() if name.startswith((".ARM.exidx",".ARM.extab"))),
+            "call_classes":{},"board_site":None,
             "alloc_bytes":sum(sec[5] for _,sec in secs if sec[2]&2),"vmlinux_bytes":len(blob),
             "helpers":helpers,"helper_count":len(helpers),"helper_bytes":sum(x["bytes"] for x in helpers.values())}
     if not helpers: return report
@@ -91,20 +197,35 @@ def audit(tree, image, scan, config):
         if b"OUTLINED_FUNCTION_" not in contents or not scan(contents): continue
         for c in disassemble(exe,obj,{},False):
             origins[c["caller"],c["offset"],c["dest"]].add((str(obj.relative_to(tree)),c["section"]))
+    decoded=decoded_unwind(image) if arm else {}
     entries=unwind(blob,secs)
     starts=[e[0] for e in entries]
     for addr,helper in helpers.items():
         i=bisect.bisect_right(starts,addr)-1
-        if config.get("CONFIG_ARM_UNWIND")=="y":
+        if arm:
             end=addr+helper["bytes"]
             # An EHABI row covers up to the next row. A terminal entry alone has no established end.
             span=(entries[i:bisect.bisect_left(starts,end)] if i>=0 and end>addr and starts[-1]>=end else [])
             helper["unwind"]=("NO_PROVEN_RANGE" if not span else "CANTUNWIND" if any(v==1 for _,v in span)
                               else "DESCRIPTOR_COVERAGE_REVIEW_ON_TARGET")
-            helper["exidx_records"]=span
+            helper["exidx_records"]=[(a,v,decoded.get(a,[])) for a,v in span]
+            if span and any(not decoded.get(a) for a,_ in span): helper["unwind"]="UNDECODED_DESCRIPTOR"
         else:
             helper["unwind"]="FRAME_POINTER_CHAIN_REVIEW" if config.get("CONFIG_FRAME_POINTER")=="y" else "NO_VERIFIED_UNWINDER"
-    for c in disassemble(exe,image,target_names,True):
+    bodies={}
+    graph=collections.defaultdict(set)
+    linked_calls=disassemble(exe,image,target_names,True,bodies,graph)
+    routes={}
+    todo=collections.deque((va,[name],TRIGGERS[name]) for name,va,_,_ in syms if name in TRIGGERS)
+    while todo:
+        va,chain,path=todo.popleft()
+        if va in routes: continue
+        routes[va]=(chain,path)
+        if len(chain)<5:
+            todo.extend((dst,chain+[name],path) for dst,name in sorted(graph.get(va,())))
+
+    counts=collections.Counter()
+    for c in linked_calls:
         matches=sorted(origins.get((c["caller"],c["offset"],c["dest"]),()))
         c["input_candidates"]=matches
         c["attribution"]="UNIQUE" if len(matches)==1 else "UNRESOLVED"
@@ -112,7 +233,29 @@ def audit(tree, image, scan, config):
         names={c["section"],*(sec for _,sec in matches)}
         c["restricted"]=sorted(sec for sec in names if any(tag in sec for tag in SPECIAL))
         c["init_to_resident"]=any(sec.startswith(".init.text") for sec in names) and helper["section"].startswith(".text")
+        body=bodies.get(c["addr"],[])
+        c["call_class"]=kind=classify(c,body)
+        counts[kind]+=1
+        if fp: c["frame_review"]=frame_review(kind,body,c["caller_prologue"])
+        if not body: helper["unwind_body"]="MISSING_DISASSEMBLY"
+        chain,path=routes.get(c["caller_addr"],([],None))
+        if path and (not report["board_site"] or len(chain)<len(report["board_site"]["static_route"])) and not c["restricted"] and not c["init_to_resident"] and c["attribution"]=="UNIQUE" and kind!="UNRESOLVED":
+            report["board_site"]={"caller":c["caller"],"pc":c["pc"],"helper":helper["name"],
+                                  "range":[c["addr"],c["addr"]+helper["bytes"]],"read":path,"class":kind,"static_route":chain}
         helper["calls"].append(c)
+    report["call_classes"]=dict(counts)
+    for addr,helper in helpers.items():
+        helper["body"]=bodies.get(addr,[])
+        helper["classification_status"]="DIRECT_SITES_RECORDED" if helper["calls"] else "NO_RESOLVED_DIRECT_CALLER"
+        if arm and helper["unwind"]=="DESCRIPTOR_COVERAGE_REVIEW_ON_TARGET":
+            # A leaf with no SP/LR updates needs only the implicit LR -> PC finish.
+            steps=[s for _,_,lines in helper["exidx_records"] for s in lines if re.match(r"0x[0-9a-fA-F]{2}\s",s)]
+            ops=[instruction(x) for x in helper["body"]]
+            leaf=(ops[-1:]==["bx lr"] and all(not re.search(r"\b(sp|lr|pc|r15)\b",op)
+                  and not op.startswith(("b","push","pop","vpush","vpop",".")) for op in ops[:-1]))
+            if leaf and steps and all(s.endswith(" finish") for s in steps):
+                helper["unwind"]="LEAF_FINISH_STATIC_MATCH"
+
     for helper in helpers.values():
         helper["caller_subsystems"]=sorted({obj.split("/")[0] if not obj.startswith(("arch/arm/","kernel/sched/")) else "/".join(obj.split("/")[:2])
                                             for c in helper["calls"] for obj,_ in c["input_candidates"]})

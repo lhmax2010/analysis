@@ -1,0 +1,223 @@
+"""Qualify the Official K0 reproduction and retain lane symbols on the native host."""
+import base64
+import difflib
+import hashlib
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import zlib
+
+CONFIG = "2a31652557d89d100d3c1bc6b0116556e32a56f03b0145eba12af425c75379f3"
+PAYLOAD = "6073c4278bf03cdcd7c978cea072682444081f3a8764e52cde08ffce43836e83"
+MEMBER = "/usr/include/kernel_header/perf/.config"
+DEVEL = "de747ed8eef098e77bbf6edc372a7480bca3e1827b30a530ea1940adc9a4321e"
+PERF = "91254010607414093524cf675f51c766a0d72a84fc631b521a303e8ea060a8a6"
+
+
+def candidate(work, q, cfg):
+    if cfg["image_config"](cfg["IMAGES"]) is not None:
+        raise ValueError("unexpected embedded config in pinned inputs")
+    lib = {"file_sha": cfg["file_sha"]}
+    cap, receipt, packages = q["retained"]("official", lib)
+    for name, digest in (("tztv-kernel-perf", PERF), ("tztv-kernel-devel", DEVEL)):
+        row = packages[name]
+        rpm = q["matched_payload"](cap, receipt, row, lib)
+        fields = q["query"](rpm, r"%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\t%{SOURCERPM}")
+        if row["sha256"] != digest or fields.split("\t") != [name,"0","1","1","armv7l","tztv-kernel-1-1.src.rpm"]:
+            raise ValueError("kernel RPM identity mismatch")
+        if name.endswith("-devel"):
+            if q["member_checksums"](rpm).get(MEMBER) != (156327, CONFIG):
+                raise ValueError("pinned perf .config member differs")
+            q["extract_member"](rpm, MEMBER, work/"official.config", CONFIG, lib)
+    print("SAME_BUILD_DEVEL_CONFIG_CANDIDATE", CONFIG, MEMBER)
+    return cfg["config_map"]((work/"official.config").read_bytes())
+
+
+def config_diff(before, after, path):
+    a, b = before.read_bytes(), after.read_bytes()
+    diff = b"".join(difflib.diff_bytes(difflib.unified_diff, a.splitlines(True), b.splitlines(True),
+                                        str(before).encode(), str(after).encode()))
+    path.write_bytes(diff)
+    if diff:
+        # Lossless terminal return also when the unified diff exceeds the line limit.
+        print("CONFIG_UNIFIED_DIFF", path.name, "zlib+base64", base64.b64encode(zlib.compress(diff)).decode())
+    return a == b
+
+
+def build_id(elf):
+    out = subprocess.check_output(["readelf","-nW",elf],text=True)
+    ids = re.findall(r"Build ID:\s*([0-9a-f]+)",out)
+    if len(ids) != 1:
+        raise ValueError("missing unique GNU build ID: "+str(elf))
+    return ids[0]
+
+
+def keep_symbols(work, tree, lane, sha):
+    elf = tree/"vmlinux"
+    identity = build_id(elf)
+    dest = work/"symbols"/identity/lane
+    dest.mkdir(parents=True)
+    for name in ("System.map","vmlinux",".config"):
+        src = tree/name
+        if not src.is_file():
+            raise ValueError("missing perf symbol/config artifact: "+str(src))
+        try:
+            os.link(src, dest/name)
+        except OSError:
+            shutil.copyfile(src, dest/name)
+    hashes = {name:sha(dest/name) for name in ("vmlinux","System.map",".config")}
+    (dest/"SHA256SUMS").write_text("".join(f"{v}  {k}\n" for k,v in hashes.items()))
+    return dict(build_id=identity, directory=str(dest), sha256=hashes)
+
+
+def linked_sizes(path, scan):
+    blob = path.read_bytes()
+    secs = scan(blob)
+    if not secs or int.from_bytes(blob[16:18],"little") != 2:
+        raise ValueError("expected linked ARM ELF")
+    return {name:sec[5] for name,sec in secs if name in (".text",".rodata",".data",".bss") or name.startswith(".init.")}
+
+
+def resident(mapfile):
+    marks = {}
+    for line in mapfile.read_text().splitlines():
+        fields = line.split()
+        if len(fields) == 3 and fields[2] in ("_text","_end","__init_begin","__init_end"):
+            marks[fields[2]] = int(fields[0],16)
+    if len(marks)!=4 or not marks["_text"] <= marks["__init_begin"] <= marks["__init_end"] <= marks["_end"]:
+        return None
+    return marks["_end"] - marks["_text"] - (marks["__init_end"] - marks["__init_begin"])
+
+
+def qualify(work, tree, rec, cfg, q, scan, same):
+    ident = cfg["BUILD_ID"]
+    u = (cfg["IMAGES"]/"uImage").read_bytes()
+    payload = u[64:64+int.from_bytes(u[12:16],"big")]
+    if hashlib.sha256(payload).hexdigest() != PAYLOAD:
+        raise ValueError("wrong decoded Official kernel")
+    expected = {"uImage":11348968, "zImage":5326504}
+    sizes = {k:[v,rec["images"][k][0]] for k,v in expected.items()}
+    kr = tree/"vmlinux"
+    kb = rec["symbols"]["build_id"]
+    evidence = dict(config_bytes_equal=same, image_size_pairs=sizes, k0_build_id=kb,
+                    official_build_id=ident, official_payload_sha256=PAYLOAD,
+                    section_comparison="NO_MATCHED_ELF", sections={}, id_matches=(kb==ident))
+    # The installed vmlinux is BTF. Only a linked ELF demonstrably paired to the flat image can supply BSS.
+    paths = [q["local_paths"]("official")[1], kr]
+    if os.environ.get("PM12_OFFICIAL_PERF_ELF"):
+        paths.append(Path(os.environ["PM12_OFFICIAL_PERF_ELF"]))
+    for p in paths:
+        if not p.is_file():
+            continue
+        blob = p.read_bytes()
+        sh = scan(blob)
+        if not sh or blob[16:18]!=b"\x02\x00":
+            continue
+        try:
+            ref_id=build_id(p)
+        except ValueError:
+            continue
+        if ref_id!=ident:
+            continue
+        textsec = next((s for n,s in sh if n==".text" and s[5]),None)
+        if textsec is None or blob[textsec[4]:textsec[4]+textsec[5]] not in payload:
+            continue
+        a, b = linked_sizes(p,scan), linked_sizes(kr,scan)
+        required = {".text",".rodata",".data",".bss"}
+        evidence["sections"]={k:[a.get(k),b.get(k)] for k in sorted(a.keys()|b.keys())}
+        evidence.update(reference=("K0 ELF joined to Official payload" if p==kr else str(p)),section_comparison="MATCH" if a==b and required<=a.keys() and
+                        any(n.startswith(".init.") for n in a) else "DIFF")
+        break
+    if kb!=ident:
+        banner = rb"Linux version [^\0\n]{5,350}#[0-9]+[^\0\n]*"
+        def banners(raw):
+            return [s.decode(errors="replace") for s in re.findall(banner,raw)]
+        evidence["build_id_investigation"]={"official_banners":banners(payload),"k0_banners":banners(kr.read_bytes()),
+            "cause":"compare build user, host and timestamp in banners; build paths or other inputs remain unverified"}
+    ok = same and all(a==b for a,b in sizes.values()) and evidence["section_comparison"]=="MATCH"
+    evidence["status"]="OFFICIAL_PERF_BUILD_CONFIG" if ok else "K0_CONFIG_MISMATCH" if not same else "K0_OUTPUT_UNQUALIFIED"
+    return evidence
+
+
+def diagnostics(log):
+    if not log.is_file():
+        return []
+    lines = set()
+    with log.open(errors="replace") as stream:
+        for raw in stream:
+            if re.search(r"(?:error:|fatal:|Error:|undefined reference|undefined symbol|modpost:|unsupported instruction|selected processor does not support)",raw,re.I):
+                lines.add(raw.strip())
+    return sorted(lines)
+
+
+def build_errors(folder, root):
+    logs=[folder/"gbs.log"]
+    if root and root.exists():
+        logs.extend((root/"local/repos").glob("**/logs/fail/**/log.txt"))
+    return {str(p.relative_to(root) if root and p.is_relative_to(root) else p.name):diagnostics(p) for p in logs if p.is_file()}
+
+
+def write_table(work, rows):
+    import csv
+    classes=("TAIL_CALL","THUNK","LR_REGISTER","LR_STACK","NO_LOCAL_LR_SAVE","UNRESOLVED")
+    columns=("lane","status","config_sha256","K0_qualification","build_id","unwinder","uImage","zImage","module_bytes",
+             ".text",".ARM.exidx",".ARM.extab","exidx_plus_extab","resident_linked","delta_text","delta_ehabi","delta_resident",*classes)
+    with (work/"kernel-lanes.tsv").open("w",newline="") as f:
+        out=csv.writer(f,delimiter="\t")
+        out.writerow(columns)
+        for lane,r in rows.items():
+            s=r.get("static",{})
+            sections=s.get("sections",{})
+            symbols=r.get("symbols",{})
+            d=r.get("delta_bytes",{})
+            def size(n): return r.get("images",{}).get(n,[None])[0]
+            out.writerow([lane,r.get("status"),symbols.get("sha256",{}).get(".config"),
+                rows["K0"].get("qualification",{}).get("status"),symbols.get("build_id"),s.get("unwinder"),
+                size("uImage"),size("zImage"),r.get("module_bytes"),sections.get(".text"),
+                sections.get(".ARM.exidx",0) if s else None,sections.get(".ARM.extab",0) if s else None,s.get("ehabi_bytes"),
+                s.get("resident_linked_bytes"),d.get("text"),d.get("exidx_plus_extab"),d.get("resident_linked"),
+                *(s["call_classes"].get(k,0) if s else None for k in classes)])
+
+
+def asm_review(folder, project):
+    """Join real verbose assembly commands to staged sources. Record assumptions for review by file."""
+    import csv
+    from collections import defaultdict
+    import shlex
+    names=defaultdict(list)
+    for source in project.rglob("*"):
+        if source.suffix in (".S",".s") and source.is_file() and source.resolve().is_relative_to(project.resolve()):
+            names[source.name].append(source)
+    seen=set()
+    with (folder/"asm-review.tsv").open("w",newline="") as out,(folder/"gbs.log").open(errors="replace") as log:
+        writer=csv.writer(out,delimiter="\t")
+        writer.writerow(("source_operand","staged_file","line","code","effective_mode","log_line"))
+        for number,line in enumerate(log,1):
+            if " -c " not in line or not re.search(r"\.[sS]\b",line): continue
+            try:
+                args=shlex.split(line)
+            except ValueError:
+                continue
+            modes=[a for a in args if a in ("-marm","-mthumb")]
+            for arg in args:
+                if not arg.endswith((".S",".s")): continue
+                mode=modes[-1] if modes else "DEFAULT"
+                if (arg,mode) in seen: continue
+                seen.add((arg,mode))
+                paths=names[Path(arg).name]
+                # Absolute GBS paths can have a different staging prefix.
+                suffix=Path(arg).parts
+                options=[p for p in paths if len(suffix)>1 and p.parts[-2:]==suffix[-2:]] or paths
+                if len(options)!=1:
+                    writer.writerow((arg,"UNRESOLVED",None,None,mode,number))
+                    continue
+                p=options[0]
+                hits=False
+                for lineno,code in enumerate(p.read_text(errors="replace").splitlines(),1):
+                    if re.search(r"(?:^|\s)\.(?:arm|code\s+32)\b|\b(?:r11|fp|CONFIG_THUMB2_KERNEL|CONFIG_UNWINDER_FRAME_POINTER)\b",code,re.I):
+                        writer.writerow((arg,p.relative_to(project),lineno,code,mode,number))
+                        hits=True
+                if not hits: writer.writerow((arg,p.relative_to(project),None,"NO_LITERAL_HIT",mode,number))
+    return str(folder/"asm-review.tsv")
