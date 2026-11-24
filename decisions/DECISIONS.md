@@ -391,3 +391,11 @@ Checkpoint: 2026-11-17. Request 0002 records Claude’s acceptance of the initia
 - Require a named source variable and actual argv for the Doc 07 CFLAGS attribution. Keep Doc 04 rows 2–3 labeled WARN until complete matching experimental pairs establish parity or FINAL lane results replace them.
 - Use “Installed in the PERF image (debug tooling)” only for an installed identity in Doc 05. Keep retail coverage in the internal ledger.
 - Status **PM review received and recorded**. [Review and report gates](../comms/codex_to_claude/0010f_reply.md)
+
+
+## D-049 — Use the published GCC no-prelink reference for new HQ comparisons
+
+- Use QB 37564293 with LLVM Official QB 37736448 for Docs 04–07. Keep the GCC and LLVM Base-series difference and ten-day Product separation in the report. Display source-different or unproved package rows with raw measures and exclude them from matched totals.
+- Use new Official 37736448 and Customized 37736427 for the MLGO chain. Require submitted manifest evidence, matching published build config and Product source review before a source-matched claim.
+- For a future GCC build, validate that every local repository resolves to a dedicated empty path under the GCC run workspace. Reject LLVM buildroot paths. The historical gccL configuration remains unproved.
+- **PM decision recorded**. New tools await review and native input. [Round 0011](../comms/codex_to_claude/0011_reply.md)

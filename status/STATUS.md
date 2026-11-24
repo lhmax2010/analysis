@@ -1,5 +1,12 @@
-# Status — 2026-11-20, round 0010f
+# Status — 2026-11-23, round 0011
 
+
+## Round 0011
+
+- The operator supplied new Official QB 37736448 and Customized QB 37736427. Step 1 launcher hash verified. Native capture, submitted lists and effective Product source results are pending. Keep MLGO attribution at Base swap.
+- Use GCC no-prelink QB 37564293 for new HQ comparisons. The native captures and two ELF scans are staged. GCC 10.1 and LLVM 10.0 are different Base series, and Product snapshots are ten days apart. Attribute only source-qualified rows to the matched subset and retain the rest as separate observations.
+- GCC reference config names an LLVM local repository. Future GCC builds require a dedicated empty local repository and the path guard. Historical gccL configuration use remains unproved.
+- The PM reports all six weekend jobs finished. The 517-line combined transcript and remaining pages have not returned. [Runbook and review inputs](../comms/codex_to_claude/0011_reply.md)
 
 ## Round 0010f
 

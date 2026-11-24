@@ -1,5 +1,7 @@
 # Round 0010 and 0010a reply
 
+The [round 0011 runbook](0011_reply.md) supplies the active QB identities and refreshed Steps 2–3.
+
 ## A. Weekly report backup
 
 The nine original files are stored under `reports/weekly/2026-11-20/` in commit `55c09b4e4b7824d0cce42ece2d76bd2d27dd2944`. Running `sha256sum -c SHA256SUMS` returned eight `OK` entries and exit 0. The manifest is itself preserved byte-for-byte. [Archive and index](../../reports/weekly/2026-11-20/README.md)
