@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Audit the GCC reference GBS config and inspect retained historical GCC logs."""
+
+import argparse
+import configparser
+import hashlib
+import os
+from pathlib import Path
+import re
+from urllib.parse import unquote, urlsplit
+
+ROOT = Path("/home1/chengkai/vd-tree")
+WORK = ROOT / "workspace/temp"
+CONFIG = ROOT / "config/gbs_vd_gcc_qb37564293.conf"
+HISTORICAL = ("exp8/org.tizen.AVControl/gccL", "exp8/org.tizen.tv-viewer/gccL",
+              "gbs-root-r8-G1/local/repos", "gbs-root-r8-G2/local/repos")
+PATTERN = re.compile(r"gbs(?:\s|_config)|repo\.local_|GBS-ROOT-VD-TOOLCHAIN-LLVM|\.conf\b", re.I)
+
+
+def local_repos(config):
+    settings = configparser.ConfigParser(interpolation=None)
+    with config.open() as f:
+        settings.read_file(f)
+    repos = {}
+    for section in settings:
+        if not section.lower().startswith("repo.local_"):
+            continue
+        raw = settings[section]["url"]
+        parsed = urlsplit(raw)
+        if parsed.scheme not in ("", "file") or parsed.netloc or parsed.query or parsed.fragment:
+            raise ValueError("expected filesystem URL for "+section)
+        path = Path(os.path.expandvars(unquote(parsed.path))).expanduser()
+        if not path.is_absolute() or "$" in str(path):
+            raise ValueError("expected fully resolvable absolute path for "+section)
+        repos[section] = (path,path.resolve())
+    return repos
+
+
+def guard(config, dedicated):
+    repos=local_repos(config)
+    if not repos:
+        raise ValueError("GCC build needs a dedicated local repo")
+    for section,(raw,resolved) in repos.items():
+        if any("llvm" in part.lower() for path in (raw,resolved) for part in path.parts):
+            raise ValueError(f"LLVM buildroot in {section}: {raw} -> {resolved}")
+    dedicated=dedicated.resolve(strict=True)
+    if not dedicated.is_relative_to(WORK.resolve()) or not dedicated.is_dir() or any(dedicated.iterdir()):
+        raise ValueError("dedicated GCC local repo must be an empty directory under workspace/temp")
+    if any(resolved!=dedicated for _,resolved in repos.values()):
+        raise ValueError("all local repo inputs must point to this run's dedicated empty directory")
+
+
+def history():
+    z901 = WORK / "z901"
+    for relative in HISTORICAL:
+        root=z901/relative
+        logs=sorted(p for p in root.rglob("*.log") if p.is_file() and not p.is_symlink())
+        logs+=sorted(p for p in root.rglob("log.txt") if p.is_file() and not p.is_symlink())
+        n=0
+        seen=False
+        for path in logs:
+            with path.open(errors="replace") as file:
+                for i,line in enumerate(file,1):
+                    seen|=CONFIG.name in line
+                    if n<12 and PATTERN.search(line):
+                        print("GCC_HISTORY_LINE",path.relative_to(z901),i,line.strip()[:600])
+                        n+=1
+        summary="CONFIG_MENTIONED_REVIEW_COMMAND" if seen else "NO_DIRECT_CONFIG_REFERENCE_IN_READABLE_LOGS"
+        print("GCC_HISTORICAL_PROVENANCE",relative,len(logs),summary)
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config",type=Path,default=CONFIG)
+    parser.add_argument("--dedicated-empty-repo",type=Path,
+                        help="strict validation for future GCC builders; exits before they may invoke GBS")
+    args=parser.parse_args()
+    config=args.config.resolve(strict=True)
+    if not config.is_relative_to(ROOT.resolve()):
+        raise ValueError("config outside vd-tree")
+    print("GCC_CONFIG_SHA256",hashlib.sha256(config.read_bytes()).hexdigest(),config)
+    for name,(raw,resolved) in local_repos(config).items():
+        print("GCC_LOCAL_REPO",name,raw,resolved)
+    if args.dedicated_empty_repo:
+        guard(config,args.dedicated_empty_repo)
+        print("GCC_LOCAL_REPO_GUARD_PASS")
+    else:
+        history()
+
+
+if __name__=="__main__":
+    try:
+        main()
+    except (OSError,RuntimeError,ValueError,KeyError,configparser.Error) as exc:
+        raise SystemExit("GCC_CONFIG_BLOCKED "+" ".join(str(exc).splitlines())[:600])

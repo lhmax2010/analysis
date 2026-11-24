@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Check published config and operator-retained submitted lists for a matched QB pair."""
+import argparse
+from collections import defaultdict
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import tempfile
+import xml.etree.ElementTree as ET
+
+PRODUCTS={'37736448': 'http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/', '37736427': 'http://repos.vd.sec.samsung.net/priv/168.219.236.27:81/PRV/builds/b755/19414755/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/'}
+WORKSPACE=Path("/home1/chengkai/vd-tree/workspace")
+BUILD_CONF="98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
+SHELVES="c89e2317911e12a9725e81e63c9cc9b9aa8ec8d04f1dfb85a4609f083deb6736"
+BASE_LIST="bd5e81179eae1367b083fa77b701322b115e2214a862bf073e3063e8a04aa1f3"
+
+
+def check_file(path, want):
+    path=path.resolve(strict=True)
+    if not path.is_relative_to(WORKSPACE.parent):
+        raise ValueError("input outside vd-tree")
+    data=path.read_bytes()
+    actual=hashlib.sha256(data).hexdigest()
+    print("QB_PAIR_FILE",path,actual,actual==want)
+    if actual!=want:
+        raise ValueError("wrong hash for "+str(path))
+    return data
+
+
+def verify(folder, expected_id, stamp):
+    folder=folder.resolve(strict=True)
+    if folder.parent!=WORKSPACE/"qb-evidence":
+        raise ValueError("capture not under workspace/qb-evidence")
+    identity=json.loads((folder/"identity.json").read_text())
+    xml=ET.fromstring(check_file(folder/"build.xml",identity["files"]["build.xml"]))
+    if not xml.findtext("buildconf_version","").endswith("TIZEN_KantSU2E_Clang_build.conf@14452507"):
+        raise ValueError("published build.conf revision did not match")
+    base_prefix="http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_"
+    if xml.findtext("base_repo","")!=base_prefix+stamp+"/":
+        raise ValueError("published Base did not match")
+    check_file(folder/"published-build.conf",BUILD_CONF)
+    label=identity["qb_id_operator_supplied"]
+    url=PRODUCTS[expected_id]
+    build_id=url.rstrip("/").rsplit("/",1)[-1]
+    if label!=expected_id or identity["product"]!=url or folder.name!=label+"-"+build_id or xml.findtext("id")!=build_id:
+        raise ValueError("QB ID, Product publication and capture do not match "+expected_id)
+    data=check_file(folder/"rpm-identities.tsv",identity["files"]["rpm-identities.tsv"])
+    rows=defaultdict(set)
+    for item in csv.DictReader(data.decode().splitlines(),delimiter="\t"):
+        rows[item["name"],item["arch"]].add(tuple(item[k] for k in ("epoch","version","release","srpm","vcs")))
+    if not rows or any(len(items)!=1 for items in rows.values()):
+        raise ValueError("Product publication lacks one exact row per name/arch; source equality requires explicit reconciliation")
+    print("QB_PAIR_PUBLISHED",label,build_id,stamp,"PRODUCT_IDENTITIES",len(rows))
+    return {key:next(iter(value)) for key,value in rows.items()},xml
+
+
+def source_state(old,new):
+    if old is None or new is None:
+        return "ONLY_ONE_PUBLICATION"
+    def source_key(variant):
+        return variant[3].removesuffix(".src.rpm").rsplit("-",1)[0]
+    def pinned(value):
+        return bool(re.fullmatch(r"//[^#@\s]+(?:#|@=?)\d+|//[^#@\s]+#vbs-[\w.-]+",value))
+    if all(v[3].endswith(".src.rpm") for v in (old,new)) and source_key(old)!=source_key(new):
+        return "SOURCE_DIFFERS"
+    if not all(v[3].endswith(".src.rpm") and pinned(v[4]) for v in (old,new)):
+        return "SOURCE_UNPROVED"
+    return "SOURCE_VCS_MATCH" if old[4]==new[4] else "SOURCE_DIFFERS"
+
+
+def main():
+    a=argparse.ArgumentParser(description=__doc__)
+    for name in ("official","custom","official_shelves","custom_shelves","official_base_list","custom_base_list"):
+        a.add_argument(name,type=Path)
+    args=a.parse_args()
+    first, official_xml=verify(args.official,"37736448","20261113.1")
+    second, custom_xml=verify(args.custom,"37736427","20261118.1")
+    for path in (args.official_shelves,args.custom_shelves):
+        check_file(path,SHELVES)
+    for path in (args.official_base_list,args.custom_base_list):
+        check_file(path,BASE_LIST)
+    print("QB_PAIR_CONFIG_GATE_PASS", "published config and supplied submitted-list copies match the reviewed pins")
+    work=Path(tempfile.mkdtemp(prefix="pm0011-pair.",dir=WORKSPACE/"temp"))
+    path=work/"product-source-review.tsv"
+    counts=defaultdict(int)
+    with path.open("w",newline="") as stream:
+        writer=csv.writer(stream,delimiter="\t",lineterminator="\n")
+        writer.writerow(("name","arch","status","official_epoch_version_release_srpm_vcs","custom_epoch_version_release_srpm_vcs"))
+        for key in sorted(first.keys() | second.keys()):
+            old,new=first.get(key),second.get(key)
+            state=source_state(old,new)
+            counts[state]+=1
+            writer.writerow((*key,state," | ".join(old or ())," | ".join(new or ())))
+    evidence=work/"build-xml-fields.tsv"
+    with evidence.open("w",newline="") as stream:
+        writer=csv.writer(stream,delimiter="\t",lineterminator="\n")
+        writer.writerow(("lane","field","value"))
+        for lane,manifest in (("official",official_xml),("custom",custom_xml)):
+            for field in manifest:
+                writer.writerow((lane,field.tag,ET.tostring(field,encoding="unicode").strip()))
+    print("QB_PAIR_SOURCE_ROWS",json.dumps(counts,sort_keys=True),path,hashlib.sha256(path.read_bytes()).hexdigest())
+    print("QB_PAIR_XML_FIELDS",evidence,hashlib.sha256(evidence.read_bytes()).hexdigest())
+    def source_fields(manifest):
+        return {(field.tag,ET.tostring(field,encoding="unicode").strip()) for field in manifest
+                if re.search(r"shelf|source|manifest|p4|changelist",field.tag,re.I)}
+    xml_delta=source_fields(official_xml)^source_fields(custom_xml)
+    print("QB_PAIR_XML_SOURCE_FIELDS_DIFFER",len(xml_delta))
+    if xml_delta or counts["SOURCE_DIFFERS"] or counts["ONLY_ONE_PUBLICATION"] or counts["SOURCE_UNPROVED"]:
+        print("QB_PAIR_PRODUCT_SOURCE_REVIEW_REQUIRED")
+        return 2
+    print("QB_PAIR_PRODUCT_VCS_MATCH", "all published Product rows have matching source versions and pinned VCS")
+    return 0
+
+
+
+if __name__=="__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError,ValueError,KeyError,ET.ParseError) as exc:
+        raise SystemExit("QB_PAIR_BLOCKED "+str(exc)[:450])
