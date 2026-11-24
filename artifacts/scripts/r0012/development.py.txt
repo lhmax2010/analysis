@@ -5,6 +5,7 @@ import argparse
 from collections import Counter
 from contextlib import redirect_stdout
 import base64
+import configparser
 import csv
 import hashlib
 import json
@@ -282,30 +283,72 @@ def matching_binary_scopes(left, right):
     return "ELF_BYTES_CHANGED"
 
 
+def fresh_lane(settings, lane):
+    root = lane / "GBS-ROOT"
+    config = lane / "gbs.conf"
+    config.write_bytes(settings.ole["configure_gbs"](settings.gbs, settings.config, root, settings.product))
+    cfg=configparser.ConfigParser(interpolation=None)
+    cfg.read(config)
+    profile=cfg[cfg["general"]["profile"]]
+    repos=[n.strip() for n in profile["repos"].split(",")]
+    repos=[n for n in repos if not n.startswith("repo.local_")]
+    if any(not cfg[n]["url"].startswith(("http://","https://")) for n in repos):
+        raise ValueError("unexpected local dependency repo")
+    empty=lane/"empty-repo"
+    empty.mkdir()
+    cfg["repo.local_thumb"]={"url":str(empty)}
+    profile["repos"]=", ".join(["repo.local_thumb",*repos])
+    with config.open("w") as f:
+        cfg.write(f)
+    if any(empty.iterdir()) or root.exists():
+        raise ValueError("GBS lane is not fresh")
+    return config, root
+
+
 def lane_build(settings, source, spec, original, folder, names, recipe, label, directory):
     lane = folder / label
     lane.mkdir()
     settings.gbs.available(lane, 24, 12)
-    root = lane / "GBS-ROOT"
-    config = lane / "gbs.conf"
-    config.write_bytes(settings.ole["configure_gbs"](settings.gbs, settings.config, root, settings.product))
+    if recipe["id"] == "THUMB":
+        config, root = fresh_lane(settings, lane)
+    else:
+        root = lane / "GBS-ROOT"
+        config = lane / "gbs.conf"
+        config.write_bytes(settings.ole["configure_gbs"](settings.gbs, settings.config, root, settings.product))
     text = settings.buildconf.read_text()
     edits = recipe[label]
     prefix = ""
-    if recipe["id"] == "T1":
+    if recipe["id"] in {"T1","THUMB"}:
         helper = runpy.run_path(str(directory / "thumb-force-pilot.py.txt"))
         # Use the helper's actual startup probe, and exempt the protected kernel sources.
         protected = helper["protected_packages"](input_path(TEMP/"pm0005-elf-sections.414uc2ph/sections.jsonl"))
-        if source.name in protected or set(names) & set(protected):
+        if recipe.get("package_name", source.name) in protected or set(names) & set(protected):
             raise ValueError("T1 refuses a protected kernel or external-module package")
-        if label == "treatment":
+        if label in {"treatment","default"}:
             text = helper["trial_config"](text, protected, "-mthumb")
         prefix = helper["PROBE"]
+        if recipe["id"] == "THUMB":
+            if re.search(r"(?mi)^%files[^%]*?\.ko(?:\s|$)", original):
+                raise ValueError("external module producer requires exemption review")
+            if label == "package":
+                patch=directory/(recipe["package_name"]+".patch")
+                if patch.is_file():
+                    # Dry-run fuzzy substitutions are inappropriate for the matched shelf.
+                    spec.write_text(original)
+                    subprocess.run(["patch","--batch","--forward","--fuzz=0","-i",str(patch),str(spec)],cwd=lane,check=True)
+                    original=spec.read_text()
+                elif recipe["package_name"] not in CONTROLS:
+                    raise ValueError("no reviewed per-package flag-loss hunk for "+recipe["package_name"])
+            (lane/"applied-buildconf.diff").write_text("".join(__import__("difflib").unified_diff(
+                settings.buildconf.read_text().splitlines(True),text.splitlines(True),"published-build.conf","trial-build.conf")))
+
     if recipe["id"] == "EXP-Z1":
         definition = "-Wl,-z,text" if label == "treatment" else "%{nil}"
         text = text.rstrip() + f"\n%pm12_native_link_flags {definition}\n"
         # RPM expands this once in the generated phase-specific wrapper.
     driver = (directory / "phase-driver.sh.txt").read_text()
+    if recipe["id"] == "THUMB":
+        driver = driver.replace('exec "$real" "$@"', 'exec "$real" -v "$@"')
     if recipe["id"] == "R3":
         driver = driver.replace('    edits+=("${link_edits[@]}")',
                                 '    if [[ "$phase" == link ]]; then edits+=("${link_edits[@]}"); fi')
@@ -315,6 +358,9 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
         meta = meta.replace("-PM12_POLICY", "%{pm12_native_link_flags}" if label == "treatment" else "")
     if recipe.get("original_hook") and label == "C":
         prefix += "export CCC_OVERRIDE_OPTIONS=" + shlex.quote(recipe["original_hook"]) + "\n"
+    if recipe["id"] == "THUMB":
+        check = libraries(directory, "thumb-accept")[0]
+        original = check["instrument"](original, (directory/"thumb-check.sh.txt").read_text(), recipe["package_name"])
     spec.write_text(inject(original, prefix + meta))
     conf = lane / "build.conf"
     conf.write_text(text)
@@ -367,19 +413,24 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
             proof = input_path(TEMP/"pm0009-kernel-isa.3sx1qo1w/isa-proof.json")
             if not json.loads(proof.read_text())["isa_and_argv_complete"]:
                 raise ValueError("T1 requires retained kernel ISA/argv proof")
-        results = {lane: lane_build(settings, source, spec, original, work, binaries, recipe, lane, directory)
-                   for lane in recipe["lanes"]}
+        results = {}
+        for lane in recipe["lanes"]:
+            if recipe["id"] == "THUMB" and lane=="package" and label not in CONTROLS and not (directory/(label+".patch")).exists():
+                results[lane]={"error":"PENDING_MATCHED_SOURCE_FIX","metrics":{},"delivery":{"observed":False},
+                               "link_argv_path":None}
+                continue
+            results[lane] = lane_build(settings, source, spec, original, work, binaries, recipe, lane, directory)
     control = results[recipe["lanes"][0]]
     summary = {}
     for label_, item in results.items():
         scope = matching_binary_scopes(control["metrics"], item["metrics"])
         proof = item["delivery"]
         delivered = proof["observed"]
-        if recipe["id"] == "T1":
+        if recipe["id"] == "T1" or (recipe["id"]=="THUMB" and label_=="default"):
             verify = runpy.run_path(str(directory/"thumb-force-pilot.py.txt"))
             try:
                 before = verify["target_rows"](work/"baseline/gbs.log")
-                after = verify["target_rows"](work/"treatment/gbs.log")
+                after = verify["target_rows"](work/("default" if recipe["id"]=="THUMB" else "treatment")/"gbs.log")
                 proof["driver_mode_probe"] = verify["check_modes"](before, after)
             except (ValueError, OSError) as exc:
                 proof["driver_mode_probe"] = str(exc)
@@ -407,13 +458,18 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
                 else "UNPROVED_OR_MODE_CHANGED")
             if summary[label_]["explicit_arm_control"] != "MODE_AND_SIZE_UNCHANGED":
                 summary[label_]["status"] = "CONTROL_REVIEW"
+    accepted = True
+    if recipe["id"] == "THUMB":
+        # Aggregate experiment delivery is insufficient to approve a package.
+        acceptance=libraries(directory,"thumb-accept")[0]
+        accepted = acceptance["evaluate"](directory,work,label,results,source,spec,CONTROLS)
     historical = next((point for point in recipe.get("reported", []) if point["package"] == label), None)
     publish(work/"experiment.json", {"id": recipe["id"], "package": label, "source": row["doc_source"],
                   "binary_scope": sorted(binaries), "lanes": summary, "historical": historical,
                   "historical_scope": "historical numbers retained alongside the new independently pinned lanes"})
     report("PM12_EXPERIMENT", [recipe["id"], label, {lane: [item["status"], item["bytes"],
                             item["error"]] for lane, item in summary.items()}])
-    return 0 if all(row["status"] in {"CONTROL", "DELIVERED", "NO_EFFECT"} for row in summary.values()) else 2
+    return 0 if accepted and all(row["status"] in {"CONTROL", "DELIVERED", "NO_EFFECT"} for row in summary.values()) else 2
 
 
 def base_recipe(experiment):
@@ -762,7 +818,7 @@ def evidence_page(path, page, packet=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("audit", "t1", "options", "trial", "t7", "abi", "research",
+    parser.add_argument("mode", choices=("audit", "thumb", "t1", "options", "trial", "t7", "abi", "research",
                                          "pic-plan", "rank", "page", "packet", "abi-index", "audit-compare"))
     parser.add_argument("work", type=Path)
     parser.add_argument("value", nargs="*")
@@ -798,6 +854,15 @@ def main():
             return t7(directory, work)
         if args.mode == "abi":
             return abi_job(directory, work, val[0], args.gbs_root, val[1] if len(val)>1 else None)
+        if args.mode=="thumb":
+            if not PATH_SAFE.fullmatch(val[0]):
+                raise ValueError("invalid source package")
+            recipe=base_recipe("THUMB")
+            recipe.update(lanes=["baseline","default","package"],default=EMPTY.copy())
+            # The package lane and package name use distinct keys.
+            recipe["package_name"]=val[0]
+            recipe["package"]=EMPTY.copy()
+            return package_build(directory,work,val[0],recipe,source_manifest=args.source_rpms)
         if args.mode == "t1":
             if val[0] not in T1:
                 raise ValueError("unknown T1 package")

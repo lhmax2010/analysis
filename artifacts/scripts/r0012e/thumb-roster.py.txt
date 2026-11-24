@@ -1,0 +1,96 @@
+"""Join Official installed .text geometry with ELF mapping symbols and exact-source debuginfo."""
+from pathlib import Path
+from collections import Counter, defaultdict
+import csv, hashlib,json,runpy,subprocess,sys,tempfile
+
+def run(here,work,hq):
+    def lib(name):
+        return runpy.run_path(str(here/(name+".py.txt")))
+    dev=lib("development")
+    settings=dev["repositories"](here)
+    perf=settings.perf
+    own=defaultdict(set)
+    header=None
+    for line in (hq/"installed-owners.tsv").read_text().splitlines():
+        if line.startswith("P\t"):
+            header=line.split("\t")[1:]
+        elif line.startswith("F\t") and header:
+            own[line[2:]].add((header[0],header[5]))
+    receipt=json.loads((hq/"identity.json").read_text())
+    if str(receipt["qb"])!="37736448":
+        raise ValueError("expected Official QB")
+    mode=lib("thumb-map")["text_map"]
+    def locations(blob, intervals, scratch):
+        if not intervals:
+            return []
+        # Endpoint source locations help review a range; a line table alone does not prove why it is A32.
+        with tempfile.NamedTemporaryFile(dir=scratch) as image:
+            image.write(blob)
+            image.flush()
+            addresses = [f"{value:x}" for lo,hi in intervals for value in (lo,hi-1)]
+            process = subprocess.run(["addr2line","-e",image.name],input="\n".join(addresses)+"\n",
+                                     capture_output=True,text=True,errors="replace",timeout=300)
+        if process.returncode:
+            raise ValueError("addr2line failed: "+process.stderr[-240:])
+        lines=process.stdout.splitlines()
+        if len(lines)!=len(addresses): raise ValueError("incomplete range provenance")
+        return [[lines[i],lines[i+1]] for i in range(0,len(lines),2)]
+
+    rows=[]
+    errors=[]
+    class Scan(lib("perf-relocations")["Audit"]):
+        def problem(self,path,error):
+            errors.append([path,str(error)[:300]])
+        def object(self,data,path,file=None):
+            if path.startswith("/usr/lib/debug/"):
+                return
+            result=mode(data,settings.scan["secs_of"](data))
+            if result:
+                rows.append(dict(endpoint_sources=locations(data,result["a_ranges"],work) if result["a_ranges"] else [],path=path,owners=sorted(own.get(path.split("!",1)[0],())),sha256=hashlib.sha256(data).hexdigest(),mapping=result))
+    with perf["locks"]():
+        lib("perf-relocations")["capture_scan"](dev["OFFICIAL"],work,Scan(None,False),here/"perf-bundle.py.txt")
+        missing=defaultdict(list)
+        sources=set()
+        for row in rows:
+            m=row["mapping"]
+            if m["id"] and (m["bytes"].get("unknown") or m["a_ranges"]):
+                missing[m["id"]].append(row)
+                sources.update(srpm for _,srpm in row["owners"])
+        for item in (i for items in settings.inventories.values() for i in items):
+            if item["srpm"] not in sources or item["arch"]!="armv7l" or not item["name"].endswith("-debuginfo"):
+                continue
+            try:
+                settings.gbs.available(work,4,2)
+                with tempfile.TemporaryDirectory(dir=work) as scratch:
+                    rpm=settings.lib["cached_rpm"]((item["url"],item["sha256"]),Path(scratch))
+                    with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as p:
+                        for path,blob in settings.scan["cpio_entries"](p.stdout):
+                            m=mode(blob,settings.scan["secs_of"](blob))
+                            if m and m["id"] in missing:
+                                for row in missing[m["id"]]:
+                                    old=row["mapping"]
+                                    if (m["addr"],m["size"])==(old["addr"],old["size"]) and (m["bytes"].get("unknown",0)<old["bytes"].get("unknown",0) or (m["a_ranges"] and m["bytes"]==old["bytes"] and m["a_ranges"]==old["a_ranges"])):
+                                        row.update(mapping=m,endpoint_sources=locations(blob,m["a_ranges"],scratch),debug=[item["sha256"],path])
+                        while p.stdout.read(2**20): pass
+                        if p.wait(): raise ValueError("rpm2cpio failed")
+            except (OSError,ValueError,subprocess.SubprocessError) as exc:
+                errors.append([item["name"],str(exc)[:300]])
+    counts=Counter()
+    unmapped=0
+    for row in rows:
+        m=row["mapping"]
+        a=m["bytes"].get("$a",0)
+        unmapped+=m["bytes"].get("unknown",0)
+        row["group"]="e" if row["path"].endswith(".ko") else "unresolved"
+        if a: counts[row["group"]]+=a
+    total=sum(counts.values())
+    shares={group:{"bytes":counts[group],"share_of_mapped_a32":counts[group]/total if total else None} for group in ("a","b","c","d","e","unresolved")}
+    report={"qb":37736448,"shares":shares,"unmapped_text_bytes":unmapped,"errors":errors,"files":rows}
+    target=work/"thumb-roster.json"
+    target.write_text(json.dumps(report,separators=(",",":"))+"\n")
+    print("THUMB_ROSTER",len(rows),"A32_HITS",sum(bool(r["mapping"]["a_ranges"]) for r in rows),"UNMAPPED_TEXT",unmapped,"GAPS",len(errors))
+    print("THUMB_GROUPS",json.dumps(shares),"REPORT",target)
+    return 2 if errors or unmapped or counts["unresolved"] else 0
+
+if __name__=="__main__":
+    sys.exit(run(Path(__file__).resolve().parent,Path.cwd(),Path(sys.argv[1])))

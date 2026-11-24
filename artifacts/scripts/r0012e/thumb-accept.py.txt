@@ -1,0 +1,179 @@
+"""Per-lane acceptance evidence. Unknown, mixed or unmatched evidence keeps a gate open."""
+from pathlib import Path
+import collections,json,os,re,runpy,shlex,shutil,subprocess
+
+def text(path,args):
+    return subprocess.check_output([*args,path],text=True,errors="replace",timeout=180)
+
+def dynamic(path):
+    result=text(path,["readelf","-dW"])
+    result=[x.split("[",1)[1].split("]",1)[0] for x in result.splitlines() if "(SONAME)" in x or "(NEEDED)" in x]
+    version=text(path,["readelf","-VW"]).partition("Version definition section")[2].split("Version needs section")[0]
+    return result,re.findall(r"(?:Name|Parent \d+): (\S+)",version)
+
+def instrument(spec,body,package):
+    markers=list(re.finditer(r"(?m)^%check\b[^\n]*",spec))
+    if len(markers)>1: raise ValueError("ambiguous %check")
+    start=markers[0].end() if markers else None
+    section=r"(?m)^%(?:files|install|clean|changelog|post|pre|package|description|trigger)\b"
+    if start is None:
+        files=re.search(r"(?m)^%files\b",spec)
+        if not files: raise ValueError("no %files")
+        pos=files.start()
+    else:
+        end=re.search(section,spec[start:])
+        pos=start+end.start() if end else len(spec)
+    tests=spec[start:pos] if start is not None else ""
+    extra=""
+    if package in ("rpm","libgcrypt") and not re.search(r"(?m)^\s*(?:%make_build|make|%make)\s+.*?\bcheck\b",tests):
+        extra="\nmake check\n"
+    body=body.replace("%","%%").replace("%%{buildroot}","%{buildroot}")
+    return spec[:pos]+("\n%check\n" if start is None else "\n")+extra+"\necho PM_THUMB_CHECK_REACHED\n"+body+"\n"+spec[pos:]
+
+def cc1_modes(log):
+    modes=collections.defaultdict(set)
+    summaries=[]
+    with log.open(errors="replace") as stream:
+        for raw in stream:
+            line=re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*","",raw).strip()
+            if line.startswith("PM_THUMB_") or re.search(r"^\+ (?:make|gmake) .*?\bcheck\b|^\+ make check$",line):
+                summaries.append(line)
+            if '"-cc1"' not in line or "/dev/null" in line:
+                continue
+            try:
+                args=shlex.split(line)
+                triple=args[args.index("-triple")+1]
+                src=Path(args[-1])
+                if src.suffix in (".c",".C",".cc",".cpp",".cxx",".S",".s"):
+                    modes[src.name].add((str(src),triple))
+            except (ValueError,IndexError):
+                continue
+    return modes,"\n".join(summaries)
+
+def units(debug):
+    rows=[]
+    active=False
+    with subprocess.Popen(["readelf","-wi",debug],stdout=subprocess.PIPE,text=True,errors="replace") as proc:
+        for line in proc.stdout:
+            if re.search(r"<\d+><[a-f0-9]+>.*DW_TAG_",line,re.I):
+                active="DW_TAG_compile_unit" in line
+                if active: rows.append({})
+            elif active:
+                field=re.search(r"DW_AT_(name|producer)\s*:\s*(.*)",line)
+                if field: rows[-1][field[1]]=field[2].rsplit("): ",1)[-1].strip()
+        if proc.wait(): raise ValueError("DWARF unit extraction failed")
+    return rows
+
+def proven_unit(unit,modes,control):
+    producer=unit.get("producer","")
+    if not producer: return False
+    flags=[s for s in producer.split() if s in ("-marm","-mthumb")]
+    allowed="arm" if control else "thumb"
+    if flags: return flags[-1]==("-marm" if control else "-mthumb")
+    name=unit.get("name","")
+    group=modes.get(Path(name).name,set())
+    return bool(name and len(group)==1 and next(iter(group))[1].startswith(allowed)
+                and (name==next(iter(group))[0] or (Path(name).is_absolute() and name.endswith("/"+next(iter(group))[0]))))
+
+def evaluate(directory,work,name,results,source,spec,controls):
+    modes=runpy.run_path(str(directory/"image_mode_scan.py.txt"))
+    mapping=runpy.run_path(str(directory/"thumb-map.py.txt"))["text_map"]
+    ole=runpy.run_path(str(directory/"olevel.py.txt"))
+    pairs={}
+    assembly=[]
+    for root,dirs,files in os.walk(source):
+        dirs[:]=[d for d in dirs if d not in (".git",".pc")]
+        for f in files:
+            p=Path(root)/f
+            if p.is_symlink() or p.suffix not in (".s",".S",".c",".h",".cc",".cpp",".cxx"): continue
+            for no,line in enumerate(p.open(errors="replace"),1):
+                if (no==1 and p.suffix in (".S",".s")) or re.search(r'\basm\b|\b__asm(?:__)?\b|^\s*\.arm\b|target\s*\(\s*"arm"',line):
+                    assembly.append((str(p.relative_to(source)),no,line.strip()[:220]))
+    base=results["baseline"]["metrics"].get("files",[])
+    for lane in ("default","package"):
+        result=results[lane]
+        files=result["metrics"].get("files",[])
+        report={"build_error":result["error"],"files":[],"gates":{}}
+        pairs[lane]=report
+        if not files or not base:
+            report["status"]="BLOCKED_BUILD_OR_SCOPE"; continue
+        def index(rows):
+            return {(r["rpm"],r["path"]):r for r in rows}
+        a,b=index(base),index(files)
+        scope=bool(a) and a.keys()==b.keys()
+        def evidence(r,label):
+            elf=work/label/"elf-proof"/(r["sha256"]+".elf")
+            debug=Path(r["debug_file"])
+            blob=debug.read_bytes()
+            spans=mapping(blob,modes["secs_of"](blob))
+            producer=units(debug)
+            return elf,spans,producer
+        modes_seen,plain=cc1_modes(work/lane/"gbs.log")
+        for key in sorted(a.keys() & b.keys()):
+            old,new=a[key],b[key]
+            e0,m0,_=evidence(old,"baseline")
+            e1,m1,cus=evidence(new,lane)
+            item={"rpm":key[0],"path":key[1],"text":[old["text"],new["text"]],"alloc":[old["alloc"],new["alloc"]],
+                  "elf_bytes":[old["bytes"],new["bytes"]],"identical":old["sha256"]==new["sha256"],
+                  "maps":[m0,m1],"dynamic_equal":dynamic(e0)==dynamic(e1),
+                  "cu_count":len(cus),"cu_missing":sum(not c.get("producer") for c in cus),
+                  "cu_mode_verified":sum(proven_unit(c,modes_seen,name in controls) for c in cus),
+                  "cu_names":[c.get("name","") for c in cus]}
+            if item["identical"]: item["abi"]="IDENTICAL_ELF"
+            elif not shutil.which("abidiff"): item["abi"]="ABIDIFF_UNAVAILABLE"
+            elif any(not r["build_id"] or r["debug_status"]=="AMBIGUOUS_BUILD_ID" for r in (old,new)):
+                item["abi"]="DEBUG_ID_UNVERIFIED"
+            else:
+                # Supply matched separate DWARF using conventional build-id paths.
+                roots=[]
+                for label,r in (("baseline",old),(lane,new)):
+                    parent=work/label/"abi-debug"
+                    bid=r["build_id"]
+                    target=parent/".build-id"/bid[:2]/(bid[2:]+".debug")
+                    target.parent.mkdir(parents=True,exist_ok=True)
+                    if not target.exists(): target.symlink_to(Path(r["debug_file"]))
+                    roots.append(parent)
+                dest=work/lane/(new["sha256"]+".abidiff")
+                with dest.open("w") as output:
+                    p=subprocess.run(["abidiff","--fail-no-debug-info","--debug-info-dir1",roots[0],"--debug-info-dir2",roots[1],e0,e1],stdout=output,stderr=subprocess.STDOUT,timeout=600)
+                item["abi"]="PASS" if not p.returncode else f"REVIEW_RC_{p.returncode}"
+            report["files"].append(item)
+        items=report["files"]
+        def outcome(ok): return "PASS" if scope and ok else "REVIEW"
+        def verified_map(item):
+            m=item["maps"][1]
+            return m and m["size"]==item["text"][1] and not m["bytes"].get("unknown")
+        compiled_names=set()
+        for item in items:
+            compiled_names.update(Path(n).name for n in item["cu_names"] if n)
+        unmatched={n for n in modes_seen if n not in compiled_names}
+        report["compile_inputs_without_retained_cu"]=sorted(unmatched)
+        response=result["delivery"]["response_unresolved"]
+        proof=result["delivery"]
+        report["gates"]={
+          "T1":outcome(not unmatched and not response and proof["compile_calls"] and not proof["missing_dwarf_elfs"] and all(i["cu_count"] and i["cu_mode_verified"]==i["cu_count"] for i in items)),
+          "T2":outcome(all(verified_map(i) and (not i["maps"][1]["a_ranges"] or (name in controls and i["identical"] and i["maps"][0]==i["maps"][1])) for i in items)),
+          "T3":outcome(bool(items)),
+          "T4":outcome(all(i["dynamic_equal"] and i["abi"] in ("PASS","IDENTICAL_ELF") for i in items)),
+          "T5":"PASS" if name in ("rpm","libgcrypt") and "PM_THUMB_CHECK_REACHED" in plain.splitlines() and re.search(r"(?m)^\+ .*?\bcheck\b",plain) and not result["error"] else "REVIEW_TEST_INVENTORY" if "PM_THUMB_CHECK_REACHED" in plain else "CHECK_NOT_OBSERVED",
+          "T6":outcome("PM_THUMB_INTERWORK_PASS" in plain.splitlines() and all(i["identical"] or "PM_THUMB_SMOKE_PASS "+i["path"] in plain.splitlines() for i in items)),
+          "T7":"REVIEW_ASM_SITES" if assembly else ("PASS" if scope and compiled_names and not unmatched and not proof["missing_dwarf_elfs"] and all((source / n).is_file() for i in items for n in i["cu_names"] if not Path(n).is_absolute()) and all(not Path(n).is_absolute() for i in items for n in i["cu_names"]) else "REVIEW_GENERATED_SOURCES"),
+          "T8":outcome(result["arm_compile_calls"] and results["baseline"]["arm_compile_calls"] and all(i["identical"] and verified_map(i) and i["maps"][0]==i["maps"][1] for i in items)) if name in controls and "PM_THUMB_ASM_ARM_PASS" in plain.splitlines() else ("REVIEW" if name in controls else "N/A")}
+        report["payload_bytes"]={}
+        for label in ("baseline",lane):
+            report["payload_bytes"][label]={}
+            for rpm in (work/label/"GBS-ROOT/local/repos").rglob("*.rpm"):
+                if rpm.name.endswith(".src.rpm"): continue
+                fields=ole["rpm_query"](rpm,r"%{NAME}\t%{ARCH}\t%{SIZE}").split("\t")
+                if fields[0] not in {key[0] for key in b}: continue
+                with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as proc:
+                    size=sum(len(block) for block in iter(lambda:proc.stdout.read(2**20),b""))
+                    if proc.wait(): raise ValueError("unable to measure payload "+rpm.name)
+                report["payload_bytes"][label][fields[0]+"."+fields[1]]={
+                    "cpio":size,"rpm":rpm.stat().st_size,"installed_header":int(fields[2])}
+        if not report["payload_bytes"][lane] or report["payload_bytes"][lane].keys()!=report["payload_bytes"]["baseline"].keys():
+            report["gates"]["T3"]="REVIEW_RPM_SCOPE"
+        report["status"]="REVIEW" if any(v not in ("PASS","N/A") for v in report["gates"].values()) else "PASS"
+    (work/"thumb-acceptance.json").write_text(json.dumps({"package":name,"lanes":pairs,"asm":assembly},separators=(",",":"))+"\n")
+    print("THUMB_ACCEPT",name,{k:(v["status"],v["gates"]) for k,v in pairs.items()})
+    return all(v["status"]=="PASS" for v in pairs.values())

@@ -19,14 +19,25 @@ get() {
     return 1
 }
 
-if [[ ${1:-} == launch ]]; then
+if [[ ${1:-} == launch || ${1:-} == attended ]]; then
+    entry=$1
     shift
     pin=$1 index_sha=$2 day=$3
     shift 3
-    case "$day" in wed|wed-night|thu|thu-night|research|fri|tue) ;; *) exit 2 ;; esac
+    case "$day" in image|wed-a|wed|wed-night|thu|thu-night|research|fri|tue) ;; *) exit 2 ;; esac
     run=$(mktemp -d "$native/pm0012-$day.XXXXXX")
     mkdir -p "$run/jobs"
     cp -- "$0" "$run/batch.sh.txt"
+    printf 'PM12_BATCH_DIR %s\n' "$run"
+    if [[ "$entry" == attended ]]; then
+        [[ -t 0 ]] || { echo 'Terminal required for sudo validation'; exit 2; }
+        sudo -v
+        (while sleep 45; do sudo -n -v || exit 1; done) &
+        keep=$!
+        trap 'kill "$keep" 2>/dev/null || true' EXIT
+        bash "$run/batch.sh.txt" worker "$pin" "$index_sha" "$day" "$@" >"$run/runner.log" 2>&1
+        exit
+    fi
     nohup bash "$run/batch.sh.txt" worker "$pin" "$index_sha" "$day" "$@" </dev/null >"$run/runner.log" 2>&1 &
     printf 'PM12_BATCH_DIR %s\nPM12_BATCH_PID %s\n' "$run" "$!"
     exit
@@ -59,7 +70,7 @@ finish() {
         else
             find "$here/jobs" -mindepth 2 -maxdepth 2 -name job.log -print0 |
                 sort -z |
-                xargs -0 -r awk '/^PM12_(EXPERIMENT|ERROR|AUDIT|ABI|T7|PREVIOUS_BATCH)|^T7_RUNTIME |^SOURCE1005_SRPM / { if (++n[FILENAME] <= 3) print $0 }' |
+                xargs -0 -r awk '/^PM12_(EXPERIMENT|ERROR|AUDIT|ABI|T7|PREVIOUS_BATCH)|^T7_RUNTIME |^SOURCE1005|^KERNEL_THUMB|^KERNEL_SRPM|^THUMB_(ACCEPT|GROUPS|ROSTER)|^PLATFORM_ROSTER|^ROSTER_MATCH|^REVIEW_STATUS|^INSTALLED_NEVRA|^HQ_ELF_RESULT|^PERF_PARTITION_SCANNED/ { if (++n[FILENAME] <= 3) print $0 }' |
                 cut -c1-900 | head -n 135 || true
         fi
     } >"$here/combined.txt"
@@ -67,6 +78,13 @@ finish() {
 }
 trap finish EXIT
 status_line "START $day"
+if [[ "$day" != tue && "$day" != fri ]]; then
+    exec 9>"$native/pm0012-queue.lock"
+    if pgrep -f '(^|/| )gbs ([^ ]+ )*build( |$)|/(hq-elf-rebaseline|perf-bundle|qb-retain|gbs-board-bench)\.py\.txt( |$)' >/dev/null; then
+        status_line "BLOCKED another heavy native operation is active"; exit 2
+    fi
+    flock -n 9 || { status_line 'BLOCKED another 0012 queue owns the lock'; exit 2; }
+fi
 failed=0
 
 job() {
@@ -157,6 +175,14 @@ while IFS=$'\t' read -r commit path sha name; do
 done <"$here/downloads.tsv"
 
 case "$day" in
+    image)
+        source "$here/image-chain.sh.txt"
+        ;;
+    wed-a)
+        for package in org.tizen.AVControl org.tizen.tv-viewer libpisa-ipc org.tizen.webserver libgcrypt rpm nnstreamer bluetooth-impl-sec-oal widevine-cdm; do
+            job "thumb-$package" gbs thumb "$package"
+        done
+        ;;
     wed)
         for package in deviced gst-plugins-dash inference-engine-tflite org.tizen.AVControl org.tizen.tv-viewer bluetooth-impl-sec-oal widevine-cdm; do
             job "t1-$package" gbs t1 "$package"
@@ -168,6 +194,13 @@ case "$day" in
         fi
         ;;
     wed-night)
+        image=$(run_dir "${1:?supply the image run}" pm0012-image)
+        roster="$image/jobs/thumb-roster/thumb-roster.json"
+        job qualify python3 -B "$here/thumb-qualify.py.txt" "$roster"
+        if [[ -f "$here/jobs/qualify/group-a.txt" ]]; then
+            for control in bluetooth-impl-sec-oal widevine-cdm; do job "thumb-$control" gbs thumb "$control"; done
+            while IFS= read -r package; do job "thumb-$package" gbs thumb "$package"; done <"$here/jobs/qualify/group-a.txt"
+        fi
         batch_seconds=36000
         for package in org.tizen.AVControl org.tizen.tv-viewer libpisa-ipc org.tizen.webserver libgcrypt rpm nnstreamer; do
             budget_ok 3600 "$package" || break
@@ -175,13 +208,29 @@ case "$day" in
         done
         ;;
     thu)
-        wed=$(run_dir "$1" pm0012-wed)
+        wed=$(run_dir "$1" pm0012-wed) || wed=$(run_dir "$1" pm0012-wed-a)
         tue=$(run_dir "$2" pm0011f-batch)
         audit="$wed/jobs/audit-official/audit.json"
+        if [[ -n ${PM12_IMAGE_RUN:-} ]]; then audit="$(run_dir "$PM12_IMAGE_RUN" pm0012-image)/jobs/audit-official/audit.json"; fi
         if [[ -f "$audit" ]]; then job trial-plan dev pic-plan "$audit"; else job trial-plan dev pic-plan; fi
         plan="$here/jobs/trial-plan/trial-plan.json"
         if [[ -f "$here/jobs/trial-plan/packages.txt" ]]; then
             while IFS= read -r owner; do job "pic-$owner" gbs trial "$owner" "$plan"; done <"$here/jobs/trial-plan/packages.txt"
+        fi
+        if [[ -n ${PM12_IMAGE_RUN:-} ]]; then
+            proofs=( "$PM12_IMAGE_RUN"/jobs/sources/proof.*/native-proofs.json )
+            if [[ ${#proofs[@]} == 1 && -s "${proofs[0]}" ]]; then
+                job kernel-thumb bash -c 'sudo -n true && p4 login -s && python3 -B -u "$1" "$2"' _ "$here/kernel-thumb.py.txt" "${proofs[0]}"
+            else
+                failed=1
+                status_line 'KERNEL_THUMB_BLOCKED missing uniquely identified matched kernel source/config proof'
+            fi
+        fi
+        if [[ -n ${PM12_RETRY_PACKAGES:-} ]]; then
+            for package in $PM12_RETRY_PACKAGES; do
+                [[ "$package" =~ ^[[:alnum:]][[:alnum:]_.+-]*$ ]] || exit 2
+                job "retry-$package" gbs thumb "$package"
+            done
         fi
         job t7 gbs t7
         job abi-index dev abi-index

@@ -1,0 +1,53 @@
+"""Measure .text using ARM ELF mapping symbols; retain all uncovered bytes."""
+import struct
+from collections import Counter
+
+def text_map(data, sections):
+    if not sections:
+        return None
+    texts=[(i,s) for i,(name,s) in enumerate(sections) if name==".text"]
+    if len(texts)!=1:
+        return None
+    idx,section=texts[0]
+    base,size=section[3],section[5]
+    marks={}
+    functions=[]
+    build_id=None
+    for name,s in sections:
+        if name==".note.gnu.build-id" and s[5]>=16:
+            start=s[4]
+            n,d,kind=struct.unpack_from("<III",data,start)
+            if n==4 and kind==3 and 0<d<=s[5]-16 and data[start+12:start+16]==b"GNU\0":
+                build_id=data[start+16:start+16+d].hex()
+        if s[1]!=2 or s[9]!=16 or s[6]>=len(sections):
+            continue
+        strings=sections[s[6]][1]
+        labels=data[strings[4]:strings[4]+strings[5]]
+        for off in range(s[4],s[4]+s[5],16):
+            key,va,length,info,_,sh=struct.unpack_from("<IIIBBH",data,off)
+            if sh!=idx or key>=len(labels):
+                continue
+            token=labels[key:labels.find(b'\0',key)].decode(errors="replace")
+            sym=token.split(".",1)[0]
+            if sym in ("$a","$t","$d") and base<=va<base+size:
+                marks.setdefault(va,set()).add(sym)
+            elif info&15==2 and length:
+                functions.append((va & ~1,length,token))
+    positions=sorted(set(marks)|{base,base+size})
+    totals=Counter()
+    ranges=[]
+    for lo,hi in zip(positions,positions[1:]):
+        modes=marks.get(lo,set())
+        mode=next(iter(modes)) if len(modes)==1 else "unknown"
+        totals[mode]+=hi-lo
+        if mode=="$a":
+            ranges.append([lo,hi])
+    # A function may overlap several mapping intervals (literal pools or interworking).
+    from bisect import bisect_right
+    ends=[hi for _,hi in ranges]
+    a_functions=[]
+    for start,length,name in sorted(functions):
+        pos=bisect_right(ends,start)
+        if pos<len(ranges) and ranges[pos][0]<start+length:
+            a_functions.append([name,start,length])
+    return {"id":build_id,"addr":base,"size":size,"bytes":dict(totals),"a_ranges":ranges,"a_functions":a_functions}

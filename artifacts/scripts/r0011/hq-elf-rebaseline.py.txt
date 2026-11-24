@@ -101,33 +101,26 @@ def elf_metrics(data, modes):
 
 
 def query_owners(tree, work):
-    for relative in ("usr/lib/sysimage/rpm","var/lib/rpm","var/lib/rpmdb"):
-        directory=tree/relative
-        if not directory.resolve().is_relative_to(tree.resolve()):
-            continue
-        for file,backend in (("rpmdb.sqlite","sqlite"),("Packages","bdb_ro"),("Packages.db","ndb")):
-            db=directory/file
-            if not db.is_file() or db.is_symlink():
-                continue
-            # This is the scratch copy extracted by debugfs. Never open the image's DB for writing.
-            result=subprocess.run(["rpm","--define",f"_db_backend {backend}","--dbpath",str(directory),
-                                   "-qa","--qf",FORMAT],capture_output=True,text=True,timeout=180)
-            if result.returncode or result.stderr.strip() or not result.stdout.startswith("P\t"):
-                continue
-            (work/"installed-owners.tsv").write_text(result.stdout)
-            owners=defaultdict(set)
-            packages=set()
-            for line in result.stdout.splitlines():
-                if line.startswith("P\t"):
-                    fields=tuple(line.split("\t")[1:])
-                    if len(fields)!=7:
-                        raise ValueError("unexpected installed RPM header")
-                    packages.add(fields)
-                elif line.startswith("F\t/") and packages:
-                    owners[line[2:]].add(fields)
-            if owners:
-                return owners,packages
-    raise ValueError("cannot query an installed RPM DB in the extracted platform partition")
+    bundle = Path(__file__).with_name("perf-bundle.py.txt")
+    if not bundle.is_file():
+        bundle = Path(__file__).resolve().parent.parent/"r0009/perf-bundle.py.txt"
+    lib = runpy.run_path(str(bundle))["tree_library"]()
+    text = lib["rpm_rows"](tree, work, FORMAT)
+    (work/"installed-owners.tsv").write_text(text)
+    packages = set()
+    owners = defaultdict(set)
+    fields = None
+    for line in text.splitlines():
+        if line.startswith("P\t"):
+            fields = tuple(line.split("\t")[1:])
+            if len(fields) != 7:
+                raise ValueError("unexpected RPM header")
+            packages.add(fields)
+        elif line.startswith("F\t/") and fields:
+            owners[line[2:]].add(fields)
+    if not owners:
+        raise ValueError("empty RPM ownership list")
+    return owners, packages
 
 
 def scan(args):

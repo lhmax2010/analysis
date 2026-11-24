@@ -1,0 +1,45 @@
+# Sourced by the pinned batch runner. Each phase retains its own complete log.
+cap=/home1/chengkai/vd-tree/workspace/qb-evidence
+official="$cap/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2"
+custom="$cap/37736427-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1"
+gcc="$cap/37564293-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1"
+inputs="$native/pm0011e-qb._zp0q98j/mlgo-proof-rpms.tsv"
+printf '%s  %s\n' 4b5ec62a9fcb161754e0f7179b6261254aeee35f52e2fc7fb56df4a7c7ed8231 "$inputs" | sha256sum -c -
+job platform python3 -B -u "$here/matched-qb.py.txt" "$here/image-repo-lib.py.txt" platform
+rosters=$(awk '$1=="WORKDIR" {print $2}' "$here/jobs/platform/job.log")
+base_proof() {
+    [[ "$rosters" == "$native"/pm0011e-qb.* && -s "$rosters/custom-installed.tsv" && -s "$rosters/official-installed.tsv" ]] || return 2
+    python3 -B -u "$here/mlgo-base-proof.py.txt" --repo "$here/image-repo-lib.py.txt" --perf "$here/perf-bundle.py.txt" \
+        --official "$official" --custom "$custom" --rpms "$inputs" --official-roster "$rosters/official-installed.tsv" --custom-roster "$rosters/custom-installed.tsv" >base-proof.log || return
+    local report
+    report=$(awk '$1=="REPORT" {print $2;exit}' base-proof.log)
+    [[ "$report" == "$native"/pm*/base-proof.txt && -f "$report" ]] || return 2
+    grep -E '^(REVIEW_STATUS|INSTALLED_|RPM_REQUIRED)' "$report" | head -35
+    grep -q '^REVIEW_STATUS READY_FOR_MANUAL_DIFF_REVIEW' "$report"
+}
+job base-proof base_proof
+job sources python3 -B -u "$here/proofs.py.txt" "$inputs"
+hqdir=$(mktemp -d "$native/pm0011a-hq-batch.XXXXXX")
+printf '%s\n' "$hqdir" >"$here/hq-dir.txt"
+cp "$here"/{perf-bundle,perf-relocations,image_mode_scan,hq-elf-rebaseline,image-tree}.py.txt "$hqdir/"
+job hq bash "$here/hq-overnight.sh.txt" "$hqdir" "$gcc" "$official"
+crosscheck() {
+    local lane=$1 log=$2 h
+    h=$(awk '$1=="HQ_ELF_WORKDIR" {print $2}' "$hqdir/$log.log")
+    [[ "$h" == "$native"/pm0011-hq-elf.* && -s "$h/installed-owners.tsv" && -s "$rosters/$lane-installed.tsv" ]] || return 2
+    awk -F '\t' 'BEGIN{OFS="\t"} $1=="P"{print $2,$4,$5,$6,$3,$7}' "$h/installed-owners.tsv" | sort >headers.tsv || return
+    cmp headers.tsv "$rosters/$lane-installed.tsv" || return
+    echo "ROSTER_MATCH $lane $(wc -l < headers.tsv)"
+    grep '^PERF_PARTITION_SCANNED' "$hqdir/$log.log"
+}
+job roster-gcc crosscheck gcc gcc
+job roster-official crosscheck official llvm
+job audit-official dev audit official
+job audit-gcc dev audit gcc
+if [[ -f "$here/jobs/audit-official/audit.json" && -f "$here/jobs/audit-gcc/audit.json" ]]; then
+    job audit-compare dev audit-compare "$here/jobs/audit-official/audit.json" "$here/jobs/audit-gcc/audit.json"
+fi
+official_hq=$(awk '$1=="HQ_ELF_WORKDIR" {print $2}' "$hqdir/llvm.log" || :)
+if [[ -s "$official_hq/installed-owners.tsv" ]]; then
+    job thumb-roster python3 -B -u "$here/thumb-roster.py.txt" "$official_hq"
+fi

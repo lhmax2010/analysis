@@ -12,6 +12,7 @@ import runpy
 import shutil
 import struct
 import subprocess
+import tarfile
 import tempfile
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
@@ -198,68 +199,50 @@ def image_kind(path):
     return prefix[:32].hex(), found
 
 
-def squashfs_roster(path, lane, offset, work):
-    tree = work / f"{lane}-rpmdb"
-    result = subprocess.run(["unsquashfs", "-processors", "1", "-offset", str(offset),
-                             "-dest", str(tree), str(path), *RPM_DB_DIRS],
-                            text=True, capture_output=True, timeout=180)
-    if result.returncode:
-        emit("PLATFORM_ROSTER_UNAVAILABLE", lane, result.stderr.strip()[-500:])
-        return
-    for relative in RPM_DB_DIRS:
-        directory = tree / relative
-        if not directory.resolve().is_relative_to(tree.resolve()):
-            continue
-        for name, backend in (("rpmdb.sqlite", "sqlite"), ("Packages", "bdb_ro"), ("Packages.db", "ndb")):
-            candidate = directory / name
-            if not candidate.is_file() or candidate.is_symlink():
-                continue
-            result = subprocess.run(["rpm", "--define", f"_db_backend {backend}", "--dbpath",
-                                     str(directory), "-qa", "--qf", ROSTER_FMT],
-                                    text=True, capture_output=True, timeout=120)
-            rows = result.stdout.splitlines()
-            if result.returncode or result.stderr.strip() or not rows:
-                continue
-            if any(len(row.split("\t")) != 6 or not row.split("\t")[1].isdigit() for row in rows):
-                continue
-            roster = work / f"{lane}-installed.tsv"
-            roster.write_text("\n".join(sorted(rows)) + "\n")
-            emit("PLATFORM_ROSTER", lane, len(rows), str(roster), hashlib.sha256(roster.read_bytes()).hexdigest())
-            return
-    emit("PLATFORM_ROSTER_UNAVAILABLE", lane, "RPM DB not found or not readable")
-
-
 def platforms(repo, work):
-    for lane in BASES:
-        qb = CAPTURES[lane][0]
-        directory = ROOT / "usb" / qb
-        path = directory / "updateSU2E/platform.img"
-        if path.resolve(strict=True) != path:
-            raise ValueError(f"unexpected platform image: {path}")
-        lines = (directory / "manifest.sha256").read_text().splitlines()
-        digest, = (line.split()[0] for line in lines if line.endswith("  platform.img"))
-        if digest != PLATFORM_DIGESTS[lane] or repo["file_sha"](path) != digest:
-            raise ValueError(f"platform image differs from the recorded USB manifest: {qb}")
-        head, hits = image_kind(path)
-        emit("PLATFORM_FORMAT", lane, str(path), path.stat().st_size, digest, head, hits[:12])
-        for tool, cmd in (("file", ["file", "-b", str(path)]),
-                          ("blkid", ["blkid", "-p", "-c", "/dev/null", "-o", "export", str(path)])):
-            if shutil.which(tool):
-                result = subprocess.run(cmd, text=True, capture_output=True, timeout=15)
-                emit("PLATFORM_PROBE", lane, tool, result.returncode, result.stdout.strip()[:1000])
-        squash_offsets = [offset for offset, kind in hits if kind == "squashfs"]
-        if len(squash_offsets) == 1 and shutil.which("unsquashfs"):
-            squashfs_roster(path, lane, squash_offsets[0], work)
-        else:
-            emit("PLATFORM_ROSTER_UNAVAILABLE", lane, "Use same-QB board roster; review detected format and offset")
+    bundle = Path(__file__).with_name("perf-bundle.py.txt")
+    if not bundle.is_file():
+        bundle = Path(__file__).resolve().parent.parent/"r0009/perf-bundle.py.txt"
+    perf = runpy.run_path(str(bundle))
+    lib = perf["tree_library"]()
+    with perf["locks"]():
+        for lane in CAPTURES:
+            folder, identity, _ = retained(lane, repo)
+            with tempfile.TemporaryDirectory(dir=work) as scratch:
+                if lane == "gcc":
+                    _, _, archive, _ = perf["captured"](folder)
+                    path = Path(scratch)/"platform.img"
+                    with tarfile.open(archive, "r|gz") as stream:
+                        for name, member in perf["flat_members"](stream):
+                            if name == path.name:
+                                lib["room"](work, member.size)
+                                with stream.extractfile(member) as src, path.open("xb") as dest:
+                                    shutil.copyfileobj(src, dest, 2**20)
+                                break
+                else:
+                    path = ROOT/"usb"/CAPTURES[lane][0]/"updateSU2E/platform.img"
+                if path.resolve(strict=True) != path:
+                    raise ValueError("unexpected platform image location")
+                digest = repo["file_sha"](path)
+                if lane in PLATFORM_DIGESTS and digest != PLATFORM_DIGESTS[lane]:
+                    raise ValueError("platform digest mismatch")
+                tree, info = lib["cached_tree"](path, work, digest)
+                rows = sorted(lib["rpm_rows"](tree, work, ROSTER_FMT).splitlines())
+                if not rows or any(len(row.split("\t")) != 6 or not row.split("\t")[1].isdigit() for row in rows):
+                    raise ValueError("invalid installed roster")
+                roster = work/f"{lane}-installed.tsv"
+                roster.write_text("\n".join(rows)+"\n")
+                receipt = dict(info, qb=CAPTURES[lane][0], count=len(rows), roster_sha256=repo["file_sha"](roster))
+                (work/f"{lane}-platform.json").write_text(json.dumps(receipt, indent=2)+"\n")
+                emit("PLATFORM_ROSTER", lane, len(rows), str(roster), receipt["roster_sha256"])
 
 
 def find_srpm(repo, lane, work):
     stamp, release = BASES[lane]
     base = repo["PREFIX"] + stamp + "/"
     filename = f"llvm-22.1.8-{release}.src.rpm"
-    for relative in ("repos/base/source/packages/", "repos/base/src/packages/", "repos/base/src/",
-                     "repos/base/source/", "repos/base/SRPMS/", "src/", "source/", "SRPMS/",
+    for relative in ("repos/base/source/", "repos/base/source/packages/", "repos/base/src/packages/", "repos/base/src/",
+                     "repos/base/SRPMS/", "src/", "source/", "SRPMS/",
                      "repos/base/armv7l/packages/"):
         candidate = base + relative
         try:

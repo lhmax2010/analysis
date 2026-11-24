@@ -1,0 +1,154 @@
+"""Read matched native SRPM, ELF and Kconfig evidence; emit a bounded result packet."""
+import argparse
+import base64
+import io
+import tarfile
+import difflib
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import subprocess
+import tempfile
+import zlib
+
+HERE = Path(__file__).resolve().parent
+LLVM_SRPMS = ("6a724a43b3ce9bfda5acdb732e8fbd969d2707b60ecb2eb5ec15b9a16950189d",
+              "57cd3038e058472e1ead070a56608fc29d166f54b16afa5b5c0d1212560cc0a9")
+PATCH = "lto-nonpic-in-pic-output-fallback.patch"
+
+
+def member(rpm, name):
+    with subprocess.Popen(["rpm2cpio", rpm], stdout=subprocess.PIPE) as unpack:
+        proc = subprocess.run(["cpio", "-i", "--quiet", "--to-stdout", "--", name, "./"+name],
+                              stdin=unpack.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=360)
+        if unpack.wait() or proc.returncode or not proc.stdout:
+            raise ValueError(f"unable to read {name} from {rpm}")
+    return proc.stdout
+
+
+def packet(path, page):
+    raw = path.read_bytes()
+    encoded = base64.b64encode(zlib.compress(raw)).decode()
+    n = (len(encoded)+11999)//12000
+    if not 1 <= page <= n:
+        raise ValueError("invalid packet page")
+    print("PROOF_PACKET", path, hashlib.sha256(raw).hexdigest(), page, n)
+    part = encoded[(page-1)*12000:page*12000]
+    for i in range(0,len(part),120):
+        print(part[i:i+120])
+
+
+def report(work, inputs):
+    q, lib, proof = [runpy.run_path(str(HERE/(s+".py.txt"))) for s in ("matched-qb","image-repo-lib","mlgo-base-proof")]
+    rows = proof["source_inputs"](inputs)
+    data = {}
+    specs, patches, models, symbols, kernels = {}, {}, {}, {}, {}
+    # Keep earlier observations even when a later toolchain or kernel file is absent.
+    def checkpoint():
+        (work/"native-proofs.partial.json").write_text(json.dumps(data,sort_keys=True,indent=2)+"\n")
+    for lane, expected in zip(("official","custom"),LLVM_SRPMS):
+        rpm, digest = rows[lane,"llvm"]
+        if digest != expected or lib["file_sha"](rpm) != expected:
+            raise ValueError(f"unexpected published {lane} SRPM")
+        members, spec = proof["rpm_payload"](rpm)
+        specs[lane] = spec["llvm.spec"]
+        if not re.search(r"^Source1005:\s*"+re.escape(PATCH)+r"\s*$",specs[lane],re.M):
+            raise ValueError("unexpected Source1005 declaration")
+        patches[lane] = member(rpm,PATCH)
+        models[lane] = {k:v for k,v in members.items() if k.startswith("mlgo") or k.endswith((".spec",".patch"))}
+        objects = {}
+        for archive in models[lane]:
+            if archive.startswith("mlgo") and archive.endswith(".tar.gz") and "runtime" not in archive:
+                with tarfile.open(fileobj=io.BytesIO(member(rpm,archive)),mode="r|gz") as model:
+                    for obj in model:
+                        if obj.isfile() and obj.name.endswith(".o"):
+                            objects[archive+"/"+obj.name]=hashlib.sha256(model.extractfile(obj).read()).hexdigest()
+        data[lane+"_input_objects"]=objects
+        data["srpm_members"]=models
+        data[lane+"_Source1005"]=hashlib.sha256(patches[lane]).hexdigest()
+        checkpoint()
+        root = q["RUN"]/lane/"GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0"
+        for abi, relative in (("ARM","usr/lib/libLLVM.so.22.1"),("accel","emul/usr/lib64/libLLVM.so.22.1")):
+            path = root/relative
+            if not path.resolve().is_relative_to(root.resolve()):
+                raise ValueError("unexpected libLLVM location")
+            if not path.is_file():
+                data[lane+"_"+abi+"_symbols_error"]="missing "+str(path)
+                continue
+            listing = subprocess.check_output(["readelf","--dyn-syms","--wide",path],text=True)
+            symbols[lane,abi] = {line.split()[-1] for line in listing.splitlines()
+                                 if re.search("InlinerSizeModel|RegAllocEvictModel",line) and " UND " not in line}
+        configs = {}
+        def onerror(error):
+            configs[str(error.filename)] = str(error)
+        for directory, _, files in os.walk(root/"home/abuild/rpmbuild/BUILD",onerror=onerror):
+            for name in set(files) & {".config","auto.conf","autoconf.h"}:
+                path = Path(directory)/name
+                if not path.is_symlink() and path.is_file():
+                    configs[str(path)] = [x for x in path.read_text(errors="replace").splitlines()
+                        if re.search(r'\bCONFIG_(?:THUMB2_KERNEL|ARM_THUMB|MLGO\w*|DEBUG_INFO_BTF)\b',x)]
+        capture, receipt, packages = q["retained"](lane,lib)
+        devel = q["matched_payload"](capture,receipt,packages["tztv-kernel-devel"],lib)
+        for path in q["member_checksums"](devel):
+            if Path(path).name in {".config","auto.conf","autoconf.h"}:
+                configs["rpm:"+path] = [x for x in member(devel,path.lstrip("/")).decode(errors="replace").splitlines()
+                     if re.search(r'\bCONFIG_(?:THUMB2_KERNEL|MLGO\w*|DEBUG_INFO_BTF)\b',x)]
+        data[lane+"_configs"]=configs
+    data["model_symbol_sets"]={}
+    for abi in ("ARM","accel"):
+        if ("official",abi) not in symbols or ("custom",abi) not in symbols:
+            data["model_symbol_sets"][abi]="UNAVAILABLE"
+            continue
+        a,b = symbols["official",abi],symbols["custom",abi]
+        data["model_symbol_sets"][abi]={"common":sorted(a&b),"official_only":sorted(a-b),"custom_only":sorted(b-a)}
+    data["srpm_members"]=models
+    data["spec_diff"]=list(difflib.unified_diff(specs["official"].splitlines(),specs["custom"].splitlines(),
+                                                "9.1/llvm.spec","11.1/llvm.spec",lineterm=""))
+    data["Source1005"] = {lane:hashlib.sha256(blob).hexdigest() for lane,blob in patches.items()}
+    data["Source1005"]["byte_equal"] = patches["official"] == patches["custom"]
+    data["Source1005"]["review_copy_matches_both"] = all(hashlib.sha256(blob).hexdigest()=="7d89083453e1d75707a4a6b3a6d9510a4c31e09d8e99865de2a18e07945bf76f" for blob in patches.values())
+    for lane in ("gcc","official"):
+        folder, receipt, pkgs = q["retained"](lane,lib)
+        filename = pkgs["tztv-kernel-perf"]["srpm"]
+        errors = []
+        for relative in ("repos/product/source/", "repos/product/src/", "repos/product/source/packages/"):
+            url=receipt["product"].rstrip("/")+"/"+relative+filename
+            rpm=work/(lane+"-"+filename)
+            result=subprocess.run(["curl","--noproxy",lib["HOST"],"-fsS","--max-time","180","-o",rpm,url],
+                                  capture_output=True,text=True)
+            if result.returncode:
+                errors.append([url,result.stderr[-180:]])
+                continue
+            if q["query"](rpm,"%{NAME}-%{VERSION}-%{RELEASE} %{SOURCEPACKAGE}") != filename.removesuffix(".src.rpm")+" 1":
+                errors.append([url,"unexpected RPM header"])
+                continue
+            try:
+                payload,_=proof["rpm_payload"](rpm)
+            except (OSError,ValueError,subprocess.SubprocessError) as exc:
+                errors.append([url,str(exc)])
+                continue
+            kernels[lane]=payload
+            data[lane+"_kernel_srpm"]={"url":url,"sha256":lib["file_sha"](rpm),"members":payload}
+            break
+        if lane not in kernels:
+            data[lane+"_kernel_srpm"]={"unavailable":errors}
+    data["kernel_source_comparison"]=(kernels["official"]==kernels["gcc"] if len(kernels)==2 else "UNAVAILABLE")
+    result=work/"native-proofs.json"
+    result.write_text(json.dumps(data,sort_keys=True,indent=2)+"\n")
+    print("SOURCE1005_BYTES",data["Source1005"])
+    print("KERNEL_SRPM_CONTENT_MATCH",data["kernel_source_comparison"])
+    packet(result,1)
+
+
+if __name__=="__main__":
+    parser=argparse.ArgumentParser()
+    parser.add_argument("path",type=Path)
+    parser.add_argument("--page",type=int)
+    args=parser.parse_args()
+    if args.page:
+        packet(args.path,args.page)
+    else:
+        report(Path(tempfile.mkdtemp(dir=os.environ["TMPDIR"],prefix="proof.")),args.path)

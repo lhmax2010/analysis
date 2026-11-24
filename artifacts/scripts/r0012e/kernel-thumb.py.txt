@@ -1,0 +1,53 @@
+"""Unpublished, serial GBS comparison changing only the perf defconfig Thumb setting."""
+import json
+import re
+import runpy
+import sys
+from pathlib import Path
+
+def run(work, proof):
+    here = Path(__file__).resolve().parent
+    dev = runpy.run_path(str(here/"development.py.txt"))
+    proof = dev["input_path"](proof)
+    facts = json.loads(proof.read_text())
+    configs = facts.get("official_configs", {})
+    if not any("perf" in path.lower() and isinstance(lines, list) and
+               "# CONFIG_THUMB2_KERNEL is not set" in lines for path, lines in configs.items()):
+        raise ValueError("a retained effective Official perf .config with THUMB2_KERNEL unset is required")
+    s = dev["repositories"](here)
+    _, _, packages = runpy.run_path(str(here/"matched-qb.py.txt"))["retained"]("official", s.lib)
+    if not packages["tztv-kernel-perf"]["vcs"].endswith("vdlinux#14293732"):
+        raise ValueError("Official perf kernel source pin differs")
+    with s.perf["locks"]():
+        s.gbs.live_product(s.product)
+        s.gbs.available(work, 55, 16)
+        src = s.gbs.stage_kernel(work)
+        conf = src/"linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig"
+        original = conf.read_text()
+        if re.search(r"(?m)^CONFIG_THUMB2_KERNEL=",original):
+            raise ValueError("unexpected pinned defconfig")
+        results = {}
+        for lane in ("baseline","thumb"):
+            folder = work/lane
+            folder.mkdir()
+            s.gbs.available(work,55,16)
+            cfg,root = dev["fresh_lane"](s,folder)
+            if lane == "thumb":
+                conf.chmod(conf.stat().st_mode | 0o200)
+                conf.write_text(re.sub(r"(?m)^# CONFIG_THUMB2_KERNEL is not set\n","",original).rstrip()+"\nCONFIG_THUMB2_KERNEL=y\n")
+            s.thumb["run_gbs"](s.gbs,folder,src,"tztv-kernel.spec",cfg,s.buildconf,root,True,False)
+            result = s.gbs.summarize_kernel(work,lane,root,folder/"gbs.log")
+            expected = "CONFIG_THUMB2_KERNEL=y" if lane=="thumb" else "# CONFIG_THUMB2_KERNEL is not set"
+            configs = [p for p in root.glob("**/rpmbuild/BUILD/**/.config") if "perf" in str(p.relative_to(root)).lower() and expected in p.read_text(errors="replace").splitlines()]
+            if not configs or not result["sections"].get(".text") or not result["images"]:
+                raise ValueError(f"{lane}: missing effective perf config, linked Linux .text or image")
+            results[lane]=result
+        s.gbs.compare_metrics(results["baseline"],results["thumb"])
+        print("KERNEL_THUMB_TEXT",*[v["sections"][".text"] for v in results.values()])
+        print("EXTERNAL_MODULES separately shipped vendor modules require individual Kbuilds; this trial covers in-tree modules")
+if __name__ == "__main__":
+    try:
+        run(Path.cwd(),Path(sys.argv[1]))
+    except (ValueError,OSError) as exc:
+        print("KERNEL_THUMB_BLOCKED",exc)
+        sys.exit(2)

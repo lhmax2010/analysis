@@ -1,0 +1,11 @@
+--- a/packaging/org.tizen.AVControl.spec
++++ b/packaging/org.tizen.AVControl.spec
+@@ -65,7 +65,7 @@
+ %prep
+ %setup -q
+ %build
+-export CXXFLAGS=" -DEFL_BETA_API_SUPPORT "
++export CXXFLAGS="$CXXFLAGS -DEFL_BETA_API_SUPPORT"
+ 
+ cmake \
+ 	-DTZ_SYS_RO_PACKAGES=%{TZ_SYS_RO_PACKAGES} \

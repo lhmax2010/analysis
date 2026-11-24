@@ -1,0 +1,56 @@
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/gbs-board-bench.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/olevel.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/mlgo-tv-run.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/mlgo-tv-measure.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/mlgo-tv-microbench.c.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/mlgo-tv-identity.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/gbs-mlgo-t7.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/gbs-thumb.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/thumb-qb-sample.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/image_mode_scan.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.TlTn74/perf-bundle.py.txt: OK
+/home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/identity.json: OK
+[sudo] password for chengkai:
+GBS_DEPENDENCY_PRODUCT_LIVE http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/
+CAPACITY disk_free_gib 147 ram_available_gib 73
+GBS_BENCH_WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.hadnvlae
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.hadnvlae/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.hadnvlae/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/published-build.conf --threads 1 --spec pm-board-microbench.spec --include-all LOG /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.hadnvlae/gbs.log
+GBS_EXIT 1
+THUMB_WRAPPED_COMPILE_LINES 0
+GBS_FAILURE_LOG log.txt [   69s] + mints=0
+GBS_FAILURE_LOG log.txt [   69s] + case $(uname -m) in
+GBS_FAILURE_LOG log.txt [   69s] ++ uname -m
+GBS_FAILURE_LOG log.txt [   69s] + for s in guess sub
+GBS_FAILURE_LOG log.txt [   69s] ++ find -maxdepth 8 -name config.guess
+GBS_FAILURE_LOG log.txt [   69s] + for s in guess sub
+GBS_FAILURE_LOG log.txt [   69s] ++ find -maxdepth 8 -name config.sub
+GBS_FAILURE_LOG log.txt [   69s] + export AR=llvm-ar RANLIB=llvm-ranlib
+GBS_FAILURE_LOG log.txt [   69s] + AR=llvm-ar
+GBS_FAILURE_LOG log.txt [   69s] + RANLIB=llvm-ranlib
+GBS_FAILURE_LOG log.txt [   69s] + export CC=armv7l-tizen-linux-gnueabi-clang CXX=armv7l-tizen-linux-gnueabi-clang++
+GBS_FAILURE_LOG log.txt [   69s] + CC=armv7l-tizen-linux-gnueabi-clang
+GBS_FAILURE_LOG log.txt [   69s] + CXX=armv7l-tizen-linux-gnueabi-clang++
+GBS_FAILURE_LOG log.txt [   69s] + set -eu
+GBS_FAILURE_LOG log.txt [   69s] ++ command -v armv7l-tizen-linux-gnueabi-clang
+GBS_FAILURE_LOG log.txt [   69s] + cc=/bin/armv7l-tizen-linux-gnueabi-clang
+GBS_FAILURE_LOG log.txt [   69s] + printf 'PM_BENCH_COMPILER %s\n' /bin/armv7l-tizen-linux-gnueabi-clang
+GBS_FAILURE_LOG log.txt [   69s] PM_BENCH_COMPILER /bin/armv7l-tizen-linux-gnueabi-clang
+GBS_FAILURE_LOG log.txt [   69s] + printf 'PM_BENCH_FLAGS -O2 -static -std=c11 -Wall -Wextra -Werror\n'
+GBS_FAILURE_LOG log.txt [   69s] PM_BENCH_FLAGS -O2 -static -std=c11 -Wall -Wextra -Werror
+GBS_FAILURE_LOG log.txt [   69s] ++ sha256sum bench.c
+GBS_FAILURE_LOG log.txt [   69s] ++ awk '{print $1}'
+GBS_FAILURE_LOG log.txt [   69s] + printf 'PM_BENCH_SOURCE %s\n' 04981794ea071c5d7aef39a911086abf451cb136796e4e8edc6bffa39f66796a
+GBS_FAILURE_LOG log.txt [   69s] PM_BENCH_SOURCE 04981794ea071c5d7aef39a911086abf451cb136796e4e8edc6bffa39f66796a
+GBS_FAILURE_LOG log.txt [   69s] + /bin/armv7l-tizen-linux-gnueabi-clang -O2 -static -std=c11 -Wall -Wextra -Werror bench.c -Wl,-Map,microbench.map -o microbench
+GBS_FAILURE_LOG log.txt [   69s] /usr/bin/ld: cannot find -lc: No such file or directory
+GBS_FAILURE_LOG log.txt [   69s] armv7l-tizen-linux-gnueabi-clang: error: linker command failed with exit code 1 (use -v to see invocation)
+GBS_FAILURE_LOG log.txt [   69s] error: Bad exit status from /var/tmp/rpm-tmp.ssDaVo (%build)
+GBS_FAILURE_LOG log.txt [   69s]
+GBS_FAILURE_LOG log.txt [   69s]
+GBS_FAILURE_LOG log.txt [   69s] RPM build errors:
+GBS_FAILURE_LOG log.txt [   69s]     Bad exit status from /var/tmp/rpm-tmp.ssDaVo (%build)
+GBS_FAILURE_LOG log.txt [   69s]
+GBS_FAILURE_LOG log.txt [   69s] risc-v-Alienware-Aurora-R16 failed "build pm-board-microbench.spec" at Tue Nov 24 10:08:27 UTC 2026.
+GBS_FAILURE_LOG log.txt [   69s]
+GBS_BENCH_BLOCKED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.hadnvlae/gbs.log
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$

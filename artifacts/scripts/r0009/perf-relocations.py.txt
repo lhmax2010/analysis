@@ -307,57 +307,21 @@ def free_for(target, bytes_needed):
         raise ValueError("D-018 disk headroom plus next image extraction exceeds available disk")
 
 
-def extract_partition(inner, member, work, audit, mountpoint):
-    with tempfile.TemporaryDirectory(prefix="partition.",dir=work) as folder:
-        base = Path(folder)
-        raw, tree = base/"image", base/"tree"
-        tree.mkdir()
-        free_for(work, 2*member.size)
-        with inner.extractfile(member) as inp, raw.open("wb") as dest:
-            shutil.copyfileobj(inp, dest, 1024**2)
-        with raw.open("rb") as stream:
-            header = stream.read(28)
-            magic = header[:4]
-            stream.seek(1080)
-            ext = stream.read(2) == b"\x53\xef"
-        if magic == b"\x3a\xff\x26\xed":
-            if len(header) != 28:
-                raise ValueError("truncated sparse image header")
-            block, blocks = struct.unpack_from("<II",header,12)
-            if not block or not blocks:
-                raise ValueError("invalid sparse image size")
-            free_for(work,2*block*blocks)
-            decoded = base/"expanded.img"
-            result = subprocess.run(["simg2img",str(raw),str(decoded)], timeout=1200, check=False,
-                                    stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-            if result.returncode:
-                raise ValueError("simg2img failed: "+result.stdout[-300:])
-            raw = decoded
-            with raw.open("rb") as stream:
-                stream.seek(1080)
-                ext = stream.read(2) == b"\x53\xef"
-            free_for(work,raw.stat().st_size)
-        if not ext:
-            raise ValueError(f"unsupported partition filesystem magic {magic.hex()} for {member.name}")
-        log = work/("debugfs-"+Path(member.name).name+".log")
-        with log.open("w") as stream:
-            result = subprocess.run(["debugfs", "-R", f'rdump / "{tree.resolve()}"', str(raw)],
-                                    stdout=stream, stderr=subprocess.STDOUT, timeout=2400, check=False)
-        errors, ownership_only = [], 0
-        with log.open(errors="replace") as stream:
-            for line in stream:
-                if not line.strip() or line.startswith("debugfs "):
-                    continue
-                if re.fullmatch(r"rdump: (?:Operation not permitted|Invalid argument) while changing ownership of .*", line.strip()):
-                    ownership_only += 1
-                elif len(errors) < 4:
-                    errors.append(line.strip()[:220])
-        if ownership_only:
-            out("PERF_EXTRACT_OWNERSHIP_WARNINGS", [mountpoint,ownership_only])
-        if result.returncode or errors:
-            audit.problem(mountpoint, f"debugfs read had diagnostics (exit {result.returncode}), {log}: {errors}")
-        audit.walk(tree, mountpoint)
-        out("PERF_PARTITION_SCANNED", [mountpoint,member.name,member.size])
+def extract_partition(inner, member, work, audit, mountpoint, library):
+    with tempfile.TemporaryDirectory(prefix="partition.", dir=work) as folder:
+        raw = Path(folder)/"image"
+        free_for(work, member.size)
+        with inner.extractfile(member) as source, raw.open("xb") as dest:
+            shutil.copyfileobj(source, dest, 2**20)
+        if raw.stat().st_size != member.size:
+            raise ValueError("short PERF image member " + member.name)
+        tree, info = library["cached_tree"](raw, work)
+    name = Path(member.name).name
+    (work/(name+".json")).write_text(json.dumps(dict(info, mountpoint=mountpoint), indent=2)+"\n")
+    out("PERF_PARTITION_SCANNED", [mountpoint, name, info["fs"], info["partition_start"],
+                                   info["extracted_regular_bytes"], info["elf_files"],
+                                   info["elf_files_under_prd"], info["image_sha256"]])
+    audit.walk(tree, mountpoint)
 
 
 def capture_scan(directory, work, audit, library):
@@ -378,7 +342,10 @@ def capture_scan(directory, work, audit, library):
     (work/"partition-map.json").write_text(json.dumps({"scope":scope, "evidence":matches, "gaps":gaps}, indent=2)+"\n")
     for name, lines in matches.items():
         out("PERF_PARTITION_TABLE_MATCH", [name, lines[:2], len(lines)])
-    for name in sorted({"platform.img", "do_not_use.img", "systemrw.img", "factory_peq.img"} - scope.keys()):
+    required = {"platform.img", "systemrw.img", "factory_peq.img"}
+    if not {"do_not_use.img", "data.img"}.intersection(scope):
+        required.add("data.img")
+    for name in sorted(required - scope.keys()):
         audit.problem(name, "expected flat partition image is missing")
     for table in set(helper["TABLES"]) - tables.keys():
         audit.problem(table, "expected flat partition table is missing")
@@ -389,8 +356,10 @@ def capture_scan(directory, work, audit, library):
             if name not in scope:
                 continue
             try:
-                extract_partition(bundle, member, work, audit, scope[name])
+                extract_partition(bundle, member, work, audit, scope[name], helper["tree_library"]())
             except (OSError, ValueError, subprocess.SubprocessError) as error:
+                if getattr(error, "integrity_failure", False):
+                    raise
                 audit.problem(name, error)
 
 

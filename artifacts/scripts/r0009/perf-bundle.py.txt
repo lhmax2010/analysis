@@ -8,6 +8,7 @@ import json
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 import re
+import runpy
 import shutil
 import tarfile
 
@@ -24,6 +25,13 @@ def sha(path):
         for block in iter(lambda: stream.read(1024**2), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def tree_library():
+    adjacent = Path(__file__).with_name("image-tree.py.txt")
+    if not adjacent.is_file():
+        adjacent = Path(__file__).resolve().parent.parent/"r0012c/image-tree.py.txt"
+    return runpy.run_path(str(adjacent))
 
 
 def captured(path):

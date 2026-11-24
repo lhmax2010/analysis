@@ -1,0 +1,11 @@
+--- a/packaging/org.tizen.tv-viewer.spec
++++ b/packaging/org.tizen.tv-viewer.spec
+@@ -220,7 +220,7 @@
+ %setup -q
+ 
+ %build
+-export CFLAGS=" -DEFL_BETA_API_SUPPORT"
++export CFLAGS="$CFLAGS -DEFL_BETA_API_SUPPORT"
+ export LDFLAGS="-Wl,--as-needed ${LDFLAGS}"
+ export CFLAGS="-Wl,--as-needed ${CFLAGS}"
+ export CXXFLAGS="-Wl,--as-needed ${CXXFLAGS}"
