@@ -81,7 +81,7 @@ def inspect(pkg, work, payload, bid, size):
                 kind=re.search(r"\bType:\s+(\S+)",meta)[1]
                 module=kind=="REL" and (".modinfo" in meta or path.endswith((".ko",".ko.debug")))
                 row={"bytes":n,"ids":ids,"type":kind,"module":module}
-                if kind=="EXEC" and re.search(r"\s\.text\s",meta) and re.search(r"\s\.bss\s",meta):
+                if kind=="EXEC" and ("__ksymtab" in meta or ".init.text" in meta) and re.search(r"\s\.text\s",meta) and re.search(r"\s\.bss\s",meta):
                     row["kernel_candidate"]=True
                     if ids==[bid]:
                         dest=work/(bid+".elf")
@@ -172,6 +172,7 @@ def gcc(work,qb,size):
                 raise ValueError("GCC kernel RPM and USB mismatch: "+name)
         u=(usb/"uImage").read_bytes()
         z=(usb/"zImage").read_bytes()
+        print("GCC_IMAGE_FILES",len(u),len(z),"TOTAL_MINUS_HEADER",len(u)-64,flush=True)
         raw,bid=size["raw_kernel"](u,z)
         print("GCC_USB_VERIFIED",usb,"uImage",len(u),"zImage",len(z),"U_BOOT_DECLARED",len(raw),"RPM",kernel.stat().st_size,"BUILD_ID",bid)
 

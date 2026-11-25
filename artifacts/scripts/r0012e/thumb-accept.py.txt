@@ -123,7 +123,9 @@ def evaluate(directory,work,name,results,source,spec,controls):
         report["T1_F2_driver_evidence"] = {label:{key:options.get(label,{}).get(key,[])
             for key in ("gcc_family_compile_lines","F6_loaded_missing_marked_options")} for label in ("baseline",lane)}
         if not files or not base:
-            report["status"]="BLOCKED_BUILD_OR_SCOPE"; continue
+            report["status"]="BLOCKED_BUILD_OR_SCOPE"
+            report["build_error"]=result["error"] or results["baseline"]["error"] or "missing delivered baseline or treatment ELF"
+            continue
         def index(rows):
             return {(r["rpm"],r["path"]):r for r in rows}
         a,b=index(base),index(files)
@@ -175,7 +177,11 @@ def evaluate(directory,work,name,results,source,spec,controls):
         for item in items:
             compiled_names.update(Path(n).name for n in item["cu_names"] if n)
         linked = result["delivery"].get("lto_delivery",{}).get("linked",[])
-        joined = {Path(path).name for x in linked for path in x.get("joined_sources",{}).values()}
+        joined_paths = collections.defaultdict(set)
+        for item in linked:
+            for path in item.get("joined_sources",{}).values():
+                joined_paths[Path(path).name].add(path)
+        joined={n for n,paths in joined_paths.items() if len(paths)==1 and len({path for path,_ in modes_seen.get(n,())})==1}
         probes={"CMakeCXXCompilerABI.cpp","CMakeCXXCompilerId.cpp","CMakeCCompilerABI.c","CMakeCCompilerId.c"}
         excluded={n for n in modes_seen if n in probes and all(re.search(r"(?:/|^)(?:CMakeFiles/|Modules/CMake.*CompilerABI)",path) for path,_ in modes_seen[n])}
         unmatched=set(modes_seen)-compiled_names-joined-excluded

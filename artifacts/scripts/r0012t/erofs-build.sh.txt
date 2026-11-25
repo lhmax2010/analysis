@@ -44,7 +44,7 @@ if ! probe zlib zlib.h z; then
     get https://codeload.github.com/madler/zlib/tar.gz/refs/tags/v1.3.1 zlib 17e88863f3600672ab49182f217281b6fc4d3c762bde361935e436a95214d05c
     (cd zlib-1.3.1 && ./configure --prefix="$prefix" && make -j2 && make install)
 fi
-get "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012t/erofs-utils-1.9.4.tar.gz" release 3673855fa9e8c647e0556b7ea49027006b3f5a97daacf27fad18835a70f589a9
+get "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012t/erofs-utils-1.9.4.tar.gz" release b461c83774c4dde715b3bdacaabe132b6a28dd5fa0b114cf9c3b6db0b0635bd1
 curl -fsSL --retry 4 --retry-all-errors --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012t/metabox-inline.patch" -o metabox-inline.patch
 printf '%s  %s\n' 7114037b830396ff01eed2e5a2a15e11c1e9b4d48faa44412ba116bdd975931e metabox-inline.patch | sha256sum -c -
 (cd erofs-utils-1.9.4 && patch -p1 < ../metabox-inline.patch && ./configure --prefix="$prefix" --enable-lz4 --enable-lzma --with-zlib --with-libzstd && make -j2 && make install)

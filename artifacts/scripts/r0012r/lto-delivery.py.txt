@@ -86,7 +86,7 @@ def audit(directory, lane, metrics, arm_control=False):
     for r in receipts:
         if r[:2]==("PM12_DRIVER","compile") and "-c" in r:
             compiles[option(r,"-o")].append(r)
-    roots = list((lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*/home/abuild/rpmbuild/BUILD"))
+
 
     wanted = "-thumb-mode" if arm_control or lane.name=="baseline" else "+thumb-mode"
     result = {"status":"REVIEW", "linked":[], "gaps":[]}
@@ -177,7 +177,7 @@ def audit(directory, lane, metrics, arm_control=False):
         if not maps or maps.get("id")!=retain_id or maps["size"]!=row["text"] or code.get("unknown") or code.get(mode,0)<=code.get("$t" if mode=="$a" else "$a",0):
             result["gaps"].append("incomplete final ISA mapping: "+output)
         result["linked"].append({"output":output,"link":argv,"joined_sources":joined_sources,"functions_by_object":counts,"mapping_bytes":code})
-    if result["linked"] and not result["gaps"]: result["status"]="PASS"
+    if result["linked"] and len(result["linked"])==len(metrics.get("files",[])) and not result["gaps"]: result["status"]="PASS"
     return result
 
 
@@ -199,13 +199,15 @@ def retained(directory):
         for r in receipt["metrics"].get("files",[]):
             print("DELIVERED_ISA",label,{k:r.get(k) for k in ("path","basis","arm","exec","sha256")})
         original=receipt["delivery"]
-        if original["response_unresolved"] or not original["relevant_links"] or original["treated_links"]!=original["relevant_links"]:
-            result["gaps"].append("response or link delivery coverage")
-            result["status"]="REVIEW"
+        result["previous_all_link_scope"]={k:original.get(k) for k in ("response_unresolved","relevant_links","treated_links")}
         (scratch/(label+".json")).write_text(json.dumps(result,indent=2)+"\n")
         drivers=options["parse"](lane/"gbs.log")[0]
         for driver in options["DRIVERS"][:4]:
             print("ISA_PROBE",label,driver,{k:drivers[driver].get(k,[]) for k in ("BUILT","FAILED")})
+        for path in sorted((lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*/home/abuild/rpmbuild/BUILD/**/.pm0012g-driver/*.o.log")):
+            messages=path.read_text(errors="replace").splitlines()
+            if messages:
+                print("PROBE_STDERR",label,path.name," | ".join(messages[:3])[:420])
         gaps=options["config_gate"](drivers,label=="default",lane)
         print("LTO",label,result["status"],"config_gaps",gaps,"object_gaps",len(result["gaps"]),result["gaps"][:35])
     print("DEFAULT T1",result["status"],"CONFIG",gaps or "PASS")
