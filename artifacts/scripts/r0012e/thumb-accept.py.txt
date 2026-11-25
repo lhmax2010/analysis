@@ -167,6 +167,8 @@ def evaluate(directory,work,name,results,source,spec,controls):
           "T6":outcome("PM_THUMB_INTERWORK_PASS" in plain.splitlines() and all(i["identical"] or "PM_THUMB_SMOKE_PASS "+i["path"] in plain.splitlines() for i in items)),
           "T7":"REVIEW_ASM_SITES" if assembly else ("PASS" if scope and compiled_names and not unmatched and not proof["missing_dwarf_elfs"] and all((source / n).is_file() for i in items for n in i["cu_names"] if not Path(n).is_absolute()) and all(not Path(n).is_absolute() for i in items for n in i["cu_names"]) else "REVIEW_GENERATED_SOURCES"),
           "T8":outcome(result["arm_compile_calls"] and results["baseline"]["arm_compile_calls"] and all(i["identical"] and verified_map(i) and i["maps"][0]==i["maps"][1] for i in items)) if name in controls and "PM_THUMB_ASM_ARM_PASS" in plain.splitlines() else ("REVIEW" if name in controls else "N/A")}
+        if "lto_delivery" in proof:
+            report["gates"]["T1"]=outcome(proof["observed"] and proof["lto_delivery"]["status"]=="PASS")
         report["gates"]["driver_config_and_IT"]=outcome(all(options.get(x) and not options[x]["driver_gaps"] for x in ("baseline",lane)))
         report["new_lto_unit_count"]=len(options["new_lto_units"]) if lane=="package" else None
         if name=="org.tizen.tv-viewer" and lane=="package":

@@ -465,6 +465,15 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
         except (ValueError, OSError, subprocess.SubprocessError) as exc:
             build_error = str(exc)[:350]
     proof = delivery(recipe, label, rows, links, metrics, lane)
+    if (recipe["id"]=="THUMB" and not build_error and not recipe.get("smoke")
+            and (recipe.get("package_name")=="org.tizen.AVControl" or any(" -flto" in row for row in rows if row.startswith("PM12_DRIVER link ")))):
+        try:
+            lto_receipt = libraries(directory,"lto-delivery")[0]["audit"](directory,lane,metrics,recipe.get("package_name") in CONTROLS)
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+            lto_receipt = {"status":"REVIEW","gaps":[str(exc)]}
+        proof["lto_delivery"] = lto_receipt
+        proof["observed"] = (lto_receipt["status"]=="PASS" and not proof["response_unresolved"]
+                             and proof["relevant_links"]>0 and proof["relevant_links"]==proof["treated_links"])
     result = {"label": label, "metrics": metrics, "delivery": proof, "error": build_error,
               "arm_compile_calls": sum(line.startswith("PM12_DRIVER compile ") and "-marm" in shlex.split(line) for line in rows),
               "link_argv_path": str(lane/"link-argv.txt"), "relocations_path": str(lane/"relocations.txt"),
@@ -545,6 +554,11 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
                                "link_argv_path":None}
                 continue
             results[lane] = lane_build(settings, source, spec, original, work, binaries, recipe, lane, directory)
+    if recipe.get("package_retry"):
+        item=results["package"]
+        report("PACKAGE_RETRY", {"build_error":item["error"],"delivery":item["delivery"].get("observed"),
+                                 "ledger":str(work/"package/lane.json"),"acceptance":"requires matched baseline"})
+        return 0 if not item["error"] and item["delivery"]["observed"] else 2
     if recipe.get("smoke"):
         item = results["baseline"]
         cmake = smoke_argv(work/"baseline/gbs.log")
@@ -567,7 +581,7 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
                 after = verify["target_rows"](work/("default" if recipe["id"]=="THUMB" else "treatment")/"gbs.log")
                 if recipe["id"]=="THUMB":
                     opt=libraries(directory,"thumb-options")[0]
-                    gaps={n:opt["config_gate"](opt["parse"](work/n/"gbs.log")[0],n=="default") for n in ("baseline","default")}
+                    gaps={n:opt["config_gate"](opt["parse"](work/n/"gbs.log")[0],n=="default",work/n) for n in ("baseline","default")}
                     proof["driver_mode_gaps"]=gaps
                     delivered = delivered and not any(gaps.values())
                 else:
@@ -958,7 +972,7 @@ def evidence_page(path, page, packet=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("audit", "thumb", "thumb-smoke", "t1", "options", "trial", "t7", "abi", "research",
+    parser.add_argument("mode", choices=("audit", "thumb", "thumb-smoke", "thumb-package", "t1", "options", "trial", "t7", "abi", "research",
                                          "pic-plan", "rank", "page", "packet", "abi-index", "audit-compare"))
     parser.add_argument("work", type=Path)
     parser.add_argument("value", nargs="*")
@@ -994,11 +1008,14 @@ def main():
             return t7(directory, work)
         if args.mode == "abi":
             return abi_job(directory, work, val[0], args.gbs_root, val[1] if len(val)>1 else None)
-        if args.mode in ("thumb","thumb-smoke"):
+        if args.mode in ("thumb","thumb-smoke","thumb-package"):
             if not PATH_SAFE.fullmatch(val[0]):
                 raise ValueError("invalid source package")
             recipe=base_recipe("THUMB")
             recipe.update(lanes=["baseline","default","package"],default=EMPTY.copy())
+            if args.mode == "thumb-package":
+                if val != ["org.tizen.AVControl"]: raise ValueError("AVControl package-only retry")
+                recipe.update(lanes=["package"], package_retry=True)
             if args.mode == "thumb-smoke":
                 if val != ["org.tizen.AVControl"]: raise ValueError("AVControl smoke only")
                 recipe.update(lanes=["baseline"], smoke=True)

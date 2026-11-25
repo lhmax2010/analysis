@@ -1,0 +1,146 @@
+"""Compare matched QB and replay ARM text at symbol-relative offsets, keeping raw and normalized evidence."""
+import bisect
+import struct
+import collections
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import subprocess
+import sys
+
+P = runpy.run_path(str(Path(__file__).with_name("kernel-size.py.txt")))
+
+
+def layout(elf, payload, bid):
+    blob=elf.read_bytes()
+    sections=P["elf_sections"](blob)
+    note=P["NOTE"]+bytes.fromhex(bid)
+    offsets=[s[3]+blob[s[4]:s[4]+s[5]].index(note)-payload.index(note)
+             for _,s,_ in sections if s[1]==7 and note in blob[s[4]:s[4]+s[5]]]
+    if len(offsets)!=1 or payload.count(note)!=1:
+        raise ValueError("missing unique ELF/image address anchor")
+    origin=offsets[0]
+    text,=[s for n,s,_ in sections if n==".text"]
+    start=text[3]-origin
+    if start<0 or start+text[5]>len(payload): raise ValueError("text exceeds flat image")
+    if text[1]!=8 and blob[text[4]:text[4]+text[5]]!=payload[start:start+text[5]]:
+        raise ValueError("ELF text mismatches image")
+    symbols=collections.defaultdict(list)
+    nm=P["command"]("nm","-nS","--defined-only",elf)
+    for line in nm.splitlines():
+        m=re.fullmatch(r"([\da-fA-F]+)\s+([\da-fA-F]+)\s+[Tt]\s+(\S+)",line)
+        if not m: continue
+        address,size=int(m[1],16)&~1,int(m[2],16)
+        if size and text[3]<=address and address+size<=text[3]+text[5]:
+            symbols[m[3]].append((address,size))
+    marks={}
+    for line in P["command"]("nm","-an",elf).splitlines():
+        match=re.fullmatch(r"([\da-fA-F]+)\s+[a-zA-Z]\s+\$([atd])(?:\..*)?",line)
+        if match:
+            addr=int(match[1],16)
+            if text[3]<=addr<text[3]+text[5]: marks.setdefault(addr,set()).add(match[2])
+    return origin,symbols,sorted(marks),marks
+
+
+def branch(raw, offset, pc, marks, modes):
+    i=bisect.bisect_right(marks,pc)-1
+    if i<0 or modes[marks[i]]!={"a"} or offset<0 or offset+4>len(raw): return None
+    word=struct.unpack_from("<I",raw,offset)[0]
+    if word>>28==15 or (word>>25)&7!=5: return None
+    imm=word&0xffffff
+    if imm&0x800000: imm-=0x1000000
+    return word>>24,pc+8+imm*4
+
+
+def inspect(folder, which, result):
+    elf=Path(result["elf"]["reference"])
+    usb=P["WS"]/"usb"/result["qb"]/"updateSU2E"
+    qb,bid=P["raw_kernel"]((usb/"uImage").read_bytes(),(usb/"zImage").read_bytes())
+    replay=P["WS"]/"temp/pm0005-gbs-kernel.mtob625f"/which/"GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux"
+    ids=re.findall(r"Build ID:\s*([0-9a-f]+)",P["command"]("readelf","-nW",replay))
+    if len(ids)!=1: raise ValueError("ambiguous replay build ID")
+    image=folder/"replay-flat"
+    import shutil
+    objcopy=next((shutil.which(n) for n in ["llvm-objcopy",*[f"llvm-objcopy-{i}" for i in range(22,10,-1)],"arm-linux-gnueabi-objcopy","arm-linux-gnueabihf-objcopy"] if shutil.which(n)),None)
+    if objcopy:
+        subprocess.run([objcopy,"-O","binary","-R",".comment","-R",".note","-S",replay,image],check=True)
+        flat=image.read_bytes()
+    else:
+        flat,_=P["raw_kernel"]((replay.parent/"uImage").read_bytes(),(replay.parent/"zImage").read_bytes())
+    for label, obj in (("QB",elf),("REPLAY",replay)):
+        comment=subprocess.run(["readelf","-p",".comment",obj],capture_output=True,text=True)
+        lines=[r.strip()[:240] for r in comment.stdout.splitlines() if "clang" in r.lower() or "LLD" in r]
+        print("ELF_TOOLCHAIN_MARKERS",which,label,lines[:5])
+    root=next(parent for parent in replay.parents if parent.name=="scratch.armv7l.0")
+    configs=set()
+    for config in (root/"home/abuild/rpmbuild/BUILD").rglob(".config"):
+        v=config.parent/"vmlinux"
+        if v.is_file() and P["digest"](v)==P["digest"](replay):
+            configs.add(hashlib.sha256(config.read_bytes()).hexdigest())
+    print("REPLAY_CONFIG_JOINED_BY_ELF_HASH",which,sorted(configs),
+          "official_devel_config_equal" if which=="official" else "custom_devel_reference_unverified",
+          configs=={"2a31652557d89d100d3c1bc6b0116556e32a56f03b0145eba12af425c75379f3"} if which=="official" else None)
+    qbase,qs,qmarks,qmodes=layout(elf,qb,bid)
+    rbase,rs,rmarks,rmodes=layout(replay,flat,ids[0])
+    names=[n for n in qs.keys() & rs.keys() if len(qs[n])==len(rs[n])==1]
+    counts=collections.Counter()
+    def entries(symbols):
+        result=collections.defaultdict(set)
+        for name in names: result[symbols[name][0][0]].add(name)
+        return result
+    qe,replay_entries=entries(qs),entries(rs)
+    sites=set()
+    examples=[]
+    changed_branches=0
+    for source in ("QB","GBS"):
+        data=qb if source=="QB" else flat
+        print("WORD",which,source,"flat+0x594",data[0x594:0x598].hex())
+    with (folder/"symbol-compare.tsv").open("w") as out:
+        w=csv.writer(out,delimiter="\t")
+        w.writerow(("symbol","qb_address","replay_address","qb_size","replay_size","result"))
+        for n in sorted(names,key=lambda n:qs[n][0]):
+            a,an=qs[n][0]; b,bn=rs[n][0]
+            same=qb[a-qbase:a-qbase+an]==flat[b-rbase:b-rbase+bn]
+            label=("MOVED_IDENTICAL" if a!=b else "SAME") if same else ("SIZE_CHANGE" if an!=bn else "BODY_DIFF")
+            counts[label]+=1
+            if not same and an==bn:
+                for pos in range(0,an-3,4):
+                    if a+pos in sites: continue
+                    off1,off2=a+pos-qbase,b+pos-rbase
+                    if qb[off1:off1+4]==flat[off2:off2+4]: continue
+                    qbranch=branch(qb,off1,a+pos,qmarks,qmodes)
+                    rbranch=branch(flat,off2,b+pos,rmarks,rmodes)
+                    if qbranch and rbranch and qbranch[0]==rbranch[0]:
+                        targets=qe.get(qbranch[1],set()) & replay_entries.get(rbranch[1],set())
+                        if targets:
+                            sites.add(a+pos)
+                            changed_branches+=1
+                            if len(examples)<8: examples.append([n,hex(pos),sorted(targets),hex(qbranch[1]),hex(rbranch[1])])
+            w.writerow([n,hex(a),hex(b),an,bn,label])
+    # Only strict inversions count; aliases at the same address have no defined order.
+    pairs=sorted({(qs[n][0][0],rs[n][0][0]) for n in names})
+    high=-1
+    inversions=0
+    import itertools
+    for _,group in itertools.groupby(pairs,key=lambda p:p[0]):
+        addresses=[b for _,b in group]
+        inversions+=sum(b<high for b in addresses)
+        high=max(high,*addresses)
+    print("REPLAY_SYMBOLS",which,dict(counts),"address_order_inversions",inversions,
+          "QB_only_names",len(qs.keys()-rs.keys()),"replay_only_names",len(rs.keys()-qs.keys()))
+    print("A32_CHANGED_BRANCH_SAME_NAMED_TARGET",which,changed_branches,examples)
+    print("REPLAY_COVERAGE",which,"uniquely named text symbols and aligned same-size function bodies only")
+    if not names: raise ValueError("no uniquely joined text symbols")
+
+
+if __name__=="__main__":
+    work=Path(sys.argv[1])
+    status=0
+    for lane,r in json.loads((work/"proof.json").read_text()).items():
+        try: inspect(work/lane,lane,r)
+        except (OSError,KeyError,ValueError,subprocess.SubprocessError) as e:
+            print("REPLAY_SYMBOLS_INCOMPLETE",lane,str(e)[:250]); status=2
+    sys.exit(status)

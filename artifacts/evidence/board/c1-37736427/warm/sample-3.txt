@@ -1,0 +1,13 @@
+91ef2da6-afb4-4556-9480-701f14e982d9
+480.52 1356.47
+PID 483
+TA_native-home
+91ef2da6-afb4-4556-9480-701f14e982d9
+480.71 1356.82
+MemTotal:        1602220 kB
+MemFree:          205944 kB
+MemAvailable:    1088472 kB
+Cached:           877272 kB
+Shmem:              5796 kB
+Slab:              91356 kB
+KernelStack:        6168 kB

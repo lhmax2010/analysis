@@ -94,6 +94,31 @@ def resident(mapfile):
     return marks["_end"] - marks["_text"] - (marks["__init_end"] - marks["__init_begin"])
 
 
+def compare_flat(official, built, official_id, built_id):
+    """Allow only a known GNU note digest and a complete, same-position Linux banner."""
+    if len(official)!=len(built):
+        return {"status":"DIFFERENT_LENGTH","bytes":[len(official),len(built)]}
+    if official==built:
+        return {"status":"EXACT","exceptions":[]}
+    normalized=bytearray(built)
+    exceptions=[]
+    prefix=bytes.fromhex("040000001400000003000000474e5500")
+    notes=[prefix+bytes.fromhex(s) for s in (official_id,built_id)]
+    if official.count(notes[0])==built.count(notes[1])==1 and official.index(notes[0])==built.index(notes[1]):
+        offset=built.index(notes[1])+len(prefix)
+        normalized[offset:offset+20]=official[offset:offset+20]
+        if official_id!=built_id: exceptions.append(["GNU_BUILD_ID",offset,20])
+    banner=rb"Linux version [ -~]{12,512}\n\x00"
+    left=list(re.finditer(banner,official))
+    right=list(re.finditer(banner,built))
+    if len(left)==len(right)==1 and left[0].span()==right[0].span() and left[0].group()!=right[0].group():
+        lo,hi=left[0].span()
+        normalized[lo:hi]=official[lo:hi]
+        exceptions.append(["LINUX_BANNER",lo,hi-lo])
+    return {"status":"EXPLAINED_METADATA_ONLY" if normalized==official else "UNEXPLAINED",
+            "exceptions":exceptions,"remaining_bytes":sum(a!=b for a,b in zip(normalized,official))}
+
+
 def qualify(work, tree, rec, cfg, q, scan, same):
     ident = cfg["BUILD_ID"]
     u = (cfg["IMAGES"]/"uImage").read_bytes()
@@ -127,7 +152,7 @@ def qualify(work, tree, rec, cfg, q, scan, same):
         if ref_id!=ident:
             continue
         textsec = next((s for n,s in sh if n==".text" and s[5]),None)
-        if textsec is None or blob[textsec[4]:textsec[4]+textsec[5]] not in payload:
+        if textsec is None or (textsec[1]!=8 and blob[textsec[4]:textsec[4]+textsec[5]] not in payload):
             continue
         a, b = linked_sizes(p,scan), linked_sizes(kr,scan)
         required = {".text",".rodata",".data",".bss"}
@@ -141,7 +166,10 @@ def qualify(work, tree, rec, cfg, q, scan, same):
             return [s.decode(errors="replace") for s in re.findall(banner,raw)]
         evidence["build_id_investigation"]={"official_banners":banners(payload),"k0_banners":banners(kr.read_bytes()),
             "cause":"compare build user, host and timestamp in banners; build paths or other inputs remain unverified"}
-    ok = same and all(a==b for a,b in sizes.values()) and evidence["section_comparison"]=="MATCH"
+    image = tree/"arch/arm/boot/Image"
+    flat = compare_flat(payload,image.read_bytes(),ident,kb) if image.is_file() else {"status":"MISSING"}
+    evidence["flat_comparison"] = flat
+    ok = flat["status"] in ("EXACT","EXPLAINED_METADATA_ONLY") and same and all(a==b for a,b in sizes.values()) and evidence["section_comparison"]=="MATCH"
     evidence["status"]="OFFICIAL_PERF_BUILD_CONFIG" if ok else "K0_CONFIG_MISMATCH" if not same else "K0_OUTPUT_UNQUALIFIED"
     return evidence
 

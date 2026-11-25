@@ -1,0 +1,5 @@
+5001
+91ef2da6-afb4-4556-9480-701f14e982d9
+481.15 1357.70
+[get_focused_pid]
+[get_focused_pid] result: 483

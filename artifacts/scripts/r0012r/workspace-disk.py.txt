@@ -1,0 +1,67 @@
+"""Census immediate workspace/temp children; existing logs, build roots and manifests are read-only."""
+import base64
+import csv
+import hashlib
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import zlib
+
+WS=Path("/home1/chengkai/vd-tree/workspace")
+TEMP=WS/"temp"
+REMOVED=("pm0010-gbs-board-bench.hadnvlae","pm0010-gbs-board-bench.hfmy3w53")
+KEEP={
+    "qb-evidence":"QB identities, packages and debug/payload comparison",
+    "usb":"verified boot bundles and rollback sources",
+    "temp":"scratch parent; includes sizes on the child rows",
+    "pm0005-gbs-kernel.mtob625f":"QB versus replay investigation",
+    "pm0010-gbs-board-bench.eli_m1on":"pristine build-root tool inventory",
+    "pm0012-smoke.neJb0i":"kernel launch smoke receipt",
+    "pm0012-pilot.FejM73":"LTO object and driver delivery requalification",
+    "pm0012-wed-a.M5knpj":"Wed-A argv and acceptance evidence",
+    "z901":"historical option experiments and retained RPM evidence",
+    "manifest_state":"manifest and provenance reconciliation",
+    "s895c":"historical checkout; contents and consumers need owner review",
+}
+
+
+def purpose(p):
+    if p.name in KEEP: return KEEP[p.name],"KEEP"
+    for prefix,what in (("vd-gbs-applied-full-build-r3-","prior GBS build"),("llvm22_bootstrap101_","10.1 toolchain bootstrap"),("pm","numbered project work"),("core","core-related name"),("ctx","context-related name"),("o","historical work name")):
+        if p.name.startswith(prefix): return what+"; dependency review outstanding","KEEP_REVIEW"
+    return "ownership and dependencies unconfirmed","KEEP_REVIEW"
+
+
+def main():
+    if WS.resolve(strict=True)!=WS or TEMP.resolve(strict=True)!=TEMP:
+        raise ValueError("workspace path is redirected")
+    if sys.argv[1:]==["--prune-confirmed"]:
+        for n in REMOVED:
+            p=TEMP/n
+            if os.path.lexists(p):
+                raise ValueError("previously removed path has reappeared; identity requires review: "+str(p))
+        print("PRUNE_CONFIRMED 0 remaining authorized entries; removed 0 bytes")
+        return
+    if len(sys.argv)>1: raise ValueError("unexpected arguments")
+    # Freeze the input directory list before creating the output.
+    paths=[p for root in (WS,TEMP) for p in sorted(root.iterdir()) if p.is_dir() or p.is_symlink()]
+    out=Path(tempfile.mkdtemp(prefix="pm0012r-disk.",dir=TEMP))/"census.tsv"
+    rows=[]
+    for p in paths:
+        cmd=subprocess.run(["du","-x","-s","-B1","--",p],capture_output=True,text=True)
+        raw=cmd.stdout.split("\t")[0].strip()
+        why,keep=purpose(p)
+        rows.append([str(p.relative_to(WS)),int(raw) if raw.isdigit() else "",why,keep,
+                     "PARTIAL "+cmd.stderr[:130].replace("\n"," ") if cmd.returncode else "OK"])
+    with out.open("w") as f:
+        writer=csv.writer(f,delimiter="\t",lineterminator="\n")
+        writer.writerow(["workspace_path","allocated_bytes","purpose_or_evidence_needed","verdict","coverage"])
+        writer.writerows(rows)
+    print("CENSUS",out,"rows",len(rows),"sha256",hashlib.sha256(out.read_bytes()).hexdigest())
+    for row in sorted(rows,key=lambda r:r[1] or 0,reverse=True)[:30]: print("TOP",*row)
+    print("PACKET_TSV_ZLIB_BASE64",base64.b64encode(zlib.compress(out.read_bytes())).decode())
+
+
+if __name__=="__main__": main()

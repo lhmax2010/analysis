@@ -2,6 +2,7 @@
 from collections import Counter, defaultdict
 import subprocess
 import json
+import hashlib
 from pathlib import Path
 import re
 import shlex
@@ -43,7 +44,8 @@ def parse(path):
     return dict(drivers), sorted(units), list(dict.fromkeys(diagnostics))
 
 
-def config_gate(drivers, scoped):
+def config_gate(drivers, scoped, lane=None):
+    roots = list((lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*.armv7l.*")) if lane else []
     gaps = []
     for name in DRIVERS:
         row = drivers.get(name,{})
@@ -54,10 +56,31 @@ def config_gate(drivers, scoped):
         config = row.get("CONFIG",[])
         options = set(" ".join(row.get("OPTION",[])).split())
         argv = row.get("ARGV",[])
-        if (not any(re.search(r'"-triple" "arm',v) for v in row.get("ARM_OVERRIDE",[])) or not config or not argv or not set(row.get("BUILT",[])) >= {"c "+expected,"S "+expected}
-                or scoped and (not FLAGS <= options or not any(re.search(r'"-triple" "thumb',v) for v in argv))
-                or not scoped and options):
-            gaps.append([name, row.get("LOADED",[]), "check selected cfg, triple and both object mappings"])
+        loaded = {v.removeprefix("Configuration file: ").strip() for v in row.get("LOADED",[])}
+        config_rows = [v.rsplit(" ",1) for v in config]
+        problems = []
+        if not loaded or not config_rows: problems.append("no selected cfg digest")
+        if len(roots)==1:
+            root=roots[0]
+            selected={guest_target(root,v) for v in loaded}
+            hashes={v[0]:v[1] for v in config_rows if len(v)==2}
+            if None in selected or selected!=set(hashes):
+                problems.append("selected cfg path does not match captured cfg")
+            blocks=[]
+            for path in selected-{None}:
+                payload=(root/path.lstrip("/")).read_bytes()
+                if hashlib.sha256(payload).hexdigest()!=hashes.get(path):
+                    problems.append("selected cfg differs from probe-time SHA: "+path)
+                blocks.extend(re.findall(rb"(?m)^# tizen-force-options begin\n([^#]*?)^# tizen-force-options end$",payload))
+            options=set(b" ".join(blocks).decode().split())
+        elif lane is not None or len(loaded)!=1 or len(config_rows)!=1:
+            problems.append("missing unique loaded-to-config association")
+        if scoped and not FLAGS<=options or not scoped and options: problems.append("marked block")
+        triple = r'"-triple" "arm' if not scoped else r'"-triple" "thumb'
+        if not any(re.search(triple,v) for v in argv): problems.append("default cc1 triple")
+        if not any(re.search(r'"-triple" "arm',v) for v in row.get("ARM_OVERRIDE",[])): problems.append("explicit ARM override")
+        if not set(row.get("BUILT",[])) >= {"c "+expected,"S "+expected}: problems.append("C/assembly mapping")
+        if problems: gaps.append([name, sorted(loaded), problems])
     return gaps
 
 
@@ -170,7 +193,7 @@ def summarize(work, drivers_only=False):
                     continue
                 flags=[x for x in args if x in ("-flto","-fno-lto") or x.startswith("-flto=") or "LLVMgold" in x or "-plugin-opt" in x]
                 if flags: evidence.append({"flags":flags,"argv":raw})
-        result[lane] = {**driver_results, "link_lto_evidence":evidence,"drivers":drivers, "driver_gaps":config_gate(drivers, lane=="default"),
+        result[lane] = {**driver_results, "link_lto_evidence":evidence,"drivers":drivers, "driver_gaps":config_gate(drivers, lane=="default", work/lane),
                         "groups":[[*k,v] for k,v in sorted(counts.items())],
                         "diagnostics":diagnostics, "units":units}
     baseline = defaultdict(set)

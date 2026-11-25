@@ -24,7 +24,7 @@ if [[ ${1:-} == launch || ${1:-} == attended ]]; then
     shift
     pin=$1 index_sha=$2 day=$3
     shift 3
-    case "$day" in image|smoke|pilot|kernel|wed-a|wed|wed-night|thu|thu-night|research|fri|tue) ;; *) exit 2 ;; esac
+    case "$day" in image|smoke|pilot|pilot-package|kernel|wed-a|wed|wed-night|thu|thu-night|research|fri|tue) ;; *) exit 2 ;; esac
     run=$(mktemp -d "$native/pm0012-$day.XXXXXX")
     mkdir -p "$run/jobs"
     cp -- "$0" "$run/batch.sh.txt"
@@ -70,7 +70,7 @@ finish() {
         else
             find "$here/jobs" -mindepth 2 -maxdepth 2 -name job.log -print0 |
                 sort -z |
-                xargs -0 -r awk '/^PM12_(SMOKE_ARGV|SMOKE_ELF|AVCONTROL_SMOKE|FAILURE_CONTEXT|EXPERIMENT|ERROR|AUDIT|ABI|T7|PREVIOUS_BATCH)|^T7_RUNTIME |^SOURCE1005|^KERNEL_THUMB|^KERNEL_SRPM|^THUMB_(ACCEPT|GROUPS|ROSTER)|^PLATFORM_ROSTER|^ROSTER_MATCH|^REVIEW_STATUS|^INSTALLED_NEVRA|^HQ_ELF_RESULT|^PERF_PARTITION_SCANNED/ { if (++n[FILENAME] <= 3) print $0 }' |
+                xargs -0 -r awk '/^PM12_(SMOKE_ARGV|SMOKE_ELF|AVCONTROL_SMOKE|FAILURE_CONTEXT|EXPERIMENT|ERROR|AUDIT|ABI|T7|PREVIOUS_BATCH)|^T7_RUNTIME |^SOURCE1005|^KERNEL_THUMB|^KERNEL_SRPM|^THUMB_(ACCEPT|GROUPS|ROSTER)|^CHANGED_RPM_DSO_OWNERS|^PRD_ROSTER|^PACKAGE_RETRY|^PLATFORM_ROSTER|^ROSTER_MATCH|^REVIEW_STATUS|^INSTALLED_NEVRA|^HQ_ELF_RESULT|^PERF_PARTITION_SCANNED/ { if (++n[FILENAME] <= 3) print $0 }' |
                 cut -c1-900 | head -n 135 || true
         fi
     } >"$here/combined.txt"
@@ -206,6 +206,7 @@ case "$day" in
         ;;
     smoke) job thumb-org.tizen.AVControl gbs thumb-smoke org.tizen.AVControl ;;
     kernel) kernel_job ;;
+    pilot-package) job thumb-org.tizen.AVControl gbs thumb-package org.tizen.AVControl ;;
     pilot) job thumb-org.tizen.AVControl gbs thumb org.tizen.AVControl ;;
     wed-a)
         for package in org.tizen.AVControl org.tizen.tv-viewer libpisa-ipc org.tizen.webserver libgcrypt rpm nnstreamer bluetooth-impl-sec-oal widevine-cdm; do

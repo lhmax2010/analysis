@@ -1,0 +1,179 @@
+name	arch	O_epoch	O_version	O_release	C_epoch	C_version	C_release	class	historical_shared_library_example
+abseil-cpp	armv7l	0	20240722.0	1.15	0	20240722.0	1.16	RELEASE_ONLY	/usr/lib/libabsl_bad_any_cast_impl.so.2407.0.0
+acl	armv7l	0	2.3.2	1.185	0	2.3.2	1.196	RELEASE_ONLY	
+alsa-utils	armv7l	0	1.2.12	2.16	0	1.2.12	2.17	RELEASE_ONLY	
+bash	armv7l	0	3.2.57	1.17	0	3.2.57	1.18	RELEASE_ONLY	
+boost	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	
+boost-atomic	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_atomic.so.1.83.0
+boost-chrono	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_chrono.so.1.83.0
+boost-date-time	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_date_time.so.1.83.0
+boost-filesystem	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_filesystem.so.1.83.0
+boost-iostreams	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_iostreams.so.1.83.0
+boost-license	noarch	0	1.83.0	1.43	0	1.83.0	1.46	RELEASE_ONLY	
+boost-locale	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_locale.so.1.83.0
+boost-program-options	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_program_options.so.1.83.0
+boost-random	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_random.so.1.83.0
+boost-regex	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_regex.so.1.83.0
+boost-serialization	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_serialization.so.1.83.0
+boost-system	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_system.so.1.83.0
+boost-test	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_prg_exec_monitor.so.1.83.0
+boost-thread	armv7l	0	1.83.0	1.22	0	1.83.0	1.23	RELEASE_ONLY	/usr/lib/libboost_thread.so.1.83.0
+bzip2	armv7l	0	1.0.8	1.192	0	1.0.8	1.206	RELEASE_ONLY	
+coreutils	armv7l	0	6.9	14.18	0	6.9	14.19	RELEASE_ONLY	
+curl	armv7l	0	8.11.0	1.23	0	8.11.0	1.24	RELEASE_ONLY	
+expat	armv7l	0	2.6.2	1.192	0	2.6.2	1.203	RELEASE_ONLY	
+file	armv7l	0	5.45	1.166	0	5.45	1.175	RELEASE_ONLY	
+findutils	armv7l	0	4.3.8	1.175	0	4.3.8	1.186	RELEASE_ONLY	
+fribidi	armv7l	0	1.0.10	1.17	0	1.0.10	1.18	RELEASE_ONLY	/usr/lib/libfribidi.so.0
+gawk	armv7l	0	3.1.5	1.17	0	3.1.5	1.18	RELEASE_ONLY	
+gdbm	armv7l	0	1.8.3	1.241	0	1.8.3	1.259	RELEASE_ONLY	/usr/lib/libgdbm.so.3
+giflib	armv7l	0	5.2.2	1.79	0	5.2.2	1.83	RELEASE_ONLY	/usr/lib/libgif.so.7
+glibc	armv7l	0	2.40	1.111	0	2.40	1.119	RELEASE_ONLY	/etc/ld.so.cache
+glibc-locale	armv7l	0	2.40	1.111	0	2.40	1.119	RELEASE_ONLY	/usr/lib/gconv/ANSI_X3.110.so
+gmp	armv7l	0	4.2.1	1.16	0	4.2.1	1.17	RELEASE_ONLY	
+grep	armv7l	0	2.5.2	1.18	0	2.5.2	1.19	RELEASE_ONLY	
+gtest	armv7l	0	1.12.1	1.15	0	1.12.1	1.16	RELEASE_ONLY	/usr/lib/libgmock.so
+gzip	armv7l	0	1.3.12	1.162	0	1.3.12	1.171	RELEASE_ONLY	
+icu	armv7l	0	76.1	1.34	0	76.1	1.36	RELEASE_ONLY	
+iniparser	armv7l	0	4.2.4	1.15	0	4.2.4	1.16	RELEASE_ONLY	/usr/lib/libiniparser.so.4
+iproute2	armv7l	0	5.5.0	1.17	0	5.5.0	1.18	RELEASE_ONLY	/usr/lib/tc/m_xt.so
+iptables	armv7l	0	1.6.1	2.17	0	1.6.1	2.18	RELEASE_ONLY	/usr/lib/libip4tc.so.0
+jsoncpp	armv7l	0	1.9.2	2.13	0	1.9.2	2.15	RELEASE_ONLY	/usr/lib/libjsoncpp.so.1.9.2
+keyutils	armv7l	0	1.6.3	1.27	0	1.6.3	1.29	RELEASE_ONLY	
+kmod	armv7l	0	34	1.17	0	34	1.18	RELEASE_ONLY	
+kmod-compat	armv7l	0	34	1.17	0	34	1.18	RELEASE_ONLY	
+krb5	armv7l	0	1.21.3	1.18	0	1.21.3	1.19	RELEASE_ONLY	/usr/lib/krb5/plugins/kdb/db2.so
+libacl	armv7l	0	2.3.2	1.185	0	2.3.2	1.196	RELEASE_ONLY	/usr/lib/libacl.so.1
+libarchive	armv7l	0	3.8.1	1.80	0	3.8.1	1.83	RELEASE_ONLY	/usr/lib/libarchive.so.13
+libasound	armv7l	0	1.2.12	1.15	0	1.2.12	1.16	RELEASE_ONLY	/usr/lib/libasound.so.2
+libatomic	armv7l	0	14.2.0	1.77	0	14.2.0	1.80	RELEASE_ONLY	/usr/lib/libatomic.so.1
+libattr	armv7l	0	2.5.1	1.191	0	2.5.1	1.204	RELEASE_ONLY	/usr/lib/libattr.so.1
+libblkid	armv7l	0	2.39.3	1.17	0	2.39.3	1.18	RELEASE_ONLY	/usr/lib/libblkid.so.1
+libbz2	armv7l	0	1.0.8	1.192	0	1.0.8	1.206	RELEASE_ONLY	/usr/lib/libbz2.so.1
+libcap	armv7l	0	2.73	1.30	0	2.73	1.32	RELEASE_ONLY	/usr/lib/libcap.so.2
+libcap-tools	armv7l	0	2.73	1.30	0	2.73	1.32	RELEASE_ONLY	
+libcares	armv7l	0	1.21.0	1.15	0	1.21.0	1.16	RELEASE_ONLY	/usr/lib/libcares.so.2
+libcom_err	armv7l	0	1.46.0	1.45	0	1.46.0	1.47	RELEASE_ONLY	/usr/lib/libcom_err.so.2
+libcurl	armv7l	0	8.11.0	1.23	0	8.11.0	1.24	RELEASE_ONLY	/usr/lib/libcurl.so.4
+libdatrie	armv7l	0	0.2.13	1.17	0	0.2.13	1.18	RELEASE_ONLY	/usr/lib/libdatrie.so.1
+libdrm	armv7l	0	2.4.124	1.22	0	2.4.124	1.23	RELEASE_ONLY	/usr/lib/libdrm.so.2
+libdw	armv7l	0	0.189	2.54	0	0.189	2.57	RELEASE_ONLY	/usr/lib/libdw-0.189.so
+libelf	armv7l	0	0.189	2.54	0	0.189	2.57	RELEASE_ONLY	/usr/lib/libelf-0.189.so
+libevdev	armv7l	0	1.13.3	1.13	0	1.13.3	1.14	RELEASE_ONLY	/usr/lib/libevdev.so.2
+libevent	armv7l	0	2.1.12	1.15	0	2.1.12	1.16	RELEASE_ONLY	/usr/lib/libevent-2.1.so.7
+libexif	armv7l	0	0.6.22	1.15	0	0.6.22	1.16	RELEASE_ONLY	/usr/lib/libexif.so.12
+libexpat	armv7l	0	2.6.2	1.192	0	2.6.2	1.203	RELEASE_ONLY	/usr/lib/libexpat.so.1
+libfdisk	armv7l	0	2.39.3	1.17	0	2.39.3	1.18	RELEASE_ONLY	/usr/lib/libfdisk.so.1
+libffi	armv7l	0	3.4.7	1.72	0	3.4.7	1.75	RELEASE_ONLY	/usr/lib/libffi.so.8
+libfreebl3	armv7l	0	3.109	1.188	0	3.109	1.199	RELEASE_ONLY	/usr/lib/libfreebl3.so
+libfuse	armv7l	0	2.9.9	1.19	0	2.9.9	1.20	RELEASE_ONLY	/usr/lib/libfuse.so.2
+libgcc	armv7l	0	14.2.0	1.77	0	14.2.0	1.80	RELEASE_ONLY	/usr/lib/libgcc_s.so.1
+libgcrypt	armv7l	0	1.11.0	1.18	0	1.11.0	1.19	RELEASE_ONLY	/usr/lib/libgcrypt.so.20
+libgomp	armv7l	0	14.2.0	1.77	0	14.2.0	1.80	RELEASE_ONLY	/usr/lib/libgomp.so.1
+libgpg-error	armv7l	0	1.51	1.18	0	1.51	1.19	RELEASE_ONLY	/usr/lib/libgpg-error.so.0
+libhyphen	armv7l	0	2.8.8	1.15	0	2.8.8	1.16	RELEASE_ONLY	/usr/lib/libhyphen.so.0
+libicu	armv7l	0	76.1	1.34	0	76.1	1.36	RELEASE_ONLY	/usr/lib/libicudata.so
+libicu-tzdata	armv7l	0	76.1	1.34	0	76.1	1.36	RELEASE_ONLY	
+libiri	armv7l	0	1.1	1.18	0	1.1	1.19	RELEASE_ONLY	/usr/lib/libiri.so
+libjpeg	armv7l	0	8.2.2	1.25	0	8.2.2	1.27	RELEASE_ONLY	/usr/lib/libjpeg.so.8
+libjpeg-turbo	armv7l	0	3.0.4	1.25	0	3.0.4	1.27	RELEASE_ONLY	
+libjson	armv7l	0	0.18	1.15	0	0.18	1.16	RELEASE_ONLY	/usr/lib/libjson-c.so.5
+libkeyutils	armv7l	0	1.6.3	1.27	0	1.6.3	1.29	RELEASE_ONLY	/usr/lib/libkeyutils.so.1
+libkmod	armv7l	0	34	1.17	0	34	1.18	RELEASE_ONLY	/usr/lib/libkmod.so.2
+libleveldb	armv7l	0	1.23	1.15	0	1.23	1.16	RELEASE_ONLY	/usr/lib/libleveldb.so.1
+libltdl	armv7l	0	2.4.7	1.149	0	2.4.7	1.155	RELEASE_ONLY	/usr/lib/libltdl.so.7
+liblua	armv7l	0	5.1.5	1.169	0	5.1.5	1.179	RELEASE_ONLY	/usr/lib/liblua.so.5.1
+liblzma	armv7l	0	5.8.1	1.65	0	5.8.1	1.67	RELEASE_ONLY	/usr/lib/liblzma.so.5
+libmagic	armv7l	0	5.45	1.166	0	5.45	1.175	RELEASE_ONLY	/usr/lib/libmagic.so.1
+libmagic-data	armv7l	0	5.45	1.166	0	5.45	1.175	RELEASE_ONLY	
+libmount	armv7l	0	2.39.3	1.17	0	2.39.3	1.18	RELEASE_ONLY	/usr/lib/libmount.so.1
+libmtdev	armv7l	0	1.1.6	1.17	0	1.1.6	1.18	RELEASE_ONLY	/usr/lib/libmtdev.so.1
+libncurses	armv7l	0	6.4	1.172	0	6.4	1.182	RELEASE_ONLY	
+libncurses6	armv7l	0	6.4	1.172	0	6.4	1.182	RELEASE_ONLY	/usr/lib/libform.so.6
+libnl2	armv7l	0	2.0	2.15	0	2.0	2.16	RELEASE_ONLY	/usr/lib/libnl-cli.so.2
+libnl3	armv7l	0	3.2.22	1.17	0	3.2.22	1.18	RELEASE_ONLY	/usr/lib/libnl-3.so.200
+libogg	armv7l	0	1.3.2	1.15	0	1.3.2	1.16	RELEASE_ONLY	/usr/lib/libogg.so.0
+libomp	armv7l	0	22.1.8	9.1	0	22.1.8	11.1	RELEASE_ONLY	/usr/lib/libomp.so
+libopenssl11	armv7l	0	1.1.1zh	1.42	0	1.1.1zh	1.58	RELEASE_ONLY	/usr/lib/engines-1.1/capi.so
+libopenssl3	armv7l	0	3.0.20	2.52	0	3.0.20	2.67	RELEASE_ONLY	/usr/lib/engines-3/capi.so
+liborc	armv7l	0	0.4.40	1.20	0	0.4.40	1.21	RELEASE_ONLY	/usr/lib/liborc-0.4.so.0
+libpciaccess	armv7l	0	0.13.2	1.15	0	0.13.2	1.16	RELEASE_ONLY	/usr/lib/libpciaccess.so.0
+libpcre	armv7l	0	8.45	1.176	0	8.45	1.186	RELEASE_ONLY	/usr/lib/libpcre.so.1
+libpcrecpp	armv7l	0	8.45	1.176	0	8.45	1.186	RELEASE_ONLY	/usr/lib/libpcrecpp.so.0
+libpopt	armv7l	0	1.16	1.177	0	1.16	1.188	RELEASE_ONLY	/usr/lib/libpopt.so.0
+libpsl	armv7l	0	0.21.0	1.14	0	0.21.0	1.15	RELEASE_ONLY	/usr/lib/libpsl.so.5
+libreadline	armv7l	0	5.2	1.207	0	5.2	1.223	RELEASE_ONLY	/usr/lib/libhistory.so.5
+libsigc++	armv7l	0	2.10.7	1.14	0	2.10.7	1.15	RELEASE_ONLY	/usr/lib/libsigc-2.0.so
+libsmack	armv7l	0	1.3.1	1.164	0	1.3.1	1.172	RELEASE_ONLY	/usr/lib/libsmack.so.1
+libsmartcols	armv7l	0	2.39.3	1.17	0	2.39.3	1.18	RELEASE_ONLY	/usr/lib/libsmartcols.so.1
+libsndfile	armv7l	0	1.2.2	2.4	0	1.2.2	2.5	RELEASE_ONLY	/usr/lib/libsndfile.so.1
+libsoftokn3	armv7l	0	3.109	1.188	0	3.109	1.199	RELEASE_ONLY	/usr/lib/libnssdbm3.so
+libspeexdsp	armv7l	0	1.2.1	10.15	0	1.2.1	10.16	RELEASE_ONLY	/usr/lib/libspeexdsp.so.1
+libsqlite	armv7l	0	3.50.2	1.188	0	3.50.2	1.200	RELEASE_ONLY	/usr/lib/libsqlite3.so.0
+libstdc++	armv7l	0	14.2.0	1.77	0	14.2.0	1.80	RELEASE_ONLY	/usr/lib/libstdc++.so.6
+libthai	armv7l	0	0.1.18	1.15	0	0.1.18	1.16	RELEASE_ONLY	/usr/lib/libthai.so.0
+libthai-data	armv7l	0	0.1.18	1.15	0	0.1.18	1.16	RELEASE_ONLY	
+libtheora	armv7l	0	1.1.1	14.13	0	1.1.1	14.14	RELEASE_ONLY	/usr/lib/libtheora.so.0
+libtiff	armv7l	0	4.7.0	1.15	0	4.7.0	1.16	RELEASE_ONLY	/usr/lib/libtiff.so.6
+libunwind	armv7l	0	1.6.2	1.17	0	1.6.2	1.18	RELEASE_ONLY	/usr/lib/libunwind-arm.so.8
+libuuid	armv7l	0	2.39.3	1.17	0	2.39.3	1.18	RELEASE_ONLY	/usr/lib/libuuid.so.1
+libv4l	armv7l	0	1.6.0	7.15	0	1.6.0	7.16	RELEASE_ONLY	/usr/lib/libv4l/plugins/libv4l-mplane.so
+libvorbis	armv7l	0	1.3.7	1.15	0	1.3.7	1.16	RELEASE_ONLY	/usr/lib/libvorbis.so.0
+libvorbisenc	armv7l	0	1.3.7	1.15	0	1.3.7	1.16	RELEASE_ONLY	/usr/lib/libvorbisenc.so.2
+libwbxml2	armv7l	0	0.11.10	1.18	0	0.11.10	1.19	RELEASE_ONLY	/usr/lib/libwbxml2.so.1
+libwebp	armv7l	0	1.4.0	1.18	0	1.4.0	1.19	RELEASE_ONLY	/usr/lib/libsharpyuv.so.0
+libxcrypt	armv7l	0	4.4.36	1.209	0	4.4.36	1.224	RELEASE_ONLY	/usr/lib/libcrypt.so.1
+libxml2	armv7l	0	2.13.5	1.42	0	2.13.5	1.44	RELEASE_ONLY	/usr/lib/libxml2.so.2
+libxslt	armv7l	0	1.1.42	1.18	0	1.1.42	1.19	RELEASE_ONLY	/usr/lib/libexslt.so.0
+libxslt-tools	armv7l	0	1.1.42	1.18	0	1.1.42	1.19	RELEASE_ONLY	
+libzip	armv7l	0	1.11.3	1.17	0	1.11.3	1.18	RELEASE_ONLY	/usr/lib/libzip.so.5
+libzstd1	armv7l	0	1.5.6	1.148	0	1.5.6	1.157	RELEASE_ONLY	/usr/lib/libzstd.so.1
+minizip	armv7l	0	1.3.1	1.212	0	1.3.1	1.229	RELEASE_ONLY	/usr/lib/libminizip.so.1
+net-tools	armv7l	0	2.0_20121208git	1.17	0	2.0_20121208git	1.18	RELEASE_ONLY	
+nfs-utils	armv7l	0	0.0.2	2.17	0	0.0.2	2.18	RELEASE_ONLY	/usr/lib/libtirpc.so.1
+nghttp2	armv7l	0	1.51.0	1.15	0	1.51.0	1.16	RELEASE_ONLY	/usr/lib/libnghttp2.so
+nspr	armv7l	0	4.36	1.159	0	4.36	1.167	RELEASE_ONLY	/usr/lib/libnspr4.so
+nss	armv7l	0	3.109	1.188	0	3.109	1.199	RELEASE_ONLY	/usr/lib/libnss3.so
+nss-certs	armv7l	0	3.109	1.188	0	3.109	1.199	RELEASE_ONLY	/usr/lib/libnssckbi.so
+nss-sysinit	armv7l	0	3.109	1.188	0	3.109	1.199	RELEASE_ONLY	/usr/lib/libnsssysinit.so
+opencore-amr	armv7l	0	0.1.3	2.15	0	0.1.3	2.16	RELEASE_ONLY	/usr/lib/libopencore-amrnb.so.0
+openssl1.1	armv7l	0	1.1.1zh	1.42	0	1.1.1zh	1.58	RELEASE_ONLY	
+openssl3	armv7l	0	3.0.20	2.52	0	3.0.20	2.67	RELEASE_ONLY	
+opus	armv7l	0	1.3.1	2.15	0	1.3.1	2.16	RELEASE_ONLY	/usr/lib/libopus.so.0
+pam	armv7l	0	1.1.6	1.18	0	1.1.6	1.19	RELEASE_ONLY	/usr/lib/libpam.so.0
+pam-locale	noarch	0	1.1.6	1.46	0	1.1.6	1.49	RELEASE_ONLY	
+pam-modules-extra	armv7l	0	1.1.6	1.18	0	1.1.6	1.19	RELEASE_ONLY	/usr/lib/security/pam_access.so
+pkg-config	armv7l	0	0.29.2	1.197	0	0.29.2	1.211	RELEASE_ONLY	
+procps-ng	armv7l	0	4.0.4	1.18	0	4.0.4	1.19	RELEASE_ONLY	/usr/lib/libproc2.so.0
+psmisc	armv7l	0	23.6	1.18	0	23.6	1.19	RELEASE_ONLY	
+rpm	armv7l	0	4.14.1.1	1.65	0	4.14.1.1	1.68	RELEASE_ONLY	/usr/lib/librpm.so.3
+rpm-security-plugin	armv7l	0	4.14.1.1	1.65	0	4.14.1.1	1.68	RELEASE_ONLY	/usr/lib/rpm-plugins/msm.so
+sed	armv7l	0	4.1c	1.20	0	4.1c	1.21	RELEASE_ONLY	
+setup	noarch	0	0.9	1.16	0	0.9	1.17	RELEASE_ONLY	
+shadow-utils	armv7l	0	4.1.4.2	7.42	0	4.1.4.2	7.46	RELEASE_ONLY	
+shadow-utils-adm	armv7l	0	4.1.4.2	7.42	0	4.1.4.2	7.46	RELEASE_ONLY	
+smack	armv7l	0	1.3.1	1.164	0	1.3.1	1.172	RELEASE_ONLY	
+soundtouch	armv7l	0	1.9.0	1.17	0	1.9.0	1.18	RELEASE_ONLY	/usr/lib/libSoundTouch.so.0
+sqlite	armv7l	0	3.50.2	1.188	0	3.50.2	1.200	RELEASE_ONLY	
+taglib	armv7l	0	1.13.1	1.15	0	1.13.1	1.16	RELEASE_ONLY	/usr/lib/libtag.so.1
+tar	armv7l	0	1.17	1.17	0	1.17	1.18	RELEASE_ONLY	
+terminfo-base-full	armv7l	0	6.4	1.172	0	6.4	1.182	RELEASE_ONLY	
+tinyxml2	armv7l	0	10.0.0	1.14	0	10.0.0	1.15	RELEASE_ONLY	/usr/lib/libtinyxml2.so.10
+tizen-release	armv7l	0	10.0.0	1.28	0	10.0.0	1.30	RELEASE_ONLY	
+tizen-release-profile_tv	armv7l	0	10.0.0	1.28	0	10.0.0	1.30	RELEASE_ONLY	
+tzdata	armv7l	0	2024b	1.17	0	2024b	1.18	RELEASE_ONLY	
+unzip	armv7l	0	610c25	2.16	0	610c25	2.18	RELEASE_ONLY	
+update-alternatives	armv7l	0	1.22.2	1.16	0	1.22.2	1.17	RELEASE_ONLY	
+util-linux	armv7l	0	2.39.3	1.17	0	2.39.3	1.18	RELEASE_ONLY	
+uuidd	armv7l	0	2.39.3	1.17	0	2.39.3	1.18	RELEASE_ONLY	
+v4l-utils	armv7l	0	1.6.0	7.15	0	1.6.0	7.16	RELEASE_ONLY	/usr/lib/v4l1compat.so
+vd-dosfstools	armv7l	0	2.11	5.17	0	2.11	5.18	RELEASE_ONLY	
+vim	armv7l	0	9.1.1557	1.14	0	9.1.1557	1.15	RELEASE_ONLY	
+xdelta3	armv7l	0	3.0.11	1.17	0	3.0.11	1.18	RELEASE_ONLY	
+xdgmime	armv7l	0	0.0.17	1.15	0	0.0.17	1.16	RELEASE_ONLY	/usr/lib/libxdgmime.so.1
+xmlsec1	armv7l	0	1.2.41	1.17	0	1.2.41	1.18	RELEASE_ONLY	/usr/lib/libxmlsec1.so.1
+xmlsec1-openssl	armv7l	0	1.2.41	1.17	0	1.2.41	1.18	RELEASE_ONLY	/usr/lib/libxmlsec1-openssl.so.1
+xz	armv7l	0	5.8.1	1.65	0	5.8.1	1.67	RELEASE_ONLY	
+zbar	armv7l	0	0.10	23.15	0	0.10	23.16	RELEASE_ONLY	/usr/lib/libzbar.so.0
+zip	armv7l	0	3.0	1.17	0	3.0	1.18	RELEASE_ONLY	
+zlib	armv7l	0	1.3.1	1.212	0	1.3.1	1.229	RELEASE_ONLY	/lib/libz.so.1

@@ -31,7 +31,7 @@ PINS = {
                "5481cf2ee178fd1ff30d841cc7702d89ee27d1039f8c34a41d9c30a5e439f941"),
 }
 A = ("Text", "Data", "BSS", "Total")
-B = ("Text", "Data", "BSS", "dec", ".text", ".rodata", ".init.*", "runtime RAM", "U-Boot declared payload", "uImage", "zImage", "tztv-kernel-perf RPM")
+B = ("Text", "Data", "BSS", "dec", ".text", ".rodata", ".data", ".bss", ".init.*", "runtime RAM", "U-Boot declared payload", "uImage", "zImage", "tztv-kernel-perf RPM")
 NOTE = struct.pack("<III", 4, 20, 3) + b"GNU\0"
 RPM_NAME = re.compile(r"tztv-kernel(?:-perf)?-debuginfo-1-1\.armv7l\.rpm$")
 MAX_RPM = 1024**3
@@ -253,6 +253,15 @@ def debug_packages(cap,meta,work,rows):
                 verified(out,pin)
             return out,url
         return None
+    canonical = prefix+"debug/tztv-kernel-perf-debuginfo-1-1.armv7l.rpm"
+    package = work/"perf-debuginfo.rpm"
+    attempt=subprocess.run(["curl","--noproxy",HOST,"--fail","--silent","--show-error",
+                            "--retry","4","--retry-all-errors","--retry-delay","5","--connect-timeout","20",
+                            "--max-time","1800","--max-filesize",str(MAX_RPM),"-o",package,canonical])
+    print("PERF_DEBUG_FETCH",canonical,"rc",attempt.returncode,flush=True)
+    seen.add(canonical)
+    if attempt.returncode==0:
+        yield package,canonical
     for p in sorted(cap.rglob("*debuginfo*.rpm")):
         if "tztv-kernel" in p.name:
             yield p,str(p)
@@ -333,8 +342,8 @@ def lane(which,work,result):
     u=verified(usb/"uImage",usha).read_bytes()
     z=verified(usb/"zImage",zsha).read_bytes()
     payload,bid=raw_kernel(u,z)
-    if which=="official" and bid!="419813f26f2d03bee00bde1d7173b0c2fd887530":
-        raise ValueError("O1 running build ID differs")
+    if bid!={"official":"419813f26f2d03bee00bde1d7173b0c2fd887530","custom":"4d95bb9eb9dc71983a87f90352fc8c2b7bd8a006"}[which]:
+        raise ValueError("running build ID differs")
     result.update(qb=qb,build_id=bid,flat_sha256=hashlib.sha256(payload).hexdigest(),trailer=len(u)-64-len(payload),
                   metrics={"Total":len(u)-64,"U-Boot declared payload":len(payload),"uImage":len(u),"zImage":len(z),"tztv-kernel-perf RPM":rpm.stat().st_size},attempts=[])
     seen=set()

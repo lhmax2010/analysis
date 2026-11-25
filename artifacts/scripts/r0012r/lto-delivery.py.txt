@@ -1,0 +1,154 @@
+"""Join the driver receipts, retained CMake objects and final ARM ELF for a Thumb lane."""
+import collections
+import json
+import re
+import runpy
+import shlex
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+def option(args, flag):
+    values = [v for k,v in zip(args,args[1:]) if k == flag]
+    return values[-1] if values else ""
+
+
+def lto(args):
+    settings = [a for a in args if a in ("-flto","-fno-lto") or a.startswith("-flto=")]
+    return bool(settings and settings[-1] != "-fno-lto")
+
+
+def ir_modes(ir):
+    groups = {}
+    for group,features in re.findall(r'^attributes #(\d+) = [^\n]*?"target-features"="([^"]*)"',ir,re.M):
+        switches = [s for s in features.split(",") if s in ("+thumb-mode","-thumb-mode")]
+        groups[group] = switches[-1] if switches else "unknown"
+    modes = collections.Counter()
+    for line in ir.splitlines():
+        if line.startswith("define "):
+            group = re.search(r'\)\s+[^\n]*?#(\d+)\b',line)
+            modes[groups.get(group[1] if group else "", "unknown")] += 1
+    return dict(modes)
+
+
+def audit(directory, lane, metrics, arm_control=False):
+    scan = runpy.run_path(str(directory/"image_mode_scan.py.txt"))["secs_of"]
+    mapping = runpy.run_path(str(directory/"thumb-map.py.txt"))["text_map"]
+    receipts = [shlex.split(x) for x in (lane/"driver-argv.txt").read_text().splitlines()]
+    links = [r[3:] for r in receipts if r[:2]==["PM12_DRIVER","link"]]
+    compiles = collections.defaultdict(list)
+    for r in receipts:
+        if r[:2]==["PM12_DRIVER","compile"] and "-c" in r:
+            compiles[option(r,"-o")].append(r)
+    roots = list((lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*/home/abuild/rpmbuild/BUILD"))
+    plans = (lane/"link-argv.txt").read_text().splitlines()
+    wanted = "-thumb-mode" if arm_control or lane.name=="baseline" else "+thumb-mode"
+    result = {"status":"REVIEW", "linked":[], "gaps":[]}
+    for row in metrics.get("files",[]):
+        output = Path(row["path"]).name
+        matches = [args for args in links if Path(option(args,"-o")).name==output]
+        if len(matches)!=1 or not lto(matches[0]):
+            result["gaps"].append("no unique LTO driver link for "+output)
+            continue
+        argv = matches[0]
+        objs = [a for a in argv if a.endswith(".o")]
+        targets = {a.split(".dir/")[0]+".dir" for a in objs if "CMakeFiles/" in a and ".dir/" in a}
+        if len(roots)!=1 or len(targets)!=1 or not objs:
+            result["gaps"].append("unresolved CMake object set for "+output)
+            continue
+        target_root = Path(next(iter(targets)))
+        files = list(roots[0].glob("**/"+target_root.name+"/link.txt"))
+        good = []
+        for f in files:
+            if f.parent.parent.name!="CMakeFiles": continue
+            base = f.parent.parent.parent
+            if all(not Path(a).is_absolute() and (base/a).resolve().is_relative_to(roots[0]) and (base/a).is_file() for a in objs):
+                good.append(base)
+        if len(good)!=1:
+            result["gaps"].append("missing or ambiguous retained build objects for "+output)
+            continue
+        planned = [shlex.split(p) for p in plans]
+        if not any(Path(option(p,"-o")).name==output and ("LLVMgold.so" in " ".join(p) or "ld.lld" in Path(p[1]).name) and all(o in p for o in objs) for p in planned):
+            result["gaps"].append("linker/plugin argv unproved for "+output)
+        if any(a.startswith("@") or a.endswith((".a",".bc")) or a in ("-static","-Wl,-Bstatic") for a in argv):
+            result["gaps"].append("additional archive/response inputs require resolution for "+output)
+        unlinked=sorted(k for k in compiles if k.startswith(str(target_root)+"/") and k not in objs)
+        if unlinked:
+            result["gaps"].append("compile receipts absent from final target link: "+repr(unlinked))
+        dis = shutil.which("llvm-dis-22") or shutil.which("llvm-dis")
+        counts = {}
+        for obj in objs:
+            comp = compiles.get(obj,[])
+            if len(comp)!=1 or not lto(comp[0]) or not any(s.endswith((".c",".cpp",".C",".cc",".cxx")) for s in comp[0]):
+                result["gaps"].append("compile receipt: "+obj)
+                continue
+            blob=(good[0]/obj).read_bytes()
+            secs=[s for n,s in scan(blob) or [] if n==".llvm.lto"]
+            if not dis or len(secs)!=1:
+                result["gaps"].append("bitcode section or compatible llvm-dis missing: "+obj)
+                continue
+            sec=secs[0]
+            process=subprocess.run([dis,"-o","-","-"],input=blob[sec[4]:sec[4]+sec[5]],capture_output=True)
+            modes=ir_modes(process.stdout.decode(errors="replace"))
+            counts[obj]=modes
+            if process.returncode or set(modes)!={wanted}:
+                result["gaps"].append("function attributes: "+obj+" "+str(modes)+" "+process.stderr[:140].decode(errors="replace"))
+        debug=Path(row["debug_file"]).read_bytes()
+        maps=mapping(debug,scan(debug))
+        linked_file=good[0]/option(argv,"-o")
+        retain_id=row.get("build_id")
+        if not linked_file.is_file() or not retain_id or not re.search(r'Build ID: '+re.escape(retain_id)+r'\b',subprocess.check_output(["readelf","-nW",linked_file],text=True)):
+            result["gaps"].append("retained link output/build ID unresolved: "+output)
+        code=(maps or {}).get("bytes",{})
+        mode="$a" if arm_control or lane.name=="baseline" else "$t"
+        if not maps or maps.get("id")!=retain_id or maps["size"]!=row["text"] or code.get("unknown") or code.get(mode,0)<=code.get("$t" if mode=="$a" else "$a",0):
+            result["gaps"].append("incomplete final ISA mapping: "+output)
+        result["linked"].append({"output":output,"link":argv,"functions_by_object":counts,"mapping_bytes":code})
+    if result["linked"] and not result["gaps"]: result["status"]="PASS"
+    return result
+
+
+def retained(directory):
+    job=Path("/home1/chengkai/vd-tree/workspace/temp/pm0012-pilot.FejM73/jobs/thumb-org.tizen.AVControl")
+    old=json.loads((job/"thumb-acceptance.json").read_bytes())["lanes"]["default"]
+    options=runpy.run_path(str(directory/"thumb-options.py.txt"))
+    import base64, hashlib, tempfile, zlib
+    scratch=Path(tempfile.mkdtemp(dir=job.parents[2],prefix="pm0012r-lto."))
+    print("WORKDIR",scratch)
+    for label in ("baseline","default"):
+        lane=job/label
+        receipt=json.loads((lane/"lane.json").read_bytes())
+        try:
+            result=audit(directory,lane,receipt["metrics"])
+        except (OSError,ValueError,KeyError,subprocess.SubprocessError) as e:
+            result={"status":"REVIEW","gaps":[str(e)],"linked":[]}
+        original=receipt["delivery"]
+        if original["response_unresolved"] or not original["relevant_links"] or original["treated_links"]!=original["relevant_links"]:
+            result["gaps"].append("response or link delivery coverage")
+            result["status"]="REVIEW"
+        (scratch/(label+".json")).write_text(json.dumps(result,indent=2)+"\n")
+        drivers=options["parse"](lane/"gbs.log")[0]
+        gaps=options["config_gate"](drivers,label=="default",lane)
+        print("LTO",label,result["status"],"config_gaps",gaps,"object_gaps",len(result["gaps"]),result["gaps"][:35])
+    print("DEFAULT T1",result["status"],"CONFIG",gaps or "PASS")
+    print("RETAINED OTHER GATES",{k:v for k,v in old["gates"].items() if k not in ("T1","driver_config_and_IT")})
+    log=(job/"default/gbs.log").read_text(errors="replace")
+    for marker in ("PM_THUMB_CHECK_REACHED","PM_THUMB_INTERWORK_PASS","PM_THUMB_SMOKE_PASS"):
+        observed=[line.strip() for raw in log.splitlines() if (line:=re.sub(r"^\[\s*[\d.]+s\]\s*","",raw)).startswith(marker)]
+        print("CHECK_EVIDENCE",marker,observed[:10])
+    print("T7_UNJOINED_INPUTS",old.get("compile_inputs_without_retained_cu",[]))
+    for f in old["files"][:15]:
+        m=f["maps"][1] or {}
+        print("ELF",f["path"],"mapping",m.get("bytes"),"A32 functions",m.get("a_functions",[])[:8],
+              "dynamic_equal",f["dynamic_equal"],"ABI",f["abi"],"export_and_loader_diff",str(f["export_and_loader_diff"])[:500])
+
+
+    for p in sorted(scratch.glob("*.json")):
+        raw=p.read_bytes()
+        print("LTO_PACKET",p.name,hashlib.sha256(raw).hexdigest(),base64.b64encode(zlib.compress(raw)).decode())
+
+
+if __name__=="__main__":
+    retained(Path(__file__).parent)

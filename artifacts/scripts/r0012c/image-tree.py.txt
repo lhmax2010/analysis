@@ -58,22 +58,30 @@ def filesystem(image, start):
     raise ValueError(f"unrecognized filesystem at byte {start}, superblock={sb[:8].hex()}")
 
 
-def partition(image):
+def partitions(image):
     size = image.stat().st_size
     with image.open("rb") as stream:
         protective = stream.read(512)[450:451] == b"\xee"
         gpt = stream.read(8) == b"EFI PART"
     if not (gpt or protective):
-        return 0, size
+        return {"platform": (0, size)}
     table = json.loads(command("sfdisk", "--json", image))["partitiontable"]
-    if table["label"] != "gpt" or table["unit"] != "sectors" or len(table["partitions"]) != 1:
+    if table["label"] != "gpt" or table["unit"] != "sectors" or not table["partitions"]:
         raise ValueError("ambiguous GPT partition layout: "+str(table)[:900])
     sector = int(table["sectorsize"])
-    row = table["partitions"][0]
-    start, length = int(row["start"])*sector, int(row["size"])*sector
-    if sector not in (512, 4096) or start <= 0 or length <= 0 or start + length > size:
-        raise ValueError("out-of-range GPT partition")
-    return start, length
+    rows = table["partitions"]
+    names = [r.get("name", "").removesuffix(".img") for r in rows]
+    if len(rows) > 1 and sorted(names) != ["pltf_t", "prd_t"]:
+        raise ValueError("unknown GPT partition names: " + repr(names))
+    layout = {}
+    for name, row in zip(names, rows):
+        start, length = int(row["start"])*sector, int(row["size"])*sector
+        if sector not in (512, 4096) or start <= 0 or length <= 0 or start + length > size:
+            raise ValueError("out-of-range GPT partition")
+        if any(start < lo+n and lo < start+length for lo,n in layout.values()):
+            raise ValueError("overlapping GPT partitions")
+        layout["prd" if len(rows)>1 and name=="prd_t" else "platform"] = start,length
+    return layout
 
 
 def db_in_tree(tree):
@@ -126,49 +134,64 @@ def cached_tree(raw, work, digest=None):
                 room(stage, block * count * 2)
                 image = stage/"expanded"
                 command("simg2img", raw, image)
-            start, length = partition(image)
-            info = filesystem(image, start)
-            room(stage, length * 4)
-            part = image
-            if start:
-                part = stage/"slice"
-                command("dd", "if="+str(image), "of="+str(part), "bs=4M", "iflag=skip_bytes,count_bytes",
-                        f"skip={start}", f"count={length}", "status=none")
-                if part.stat().st_size != length or filesystem(part, 0) != info:
-                    raise ValueError("partition slice mismatch")
-            tree = stage/"tree"
-            if info["fs"] == "erofs":
-                tool = "fsck.erofs"
-                version = command(tool, "-V").strip()
-                check = command(tool, part)
-                if "corrupt" in check.lower() or "checksum" in check.lower() and "mismatch" in check.lower():
-                    raise IntegrityError("fsck.erofs integrity failure: "+check[-500:])
-                info["dump_root"] = command("dump.erofs", "--path=/", part).strip()
-                command(tool, "--no-preserve-owner", "--preserve-perms", "--extract="+str(tree), part)
-                # dump.erofs 1.7.1 supplies inode metadata, fsck supplies file contents.
-                try:
-                    db, _ = db_in_tree(tree)
-                except ValueError:
-                    pass
+            layout = partitions(image)
+            metadata = {}
+            for label in ("platform", "prd"):
+                if label not in layout:
+                    continue
+                start, length = layout[label]
+                tree = stage/"tree" if label=="platform" else stage/"tree/prd"
+                if label=="prd" and (tree.exists() or tree.is_symlink()):
+                    if tree.is_symlink() or not tree.is_dir():
+                        raise IntegrityError("unsafe /prd mountpoint")
+                    tree.rename(stage/"platform-covered-prd")
+                info = filesystem(image, start)
+                if len(layout)>1 and info["fs"]!="erofs":
+                    raise IntegrityError(f"{label}: expected EROFS, got {info}")
+                room(stage, length * 4)
+                part = image
+                if start:
+                    part = stage/("slice-"+label)
+                    command("dd", "if="+str(image), "of="+str(part), "bs=4M", "iflag=skip_bytes,count_bytes",
+                            f"skip={start}", f"count={length}", "status=none")
+                    if part.stat().st_size != length or filesystem(part, 0) != info:
+                        raise ValueError("partition slice mismatch")
+                if info["fs"] == "erofs":
+                    tool = "fsck.erofs"
+                    version = command(tool, "-V").strip()
+                    check = command(tool, part)
+                    if "corrupt" in check.lower() or "checksum" in check.lower() and "mismatch" in check.lower():
+                        raise IntegrityError("fsck.erofs integrity failure: "+check[-500:])
+                    info["dump_root"] = command("dump.erofs", "--path=/", part).strip()
+                    command(tool, "--no-preserve-owner", "--preserve-perms", "--extract="+str(tree), part)
+                    # dump.erofs 1.7.1 supplies inode metadata, fsck supplies file contents.
+                    try:
+                        db, _ = db_in_tree(tree)
+                    except ValueError:
+                        pass
+                    else:
+                        info["dump_rpmdb"] = command("dump.erofs", "--path=/"+db.relative_to(tree).as_posix(), part)
+                elif info["fs"] == "squashfs":
+                    tool = "unsquashfs"
+                    version = command(tool, "-version").splitlines()[0]
+                    command(tool, "-no-progress", "-processors", "2", "-d", tree, part)
                 else:
-                    info["dump_rpmdb"] = command("dump.erofs", "--path=/"+db.relative_to(tree).as_posix(), part)
-            elif info["fs"] == "squashfs":
-                tool = "unsquashfs"
-                version = command(tool, "-version").splitlines()[0]
-                command(tool, "-no-progress", "-processors", "2", "-d", tree, part)
-            else:
-                tool = "debugfs"
-                version = command(tool, "-V").splitlines()[0]
-                tree.mkdir()
-                lines = command(tool, "-R", f'rdump / "{tree}"', part).splitlines()
-                errors = [x for x in lines if x and not x.startswith("debugfs ") and
-                          not ("while changing ownership" in x and ("Operation not permitted" in x or "Invalid argument" in x))]
-                if errors:
-                    raise ValueError("debugfs: "+str(errors[:4]))
-            if part != raw:
-                part.unlink()
-            if image != raw and image != part:
+                    tool = "debugfs"
+                    version = command(tool, "-V").splitlines()[0]
+                    tree.mkdir()
+                    lines = command(tool, "-R", f'rdump / "{tree}"', part).splitlines()
+                    errors = [x for x in lines if x and not x.startswith("debugfs ") and
+                              not ("while changing ownership" in x and ("Operation not permitted" in x or "Invalid argument" in x))]
+                    if errors:
+                        raise ValueError("debugfs: "+str(errors[:4]))
+                if part != image:
+                    part.unlink()
+                info.update(partition_start=start, partition_length=length, tool=tool, version=version)
+                metadata[label] = info
+            if image != raw:
                 image.unlink()
+            tree = stage/"tree"
+            info = dict(metadata["platform"], partitions=metadata)
             elfs = prd_elfs = total = 0
             def fail(error):
                 raise error
@@ -182,8 +205,7 @@ def cached_tree(raw, work, digest=None):
                             if src.read(4) == b"\x7fELF":
                                 elfs += 1
                                 prd_elfs += file.is_relative_to(tree/"prd")
-            info.update(image_sha256=image_hash, partition_start=start, partition_length=length,
-                        tool=tool, version=version, extracted_regular_bytes=total, elf_files=elfs,
+            info.update(image_sha256=image_hash, extracted_regular_bytes=total, elf_files=elfs,
                         elf_files_under_prd=prd_elfs)
             (stage/"receipt.json").write_text(json.dumps(info, indent=2)+"\n")
             stage.rename(dest)

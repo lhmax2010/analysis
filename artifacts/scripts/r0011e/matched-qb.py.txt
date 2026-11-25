@@ -230,11 +230,42 @@ def platforms(repo, work):
                 rows = sorted(lib["rpm_rows"](tree, work, ROSTER_FMT).splitlines())
                 if not rows or any(len(row.split("\t")) != 6 or not row.split("\t")[1].isdigit() for row in rows):
                     raise ValueError("invalid installed roster")
+                if "prd" in info.get("partitions", {}):
+                    owners = {}
+                    library_owners = set()
+                    for entry in lib["rpm_rows"](tree, work, r"[%{=NAME}\t%{FILENAMES}\n]").splitlines():
+                        owner, file = entry.split("\t",1)
+                        if re.search(r"\.so(?:\.[^/]*)?$",file): library_owners.add(owner)
+                        if file.startswith("/prd/"): owners.setdefault(file, set()).add(owner)
+                    (work/f"{lane}-dso-owners.txt").write_text("".join(n+"\n" for n in sorted(library_owners)))
+                    product = tree/"prd"
+                    listing = work/f"{lane}-prd-files.tsv"
+                    matched = 0
+                    with listing.open("w") as stream:
+                        print("path","type","rpm_owners",sep="\t",file=stream)
+                        for file in sorted(product.rglob("*")):
+                            logical = "/"+file.relative_to(tree).as_posix()
+                            kind = "link" if file.is_symlink() else "dir" if file.is_dir() else "file"
+                            ids = owners.get(logical,set())
+                            matched += bool(ids) and kind!="dir"
+                            print(logical,kind,",".join(sorted(ids)),sep="\t",file=stream)
+                    emit("PRD_ROSTER",lane,info["partitions"]["prd"]["fs"],sorted(p.name for p in product.iterdir())[:24],
+                         "owned_files",matched,str(listing))
                 roster = work/f"{lane}-installed.tsv"
                 roster.write_text("\n".join(rows)+"\n")
                 receipt = dict(info, qb=CAPTURES[lane][0], count=len(rows), roster_sha256=repo["file_sha"](roster))
                 (work/f"{lane}-platform.json").write_text(json.dumps(receipt, indent=2)+"\n")
                 emit("PLATFORM_ROSTER", lane, len(rows), str(roster), receipt["roster_sha256"])
+
+    if all((work/f"{n}-dso-owners.txt").is_file() for n in ("official","custom")):
+        def installed(n):
+            rows=[r.split("\t") for r in (work/f"{n}-installed.tsv").read_text().splitlines()]
+            return {(r[0],r[4]):r for r in rows}
+        old,new=installed("official"),installed("custom")
+        owners=set()
+        for n in ("official","custom"):
+            owners.update((work/f"{n}-dso-owners.txt").read_text().splitlines())
+        emit("CHANGED_RPM_DSO_OWNERS", sorted({k[0] for k in old.keys() & new.keys() if old[k]!=new[k] and k[0] in owners}))
 
 
 def find_srpm(repo, lane, work, filename=None):

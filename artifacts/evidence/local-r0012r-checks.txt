@@ -1,0 +1,18 @@
+PASS reversed named GPT, both EROFS trees, /prd overlay, ELF counts, corrupted product rejected
+PASS bitcode function mode, link and compile coverage, final Thumb mappings, selected alias/hash, stale policy rejected
+PASS cfg chain, exact mode, idempotent edit across driver names, loud failure and missing-tool gate
+PASS F6 classification, guest-root absolute links and four GCC driver spellings with original argv
+patching file /home/toolchain/Desktop/temp/.work-tmp/0012r/tmp0zk7m41o/spec
+PASS K0 identity and raw-only gates, config diff packet, retained symbols, static sizes, real ARM ELF direct edge and EHABI range, LR shapes, offline trace parser and buildroot command inventory
+ARM_ELF_MATCHED_SPLIT_AND_LINKED {'.text': 4, '.rodata': 4, '.data': 4, '.bss': 96, 'runtime RAM': 108, '.init.*': 4, 'Text': 48, 'Data': 4, 'BSS': 96, 'dec': 148}
+RAW_SPLIT {'Text': 48, 'Data': 0, 'BSS': 100, 'dec': 148} RESTORED ['.data']
+WRONG_ID_OR_IMAGE_REJECTED; UIMAGE_TRAILER_EXCLUDED
+DIFF_RANGES {"different_bytes": 0, "other_bytes": 0, "ranges": 0} first []
+DIFF_RANGES {"different_bytes": 20, "other_bytes": 0, "ranges": 2} first [["0x11", "0x24", ".notes", "GNU build ID"], ["0x3e", "0x3f", ".rodata", "Linux version banner"]]
+DIFF_RANGES {"different_bytes": 23, "other_bytes": 3, "ranges": 4} first [["0x11", "0x24", ".notes", "GNU build ID"], ["0x3e", "0x3f", ".rodata", "Linux version banner"], ["0x45", "0x46", ".rodata", "other"], ["0x46", "0x48", "padding-or-outside-replay", "other"]]
+DIFF_RANGES {"different_bytes": 20, "other_bytes": 19, "ranges": 2} first [["0x11", "0x24", ".text", "other"], ["0x3e", "0x3f", ".text", "Linux version banner"]]
+LISTING http://test.invalid/pub/release/repos/product/armv7l/debug/ children 1 kernel_or_subdir ['tztv-kernel-perf-debuginfo-1-1.armv7l.rpm']
+DEBUG_INDEX [('', '403', 0, 0), ('release/', '403', 0, 0), ('release/repos/', '403', 0, 0), ('release/repos/product/', '403', 0, 0), ('release/repos/product/armv7l/', '403', 0, 0), ('release/repos/product/armv7l/debug/', '200', 0, 1), ('release/repos/product/armv7l/debuginfo/', '403', 0, 0)]
+DEBUG_CANDIDATES ["http://test.invalid/pub/release/repos/product/armv7l/debug/tztv-kernel-perf-debuginfo-1-1.armv7l.rpm"] unvisited 0
+PASS identical / note / banner / code / tail / range conservation / LMA / publication listing
+Python 3.10 compiled all changed modules

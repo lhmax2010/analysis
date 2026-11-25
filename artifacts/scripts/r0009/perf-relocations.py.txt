@@ -322,6 +322,7 @@ def extract_partition(inner, member, work, audit, mountpoint, library):
                                    info["extracted_regular_bytes"], info["elf_files"],
                                    info["elf_files_under_prd"], info["image_sha256"]])
     audit.walk(tree, mountpoint)
+    return info
 
 
 def capture_scan(directory, work, audit, library):
@@ -339,7 +340,6 @@ def capture_scan(directory, work, audit, library):
     out("PERF_CAPTURE", [qb, identity["product"], checksum])
     out("PERF_PARTITION_SCOPE", {"mountpoints": scope, "partition_tables": sorted(tables), "published_mount_labels":declared,
                                  "unscanned_non_images": sorted(files.keys() - scope.keys())})
-    (work/"partition-map.json").write_text(json.dumps({"scope":scope, "evidence":matches, "gaps":gaps}, indent=2)+"\n")
     for name, lines in matches.items():
         out("PERF_PARTITION_TABLE_MATCH", [name, lines[:2], len(lines)])
     required = {"platform.img", "systemrw.img", "factory_peq.img"}
@@ -349,18 +349,25 @@ def capture_scan(directory, work, audit, library):
         audit.problem(name, "expected flat partition image is missing")
     for table in set(helper["TABLES"]) - tables.keys():
         audit.problem(table, "expected flat partition table is missing")
-    for name, cause in gaps:
-        audit.problem(name, cause + ("; scanned using a partition-relative label" if name in scope else ""))
+    embedded_product = False
     with tarfile.open(archive, "r|gz") as bundle:
         for name, member in helper["flat_members"](bundle):
             if name not in scope:
                 continue
             try:
-                extract_partition(bundle, member, work, audit, scope[name], helper["tree_library"]())
+                info = extract_partition(bundle, member, work, audit, scope[name], helper["tree_library"]())
+                if scope[name] == "/" and "prd" in info.get("partitions", {}):
+                    embedded_product = True
             except (OSError, ValueError, subprocess.SubprocessError) as error:
                 if getattr(error, "integrity_failure", False):
                     raise
                 audit.problem(name, error)
+    if embedded_product and declared.get("/prd") in ("prd_t","prd_t.img"):
+        gaps = [(name,cause) for name,cause in gaps if name!="/prd"]
+    for name,cause in gaps:
+        audit.problem(name,cause)
+    receipt = dict(scope=scope,evidence=matches,gaps=gaps,embedded_product=embedded_product)
+    (work/"partition-map.json").write_text(json.dumps(receipt,indent=2)+"\n")
 
 
 def main():

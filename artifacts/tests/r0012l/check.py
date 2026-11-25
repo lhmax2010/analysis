@@ -68,6 +68,11 @@ with tempfile.TemporaryDirectory(dir=os.environ['TMPDIR']) as tmp:
     cfg={'BUILD_ID':buildid,'IMAGES':w}
     def result(same=True):
         return qual(w,w,rec,cfg,{'local_paths':lambda _:('',w/'missing',[])},scan,same)
+    image=w/'arch/arm/boot/Image'
+    image.parent.mkdir(parents=True)
+    image.write_bytes(raw[:-1]+b'X')
+    assert result()['status']=='K0_OUTPUT_UNQUALIFIED'
+    image.write_bytes(raw)
     assert result()['status']=='OFFICIAL_PERF_BUILD_CONFIG'
     assert result(False)['status']=='K0_CONFIG_MISMATCH'
     rec['images']['zImage'][0]-=1
