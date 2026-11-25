@@ -31,7 +31,7 @@ PINS = {
                "5481cf2ee178fd1ff30d841cc7702d89ee27d1039f8c34a41d9c30a5e439f941"),
 }
 A = ("Text", "Data", "BSS", "Total")
-B = ("Text", "Data", "BSS", "dec", ".text", ".rodata", ".init.*", "runtime RAM", "uImage", "zImage", "tztv-kernel-perf RPM")
+B = ("Text", "Data", "BSS", "dec", ".text", ".rodata", ".init.*", "runtime RAM", "U-Boot declared payload", "uImage", "zImage", "tztv-kernel-perf RPM")
 NOTE = struct.pack("<III", 4, 20, 3) + b"GNU\0"
 RPM_NAME = re.compile(r"tztv-kernel(?:-perf)?-debuginfo-1-1\.armv7l\.rpm$")
 MAX_RPM = 1024**3
@@ -336,7 +336,7 @@ def lane(which,work,result):
     if which=="official" and bid!="419813f26f2d03bee00bde1d7173b0c2fd887530":
         raise ValueError("O1 running build ID differs")
     result.update(qb=qb,build_id=bid,flat_sha256=hashlib.sha256(payload).hexdigest(),trailer=len(u)-64-len(payload),
-                  metrics={"Total":len(payload),"uImage":len(u),"zImage":len(z),"tztv-kernel-perf RPM":rpm.stat().st_size},attempts=[])
+                  metrics={"Total":len(u)-64,"U-Boot declared payload":len(payload),"uImage":len(u),"zImage":len(z),"tztv-kernel-perf RPM":rpm.stat().st_size},attempts=[])
     seen=set()
     for pkg,origin in debug_packages(cap,receipt,work,rows):
         h=digest(pkg)
@@ -379,6 +379,7 @@ def tables(results):
             if label=="B":
                 vals.append(f"{100*delta/a:+.2f}%" if delta is not None and a else "—")
             out.append("| VDLinux | "+k+" | "+" | ".join(vals)+" |")
+    out.append("Total = uImage file bytes minus 64; any trailer is included. U-Boot declared payload = CRC-verified ih_size, also checked against zImage.")
     return "\n".join(out)
 
 
