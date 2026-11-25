@@ -237,10 +237,11 @@ def platforms(repo, work):
                 emit("PLATFORM_ROSTER", lane, len(rows), str(roster), receipt["roster_sha256"])
 
 
-def find_srpm(repo, lane, work):
+def find_srpm(repo, lane, work, filename=None):
     stamp, release = BASES[lane]
     base = repo["PREFIX"] + stamp + "/"
-    filename = f"llvm-22.1.8-{release}.src.rpm"
+    filename = filename or f"llvm-22.1.8-{release}.src.rpm"
+    name, version_pin, release = filename.removesuffix(".src.rpm").rsplit("-", 2)
     for relative in ("repos/base/source/", "repos/base/source/packages/", "repos/base/src/packages/", "repos/base/src/",
                      "repos/base/SRPMS/", "src/", "source/", "SRPMS/",
                      "repos/base/armv7l/packages/"):
@@ -259,10 +260,10 @@ def find_srpm(repo, lane, work):
                 raise ValueError("primary metadata checksum mismatch")
             ns = repo["COM"]
             for row in ET.fromstring(repo["unpack"](data)).findall(ns + "package"):
-                if (row.findtext(ns + "name"), row.findtext(ns + "arch")) != ("llvm", "src"):
+                if (row.findtext(ns + "name"), row.findtext(ns + "arch")) != (name, "src"):
                     continue
                 version = row.find(ns + "version").attrib
-                if (version["ver"], version["rel"], version.get("epoch", "0")) != ("22.1.8", release, "0"):
+                if (version["ver"], version["rel"], version.get("epoch", "0")) != (version_pin, release, "0"):
                     continue
                 url = urljoin(candidate, row.find(ns + "location").get("href"))
                 digest = row.find(ns + "checksum")

@@ -1,0 +1,45 @@
+"""Return the verified native ARM benchmark through a bounded terminal transcript."""
+import base64
+import hashlib
+from pathlib import Path
+import re
+import sys
+import zlib
+
+SHA = "372945183c355de1919f97b039c1f898fea0818c32025cae16cd8eb864b9b5fd"
+NATIVE = Path("/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/microbench")
+PC = Path("/home/toolchain/Desktop/temp")
+WIDTH = 9600
+
+def checked(data):
+    if hashlib.sha256(data).hexdigest() != SHA:
+        raise ValueError("benchmark SHA-256 mismatch")
+    return data
+
+if sys.argv[1] == "encode":
+    encoded = base64.b64encode(zlib.compress(checked(NATIVE.read_bytes()),9)).decode()
+    page = int(sys.argv[2])
+    total = (len(encoded)+WIDTH-1)//WIDTH
+    if not 1 <= page <= total:
+        raise ValueError("page outside packet")
+    part = encoded[(page-1)*WIDTH:page*WIDTH]
+    print("BENCH_PAGE",page,total,part)
+elif sys.argv[1] == "decode":
+    import tempfile
+    parts = {}
+    totals = set()
+    for line in Path(sys.argv[2]).read_text().splitlines():
+        m = re.fullmatch(r"BENCH_PAGE (\d+) (\d+) ([A-Za-z0-9+/=]+)",line.strip())
+        if m:
+            i,n = map(int,m.groups()[:2])
+            if i in parts and parts[i] != m[3]: raise ValueError("conflicting packet")
+            parts[i]=m[3]
+            totals.add(n)
+    n, = totals
+    if set(parts)!=set(range(1,n+1)): raise ValueError("missing packet")
+    blob=checked(zlib.decompress(base64.b64decode("".join(parts[i] for i in range(1,n+1)),validate=True)))
+    dest=Path(tempfile.mkdtemp(prefix="pm0012m-tools.",dir=PC))
+    (dest/"microbench").write_bytes(blob)
+    print("BOARD_TOOLS",dest,SHA)
+else:
+    raise SystemExit("encode PAGE | decode TRANSCRIPT")

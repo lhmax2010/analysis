@@ -45,7 +45,13 @@ if [ "@SCOPED@" = yes ]; then
     done | sort -u > "$d/selected"
     while IFS= read -r chosen; do
         if ! actual=$(cfg_file "$chosen"); then echo "PM_CFG_RESOLVE_FAILED $chosen" >&2; exit 2; fi
-        grep -Fqx '# tizen-force-options begin' "$actual" && continue
+        # Keep unrelated cfg options intact. Refuse an unexpected preinstalled policy.
+        if grep -Fqx '# tizen-force-options begin' "$actual"; then
+            block=$(awk '/^# tizen-force-options begin$/ {inside=1;next}
+                        /^# tizen-force-options end$/ {inside=0;next} inside {print}' "$actual")
+            test "$block" = '-mthumb -mimplicit-it=thumb' || { echo "PM_CFG_POLICY_CONFLICT $actual $block" >&2; exit 2; }
+            continue
+        fi
         mode=$(stat -c %a "$actual") || { echo "PM_CFG_RESOLVE_FAILED $chosen" >&2; exit 2; }
         stage="${actual}.pm0012g.$$"
         (umask 077; mkdir "$stage") || exit 2

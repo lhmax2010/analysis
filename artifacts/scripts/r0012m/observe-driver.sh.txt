@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# The generator records the absolute original driver in $real before this body.
+set -eu
+phase=link
+cmake=no
+for arg do
+    case "$arg" in
+        -c|-S|-E|-M|-MM|-fsyntax-only) phase=compile ;;
+        *cmTC_*|*testCCompiler.c|*testCXXCompiler.cxx) cmake=yes ;;
+    esac
+done
+receipt=$PM12_RECEIPTS/driver.$$
+{
+    printf 'PM12_DRIVER %s %q' "$phase" "$real"
+    printf ' %q' "$@"
+    printf ' HOOK=%q\n' "${CCC_OVERRIDE_OPTIONS:-}"
+} >>"$receipt"
+# A separate dry run supplies the cc1/linker plan; the package sees only its original invocation.
+"$real" -### "$@" >>"$receipt" 2>&1 || :
+if [ "$cmake" = yes ]; then
+    # xtrace records the actual exec. Restore package stderr before entering the compiler.
+    { PS4='PM12_EXEC '; set -x; exec "$real" "$@" 2>&3 3>&-; } 3>&2 2>>"$receipt"
+fi
+exec "$real" "$@"

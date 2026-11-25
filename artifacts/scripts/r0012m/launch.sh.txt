@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -eu
+pin=${1:?commit} action=${2:?action}
+[[ $pin =~ ^[0-9a-f]{40}$ ]]
+native=/home1/chengkai/vd-tree/workspace/temp
+export BOARD_TOOLS="$native/pm0010-board.LqvfAg"
+export PM12_WEDA_RUN="$native/pm0012-wed-a.M5knpj"
+d=$(mktemp -d "$native/pm0012m-launch.XXXXXX")
+get() {
+    curl -fsSL --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/$1" -o "$d/payload"
+    printf '%s  %s\n' "$2" "$d/payload" | sha256sum -c - >/dev/null
+}
+case "$action" in
+    inventory|cleanup)
+        get r0012m/weda-roots.py.txt 5a95e02b66db9ade24769d98ac26a2fdadcaecbeb7db352aba121358c9f052bb
+        args=()
+        if [[ $action == cleanup ]]; then args+=(--apply); fi
+        exec sudo /usr/bin/python3 -B "$d/payload" "${args[@]}" ;;
+    o1|c1)
+        get r0012m/board-micro.sh.txt 66f56aaeee95cb550ff5060124c8b250d18b8dc0c27a2f7bb90cad589974e8a4
+        lane=official
+        if [[ $action == c1 ]]; then lane=custom; fi
+        exec bash "$d/payload" "$lane" ;;
+    packet)
+        get r0012m/bench-packet.py.txt 22733b9fc492971b6cdeede52248bd5a2e71b796dcd51eb90c34cddabb2179c7
+        exec python3 -B "$d/payload" encode "${3:?page number}" ;;
+    image|smoke|pilot)
+        get r0012/batch.sh.txt ef83f5782176c98cdb11ece16c947e1738784f48d32f58eb70c2a267d14d0480
+        if [[ $action == image ]]; then
+            exec bash "$d/payload" launch "$pin" d0464293238801e5237329463fbe429edbf3bc0aac6c8f970a8f592475c9c567 image
+        fi
+        if [[ $action == pilot ]]; then
+            smoke=${SMOKE_RUN:?set SMOKE_RUN to the passing foreground smoke directory}
+            [[ $(realpath -e "$smoke") == "$native"/pm0012-smoke.* ]]
+            grep -Eq '^PM12_AVCONTROL_SMOKE "PASS"$' "$smoke/jobs/thumb-org.tizen.AVControl/job.log"
+        fi
+        p4 login -s
+        rc=0
+        set -o pipefail
+        bash "$d/payload" attended "$pin" d0464293238801e5237329463fbe429edbf3bc0aac6c8f970a8f592475c9c567 "$action" | tee "$d/start" || rc=$?
+        run=$(awk '$1=="PM12_BATCH_DIR"{print $2;exit}' "$d/start")
+        if [[ -f $run/status.txt ]]; then tail -8 "$run/status.txt"; fi
+        if [[ -f $run/jobs/thumb-org.tizen.AVControl/job.log ]]; then
+            grep -E '^PM12_(SMOKE|AVCONTROL|FAILURE_CONTEXT|EXPERIMENT|ERROR)' "$run/jobs/thumb-org.tizen.AVControl/job.log" | tail -16 || :
+        fi
+        exit "$rc" ;;
+    *) exit 2 ;;
+esac

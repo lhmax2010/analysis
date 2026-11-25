@@ -180,7 +180,11 @@ for name in cc c++ gcc g++ armv7l-tizen-linux-gnueabi-gcc armv7l-tizen-linux-gnu
         printf 'real=%%q\n' "$path"
         cat <<'PM_GCC_TRACE'
 printf -v record ' %%q' "$real" "$@"
-printf 'PM_GCC_ARGV%%s\n' "$record" >&2
+if [ -n "${PM12_RECEIPTS:-}" ]; then
+    printf 'PM_GCC_ARGV%%s\n' "$record" >>"$PM12_RECEIPTS/driver.$$"
+else
+    printf 'PM_GCC_ARGV%%s\n' "$record" >&2
+fi
 exec "$real" "$@"
 PM_GCC_TRACE
     } >"$pm12_bin/$name" || exit 2
@@ -215,6 +219,33 @@ def inject(spec, body):
     if count != 1:
         raise ValueError("expected one literal %build in the pinned spec")
     return result
+
+
+def failure_context(lane):
+    result = {}
+    patterns = {
+        "solver": r"nothing provides|unresolvable",
+        "compiler": r"unbound variable|(?:fatal )?error:|command not found",
+        "configure": r"CMake Error|meson.build:.*ERROR:",
+        "abort": r"Bad exit status.*%build",
+    }
+    logs = [lane/"gbs.log", *sorted((lane/"GBS-ROOT/local/repos").glob("**/logs/fail/*/log.txt"))]
+    for path in logs:
+        if not path.is_file():
+            continue
+        lines = path.read_text(errors="replace").splitlines()
+        start = next((i for i,line in enumerate(lines) if "Executing(%build)" in line), 0)
+        groups = {}
+        for key, pattern in patterns.items():
+            flags = re.compile(pattern, re.I)
+            first = next((i for i in range(0 if key=="solver" else start, len(lines))
+                          if flags.search(lines[i])), None)
+            if first is not None:
+                groups[key] = lines[max(0,first-2):first+7]
+        result[str(path)] = groups
+    publish(lane / "failure-context.json", result)
+    return {kind: next((group[kind] for group in result.values() if kind in group), [])
+            for kind in patterns}
 
 
 def link_trace(lane_dir):
@@ -343,7 +374,7 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
         protected = helper["protected_packages"](input_path(TEMP/"pm0005-elf-sections.414uc2ph/sections.jsonl"))
         if recipe.get("package_name", source.name) in protected or set(names) & set(protected):
             raise ValueError("T1 refuses a protected kernel or external-module package")
-        if label in {"treatment","default"}:
+        if label == "treatment":
             text = helper["trial_config"](text, protected, "-mthumb -mimplicit-it=thumb" if recipe["id"]=="THUMB" else "-mthumb")
         prefix = 'for pm_tool in awk sed mkdir cat chmod env bash clang clang++ armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++; do\n    command -v "$pm_tool" >/dev/null || { echo "PM_BUILD_MISSING_TOOL $pm_tool" >&2; exit 2; }\ndone\n' + helper["PROBE"]
         if recipe["id"] == "THUMB":
@@ -368,16 +399,26 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
         # RPM expands this once in the generated phase-specific wrapper.
     driver = (directory / "phase-driver.sh.txt").read_text()
     if recipe["id"] == "THUMB":
-        driver = driver.replace('exec "$real" "$@"', 'exec "$real" -v "$@"')
+        driver = (directory / "observe-driver.sh.txt").read_text()
     if recipe["id"] == "R3":
-        driver = driver.replace('    edits+=("${link_edits[@]}")',
-                                '    if [[ "$phase" == link ]]; then edits+=("${link_edits[@]}"); fi')
-    edits = {**edits, "compile": [*edits["compile"], "-grecord-command-line"]}
+        driver = driver.replace('    edits+=(${link_edits[@]+"${link_edits[@]}"})',
+                                '    if [[ "$phase" == link ]]; then edits+=(${link_edits[@]+"${link_edits[@]}"}); fi')
+    if recipe["id"] != "THUMB":
+        edits = {**edits, "compile": [*edits["compile"], "-grecord-command-line"]}
     meta = hook_source(driver, edits if recipe["id"] != "EXP-Z1" else {**edits, "link": ["-PM12_POLICY"]})
     if recipe["id"] == "EXP-Z1":
         meta = meta.replace("-PM12_POLICY", "%{pm12_native_link_flags}" if label == "treatment" else "")
     if recipe["id"] in ("T1","THUMB"):
         meta = meta.replace('export PATH="$pm12_bin:$PATH"', GCC_TRACE + 'export PATH="$pm12_bin:$PATH"')
+    if recipe["id"] == "THUMB":
+        meta += '\nexport PM12_RECEIPTS="$pm12_bin/receipts"\nmkdir "$PM12_RECEIPTS" || exit 2\n'
+        # Flush private driver receipts after the package build (CMake hides successful try-compiles).
+        start = re.search(r"(?m)^%build\s*$", original).end()
+        boundary = re.search(r"(?m)^%(?:install|check|files|clean|changelog)\b", original[start:])
+        if not boundary:
+            raise ValueError("missing spec section after %build")
+        pos = start + boundary.start()
+        original = original[:pos] + '\ncat "$PM12_RECEIPTS"/driver.* || exit 2\n' + original[pos:]
     if recipe.get("original_hook") and label == "C":
         prefix += "export CCC_OVERRIDE_OPTIONS=" + shlex.quote(recipe["original_hook"]) + "\n"
     if recipe["id"] == "THUMB":
@@ -394,6 +435,8 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
     except (ValueError, OSError, subprocess.SubprocessError) as exc:
         build_error = settings.ole["error_line"](exc, lane)
     rows, links, errors = link_trace(lane)
+    if build_error:
+        report("PM12_FAILURE_CONTEXT", failure_context(lane))
     if build_error is None:
         try:
             metrics = settings.ole["collect_rpms"](settings.scan, root, lane, names)
@@ -411,6 +454,25 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
     return result
 
 
+def smoke_argv(log):
+    # Each receipt is contiguous in the post-build cat. Join exec and input in that receipt.
+    found = {}
+    incoming = None
+    if not log.is_file(): return found
+    for raw in log.open(errors="replace"):
+        line = re.sub(r"^\[\s*[\d.]+s\]\s*", "", raw).strip()
+        if line.startswith("PM12_DRIVER "):
+            words = shlex.split(line)
+            incoming = (words[1],words[2:-1]) if words[-1] == "HOOK=" else None
+        elif line.startswith("PM12_EXEC exec ") and incoming:
+            phase, argv = incoming
+            outgoing = shlex.split(line)[2:]
+            if outgoing == argv and any("cmTC_" in a for a in argv) and phase not in found:
+                found[phase] = {"wrapper_input":argv,"exec":outgoing}
+            incoming = None
+    return found
+
+
 def package_build(directory, work, label, recipe, names=None, source_manifest=None):
     settings = repositories(directory)
     lookup = "libtvs-core" if label == "tvs-core" else label
@@ -418,6 +480,13 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
     if recipe["id"] == "THUMB":
         # collect_rpms loads separate DWARF providers independently of the runtime payload scope.
         binaries = {name for name in binaries if not name.endswith(("-debuginfo", "-debugsource"))}
+    if label == "rpm":
+        # The installed O1 header selects this SRPM even when the repository has two releases.
+        roster = (directory / "o1-installed.tsv").read_text().splitlines()
+        pin, = [line.split("\t")[5] for line in roster if line.startswith("rpm\t0\t") and line.split("\t")[4]=="armv7l"]
+        published = [r for r in published if r["srpm"] == pin]
+        if not published: raise ValueError("installed O1 rpm SRPM missing in snapshot")
+        binaries &= {r["name"] for r in published}
     if label == "tvs-core":
         specs = {record["srpm"] for record in published}
         if row["doc_source"] != "libtvs-core" or len(specs) != 1:
@@ -429,7 +498,16 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
     with settings.perf["locks"]():
         settings.gbs.available(work, 24, 12)
         settings.gbs.live_product(settings.product)
-        source, spec = settings.ole["source_for"](settings.gbs, settings.lib, settings.stager, row, published,
+        if label in {"libgcrypt", "rpm"} and row["repository"] == "Base":
+            srpm, = {r["srpm"] for r in published}
+            if srpm in exact_sources:
+                source, spec = settings.ole["stage_srpm"](srpm,exact_sources[srpm],work)
+            else:
+                lookup = libraries(directory,"matched-qb")[0]
+                archive = lookup["find_srpm"](settings.lib,"official",work,srpm)
+                source,spec = settings.ole["stage_srpm"](srpm,{"path":str(archive),"sha256":settings.gbs.sha(archive)},work)
+        else:
+            source, spec = settings.ole["source_for"](settings.gbs, settings.lib, settings.stager, row, published,
                                                    settings.manifest, exact_sources, work)
         original = spec.read_text()
         spec.chmod(spec.stat().st_mode | 0o200)
@@ -445,6 +523,15 @@ def package_build(directory, work, label, recipe, names=None, source_manifest=No
                                "link_argv_path":None}
                 continue
             results[lane] = lane_build(settings, source, spec, original, work, binaries, recipe, lane, directory)
+    if recipe.get("smoke"):
+        item = results["baseline"]
+        cmake = smoke_argv(work/"baseline/gbs.log")
+        modes = [(v["rpm"], v["path"], v["mode"], v["sha256"]) for v in item["metrics"].get("files",[])]
+        report("PM12_SMOKE_ARGV", cmake)
+        report("PM12_SMOKE_ELF", modes)
+        ok = not item["error"] and bool(modes) and set(cmake) == {"compile","link"}
+        report("PM12_AVCONTROL_SMOKE","PASS" if ok else "FAIL")
+        return 0 if ok else 2
     control = results[recipe["lanes"][0]]
     summary = {}
     for label_, item in results.items():
@@ -849,7 +936,7 @@ def evidence_page(path, page, packet=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("audit", "thumb", "t1", "options", "trial", "t7", "abi", "research",
+    parser.add_argument("mode", choices=("audit", "thumb", "thumb-smoke", "t1", "options", "trial", "t7", "abi", "research",
                                          "pic-plan", "rank", "page", "packet", "abi-index", "audit-compare"))
     parser.add_argument("work", type=Path)
     parser.add_argument("value", nargs="*")
@@ -885,11 +972,14 @@ def main():
             return t7(directory, work)
         if args.mode == "abi":
             return abi_job(directory, work, val[0], args.gbs_root, val[1] if len(val)>1 else None)
-        if args.mode=="thumb":
+        if args.mode in ("thumb","thumb-smoke"):
             if not PATH_SAFE.fullmatch(val[0]):
                 raise ValueError("invalid source package")
             recipe=base_recipe("THUMB")
             recipe.update(lanes=["baseline","default","package"],default=EMPTY.copy())
+            if args.mode == "thumb-smoke":
+                if val != ["org.tizen.AVControl"]: raise ValueError("AVControl smoke only")
+                recipe.update(lanes=["baseline"], smoke=True)
             # The package lane and package name use distinct keys.
             recipe["package_name"]=val[0]
             recipe["package"]=EMPTY.copy()

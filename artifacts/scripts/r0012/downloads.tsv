@@ -7,9 +7,9 @@ b4e88f29f06ca8aeea921ee6205834022038fc42	artifacts/scripts/r0009/thumb-force-pil
 ea24f17d8d8f7b245c36d040381880839165d1c5	artifacts/scripts/r0004/image_mode_scan.py.txt	1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75	image_mode_scan.py.txt
 d3cea65aac76d438b82b55a2857a5ee18546edad	artifacts/scripts/r0005/image-repo-lib.py.txt	8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f	image-repo-lib.py.txt
 1bcea33e793a3c6538d9a3b631b50948d00f70aa	artifacts/scripts/r0010/lto-abi.py.txt	28c32eac9f378063dc7963f614d6745ba5d94a2c91d0045b220a9909167f107b	lto-abi.py.txt
-SELF	artifacts/scripts/r0012/development.py.txt	4693f0dacf4f0aea360a00b8874a511bd35ad19138f13603ce7c57e83040abf5	development.py.txt
-SELF	artifacts/scripts/r0012/phase-driver.sh.txt	a59fadada4d43b8f438578beaccd39c48b5cb744f0f00a5b13648d8d16b28389	phase-driver.sh.txt
-SELF	artifacts/scripts/r0012/gbs-t7-link.sh.txt	8d292822734efa7358c816dd076117b19e7a037f9c176dea9baf36dd6e291a9a	gbs-t7-link.sh.txt
+SELF	artifacts/scripts/r0012/development.py.txt	3f89aa3dceeda83bfffb2de74eb67926ed17e636ad9a5424d189b8bd6c79ec34	development.py.txt
+SELF	artifacts/scripts/r0012/phase-driver.sh.txt	91a6d52a2c12a4182cafbb594fba7456313ab9ace7a78417341a8a5c8f0ccf97	phase-driver.sh.txt
+SELF	artifacts/scripts/r0012/gbs-t7-link.sh.txt	c42f85d6eb61fa87d862067d57520df0a70b606b9fbe338d6140679043ac733b	gbs-t7-link.sh.txt
 SELF	artifacts/ledger/r0012-experiment-recipes.json	349e0e89955fe268ae8bf60497bf3c1feef343583fcb38bfcaf020d89a4ad912	recipes.json
 SELF	artifacts/scripts/r0012c/image-tree.py.txt	cfcf1d633ef96248024392d05948906d270a331a82db21de7773895fc09380a9	image-tree.py.txt
 SELF	artifacts/scripts/r0012c/proofs.py.txt	87136ff1a026bb91693666ac115eb3f899a8c21bec6fa736a387096cb4d54703	proofs.py.txt
@@ -23,7 +23,7 @@ SELF	artifacts/scripts/r0012e/thumb-accept.py.txt	99051af6361ee8e58070e76509ac49
 SELF	artifacts/scripts/r0009/perf-bundle.py.txt	5955fef6db3eb883dcdb4e50f0332b7a8f417f304ce4539358977d13ff21ba38	perf-bundle.py.txt
 SELF	artifacts/scripts/r0009/perf-relocations.py.txt	5daf2c1c25f122de38ea445bbbe0336b5f8e086c16a3dafa87244361ccc963d8	perf-relocations.py.txt
 SELF	artifacts/scripts/r0011/hq-elf-rebaseline.py.txt	5887289b8e9623cc03dbccd7991c4e45c4603178cb99b5e6693898d9cc75f91c	hq-elf-rebaseline.py.txt
-SELF	artifacts/scripts/r0011e/matched-qb.py.txt	f2fca8f51c12e6d2a15f9eaca2e8ebe48c691f8bb421b784ca4e8695ff72d71c	matched-qb.py.txt
+SELF	artifacts/scripts/r0011e/matched-qb.py.txt	972576fe0448ce216950ac33a4231767fceb5bc87150e990c74482bf4af35a45	matched-qb.py.txt
 SELF	artifacts/scripts/r0010b/mlgo-base-proof.py.txt	7254ef3de2d606826718338eb69e30253f34f36fef5dd8fb683897044fe6b9f1	mlgo-base-proof.py.txt
 SELF	artifacts/scripts/r0011a/hq-overnight.sh.txt	5f287377758b319572bb30e40914067e796546b0b250da401fc119ea908cf723	hq-overnight.sh.txt
 SELF	artifacts/patches/thumb2/org.tizen.tv-viewer.patch	a3fc755f82372ab178e6f0b539e55713799c4f001894fc97ca5ba570cf4d2a2c	org.tizen.tv-viewer.patch
@@ -33,9 +33,11 @@ SELF	artifacts/ledger/official-37736448-thumb-reviewed.tsv	69ee47e738a29843359fa
 SELF	artifacts/patches/kernel/perf-machine-outliner.spec.patch	1f7ff1a4a34b2403266c34c661a06e871e52f2c9af094e711c211d08412f7a69	perf-machine-outliner.spec.patch
 SELF	artifacts/scripts/r0012f/kernel-audit.py.txt	e6664cd84408d87296a5adb38c1bb75928b595fbcf089f7a2a576d2b2b30a65b	kernel-audit.py.txt
 SELF	artifacts/scripts/r0012f/kernel-matrix.py.txt	ffafb5282f52decaf9a737c5b90217bd3fa485814bdbf3a119c1ddf0daa38ebd	kernel-matrix.py.txt
-SELF	artifacts/scripts/r0012g/driver-config.sh.txt	3f1bfdac3eece3ab5a15d4a2c87f12bb0eb7e9a86b984c0ca214ef4c02be41c9	driver-config.sh.txt
-SELF	artifacts/scripts/r0012g/thumb-options.py.txt	c7cc48244c20ee4982a75c79780adfb4594bb7231f53e1919ca4b73908b49a10	thumb-options.py.txt
+SELF	artifacts/scripts/r0012g/driver-config.sh.txt	c63b9791e4c6fbdf5c4225d9f9422a14a3e5d9144e95182af5910d69254a0d30	driver-config.sh.txt
+SELF	artifacts/scripts/r0012g/thumb-options.py.txt	64daeaa043feabc1b33056726253b4af600b4f2e2dc7b3493ae13ebc4e16edde	thumb-options.py.txt
 SELF	artifacts/scripts/r0012k/official-config.py.txt	4d5ea74ef97454f87085dc5869be39478a283138a4d256cdce1b69a5e4a5d200	official-config.py.txt
 SELF	artifacts/scripts/r0012k/outliner-phase.py.txt	ee56e8af285fc5f1fe5bd29fb202f506b2c904ed4ba9d95a07c834cf6ca60603	outliner-phase.py.txt
 SELF	artifacts/scripts/r0012l/kernel-qualification.py.txt	2a0734efc35b3d03f2208b24bd84578bbc5297cc21bb56f21256859314d2f119	kernel-qualification.py.txt
 SELF	artifacts/scripts/r0012l/trace-symbolize.py.txt	513132683202f1dd088f1456f9b493eaa41787f8822bab7568f5b4dda1aa4069	trace-symbolize.py.txt
+SELF	artifacts/scripts/r0012m/observe-driver.sh.txt	44f87b0df03ec2f3d1339d7bbea24c1f8b3760190ebc78ed5916c43d5a6f3c20	observe-driver.sh.txt
+SELF	artifacts/evidence/board/o1-37736448/installed-rpms.tsv	9ddc02f5d7c6cb3fa328e31e5422b016ec2ddb82ba182b3aa4514d5cb1d7f3da	o1-installed.tsv

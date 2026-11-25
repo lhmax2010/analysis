@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Native host. One already cold-booted and idle Home visit. No root or reboot.
+set -euo pipefail
+lane=${1:?official or custom}
+case "$lane" in official) product=20261123.2; qb=37736448 ;; custom) product=20261123.1; qb=37736427 ;; *) exit 2;; esac
+tools=${BOARD_TOOLS:?}
+digest=372945183c355de1919f97b039c1f898fea0818c32025cae16cd8eb864b9b5fd
+cpu=${CPU:-0}
+[[ "$cpu" =~ ^[0-9]+$ ]]
+temp=/home1/chengkai/vd-tree/workspace/temp
+if [[ ${PM12_PC:-0} == 1 ]]; then temp=/home/toolchain/Desktop/temp; fi
+work=$(mktemp -d "$temp/pm0012m-board.$lane.XXXXXX")
+serial=192.168.108.25:26101
+scratch=/tmp/pm0012m
+printf 'VISIT %s %s\n' "$qb" "$work"
+printf '%s  %s\n' "$digest" "$tools/microbench" | sha256sum -c -
+sdb connect 192.168.108.25
+sdb devices | tee "$work/devices"
+awk -v id="$serial" '$1==id && $2=="device"{found=1} END{exit !found}' "$work/devices"
+remote() {
+    local name=$1 cmd=$2
+    sdb -s "$serial" shell "( $cmd ); rc=\$?; echo PM_REMOTE_EXIT \$rc" | tr -d '\r' > "$work/$name"
+    grep -qx 'PM_REMOTE_EXIT 0' "$work/$name" || { tail -10 "$work/$name" >&2; return 2; }
+}
+remote identity 'cat /proc/version /proc/sys/kernel/random/boot_id /etc/prd_info.ini'
+grep -Fx "Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_$product;" "$work/identity"
+remote stage "umask 077; mkdir $scratch"
+cleanup() { remote cleanup "rm -f $scratch/microbench && rmdir $scratch"; }
+trap cleanup EXIT
+sdb -s "$serial" push "$tools/microbench" "$scratch/microbench" >"$work/push"
+remote hash "chmod 700 $scratch/microbench && sha256sum $scratch/microbench"
+grep -Fx "$digest  $scratch/microbench" "$work/hash"
+remote before 'cat /proc/uptime /proc/meminfo; for p in /sys/class/thermal/thermal_zone*/temp; do if test -r "$p"; then cat "$p"; fi; done'
+remote policy "cat /sys/devices/system/cpu/online; cat /sys/devices/system/cpu/cpu$cpu/cpufreq/scaling_governor 2>/dev/null || :"
+remote micro "$scratch/microbench $cpu"
+awk '$1=="MICRO"{n++;if($2!=n || NF!=6)bad=1;print} END{exit (n!=5 || bad)}' "$work/micro"
+remote after 'cat /proc/uptime /proc/meminfo; for p in /sys/class/thermal/thermal_zone*/temp; do if test -r "$p"; then cat "$p"; fi; done'
+cleanup
+trap - EXIT
+{ cat "$work/identity" "$work/hash" "$work/policy" "$work/micro"; grep -E '^(MemTotal|MemAvailable|MemFree|Cached|Slab):' "$work/before" "$work/after"; } > "$work/combined.txt"
+sha256sum "$work/combined.txt"
+cat "$work/combined.txt"

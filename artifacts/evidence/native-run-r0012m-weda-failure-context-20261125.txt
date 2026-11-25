@@ -1,0 +1,210 @@
+=== thumb-bluetooth-impl-sec-oal baseline
+[  217s]     #include "..." search starts here:
+[  217s]     #include <...> search starts here:
+[  217s]      /usr/lib/clang/22/include
+[  217s]      /usr/local/include
+[  217s]      /usr/include
+[  217s]     End of search list.
+[  217s]     Linking C executable cmTC_4d1d0
+[  217s]     /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_4d1d0.dir/link.txt --verbose=1
+[  217s]     /home/abuild/rpmbuild/BUILD/bluetooth-impl-sec-26.09.29/.pm12-driver/armv7l-tizen-linux-gnueabi-clang: line 31: link_edits[@]: unbound variable
+[  217s]     /home/abuild/rpmbuild/BUILD/bluetooth-impl-sec-26.09.29/.pm12-driver/armv7l-tizen-linux-gnueabi-clang -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects -DTIZEN_DEBUG_ENABLE -DTIZEN_BLUEDROID_PORTING -Wall -Wextra -Wno-array-bounds -Wno-empty-body -Wno-ignored-qualifiers -Wno-unused-parameter -Wshadow -Wwrite-strings -Wswitch-default -fno-common -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-strict-aliasing -fno-unroll-loops -fsigned-char -fstrict-overflow -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wmaybe-uninitialized -Wuninitialized  -Wl,--rpath=/usr/lib -Wl,--unresolved-symbols=ignore-in-shared-libs  -rdynamic CMakeFiles/cmTC_4d1d0.dir/testCCompiler.c.o -o cmTC_4d1d0
+[  217s]     gmake[1]: *** [CMakeFiles/cmTC_4d1d0.dir/build.make:103: cmTC_4d1d0] Error 1
+[  217s]     gmake[1]: Leaving directory '/home/abuild/rpmbuild/BUILD/bluetooth-impl-sec-26.09.29/CMakeFiles/CMakeScratch/TryCompile-H9aOXd'
+[  217s]     gmake: *** [Makefile:133: cmTC_4d1d0/fast] Error 2
+[  217s]
+[  217s]
+[  217s]
+[  217s]
+[  217s]
+[  217s]   CMake will not be able to correctly generate this project.
+[  217s] Call Stack (most recent call first):
+[  217s]   CMakeLists.txt:3 (project)
+[  217s]
+[  217s]
+[  217s] -- Configuring incomplete, errors occurred!
+[  217s] error: Bad exit status from /var/tmp/rpm-tmp.FKWGo8 (%build)
+--- bluetooth-impl-sec-26.09.29/CMakeFiles/CMakeConfigureLog.yaml (error lines)
+19:      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+82:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+=== thumb-libpisa-ipc baseline
+[  113s]     clang version 22.1.8
+[  113s]     Target: armv7l-tizen-linux-gnueabi
+[  113s]     Thread model: posix
+[  113s]     InstalledDir: /usr/bin
+[  113s]     Configuration file: /usr/bin/clang++.cfg
+[  113s]     Found candidate GCC installation: /usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0
+[  113s]     Selected GCC installation: /usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0
+[  113s]     Candidate multilib: .;@m32
+[  113s]     Selected multilib: .;@m32
+[  113s]     armv7l-tizen-linux-gnueabi-clang++: error: -Wl,-z,relro: 'linker' input unused [-Werror,-Wunused-command-line-argument]
+[  113s]     gmake[1]: *** [CMakeFiles/cmTC_3697f.dir/build.make:82: CMakeFiles/cmTC_3697f.dir/testCXXCompiler.cxx.o] Error 1
+[  113s]     gmake[1]: Leaving directory '/home/abuild/rpmbuild/BUILD/libpisa-ipc-2.10.11/CMakeFiles/CMakeScratch/TryCompile-3lwdoZ'
+[  113s]     gmake: *** [Makefile:133: cmTC_3697f/fast] Error 2
+[  113s]
+[  113s]
+[  113s]
+[  113s]
+[  113s]
+[  113s]   CMake will not be able to correctly generate this project.
+[  113s] Call Stack (most recent call first):
+[  113s]   CMakeLists.txt:17 (PROJECT)
+[  113s]
+[  113s]
+[  113s] -- Configuring incomplete, errors occurred!
+[  113s] error: Bad exit status from /var/tmp/rpm-tmp.uVOmP4 (%build)
+--- libpisa-ipc-2.10.11/CMakeFiles/CMakeConfigureLog.yaml (error lines)
+19:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+37:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+56:      armv7l-tizen-linux-gnueabi-clang++: error: -Wl,-z,relro: 'linker' input unused [-Werror,-Wunused-command-line-argument]
+67:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+85:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+103:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+121:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+140:      armv7l-tizen-linux-gnueabi-clang++: error: -Wl,-z,relro: 'linker' input unused [-Werror,-Wunused-command-line-argument]
+151:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+308:        armv7l-tizen-linux-gnueabi-clang++: error: -Wl,-z,relro: 'linker' input unused [-Werror,-Wunused-command-line-argument]
+=== thumb-nnstreamer baseline
+[  114s] ++ command -v armv7l-tizen-linux-gnueabi-clang
+[  114s] ++ command -v armv7l-tizen-linux-gnueabi-clang++
+[  114s] ++ echo -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects
+[  114s] ++ sed -e 's|-std=gnu++11||'
+[  116s] The Meson build system
+[  116s] Version: 1.6.1
+[  116s] Source dir: /home/abuild/rpmbuild/BUILD/nnstreamer-2.4.4
+[  116s] Build dir: /home/abuild/rpmbuild/BUILD/nnstreamer-2.4.4/build
+[  116s] Build type: native build
+[  116s] Project name: nnstreamer
+[  116s] Project version: 2.4.4
+[  116s]
+[  116s] meson.build:4:0: ERROR: Unable to detect linker for compiler `armv7l-tizen-linux-gnueabi-clang -Wl,--version -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects`
+[  116s] stdout:
+[  116s] stderr: /home/abuild/rpmbuild/BUILD/nnstreamer-2.4.4/.pm12-driver/armv7l-tizen-linux-gnueabi-clang: line 31: link_edits[@]: unbound variable
+[  116s]
+[  116s]
+[  116s] A full log can be found at /home/abuild/rpmbuild/BUILD/nnstreamer-2.4.4/build/meson-logs/meson-log.txt
+[  116s] WARNING: Running the setup command as `meson [options]` instead of `meson setup [options]` is ambiguous and deprecated.
+[  116s] error: Bad exit status from /var/tmp/rpm-tmp.OV024X (%build)
+=== thumb-org.tizen.AVControl baseline
+[  239s]      /usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../gcc/armv7l-tizen-linux-gnueabi/14.2.0/include/c++//armv7l-tizen-linux-gnueabi
+[  239s]      /usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../gcc/armv7l-tizen-linux-gnueabi/14.2.0/include/c++//backward
+[  239s]      /usr/lib/clang/22/include
+[  239s]      /usr/local/include
+[  239s]      /usr/include
+[  239s]     End of search list.
+[  239s]     Linking CXX executable cmTC_48c8a
+[  239s]     /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_48c8a.dir/link.txt --verbose=1
+[  239s]     /home/abuild/rpmbuild/BUILD/org.tizen.AVControl-0.2.0/.pm12-driver/armv7l-tizen-linux-gnueabi-clang++: line 31: link_edits[@]: unbound variable
+[  239s]     /home/abuild/rpmbuild/BUILD/org.tizen.AVControl-0.2.0/.pm12-driver/armv7l-tizen-linux-gnueabi-clang++ -DEFL_BETA_API_SUPPORT  -rdynamic CMakeFiles/cmTC_48c8a.dir/testCXXCompiler.cxx.o -o cmTC_48c8a
+[  239s]     gmake[1]: *** [CMakeFiles/cmTC_48c8a.dir/build.make:103: cmTC_48c8a] Error 1
+[  239s]     gmake[1]: Leaving directory '/home/abuild/rpmbuild/BUILD/org.tizen.AVControl-0.2.0/CMakeFiles/CMakeScratch/TryCompile-55Bu7W'
+[  239s]     gmake: *** [Makefile:133: cmTC_48c8a/fast] Error 2
+[  239s]
+[  239s]
+[  239s]
+[  239s]
+[  239s]
+[  239s]   CMake will not be able to correctly generate this project.
+[  239s] Call Stack (most recent call first):
+[  239s]   CMakeLists.txt:17 (PROJECT)
+[  239s]
+[  239s]
+[  239s] -- Configuring incomplete, errors occurred!
+[  239s] error: Bad exit status from /var/tmp/rpm-tmp.yXrfin (%build)
+--- org.tizen.AVControl-0.2.0/CMakeFiles/CMakeConfigureLog.yaml (error lines)
+19:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+=== thumb-org.tizen.tv-viewer baseline
+[  305s]     #include "..." search starts here:
+[  305s]     #include <...> search starts here:
+[  305s]      /usr/lib/clang/22/include
+[  305s]      /usr/local/include
+[  305s]      /usr/include
+[  305s]     End of search list.
+[  305s]     Linking C executable cmTC_369dd
+[  305s]     /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_369dd.dir/link.txt --verbose=1
+[  305s]     /home/abuild/rpmbuild/BUILD/org.tizen.tv-viewer-0.3.8/.pm12-driver/armv7l-tizen-linux-gnueabi-clang: line 31: link_edits[@]: unbound variable
+[  305s]     /home/abuild/rpmbuild/BUILD/org.tizen.tv-viewer-0.3.8/.pm12-driver/armv7l-tizen-linux-gnueabi-clang -Wl,--as-needed  -DEFL_BETA_API_SUPPORT  -Wl,--as-needed  -rdynamic CMakeFiles/cmTC_369dd.dir/testCCompiler.c.o -o cmTC_369dd
+[  305s]     gmake[1]: *** [CMakeFiles/cmTC_369dd.dir/build.make:103: cmTC_369dd] Error 1
+[  305s]     gmake[1]: Leaving directory '/home/abuild/rpmbuild/BUILD/org.tizen.tv-viewer-0.3.8/CMakeFiles/CMakeScratch/TryCompile-ytMla2'
+[  305s]     gmake: *** [Makefile:133: cmTC_369dd/fast] Error 2
+[  305s]
+[  305s]
+[  305s]
+[  305s]
+[  305s]
+[  305s]   CMake will not be able to correctly generate this project.
+[  305s] Call Stack (most recent call first):
+[  305s]   CMakeLists.txt:2 (PROJECT)
+[  305s]
+[  305s]
+[  305s] -- Configuring incomplete, errors occurred!
+[  305s] error: Bad exit status from /var/tmp/rpm-tmp.lZ8dGZ (%build)
+--- org.tizen.tv-viewer-0.3.8/CMakeFiles/CMakeConfigureLog.yaml (error lines)
+19:      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+83:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+=== thumb-org.tizen.webserver baseline
+[  139s]     #include "..." search starts here:
+[  139s]     #include <...> search starts here:
+[  139s]      /usr/lib/clang/22/include
+[  139s]      /usr/local/include
+[  139s]      /usr/include
+[  139s]     End of search list.
+[  139s]     Linking C executable cmTC_42f2f
+[  139s]     /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_42f2f.dir/link.txt --verbose=1
+[  139s]     /home/abuild/rpmbuild/BUILD/org.tizen.webserver-0.4/.pm12-driver/armv7l-tizen-linux-gnueabi-clang: line 31: link_edits[@]: unbound variable
+[  139s]     /home/abuild/rpmbuild/BUILD/org.tizen.webserver-0.4/.pm12-driver/armv7l-tizen-linux-gnueabi-clang -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects -fPIC -O2 -Wall -Wcast-align -Wcast-qual -Werror -Wextra -Wno-unused-parameter -Wshadow -Wwrite-strings -fno-common -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-strict-aliasing -fsigned-char -fstrict-overflow -Wno-ignored-qualifiers -Wno-array-bounds -Wno-empty-body  -Wl,--rpath=/lib -Wl,--as-needed -Wl,--hash-style=both  -rdynamic CMakeFiles/cmTC_42f2f.dir/testCCompiler.c.o -o cmTC_42f2f
+[  139s]     gmake[1]: *** [CMakeFiles/cmTC_42f2f.dir/build.make:103: cmTC_42f2f] Error 1
+[  139s]     gmake[1]: Leaving directory '/home/abuild/rpmbuild/BUILD/org.tizen.webserver-0.4/CMakeFiles/CMakeScratch/TryCompile-lzF3oL'
+[  139s]     gmake: *** [Makefile:133: cmTC_42f2f/fast] Error 2
+[  139s]
+[  139s]
+[  139s]
+[  139s]
+[  139s]
+[  139s]   CMake will not be able to correctly generate this project.
+[  139s] Call Stack (most recent call first):
+[  139s]   CMakeLists.txt
+[  139s]
+[  139s]
+[  139s] -- Configuring incomplete, errors occurred!
+[  139s] error: Bad exit status from /var/tmp/rpm-tmp.8fmHKG (%build)
+--- org.tizen.webserver-0.4/CMakeFiles/CMakeConfigureLog.yaml (error lines)
+19:      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+82:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+=== thumb-widevine-cdm baseline
+[  241s]     #include "..." search starts here:
+[  241s]     #include <...> search starts here:
+[  241s]      /usr/lib/clang/22/include
+[  241s]      /usr/local/include
+[  241s]      /usr/include
+[  241s]     End of search list.
+[  241s]     Linking C executable cmTC_868c8
+[  241s]     /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_868c8.dir/link.txt --verbose=1
+[  241s]     /home/abuild/rpmbuild/BUILD/widevine-27.19.7/.pm12-driver/armv7l-tizen-linux-gnueabi-clang: line 31: link_edits[@]: unbound variable
+[  241s]     /home/abuild/rpmbuild/BUILD/widevine-27.19.7/.pm12-driver/armv7l-tizen-linux-gnueabi-clang -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict  -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=cortex-a53 -march=armv8-a+crc -mlittle-endian -mfpu=neon-vfpv4 -mfloat-abi=softfp -mthumb -Wp,-D__SOFTFP__ -Wl,-O1 -Wl,--hash-style=gnu -Wa,-mimplicit-it=thumb -D_FILE_OFFSET_BITS=64 -g -flto -ffat-lto-objects -O2 -Wall -Wcast-align -Wextra -Wno-unused-parameter -Wno-error=shadow -Wwrite-strings -fno-common -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-strict-aliasing -fsigned-char -fstrict-overflow -Wno-ignored-qualifiers -Wno-array-bounds -Wno-empty-body  -rdynamic CMakeFiles/cmTC_868c8.dir/testCCompiler.c.o -o cmTC_868c8
+[  241s]     gmake[1]: *** [CMakeFiles/cmTC_868c8.dir/build.make:103: cmTC_868c8] Error 1
+[  241s]     gmake[1]: Leaving directory '/home/abuild/rpmbuild/BUILD/widevine-27.19.7/CMakeFiles/CMakeScratch/TryCompile-HsCtoN'
+[  241s]     gmake: *** [Makefile:133: cmTC_868c8/fast] Error 2
+[  241s]
+[  241s]
+[  241s]
+[  241s]
+[  241s]
+[  241s]   CMake will not be able to correctly generate this project.
+[  241s] Call Stack (most recent call first):
+[  241s]   CMakeLists.txt:3 (PROJECT)
+[  241s]
+[  241s]
+[  241s] -- Configuring incomplete, errors occurred!
+[  241s] error: Bad exit status from /var/tmp/rpm-tmp.V8oIz3 (%build)
+--- widevine-27.19.7/CMakeFiles/CMakeConfigureLog.yaml (error lines)
+19:      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+82:      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+=== default-lane driver probe (AVControl): does the scoped block reach the driver?
+[  354s] + sed -n -e '/Configuration file:/s/^/PM_CFG clang LOADED /p' -e '/"-cc1"/s/^/PM_CFG clang ARGV /p' /home/abuild/rpmbuild/BUILD/org.tizen.AVControl-0.2.0/.pm0012g-driver/clang.trace
+[  354s] PM_CFG clang LOADED Configuration file: /usr/bin/clang.cfg
+[  354s] PM_CFG clang OPTION -Os -fstack-protector -Wno-unknown-warning-option -Wno-unused-command-line-argument -Wno-narrowing -Wno-cast-function-type-strict -g2 -gdwarf-4 -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -Wformat -Wformat-security -fmessage-length=0 -Wl,-z,relro,--as-needed -mtune=
+[  354s] + sed -n -e '/Configuration file:/s/^/PM_CFG clang++ LOADED /p' -e '/"-cc1"/s/^/PM_CFG clang++ ARGV /p' /home/abuild/rpmbuild/BUILD/org.tizen.AVControl-0.2.0/.pm0012g-driver/clang++.trace
+/dev/nvme0n1p1  1.8T  1.7T   86G  96% /home1
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
+

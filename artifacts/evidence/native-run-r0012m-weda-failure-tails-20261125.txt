@@ -1,0 +1,675 @@
+=== JOB thumb-bluetooth-impl-sec-oal
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+CAPACITY disk_free_gib 102 ram_available_gib 74
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/package/lane.json"
+PM12_LINK_FAILURE {"diagnostics": ["\"/emul/usr/bin/clang-22\" -cc1 -triple thumbv8a-tizen-linux-gnueabi -Os -emit-obj -mllvm -arm-implicit-it=thumb -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name testCCompiler.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -relaxed-aliasing -fno-optimize-sibling-calls -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -target-cpu generic -target-feature +soft-float-abi -target-feature +read-tp-tpidruro -target-feature +vfp2 -target-feature +vfp2sp -target-feature +vfp3 -target-feature +vfp3d16 -target-feature +vfp3d16sp -target-feature +vfp3sp -target-feature +fp16 -target-feature +vfp4 -target-feature +vfp4d16 -target-feature +vfp4d16sp -target-feature +vfp4sp -target-feature -fp-armv8 -target-feature -fp-armv8d16 -target-feature -fp-armv8d16sp -target-feature -fp-armv8sp -target-feature -fullfp16 -target-feature +fp64 -target-feature +d32 -target-feature +neon -target-feature -sha2 -target-feature -aes -target-feature +crc -target-feature -fp16fml -target-abi aapcs-linux -mfloat-abi soft -gkey-instructions -debug-info-kind=constructor -dwarf-version=4 -debugger-tuning=gdb -fdebug-compilati", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tunin", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\"", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tun", "PM_CFG clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"-fdebug-compilation-dir=/ho"], "lane": "package", "log": "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/package/gbs.log", "producer_fix": "Propose producer -fPIC only after matching the named object/source; TLS-owned DSO cases also need a shared-library TLS model."}
+THUMB_ACCEPT bluetooth-impl-sec-oal {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/experiment.json"
+PM12_EXPERIMENT ["THUMB", "bluetooth-impl-sec-oal", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  217s] risc-v-Alienware-Aurora-R16 failed \"build bluetooth-impl.spec\" at Tue Nov 24 14:16:10 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  101s] risc-v-Alienware-Aurora-R16 failed \"build bluetooth-impl.spec\" at Tue Nov 24 14:18:32 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  209s] risc-v-Alienware-Aurora-R16 failed \"build bluetooth-impl.spec\" at Tue Nov 24 14:22:43 UTC 2026."]}]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 9 hours 0 minutes.
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/PORTING_IMPL/SEC/bluetooth-host-impl/bt-impl/impl-common/AdapterManager.cpp#7 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/PORTING_IMPL/SEC/bluetooth-host-impl/bt-impl/impl-stack-Q/aosp16/include/base/compiler_specific.h#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/PORTING_IMPL/SEC/bluetooth-host-impl/bt-impl/impl-stack-Q/aosp16/include/hardware/bluetooth/log.h#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/PORTING_IMPL/SEC/bluetooth-host-impl/bt-impl/logging/btlog.cpp#10 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/PORTING_IMPL/SEC/bluetooth-host-impl/bt-impl/test/oal-sanity-tester/test-fixtures/bt-sanity-log.h#3 edit
+
+--- baseline baseline/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/bluetooth-impl-sec-26.09.29-1/log.txt
+302:[   75s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+305:[   75s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+307:[   75s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+308:[   75s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+309:[   75s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+310:[   75s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+311:[   75s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+312:[   75s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+313:[   75s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+314:[   75s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+317:[   75s] sed: can't read /etc/security/limits.conf: No such file or directory
+536:[  171s] /var/tmp/rpm-tmp.ijEGZ6: line 2: systemctl: command not found
+--- baseline tail
+[  217s]     Macro expanded in comment on line 897: %{tests} == on
+[  217s]
+[  217s]     Macro expanded in comment on line 907: %{_bindir}/oal-unit-test
+[  217s]
+[  217s]     Bad exit status from /var/tmp/rpm-tmp.FKWGo8 (%build)
+[  217s]
+[  217s] risc-v-Alienware-Aurora-R16 failed "build bluetooth-impl.spec" at Tue Nov 24 14:16:10 UTC 2026.
+[  217s]
+--- default default/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/bluetooth-impl-sec-26.09.29-1/log.txt
+304:[   66s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+307:[   66s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+309:[   67s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+310:[   67s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+311:[   67s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+312:[   67s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+313:[   67s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+314:[   67s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+315:[   67s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+316:[   67s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+319:[   67s] sed: can't read /etc/security/limits.conf: No such file or directory
+540:[   85s] /var/tmp/rpm-tmp.mF5LE3: line 2: systemctl: command not found
+--- default tail
+[  101s]     Macro expanded in comment on line 897: %{tests} == on
+[  101s]
+[  101s]     Macro expanded in comment on line 907: %{_bindir}/oal-unit-test
+[  101s]
+[  101s]     Bad exit status from /var/tmp/rpm-tmp.lYj9K0 (%build)
+[  101s]
+[  101s] risc-v-Alienware-Aurora-R16 failed "build bluetooth-impl.spec" at Tue Nov 24 14:18:32 UTC 2026.
+[  101s]
+--- package package/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/bluetooth-impl-sec-26.09.29-1/log.txt
+302:[   70s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+305:[   70s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+307:[   70s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+308:[   70s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+309:[   70s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+310:[   70s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+311:[   70s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+312:[   70s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+313:[   70s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+314:[   70s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+317:[   70s] sed: can't read /etc/security/limits.conf: No such file or directory
+536:[  179s] /var/tmp/rpm-tmp.mjEmz3: line 2: systemctl: command not found
+--- package tail
+[  209s]     Macro expanded in comment on line 897: %{tests} == on
+[  209s]
+[  209s]     Macro expanded in comment on line 907: %{_bindir}/oal-unit-test
+[  209s]
+[  209s]     Bad exit status from /var/tmp/rpm-tmp.wg1tAq (%build)
+[  209s]
+[  209s] risc-v-Alienware-Aurora-R16 failed "build bluetooth-impl.spec" at Tue Nov 24 14:22:43 UTC 2026.
+[  209s]
+=== JOB thumb-libgcrypt
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+PM12_SOURCE ["libgcrypt", [["libgcrypt-1.11.0-1.18.src.rpm", null]]]
+CAPACITY disk_free_gib 117 ram_available_gib 74
+GBS_DEPENDENCY_PRODUCT_LIVE http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/
+SAMPLE_SOURCE_PIN libgcrypt libgcrypt-1.11.0-1.18.src.rpm //TIZEN/[MAIN]/[BASE2026_Prj]/[INT]/platform/upstream/libgcrypt#vbs-libgcrypt-20250804.155301-0-12916744 840ffdfa3f27cf4a0b58d45b3c1a76a6d5e44972d3f404ca82212cd6fcf99a42 SHELVES
+SOURCE_COMMAND_ERROR p4-base Invalid changelist/client/label/date '@vbs-libgcrypt-20250804.155301-0-12916744'.
+PM12_ERROR "read-only source command failed (1): /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libgcrypt/p4-base.log"
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+Invalid changelist/client/label/date '@vbs-libgcrypt-20250804.155301-0-12916744'.
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 9 hours 7 minutes.
+=== JOB thumb-libpisa-ipc
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+patching file /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/source/packaging/libpisa-ipc.spec
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/package/lane.json"
+PM12_LINK_FAILURE {"diagnostics": ["\"/emul/usr/bin/clang-22\" -cc1 -triple thumbv8a-tizen-linux-gnueabi -O2 -emit-obj -mllvm -arm-implicit-it=thumb -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name testCXXCompiler.cxx -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=none -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -target-cpu generic -target-feature +soft-float-abi -target-feature +read-tp-tpidruro -target-feature +vfp2 -target-feature +vfp2sp -target-feature +vfp3 -target-feature +vfp3d16 -target-feature +vfp3d16sp -target-feature +vfp3sp -target-feature +fp16 -target-feature +vfp4 -target-feature +vfp4d16 -target-feature +vfp4d16sp -target-feature +vfp4sp -target-feature -fp-armv8 -target-feature -fp-armv8d16 -target-feature -fp-armv8d16sp -target-feature -fp-armv8sp -target-feature -fullfp16 -target-feature +fp64 -target-feature +d32 -target-feature +neon -target-feature -sha2 -target-feature -aes -target-feature +crc -target-feature -fp16fml -target-abi aapcs-linux -mfloat-abi soft -gkey-instructions -debug-info-kind=constructor -dwarf-version=4 -debugger-tuning=gdb -fdebug-compilation-dir=/home/abuild/rpmbuild/BUILD/libpis", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tunin", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\"", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tun", "PM_CFG clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"-fdebug-compilation-dir=/ho"], "lane": "package", "log": "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/package/gbs.log", "producer_fix": "Propose producer -fPIC only after matching the named object/source; TLS-owned DSO cases also need a shared-library TLS model."}
+THUMB_ACCEPT libpisa-ipc {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/experiment.json"
+PM12_EXPERIMENT ["THUMB", "libpisa-ipc", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  113s] risc-v-Alienware-Aurora-R16 failed \"build libpisa-ipc.spec\" at Tue Nov 24 13:45:01 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  184s] risc-v-Alienware-Aurora-R16 failed \"build libpisa-ipc.spec\" at Tue Nov 24 13:48:10 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  195s] risc-v-Alienware-Aurora-R16 failed \"build libpisa-ipc.spec\" at Tue Nov 24 13:51:30 UTC 2026."]}]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 9 hours 23 minutes.
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SERVICE/PISA/pisa-ipc/pisa-ipc-ss/CMakeLists.txt#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SERVICE/PISA/pisa-ipc/pisa-ipc-tester/CMakeLists.txt#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SERVICE/PISA/pisa-ipc/pisa-ipc-tester/src/pisa_ipc_proxy_tester.cpp#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SERVICE/PISA/pisa-ipc/src/pisa_ipc_bundle_internal.cpp#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SERVICE/PISA/pisa-ipc/src/util/pisa_ipc_util.cpp#2 edit
+
+--- baseline baseline/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/libpisa-ipc-2.10.11-1/log.txt
+351:[   80s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+354:[   80s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+356:[   80s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+357:[   80s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+358:[   80s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+359:[   80s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+360:[   80s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+361:[   80s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+362:[   80s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+363:[   80s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+366:[   80s] sed: can't read /etc/security/limits.conf: No such file or directory
+618:[  100s] /usr/bin/kernel-install: No such file or directory
+--- baseline tail
+[  113s] error: Bad exit status from /var/tmp/rpm-tmp.uVOmP4 (%build)
+[  113s]
+[  113s]
+[  113s] RPM build errors:
+[  113s]     Bad exit status from /var/tmp/rpm-tmp.uVOmP4 (%build)
+[  113s]
+[  113s] risc-v-Alienware-Aurora-R16 failed "build libpisa-ipc.spec" at Tue Nov 24 13:45:01 UTC 2026.
+[  113s]
+--- default default/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/libpisa-ipc-2.10.11-1/log.txt
+353:[   81s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+356:[   81s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+358:[   81s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+359:[   81s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+360:[   81s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+361:[   81s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+362:[   81s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+363:[   81s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+364:[   81s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+365:[   81s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+368:[   81s] sed: can't read /etc/security/limits.conf: No such file or directory
+622:[  171s] /usr/bin/kernel-install: No such file or directory
+--- default tail
+[  184s] error: Bad exit status from /var/tmp/rpm-tmp.QTGlMO (%build)
+[  184s]
+[  184s]
+[  184s] RPM build errors:
+[  184s]     Bad exit status from /var/tmp/rpm-tmp.QTGlMO (%build)
+[  184s]
+[  184s] risc-v-Alienware-Aurora-R16 failed "build libpisa-ipc.spec" at Tue Nov 24 13:48:10 UTC 2026.
+[  184s]
+--- package package/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/libpisa-ipc-2.10.11-1/log.txt
+351:[   96s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+354:[   96s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+356:[   96s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+357:[   96s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+358:[   96s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+359:[   96s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+360:[   96s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+361:[   96s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+362:[   96s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+363:[   96s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+366:[   96s] sed: can't read /etc/security/limits.conf: No such file or directory
+618:[  158s] /usr/bin/kernel-install: No such file or directory
+--- package tail
+[  195s] error: Bad exit status from /var/tmp/rpm-tmp.qiq7by (%build)
+[  195s]
+[  195s]
+[  195s] RPM build errors:
+[  195s]     Bad exit status from /var/tmp/rpm-tmp.qiq7by (%build)
+[  195s]
+[  195s] risc-v-Alienware-Aurora-R16 failed "build libpisa-ipc.spec" at Tue Nov 24 13:51:30 UTC 2026.
+[  195s]
+=== JOB thumb-nnstreamer
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+CAPACITY disk_free_gib 114 ram_available_gib 74
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/default/lane.json"
+PM12_LINK_FAILURE {"diagnostics": ["PM_CFG armv7l-tizen-linux-gnueabi-clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tunin", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\"", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tun", "PM_CFG clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"-fdebug-compilation-dir=/ho", "PM_CFG clang ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"-fdebug-compilation"], "lane": "default", "log": "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/default/gbs.log", "producer_fix": "Propose producer -fPIC only after matching the named object/source; TLS-owned DSO cases also need a shared-library TLS model."}
+THUMB_ACCEPT nnstreamer {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/experiment.json"
+PM12_EXPERIMENT ["THUMB", "nnstreamer", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  116s] risc-v-Alienware-Aurora-R16 failed \"build nnstreamer.spec\" at Tue Nov 24 14:01:12 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  271s] risc-v-Alienware-Aurora-R16 failed \"build nnstreamer.spec\" at Tue Nov 24 14:05:47 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "PENDING_MATCHED_SOURCE_FIX"]}]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 9 hours 7 minutes.
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+Shelved files ...
+
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/COMMON/Profile/platform/upstream/nnstreamer/gst/nnstreamer/include/tensor_typedef.h#6 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/COMMON/Profile/platform/upstream/nnstreamer/meson.build#12 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/COMMON/Profile/platform/upstream/nnstreamer/packaging/nnstreamer.spec#12 edit
+
+--- baseline baseline/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/nnstreamer-2.4.4-0/log.txt
+350:[   86s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+353:[   86s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+355:[   86s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+356:[   86s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+357:[   86s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+358:[   86s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+359:[   86s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+360:[   86s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+361:[   86s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+362:[   86s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+365:[   86s] sed: can't read /etc/security/limits.conf: No such file or directory
+576:[  101s] /var/tmp/rpm-tmp.tWTXdx: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- baseline tail
+[  116s] error: Bad exit status from /var/tmp/rpm-tmp.OV024X (%build)
+[  116s]
+[  116s]
+[  116s] RPM build errors:
+[  116s]     Bad exit status from /var/tmp/rpm-tmp.OV024X (%build)
+[  116s]
+[  116s] risc-v-Alienware-Aurora-R16 failed "build nnstreamer.spec" at Tue Nov 24 14:01:12 UTC 2026.
+[  116s]
+--- default default/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/nnstreamer-2.4.4-0/log.txt
+352:[   86s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+355:[   86s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+357:[   86s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+358:[   86s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+359:[   86s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+360:[   86s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+361:[   86s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+362:[   86s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+363:[   86s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+364:[   86s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+367:[   86s] sed: can't read /etc/security/limits.conf: No such file or directory
+579:[  210s] /var/tmp/rpm-tmp.QOEE6E: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- default tail
+[  271s] error: Bad exit status from /var/tmp/rpm-tmp.2oXtkR (%build)
+[  271s]
+[  271s]
+[  271s] RPM build errors:
+[  271s]     Bad exit status from /var/tmp/rpm-tmp.2oXtkR (%build)
+[  271s]
+[  271s] risc-v-Alienware-Aurora-R16 failed "build nnstreamer.spec" at Tue Nov 24 14:05:47 UTC 2026.
+[  271s]
+=== JOB thumb-org.tizen.AVControl
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+patching file /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/source/packaging/org.tizen.AVControl.spec
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/package/lane.json"
+PM12_LINK_FAILURE {"diagnostics": ["\"/emul/usr/bin/clang-22\" -cc1 -triple thumbv8a-tizen-linux-gnueabi -Os -emit-obj -mllvm -arm-implicit-it=thumb -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name testCXXCompiler.cxx -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=none -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -target-cpu generic -target-feature +soft-float-abi -target-feature +read-tp-tpidruro -target-feature +vfp2 -target-feature +vfp2sp -target-feature +vfp3 -target-feature +vfp3d16 -target-feature +vfp3d16sp -target-feature +vfp3sp -target-feature +fp16 -target-feature +vfp4 -target-feature +vfp4d16 -target-feature +vfp4d16sp -target-feature +vfp4sp -target-feature -fp-armv8 -target-feature -fp-armv8d16 -target-feature -fp-armv8d16sp -target-feature -fp-armv8sp -target-feature -fullfp16 -target-feature +fp64 -target-feature +d32 -target-feature +neon -target-feature -sha2 -target-feature -aes -target-feature +crc -target-feature -fp16fml -target-abi aapcs-linux -mfloat-abi soft -gkey-instructions -debug-info-kind=constructor -dwarf-version=4 -debugger-tuning=gdb -fdebug-compilation-dir=/home/abuild/rpmbuild/BUILD/org.ti", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tunin", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\"", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tun", "PM_CFG clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"-fdebug-compilation-dir=/ho"], "lane": "package", "log": "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/package/gbs.log", "producer_fix": "Propose producer -fPIC only after matching the named object/source; TLS-owned DSO cases also need a shared-library TLS model."}
+THUMB_ACCEPT org.tizen.AVControl {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/experiment.json"
+PM12_EXPERIMENT ["THUMB", "org.tizen.AVControl", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  239s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.AVControl.spec\" at Tue Nov 24 13:15:16 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  355s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.AVControl.spec\" at Tue Nov 24 13:21:17 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  271s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.AVControl.spec\" at Tue Nov 24 13:25:53 UTC 2026."]}]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 9 hours 55 minutes.
+--- baseline baseline/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/org.tizen.AVControl-0.2.0-1/log.txt
+610:[  185s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+613:[  185s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+615:[  185s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+616:[  185s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+617:[  185s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+618:[  185s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+619:[  185s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+620:[  185s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+621:[  185s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+622:[  185s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+625:[  185s] sed: can't read /etc/security/limits.conf: No such file or directory
+1066:[  205s] /var/tmp/rpm-tmp.KSz9e7: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- baseline tail
+[  239s]
+[  239s] RPM build errors:
+[  239s]     Macro expanded in comment on line 329: %{_bindir}/*
+[  239s]
+[  239s]     Bad exit status from /var/tmp/rpm-tmp.yXrfin (%build)
+[  239s]
+[  239s] risc-v-Alienware-Aurora-R16 failed "build org.tizen.AVControl.spec" at Tue Nov 24 13:15:16 UTC 2026.
+[  239s]
+--- default default/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/org.tizen.AVControl-0.2.0-1/log.txt
+612:[  232s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+615:[  232s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+617:[  232s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+618:[  232s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+619:[  232s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+620:[  232s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+621:[  232s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+622:[  232s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+623:[  232s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+624:[  232s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+627:[  232s] sed: can't read /etc/security/limits.conf: No such file or directory
+1069:[  321s] /var/tmp/rpm-tmp.n2oEen: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- default tail
+[  355s]
+[  355s] RPM build errors:
+[  355s]     Macro expanded in comment on line 329: %{_bindir}/*
+[  355s]
+[  355s]     Bad exit status from /var/tmp/rpm-tmp.KmY51D (%build)
+[  355s]
+[  355s] risc-v-Alienware-Aurora-R16 failed "build org.tizen.AVControl.spec" at Tue Nov 24 13:21:17 UTC 2026.
+[  355s]
+--- package package/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/org.tizen.AVControl-0.2.0-1/log.txt
+610:[  146s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+613:[  146s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+615:[  147s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+616:[  147s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+617:[  147s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+618:[  147s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+619:[  147s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+620:[  147s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+621:[  147s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+622:[  147s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+625:[  147s] sed: can't read /etc/security/limits.conf: No such file or directory
+1066:[  204s] /var/tmp/rpm-tmp.lU3EEz: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- package tail
+[  271s]
+[  271s] RPM build errors:
+[  271s]     Macro expanded in comment on line 329: %{_bindir}/*
+[  271s]
+[  271s]     Bad exit status from /var/tmp/rpm-tmp.ITZbDv (%build)
+[  271s]
+[  271s] risc-v-Alienware-Aurora-R16 failed "build org.tizen.AVControl.spec" at Tue Nov 24 13:25:53 UTC 2026.
+[  271s]
+=== JOB thumb-org.tizen.tv-viewer
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+patching file /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/source/packaging/org.tizen.tv-viewer.spec
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/package/lane.json"
+PM12_LINK_FAILURE {"diagnostics": ["\"/emul/usr/bin/clang-22\" -cc1 -triple thumbv8a-tizen-linux-gnueabi -Os -emit-obj -mllvm -arm-implicit-it=thumb -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name testCCompiler.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=none -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -target-cpu generic -target-feature +soft-float-abi -target-feature +read-tp-tpidruro -target-feature +vfp2 -target-feature +vfp2sp -target-feature +vfp3 -target-feature +vfp3d16 -target-feature +vfp3d16sp -target-feature +vfp3sp -target-feature +fp16 -target-feature +vfp4 -target-feature +vfp4d16 -target-feature +vfp4d16sp -target-feature +vfp4sp -target-feature -fp-armv8 -target-feature -fp-armv8d16 -target-feature -fp-armv8d16sp -target-feature -fp-armv8sp -target-feature -fullfp16 -target-feature +fp64 -target-feature +d32 -target-feature +neon -target-feature -sha2 -target-feature -aes -target-feature +crc -target-feature -fp16fml -target-abi aapcs-linux -mfloat-abi soft -gkey-instructions -debug-info-kind=constructor -dwarf-version=4 -debugger-tuning=gdb -fdebug-compilation-dir=/home/abuild/rpmbuild/BUILD/org.tizen.", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tunin", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\"", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tun", "PM_CFG clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"-fdebug-compilation-dir=/ho"], "lane": "package", "log": "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/package/gbs.log", "producer_fix": "Propose producer -fPIC only after matching the named object/source; TLS-owned DSO cases also need a shared-library TLS model."}
+THUMB_ACCEPT org.tizen.tv-viewer {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/experiment.json"
+PM12_EXPERIMENT ["THUMB", "org.tizen.tv-viewer", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  305s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.tv-viewer.spec\" at Tue Nov 24 13:31:38 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  374s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.tv-viewer.spec\" at Tue Nov 24 13:37:57 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  292s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.tv-viewer.spec\" at Tue Nov 24 13:42:54 UTC 2026."]}]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 9 hours 40 minutes.
+--- baseline baseline/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/org.tizen.tv-viewer-0.3.8-1/log.txt
+814:[  226s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+817:[  226s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+819:[  226s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+820:[  226s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+821:[  226s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+822:[  226s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+823:[  226s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+824:[  226s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+825:[  226s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+826:[  226s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+829:[  226s] sed: can't read /etc/security/limits.conf: No such file or directory
+1336:[  249s] /var/tmp/rpm-tmp.1kMpKT: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- baseline tail
+[  305s] error: Bad exit status from /var/tmp/rpm-tmp.lZ8dGZ (%build)
+[  305s]
+[  305s]
+[  305s] RPM build errors:
+[  305s]     Bad exit status from /var/tmp/rpm-tmp.lZ8dGZ (%build)
+[  305s]
+[  305s] risc-v-Alienware-Aurora-R16 failed "build org.tizen.tv-viewer.spec" at Tue Nov 24 13:31:38 UTC 2026.
+[  305s]
+--- default default/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/org.tizen.tv-viewer-0.3.8-1/log.txt
+816:[  189s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+819:[  190s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+821:[  190s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+822:[  190s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+823:[  190s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+824:[  190s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+825:[  190s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+826:[  190s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+827:[  190s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+828:[  190s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+831:[  190s] sed: can't read /etc/security/limits.conf: No such file or directory
+1339:[  320s] /var/tmp/rpm-tmp.vfTidg: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- default tail
+[  374s] error: Bad exit status from /var/tmp/rpm-tmp.Mwzjz5 (%build)
+[  374s]
+[  374s]
+[  374s] RPM build errors:
+[  374s]     Bad exit status from /var/tmp/rpm-tmp.Mwzjz5 (%build)
+[  374s]
+[  374s] risc-v-Alienware-Aurora-R16 failed "build org.tizen.tv-viewer.spec" at Tue Nov 24 13:37:57 UTC 2026.
+[  374s]
+--- package package/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/org.tizen.tv-viewer-0.3.8-1/log.txt
+814:[  182s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+817:[  182s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+819:[  182s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+820:[  182s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+821:[  182s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+822:[  182s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+823:[  182s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+824:[  182s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+825:[  182s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+826:[  182s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+829:[  182s] sed: can't read /etc/security/limits.conf: No such file or directory
+1336:[  202s] /var/tmp/rpm-tmp.AkSQFY: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- package tail
+[  292s] error: Bad exit status from /var/tmp/rpm-tmp.GYSQYj (%build)
+[  292s]
+[  292s]
+[  292s] RPM build errors:
+[  292s]     Bad exit status from /var/tmp/rpm-tmp.GYSQYj (%build)
+[  292s]
+[  292s] risc-v-Alienware-Aurora-R16 failed "build org.tizen.tv-viewer.spec" at Tue Nov 24 13:42:54 UTC 2026.
+[  292s]
+=== JOB thumb-org.tizen.webserver
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+CAPACITY disk_free_gib 119 ram_available_gib 74
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/default/lane.json"
+PM12_LINK_FAILURE {"diagnostics": ["\"/emul/usr/bin/clang-22\" -cc1 -triple thumbv8a-tizen-linux-gnueabi -O2 -emit-obj -mllvm -arm-implicit-it=thumb -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name testCCompiler.c -mrelocation-model pic -pic-level 2 -fhalf-no-semantic-interposition -mframe-pointer=all -relaxed-aliasing -fno-optimize-sibling-calls -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -target-cpu generic -target-feature +soft-float-abi -target-feature +read-tp-tpidruro -target-feature +vfp2 -target-feature +vfp2sp -target-feature +vfp3 -target-feature +vfp3d16 -target-feature +vfp3d16sp -target-feature +vfp3sp -target-feature +fp16 -target-feature +vfp4 -target-feature +vfp4d16 -target-feature +vfp4d16sp -target-feature +vfp4sp -target-feature -fp-armv8 -target-feature -fp-armv8d16 -target-feature -fp-armv8d16sp -target-feature -fp-armv8sp -target-feature -fullfp16 -target-feature +fp64 -target-feature +d32 -target-feature +neon -target-feature -sha2 -target-feature -aes -target-feature +crc -target-feature -fp16fml -target-abi aapcs-linux -mfloat-abi soft -gkey-instructions -debug-info-kind=constructor -dwarf-version=4 -debugger-tuning=", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tunin", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\"", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tun", "PM_CFG clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"-fdebug-compilation-dir=/ho"], "lane": "default", "log": "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/default/gbs.log", "producer_fix": "Propose producer -fPIC only after matching the named object/source; TLS-owned DSO cases also need a shared-library TLS model."}
+THUMB_ACCEPT org.tizen.webserver {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/experiment.json"
+PM12_EXPERIMENT ["THUMB", "org.tizen.webserver", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  139s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.webserver.spec\" at Tue Nov 24 13:54:13 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  260s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.webserver.spec\" at Tue Nov 24 13:58:39 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "PENDING_MATCHED_SOURCE_FIX"]}]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 9 hours 14 minutes.
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+
+Shelved files ...
+
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/CONNECTIVITY/Web-server/webserver/webserver/build/make/platforms/Tizen.mk#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/CONNECTIVITY/Web-server/webserver/webserver/thirdparty/fcgi/Makefile#1 edit
+
+--- baseline baseline/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/org.tizen.webserver-0.4-1/log.txt
+453:[  101s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+456:[  101s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+458:[  102s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+459:[  102s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+460:[  102s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+461:[  102s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+462:[  102s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+463:[  102s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+464:[  102s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+465:[  102s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+468:[  102s] sed: can't read /etc/security/limits.conf: No such file or directory
+856:[  119s] /var/tmp/rpm-tmp.14cBGz: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- baseline tail
+[  139s]     Macro expanded in comment on line 584: %{_libdir}/systemd/user/%{_popup_name}.service
+[  139s]
+[  139s]     Macro expanded in comment on line 585: %{_libdir}/systemd/user/core-efl.target.wants/%{_popup_name}.service
+[  139s]
+[  139s]     Bad exit status from /var/tmp/rpm-tmp.8fmHKG (%build)
+[  139s]
+[  139s] risc-v-Alienware-Aurora-R16 failed "build org.tizen.webserver.spec" at Tue Nov 24 13:54:13 UTC 2026.
+[  139s]
+--- default default/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/org.tizen.webserver-0.4-1/log.txt
+455:[  105s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+458:[  105s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+460:[  105s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+461:[  105s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+462:[  105s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+463:[  105s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+464:[  105s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+465:[  105s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+466:[  105s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+467:[  105s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+470:[  105s] sed: can't read /etc/security/limits.conf: No such file or directory
+859:[  220s] /var/tmp/rpm-tmp.yCr4HE: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- default tail
+[  260s]     Macro expanded in comment on line 584: %{_libdir}/systemd/user/%{_popup_name}.service
+[  260s]
+[  260s]     Macro expanded in comment on line 585: %{_libdir}/systemd/user/core-efl.target.wants/%{_popup_name}.service
+[  260s]
+[  260s]     Bad exit status from /var/tmp/rpm-tmp.5Wx1v1 (%build)
+[  260s]
+[  260s] risc-v-Alienware-Aurora-R16 failed "build org.tizen.webserver.spec" at Tue Nov 24 13:58:39 UTC 2026.
+[  260s]
+=== JOB thumb-rpm
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 9 hours 7 minutes.
+PM12_SOURCE ["rpm", [["rpm-4.14.1.1-1.65.src.rpm", null], ["rpm-4.14.1.1-1.78.src.rpm", null]]]
+CAPACITY disk_free_gib 117 ram_available_gib 74
+GBS_DEPENDENCY_PRODUCT_LIVE http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/
+PM12_ERROR "missing or ambiguous matched-SRPM identity"
+=== JOB thumb-widevine-cdm
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+CAPACITY disk_free_gib 90 ram_available_gib 74
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/package/lane.json"
+PM12_LINK_FAILURE {"diagnostics": ["\"/emul/usr/bin/clang-22\" -cc1 -triple thumbv8a-tizen-linux-gnueabi -O2 -emit-obj -mllvm -arm-implicit-it=thumb -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name testCCompiler.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -relaxed-aliasing -fno-optimize-sibling-calls -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -target-cpu generic -target-feature +soft-float-abi -target-feature +read-tp-tpidruro -target-feature +vfp2 -target-feature +vfp2sp -target-feature +vfp3 -target-feature +vfp3d16 -target-feature +vfp3d16sp -target-feature +vfp3sp -target-feature +fp16 -target-feature +vfp4 -target-feature +vfp4d16 -target-feature +vfp4d16sp -target-feature +vfp4sp -target-feature -fp-armv8 -target-feature -fp-armv8d16 -target-feature -fp-armv8d16sp -target-feature -fp-armv8sp -target-feature -fullfp16 -target-feature +fp64 -target-feature +d32 -target-feature +neon -target-feature -sha2 -target-feature -aes -target-feature +crc -target-feature -fp16fml -target-abi aapcs-linux -mfloat-abi soft -gkey-instructions -debug-info-kind=constructor -dwarf-version=4 -debugger-tuning=gdb -fdebug-compilati", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"", "PM_CFG armv7l-tizen-linux-gnueabi-clang ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tunin", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\"", "PM_CFG armv7l-tizen-linux-gnueabi-clang++ ARM_OVERRIDE  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tun", "PM_CFG clang ARGV  \"/emul/usr/bin/clang-22\" \"-cc1\" \"-triple\" \"armv7-tizen-linux-gnueabi\" \"-emit-obj\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"it.c\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-target-cpu\" \"generic\" \"-target-feature\" \"+soft-float-abi\" \"-target-feature\" \"+read-tp-tpidruro\" \"-target-feature\" \"+vfp2\" \"-target-feature\" \"+vfp2sp\" \"-target-feature\" \"+vfp3\" \"-target-feature\" \"+vfp3d16\" \"-target-feature\" \"+vfp3d16sp\" \"-target-feature\" \"+vfp3sp\" \"-target-feature\" \"-fp16\" \"-target-feature\" \"-vfp4\" \"-target-feature\" \"-vfp4d16\" \"-target-feature\" \"-vfp4d16sp\" \"-target-feature\" \"-vfp4sp\" \"-target-feature\" \"-fp-armv8\" \"-target-feature\" \"-fp-armv8d16\" \"-target-feature\" \"-fp-armv8d16sp\" \"-target-feature\" \"-fp-armv8sp\" \"-target-feature\" \"-fullfp16\" \"-target-feature\" \"+fp64\" \"-target-feature\" \"+d32\" \"-target-feature\" \"+neon\" \"-target-feature\" \"-sha2\" \"-target-feature\" \"-aes\" \"-target-feature\" \"-fp16fml\" \"-target-abi\" \"aapcs-linux\" \"-mfloat-abi\" \"soft\" \"-debugger-tuning=gdb\" \"-fdebug-compilation-dir=/ho"], "lane": "package", "log": "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/package/gbs.log", "producer_fix": "Propose producer -fPIC only after matching the named object/source; TLS-owned DSO cases also need a shared-library TLS model."}
+THUMB_ACCEPT widevine-cdm {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_REPORT "/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/experiment.json"
+PM12_EXPERIMENT ["THUMB", "widevine-cdm", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  241s] risc-v-Alienware-Aurora-R16 failed \"build widevine.spec\" at Tue Nov 24 14:34:49 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  221s] risc-v-Alienware-Aurora-R16 failed \"build widevine.spec\" at Tue Nov 24 14:38:50 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  187s] risc-v-Alienware-Aurora-R16 failed \"build widevine.spec\" at Tue Nov 24 14:42:17 UTC 2026."]}]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+User hao.lin ticket expires in 8 hours 43 minutes.
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+-bash: printf: --: invalid option
+printf: usage: printf [-v var] format [arguments]
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Drm/widevine/widevine_cdm/TA/oemcrypto_19/opk/oemcrypto_ta/wtpi_reference/wtpi_crypto_wrap_asymmetric.c#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Drm/widevine/widevine_cdm/TA/oemcrypto_19/tizen/oemcrypto_swd_api.cpp#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Drm/widevine/widevine_cdm/TA/oemcrypto_19/tizen/tizen_uci.cpp#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Drm/widevine/widevine_cdm/google_cdm_19/oemcrypto/opk/oemcrypto_ta/oemcrypto_level3.c#1 edit
+... //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PLATFORM/SECURITY/Drm/widevine/widevine_cdm/src/widevinecdm_api.cpp#8 edit
+
+--- baseline baseline/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/widevine-27.19.7-1/log.txt
+567:[  189s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+570:[  189s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+572:[  189s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+573:[  189s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+574:[  189s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+575:[  189s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+576:[  189s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+577:[  189s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+578:[  189s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+579:[  189s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+582:[  189s] sed: can't read /etc/security/limits.conf: No such file or directory
+1022:[  208s] /var/tmp/rpm-tmp.NtC70f: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- baseline tail
+[  241s] error: Bad exit status from /var/tmp/rpm-tmp.V8oIz3 (%build)
+[  241s]
+[  241s]
+[  241s] RPM build errors:
+[  241s]     Bad exit status from /var/tmp/rpm-tmp.V8oIz3 (%build)
+[  241s]
+[  241s] risc-v-Alienware-Aurora-R16 failed "build widevine.spec" at Tue Nov 24 14:34:49 UTC 2026.
+[  241s]
+--- default default/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/widevine-27.19.7-1/log.txt
+569:[  168s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+572:[  168s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+574:[  168s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+575:[  168s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+576:[  168s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+577:[  168s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+578:[  168s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+579:[  168s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+580:[  168s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+581:[  168s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+584:[  168s] sed: can't read /etc/security/limits.conf: No such file or directory
+1025:[  187s] /var/tmp/rpm-tmp.D0a7hs: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- default tail
+[  221s] error: Bad exit status from /var/tmp/rpm-tmp.soOKez (%build)
+[  221s]
+[  221s]
+[  221s] RPM build errors:
+[  221s]     Bad exit status from /var/tmp/rpm-tmp.soOKez (%build)
+[  221s]
+[  221s] risc-v-Alienware-Aurora-R16 failed "build widevine.spec" at Tue Nov 24 14:38:50 UTC 2026.
+[  221s]
+--- package package/GBS-ROOT/local/repos/qb1111/armv7l/logs/fail/widevine-27.19.7-1/log.txt
+567:[  134s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory
+570:[  134s] chroot: failed to run command '/usr/bin/lua': No such file or directory
+572:[  135s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+573:[  135s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found
+574:[  135s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found
+575:[  135s] /usr/bin/gcc-force-options-only: line 17: find: command not found
+576:[  135s] /usr/bin/gcc-force-options-only: line 141: find: command not found
+577:[  135s] /usr/bin/gcc-force-options-only: line 172: find: command not found
+578:[  135s] /usr/bin/gcc-force-options-only: line 197: find: command not found
+579:[  135s] /usr/bin/gcc-force-options-only: line 203: find: command not found
+582:[  135s] sed: can't read /etc/security/limits.conf: No such file or directory
+1022:[  154s] /var/tmp/rpm-tmp.yWdtTx: line 2: /usr/bin/hal-compatibility-checker: No such file or directory
+--- package tail
+[  187s] error: Bad exit status from /var/tmp/rpm-tmp.M3S9MB (%build)
+[  187s]
+[  187s]
+[  187s] RPM build errors:
+[  187s]     Bad exit status from /var/tmp/rpm-tmp.M3S9MB (%build)
+[  187s]
+[  187s] risc-v-Alienware-Aurora-R16 failed "build widevine.spec" at Tue Nov 24 14:42:17 UTC 2026.
+[  187s]
+/dev/nvme0n1p1  1.8T  1.7T   86G  96% /home1
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$

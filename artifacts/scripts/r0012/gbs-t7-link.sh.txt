@@ -29,7 +29,7 @@ capi_runtime() {
     local sub=$1 tag=$2 file=$3 rc=0
     shift 3
     local label="CAPI_RUNTIME_$tag"
-    timeout 30 "$file" "$@" >"$sub/$tag.run.log" 2>&1 || rc=$?
+    "$file" "$@" >"$sub/$tag.run.log" 2>&1 || rc=$?
     case "$rc" in
         0) printf 'T7_RUNTIME %s TLS_THREAD_CHECK_PASSED\n' "$label" ;;
         41) printf 'T7_RUNTIME %s DLOPEN_FAILED\n' "$label" ;;
@@ -41,6 +41,7 @@ capi_runtime() {
 capi_probe() {
     local sub=$1 out tag
     cat >"$sub/capi-check.c" <<'C'
+#include <unistd.h>
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -110,12 +111,12 @@ C
         else
             options=(-fuse-ld=gold -flto)
         fi
-        cmd=(clang "${options[@]}" -fPIE -pie -DDIRECT "$sub/capi-check.c" "$archive" -pthread -Wl,-z,text -o "$sub/$tag-capi-pie")
-        if ! "${cmd[@]}" -### >"$sub/$tag-capi-pie.driver" 2>&1 ||
+        cmd=(clang ${options[@]+"${options[@]}"} -fPIE -pie -DDIRECT "$sub/capi-check.c" "$archive" -pthread -Wl,-z,text -o "$sub/$tag-capi-pie")
+        if ! ${cmd[@]+"${cmd[@]}"} -### >"$sub/$tag-capi-pie.driver" 2>&1 ||
             { [[ "$tag" == lto ]] && ! grep -q 'LLVMgold\.so' "$sub/$tag-capi-pie.driver"; } ||
             { [[ "$tag" == native ]] && grep -q 'LLVMgold\.so' "$sub/$tag-capi-pie.driver"; }; then
             printf 'T7_RUNTIME CAPI_%s_PIE ROUTE_UNVERIFIED\n' "$tag"
-        elif "${cmd[@]}" >"$sub/$tag-capi-pie.log" 2>&1; then
+        elif ${cmd[@]+"${cmd[@]}"} >"$sub/$tag-capi-pie.log" 2>&1; then
             capi_runtime "$sub" "${tag}_pie" "$sub/$tag-capi-pie"
         else
             printf 'T7_RUNTIME CAPI_%s_PIE LINK_REVIEW\n' "$tag"
@@ -124,6 +125,7 @@ C
     done
 }
 cat >probe/dso-load.c <<'C'
+#include <unistd.h>
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -139,6 +141,7 @@ static void *worker(void *path) {
 }
 
 int main(int argc, char **argv) {
+    alarm(30);
     if (argc != 2)
         return 2;
     pthread_t thread;
@@ -152,8 +155,11 @@ C
 clang -fno-lto probe/dso-load.c -pthread -ldl -o probe/dso-loader >probe/dso-loader-build.log 2>&1 ||
     echo 'T7_RUNTIME GENERIC_LOADER_BUILD_REVIEW'
 
+counter=0
 while IFS=$'\t' read -r archive member digest; do
-    sub=$(mktemp -d "$PWD/probe/member.XXXXXX")
+    counter=$((counter+1))
+    sub="$PWD/probe/member.$counter"
+    mkdir "$sub"
     matches=$(ar t "$archive" | awk -v want="$member" '$0==want {n++} END {print n+0}')
     if [[ "$matches" != 1 ]]; then
         printf 'T7_RESULT\t%s\t%s\t%s\tQUALIFY\tARCHIVE_MEMBER_COUNT_%s\n' "$archive" "$member" "$digest" "$matches"
@@ -181,24 +187,26 @@ while IFS=$'\t' read -r archive member digest; do
     printf 'T7_MEMBER %s %s trigger=%s llvm_lto=%s\n' "$archive" "$member" "$trigger" "$has_ir"
     # Link structural fixtures. PIE has no executable test entry or dependency fixture.
     for kind in shared pie; do
+        case "$kind" in shared) kind_upper=SHARED;; pie) kind_upper=PIE;; esac
         raw="$sub/native-$kind"
-        run "GNU_NATIVE_${kind^^}" "$raw" "$ld" "-$kind" -z text -u "$trigger" \
+        run "GNU_NATIVE_${kind_upper}" "$raw" "$ld" "-$kind" -z text -u "$trigger" \
             -Map="$raw.map" -o "$raw.elf" "$archive" -lc
     done
     for kind in shared pie; do
+        case "$kind" in shared) kind_upper=SHARED;; pie) kind_upper=PIE;; esac
         raw="$sub/lto-$kind"
         driver=(clang -fuse-ld=gold -flto "-$kind" -nostartfiles -Wl,-z,text,-u,"$trigger",-Map,"$raw.map" -o "$raw.elf" "$archive")
-        if "${driver[@]}" -### >"$raw.driver" 2>&1 && grep -Eq 'LLVMgold\.so' "$raw.driver"; then
-            run "GOLD_PLUGIN_${kind^^}_IR${has_ir}" "$raw" "${driver[@]}"
+        if ${driver[@]+"${driver[@]}"} -### >"$raw.driver" 2>&1 && grep -Eq 'LLVMgold\.so' "$raw.driver"; then
+            run "GOLD_PLUGIN_${kind_upper}_IR${has_ir}" "$raw" ${driver[@]+"${driver[@]}"}
         else
-            printf 'T7_RESULT\t%s\t%s\t%s\tGOLD_PLUGIN_%s\tPLUGIN_PATH_UNVERIFIED\n' "$archive" "$member" "$digest" "${kind^^}"
+            printf 'T7_RESULT\t%s\t%s\t%s\tGOLD_PLUGIN_%s\tPLUGIN_PATH_UNVERIFIED\n' "$archive" "$member" "$digest" "${kind_upper}"
         fi
     done
     for route in native lto; do
         out="$sub/$route-shared.elf"
         if [[ -x probe/dso-loader && -f "$out" ]]; then
             rc=0
-            timeout 30 probe/dso-loader "$out" >"$sub/$route-dso-load.log" 2>&1 || rc=$?
+            probe/dso-loader "$out" >"$sub/$route-dso-load.log" 2>&1 || rc=$?
             printf 'T7_RUNTIME DLOPEN_IN_MAIN_AND_WORKER %s %s %s rc=%s\n' "$archive" "$member" "$route" "$rc"
         fi
     done

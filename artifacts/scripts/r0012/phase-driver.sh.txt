@@ -22,14 +22,14 @@ if [[ "$phase" == link && $has_source == 1 ]]; then
 fi
 edits=()
 if [[ "$phase" == compile || "$phase" == compile-link ]]; then
-    edits+=("${compile_edits[@]}")
+    edits+=(${compile_edits[@]+"${compile_edits[@]}"})
 fi
 if [[ "$phase" == link || "$phase" == compile-link ]]; then
-    edits+=("${link_edits[@]}")
-    if ((lto)); then edits+=("${plugin_edits[@]}"); fi
+    edits+=(${link_edits[@]+"${link_edits[@]}"})
+    if ((lto)); then edits+=(${plugin_edits[@]+"${plugin_edits[@]}"}); fi
 fi
 if (( ${#edits[@]} )); then
-    injection=$(printf ' +%s' "${edits[@]}")
+    injection=$(printf ' +%s' ${edits[@]+"${edits[@]}"})
     export CCC_OVERRIDE_OPTIONS="${CCC_OVERRIDE_OPTIONS:-}${injection}"
 fi
 if [[ "$phase" != query ]]; then

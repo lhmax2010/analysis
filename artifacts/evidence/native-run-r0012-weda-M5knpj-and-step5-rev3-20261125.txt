@@ -1,0 +1,220 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ pm12read /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj
+PM12_BATCH_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj
+2026-11-24T21:10:46+08:00 START wed-a
+2026-11-24T21:11:09+08:00 JOB thumb-org.tizen.AVControl START
+2026-11-24T21:25:53+08:00 JOB thumb-org.tizen.AVControl END rc=2
+2026-11-24T21:25:53+08:00 JOB thumb-org.tizen.tv-viewer START
+2026-11-24T21:42:54+08:00 JOB thumb-org.tizen.tv-viewer END rc=2
+2026-11-24T21:42:54+08:00 JOB thumb-libpisa-ipc START
+2026-11-24T21:51:30+08:00 JOB thumb-libpisa-ipc END rc=2
+2026-11-24T21:51:30+08:00 JOB thumb-org.tizen.webserver START
+2026-11-24T21:58:40+08:00 JOB thumb-org.tizen.webserver END rc=2
+2026-11-24T21:58:40+08:00 JOB thumb-libgcrypt START
+2026-11-24T21:58:41+08:00 JOB thumb-libgcrypt END rc=2
+2026-11-24T21:58:41+08:00 JOB thumb-rpm START
+2026-11-24T21:58:42+08:00 JOB thumb-rpm END rc=2
+2026-11-24T21:58:42+08:00 JOB thumb-nnstreamer START
+2026-11-24T22:05:47+08:00 JOB thumb-nnstreamer END rc=2
+2026-11-24T22:05:47+08:00 JOB thumb-bluetooth-impl-sec-oal START
+2026-11-24T22:22:48+08:00 JOB thumb-bluetooth-impl-sec-oal END rc=2
+2026-11-24T22:22:48+08:00 JOB thumb-widevine-cdm START
+2026-11-24T22:42:27+08:00 JOB thumb-widevine-cdm END rc=2
+2026-11-24T22:42:27+08:00 DONE wed-a rc=1
+THUMB_ACCEPT bluetooth-impl-sec-oal {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_EXPERIMENT ["THUMB", "bluetooth-impl-sec-oal", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  217s] risc-v-Alienware-Aurora-R16 failed \"build bluetooth-impl.spec\" at Tue Nov 24 14:16:10 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  101s] risc-v-Alienware-Aurora-R16 failed \"build bluetooth-impl.spec\" at Tue Nov 24 14:18:32 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  209s] risc-v-Alienware-Aurora-R16 failed \"build bluetooth-impl.spec\" at Tue Nov 24 14:22:43 UTC 2026."]}]
+PM12_ERROR "read-only source command failed (1): /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libgcrypt/p4-base.log"
+THUMB_ACCEPT libpisa-ipc {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_EXPERIMENT ["THUMB", "libpisa-ipc", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  113s] risc-v-Alienware-Aurora-R16 failed \"build libpisa-ipc.spec\" at Tue Nov 24 13:45:01 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  184s] risc-v-Alienware-Aurora-R16 failed \"build libpisa-ipc.spec\" at Tue Nov 24 13:48:10 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  195s] risc-v-Alienware-Aurora-R16 failed \"build libpisa-ipc.spec\" at Tue Nov 24 13:51:30 UTC 2026."]}]
+THUMB_ACCEPT nnstreamer {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_EXPERIMENT ["THUMB", "nnstreamer", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  116s] risc-v-Alienware-Aurora-R16 failed \"build nnstreamer.spec\" at Tue Nov 24 14:01:12 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  271s] risc-v-Alienware-Aurora-R16 failed \"build nnstreamer.spec\" at Tue Nov 24 14:05:47 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "PENDING_MATCHED_SOURCE_FIX"]}]
+THUMB_ACCEPT org.tizen.AVControl {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_EXPERIMENT ["THUMB", "org.tizen.AVControl", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  239s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.AVControl.spec\" at Tue Nov 24 13:15:16 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  355s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.AVControl.spec\" at Tue Nov 24 13:21:17 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  271s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.AVControl.spec\" at Tue Nov 24 13:25:53 UTC 2026."]}]
+THUMB_ACCEPT org.tizen.tv-viewer {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_EXPERIMENT ["THUMB", "org.tizen.tv-viewer", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  305s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.tv-viewer.spec\" at Tue Nov 24 13:31:38 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  374s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.tv-viewer.spec\" at Tue Nov 24 13:37:57 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  292s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.tv-viewer.spec\" at Tue Nov 24 13:42:54 UTC 2026."]}]
+THUMB_ACCEPT org.tizen.webserver {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_EXPERIMENT ["THUMB", "org.tizen.webserver", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  139s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.webserver.spec\" at Tue Nov 24 13:54:13 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  260s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.webserver.spec\" at Tue Nov 24 13:58:39 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "PENDING_MATCHED_SOURCE_FIX"]}]
+PM12_ERROR "missing or ambiguous matched-SRPM identity"
+THUMB_ACCEPT widevine-cdm {'default': ('BLOCKED_BUILD_OR_SCOPE', {}), 'package': ('BLOCKED_BUILD_OR_SCOPE', {})}
+PM12_EXPERIMENT ["THUMB", "widevine-cdm", {"baseline": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  241s] risc-v-Alienware-Aurora-R16 failed \"build widevine.spec\" at Tue Nov 24 14:34:49 UTC 2026."], "default": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  221s] risc-v-Alienware-Aurora-R16 failed \"build widevine.spec\" at Tue Nov 24 14:38:50 UTC 2026."], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  187s] risc-v-Alienware-Aurora-R16 failed \"build widevine.spec\" at Tue Nov 24 14:42:17 UTC 2026."]}]
+b4e52fa702a4cbf2076360669ea6dc278d737c1e48b69991ee5162605772bf80  /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/combined.txt
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ # Set WEDA to the PM12_BATCH_DIR printed when pm12review wed-a started, e.g.:
+# WEDA=/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.XXXXXX
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  : "${WEDA:?set WEDA to the printed pm0012-wed-a directory}"
+  out=$(mktemp -d "$PWD/workspace/temp/pm0012-driver-readback.XXXXXX")
+  cd "$out"
+  export TMPDIR="$out"
+  get() {
+    local rev=$1 path=$2 sum=$3 name=${2##*/} attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$name" &&
+         printf '%s  %s\n' "$sum" "$name" | sha256sum -c -; then return 0; fi
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
+  }
+  get 199f5b562d635d7ac4aa697f779d77b03ea3a252 artifacts/scripts/r0012g/thumb-options.py.txt c7cc48244c20ee4982a75c79780adfb4594bb7231f53e1919ca4b73908b49a10
+  python3 -B thumb-options.py.txt "$WEDA" --drivers-only
+  printf 'READBACK_DIR %s\n' "$out"
+)
+-bash: WEDA: set WEDA to the printed pm0012-wed-a directory
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ WEDA=/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ # Set WEDA to the PM12_BATCH_DIR printed when pm12review wed-a started, e.g.:
+# WEDA=/home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.XXXXXX
+(
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  : "${WEDA:?set WEDA to the printed pm0012-wed-a directory}"
+  out=$(mktemp -d "$PWD/workspace/temp/pm0012-driver-readback.XXXXXX")
+  cd "$out"
+  export TMPDIR="$out"
+  get() {
+    local rev=$1 path=$2 sum=$3 name=${2##*/} attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$name" &&
+         printf '%s  %s\n' "$sum" "$name" | sha256sum -c -; then return 0; fi
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
+  }
+  get 199f5b562d635d7ac4aa697f779d77b03ea3a252 artifacts/scripts/r0012g/thumb-options.py.txt c7cc48244c20ee4982a75c79780adfb4594bb7231f53e1919ca4b73908b49a10
+  python3 -B thumb-options.py.txt "$WEDA" --drivers-only
+  printf 'READBACK_DIR %s\n' "$out"
+)
+thumb-options.py.txt: OK
+T1_F2_GCC_ARGV thumb-bluetooth-impl-sec-oal baseline 0
+T1_F2_GCC_ARGV thumb-bluetooth-impl-sec-oal default 0
+F6_RERUN_DEFAULT thumb-bluetooth-impl-sec-oal clang
+F6_RERUN_DEFAULT thumb-bluetooth-impl-sec-oal clang++
+F6_RERUN_DEFAULT thumb-bluetooth-impl-sec-oal armv7l-tizen-linux-gnueabi-clang
+F6_RERUN_DEFAULT thumb-bluetooth-impl-sec-oal armv7l-tizen-linux-gnueabi-clang++
+T1_F2_GCC_ARGV thumb-bluetooth-impl-sec-oal package 0
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-bluetooth-impl-sec-oal.json
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-libgcrypt.json
+T1_F2_GCC_ARGV thumb-libpisa-ipc baseline 0
+T1_F2_GCC_ARGV thumb-libpisa-ipc default 0
+F6_RERUN_DEFAULT thumb-libpisa-ipc clang
+F6_RERUN_DEFAULT thumb-libpisa-ipc clang++
+F6_RERUN_DEFAULT thumb-libpisa-ipc armv7l-tizen-linux-gnueabi-clang
+F6_RERUN_DEFAULT thumb-libpisa-ipc armv7l-tizen-linux-gnueabi-clang++
+T1_F2_GCC_ARGV thumb-libpisa-ipc package 0
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-libpisa-ipc.json
+T1_F2_GCC_ARGV thumb-nnstreamer baseline 0
+T1_F2_GCC_ARGV thumb-nnstreamer default 0
+F6_RERUN_DEFAULT thumb-nnstreamer clang
+F6_RERUN_DEFAULT thumb-nnstreamer clang++
+F6_RERUN_DEFAULT thumb-nnstreamer armv7l-tizen-linux-gnueabi-clang
+F6_RERUN_DEFAULT thumb-nnstreamer armv7l-tizen-linux-gnueabi-clang++
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-nnstreamer.json
+T1_F2_GCC_ARGV thumb-org.tizen.AVControl baseline 0
+T1_F2_GCC_ARGV thumb-org.tizen.AVControl default 0
+F6_RERUN_DEFAULT thumb-org.tizen.AVControl clang
+F6_RERUN_DEFAULT thumb-org.tizen.AVControl clang++
+F6_RERUN_DEFAULT thumb-org.tizen.AVControl armv7l-tizen-linux-gnueabi-clang
+F6_RERUN_DEFAULT thumb-org.tizen.AVControl armv7l-tizen-linux-gnueabi-clang++
+T1_F2_GCC_ARGV thumb-org.tizen.AVControl package 0
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-org.tizen.AVControl.json
+T1_F2_GCC_ARGV thumb-org.tizen.tv-viewer baseline 0
+T1_F2_GCC_ARGV thumb-org.tizen.tv-viewer default 0
+F6_RERUN_DEFAULT thumb-org.tizen.tv-viewer clang
+F6_RERUN_DEFAULT thumb-org.tizen.tv-viewer clang++
+F6_RERUN_DEFAULT thumb-org.tizen.tv-viewer armv7l-tizen-linux-gnueabi-clang
+F6_RERUN_DEFAULT thumb-org.tizen.tv-viewer armv7l-tizen-linux-gnueabi-clang++
+T1_F2_GCC_ARGV thumb-org.tizen.tv-viewer package 0
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-org.tizen.tv-viewer.json
+T1_F2_GCC_ARGV thumb-org.tizen.webserver baseline 0
+T1_F2_GCC_ARGV thumb-org.tizen.webserver default 0
+F6_RERUN_DEFAULT thumb-org.tizen.webserver clang
+F6_RERUN_DEFAULT thumb-org.tizen.webserver clang++
+F6_RERUN_DEFAULT thumb-org.tizen.webserver armv7l-tizen-linux-gnueabi-clang
+F6_RERUN_DEFAULT thumb-org.tizen.webserver armv7l-tizen-linux-gnueabi-clang++
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-org.tizen.webserver.json
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-rpm.json
+T1_F2_GCC_ARGV thumb-widevine-cdm baseline 0
+T1_F2_GCC_ARGV thumb-widevine-cdm default 0
+F6_RERUN_DEFAULT thumb-widevine-cdm clang
+F6_RERUN_DEFAULT thumb-widevine-cdm clang++
+F6_RERUN_DEFAULT thumb-widevine-cdm armv7l-tizen-linux-gnueabi-clang
+F6_RERUN_DEFAULT thumb-widevine-cdm armv7l-tizen-linux-gnueabi-clang++
+T1_F2_GCC_ARGV thumb-widevine-cdm package 0
+T1_F2_REPORT /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X/thumb-widevine-cdm.json
+READBACK_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-driver-readback.mqkn9X
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (
+  set -euo pipefail
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0010-board.XXXXXX")
+  export TMPDIR="$d"
+  get() {
+    local rev=$1 path=$2 sum=$3 file="$d/${2##*/}" attempt
+    for attempt in 1 2 3 4 5; do
+      if curl -fsS --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$path" -o "$file" &&
+         printf '%s  %s\n' "$sum" "$file" | sha256sum -c -; then
+        return 0
+      fi
+      printf 'DOWNLOAD_FAILED attempt=%s/5 %s\n' "$attempt" "${path##*/}" >&2
+      if (( attempt < 5 )); then sleep 10; fi
+    done
+    return 1
+  }
+  get '9c65ec5bc7c55b3bdf62ff11b36ad4834e141a22' 'artifacts/scripts/r0012c/gbs-board-bench.py.txt' '0159982a99f3fa50dc2a2459d922e8aaaa62cdd0c22d716e8ff01b85bf628a88'
+  get '97a50bcacc7402d8297b25a47b1f2117b40c6d72' 'artifacts/scripts/r0010/olevel.py.txt' '7ea4a4c99204ae9a280e83d46a1e3de2b7ff721ce7a8079294e36393401259bf'
+  get '07883080780af09b3f195ac6efaba639b0ab7bb8' 'artifacts/scripts/r0010/mlgo-tv-run.sh.txt' 'fa28ef445fed4ee573d1504ad0b7b19aad066d9b595cb90ea9a8d53c0aa64f3b'
+  get '07883080780af09b3f195ac6efaba639b0ab7bb8' 'artifacts/scripts/r0010/mlgo-tv-measure.sh.txt' 'd065017fb0bd825bb9c1ff86ced0616406f414ef7f41b794b35c54fcf17850e4'
+  get '07883080780af09b3f195ac6efaba639b0ab7bb8' 'artifacts/scripts/r0010/mlgo-tv-microbench.c.txt' '04981794ea071c5d7aef39a911086abf451cb136796e4e8edc6bffa39f66796a'
+  get '2303fa18ff0bc39bd26e8b6dc683bbb24bd7611a' 'artifacts/scripts/r0005/mlgo-tv-identity.sh.txt' '21070fc762b878343faac9a331235ad2dfde06eb87cfa7f2f5ac24a5b855e5cf'
+  get '988001a92e58e272390553aea4a27e34e6a87d82' 'artifacts/scripts/r0008a/gbs-mlgo-t7.py.txt' '1089c21b3b4bf4205bd13ba64cace371c57a7d4ec86376877f3b2d069f551a9c'
+  get '988001a92e58e272390553aea4a27e34e6a87d82' 'artifacts/scripts/r0008a/gbs-thumb.py.txt' '928cff87ac0cb501a6d0575da5f1d80157bd02918d2378a5e061c2262cf11a92'
+  get '988001a92e58e272390553aea4a27e34e6a87d82' 'artifacts/scripts/r0008a/thumb-qb-sample.py.txt' 'b7a725e9c5e68072b9f5388a35df91494874f13f67a00fb7426a3067e04a3579'
+  get 'ea24f17d8d8f7b245c36d040381880839165d1c5' 'artifacts/scripts/r0004/image_mode_scan.py.txt' '1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75'
+  get '713883c9f21439a84b83a07ef3a4b2c555f18db5' 'artifacts/scripts/r0009/perf-bundle.py.txt' '4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b'
+  (cd "$d"; sha256sum mlgo-tv-identity.sh.txt mlgo-tv-measure.sh.txt mlgo-tv-microbench.c.txt > inputs.sha256)
+  OFFICIAL_CAPTURE="$PWD/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2"
+  printf '%s  %s/identity.json\n' f164cf5f56ced88fd0618c68df686c79ec36aca85dbeb53972a4b128f135862d "$OFFICIAL_CAPTURE" | sha256sum -c -
+  sudo -v
+  python3 -B -u "$d/gbs-board-bench.py.txt" "$d" "${OFFICIAL_CAPTURE:?}" "$d/mlgo-tv-microbench.c.txt" \
+    "$d/olevel.py.txt" "$d/gbs-mlgo-t7.py.txt" "$d/thumb-qb-sample.py.txt" "$d/gbs-thumb.py.txt" \
+    "$d/image_mode_scan.py.txt" "$d/perf-bundle.py.txt"
+  printf 'BOARD_TOOLS %s\n' "$d"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/gbs-board-bench.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/olevel.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/mlgo-tv-run.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/mlgo-tv-measure.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/mlgo-tv-microbench.c.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/mlgo-tv-identity.sh.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/gbs-mlgo-t7.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/gbs-thumb.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/thumb-qb-sample.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/image_mode_scan.py.txt: OK
+/home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/perf-bundle.py.txt: OK
+/home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/identity.json: OK
+[sudo] password for chengkai:
+GBS_DEPENDENCY_PRODUCT_LIVE http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/
+CAPACITY disk_free_gib 87 ram_available_gib 74
+GBS_BENCH_WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5
+PM_BENCH_PROVIDER binutils 2.43 3.49 cb7d488667f705019474031276916595d284e200f7f9e58358c30ccb88ae1396 /usr/bin/readelf
+PM_BENCH_PROVIDER clang 22.1.8 9.1 5fafd0909825bcce5b4183806ec8683900bcbe4f6cece9be358fe471ae8376f8 /usr/bin/clang-22
+PM_BENCH_PROVIDER glibc-devel 2.40 1.111 b33038e6bdb40aad228cadef2b0b66bc6d9d36ea716edabb524554b007e6ff2a /usr/lib/libc.so
+PM_BENCH_PROVIDER glibc-devel-static 2.40 1.111 9618c524c413b837e439146130d346655693c31eea90f3355526a0366b87f24a /usr/lib/libc.a
+OFFICIAL_TOOL_FILE binutils-2.43-3.49.armv7l    /usr/bin/ld
+OFFICIAL_TOOL_FILE binutils-2.43-3.49.armv7l    /usr/bin/readelf
+OFFICIAL_TOOL_FILE clang-22.1.8-9.1.armv7l      /usr/bin/armv7l-tizen-linux-gnueabi-clang
+OFFICIAL_TOOL_FILE coreutils-6.9-14.18.armv7l   /usr/bin/sha256sum
+OFFICIAL_TOOL_FILE coreutils-6.9-14.18.armv7l   /usr/bin/tail
+OFFICIAL_TOOL_FILE gawk-3.1.5-1.17.armv7l       /usr/bin/awk
+OFFICIAL_TOOL_FILE rpm-4.14.1.1-1.65.armv7l     /bin/rpm
+PM_BENCH_FIXTURE_PASS restricted PATH; seven missing-tool cases
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/published-build.conf --threads 1 --spec pm-board-microbench.spec --include-all LOG /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/gbs.log
+GBS_EXIT 0
+THUMB_WRAPPED_COMPILE_LINES 0
+PM_BENCH_LINKER {"invoked": "/usr/bin/ld", "physical_directory_path": "/usr/bin/ld", "version": "GNU ld (GNU Binutils) 2.43"}
+GBS_BENCH_GCC_LOOKUP {"expected_directory": "/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/", "static_libc": {"map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/libc.a", "physical_directory_path": "/usr/lib/libc.a", "via_gcc_14_2": true}, "startup_objects": [{"map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/crt1.o", "physical_directory_path": "/usr/lib/crt1.o", "via_gcc_14_2": true}, {"map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/crti.o", "physical_directory_path": "/usr/lib/crti.o", "via_gcc_14_2": true}, {"map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/crtn.o", "physical_directory_path": "/usr/lib/crtn.o", "via_gcc_14_2": true}, {"map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtbeginT.o", "physical_directory_path": "/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtbeginT.o", "via_gcc_14_2": true}, {"map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtend.o", "physical_directory_path": "/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtend.o", "via_gcc_14_2": true}]}
+GBS_BENCH_READY /home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg/microbench 372945183c355de1919f97b039c1f898fea0818c32025cae16cd8eb864b9b5fd
+GBS_BENCH_ISA A32 ARM FLAGS -O2 -static -std=c11 -Wall -Wextra -Werror
+GBS_BENCH_STATIC_GLIBC 20261113.1 glibc-devel-static 0 2.40 1.111 armv7l /usr/lib/libc.a c8ff58b1c0325dee12541745bf096fc2055189d24d97ee2de280b399b5749fa7
+GBS_BENCH_GLIBC_ORIGIN BASE_PROVEN_FROM_GBS_DOWNLOAD http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/armv7l/packages/armv7l/glibc-devel-static-2.40-1.111.armv7l.rpm
+BOARD_TOOLS /home1/chengkai/vd-tree/workspace/temp/pm0010-board.LqvfAg
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
+

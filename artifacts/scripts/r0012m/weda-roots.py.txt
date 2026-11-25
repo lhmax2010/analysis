@@ -1,0 +1,111 @@
+"""Inventory or prune only finished M5knpj GBS roots, retaining logs, cfgs and JSON in place."""
+import argparse
+import errno
+import fcntl
+import hashlib
+import os
+from pathlib import Path
+import re
+import subprocess
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+WEDA = TEMP/"pm0012-wed-a.M5knpj"
+PRISTINE = TEMP/"pm0010-gbs-board-bench.eli_m1on/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0"
+PACKAGES = {"org.tizen.AVControl","org.tizen.tv-viewer","libpisa-ipc","org.tizen.webserver",
+            "nnstreamer","bluetooth-impl-sec-oal","widevine-cdm"}
+
+
+def preserve(path):
+    return (path.name.endswith((".log",".json",".jsonl",".cfg")) or path.name in
+            {"log.txt","CMakeConfigureLog.yaml","CMakeCache.txt","flags.make","link.txt","build.make"}
+            or ".pm12-driver" in path.parts or ".pm0012g-driver" in path.parts)
+
+
+def mount_paths():
+    return {Path(re.sub(r"\\([0-7]{3})",lambda m:chr(int(m[1],8)),line.split()[4]))
+            for line in Path("/proc/self/mountinfo").read_text().splitlines()}
+
+
+def cfg(root, name):
+    # Only accept the two witnessed sibling spellings of clang.cfg in this root.
+    path = root/"usr/bin"/name
+    if not path.is_file(): return None
+    actual = path.resolve()
+    if actual not in {root/"usr/bin/clang.cfg",root/"usr/bin/clang++.cfg"}:
+        raise ValueError(f"unexpected config redirect {path} -> {actual}")
+    return actual.read_bytes()
+
+
+def run(apply):
+    if WEDA.resolve()!=WEDA or "DONE wed-a rc=1" not in (WEDA/"status.txt").read_text().splitlines()[-1]:
+        raise ValueError("finished M5knpj identity required")
+    roots=sorted((WEDA/"jobs").glob("*/*/GBS-ROOT"))
+    if not roots: raise ValueError("no lane roots found")
+    mounts=mount_paths()
+    for root in roots:
+        if (root.resolve()!=root or root.parent.name not in {"baseline","default","package"}
+                or root.parent.parent.name.removeprefix("thumb-") not in PACKAGES
+                or any(p.is_relative_to(root) for p in mounts)):
+            raise ValueError(f"unsafe, unrecognized or mounted root {root}")
+    compare=WEDA/"jobs/thumb-libpisa-ipc/baseline/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0"
+    for name in ("clang.cfg","clang++.cfg"):
+        before=cfg(PRISTINE,name)
+        after=cfg(compare,name)
+        for lane,data in (("official-step5",before),("pisa-baseline",after)):
+            print("CFG",lane,name,hashlib.sha256(data).hexdigest() if data is not None else "UNAVAILABLE",
+                  repr(data[:1200]) if data is not None else "")
+        print("CFG_COMPARE",name, "UNAVAILABLE" if None in (before,after) else "SAME" if before==after else "DIFF")
+    for lane in ("baseline","default","package"):
+        log = WEDA/"jobs/thumb-libpisa-ipc"/lane/"gbs.log"
+        if log.is_file():
+            with log.open(errors="replace") as stream:
+                for line in stream:
+                    if "unbound variable" in line or "input unused [-Werror," in line:
+                        print("PISA_FIRST_CAUSE",lane,line.strip()[:600])
+                        break
+    passlog=TEMP/"pm0010-gbs-board-bench.choeqoe5/gbs.log"
+    for path in (passlog, WEDA/"jobs/thumb-libpisa-ipc/baseline/gbs.log"):
+        if not path.is_file(): continue
+        tokens=("liblto_plugin.so","/usr/bin/lua","gcc-warning-build-env.post","gcc-force-options-only",
+                "limits.conf","systemctl","kernel-install","hal-compatibility-checker")
+        examples={}
+        for line in path.open(errors="replace"):
+            if re.search(r"missing|cannot |not found|No such|failed",line,re.I):
+                for token in tokens:
+                    if token in line: examples.setdefault(token,line.strip()[:360])
+        print("INIT_DIAGNOSTICS",path,examples)
+    # Do not follow links. If a retained log is itself a symlink, protect its in-root target.
+    def fail(error): raise error
+    for root in roots:
+        size=subprocess.check_output(["du","-sx","--block-size=1",root],text=True).split()[0]
+        print("LANE_ROOT_BYTES",root,size,flush=True)
+        if not apply: continue
+        protected=set()
+        for base,dirs,files in os.walk(root,onerror=fail):
+            for name in dirs+files:
+                p=Path(base)/name
+                if p.is_symlink() and preserve(p):
+                    target=p.resolve()
+                    if target.is_relative_to(root):
+                        if target.is_dir(): raise ValueError(f"retained directory alias {p}")
+                        protected.add(target)
+        for base,dirs,files in os.walk(root,topdown=False,onerror=fail):
+            for name in files+dirs:
+                p=Path(base)/name
+                if preserve(p) or p in protected: continue
+                if p.is_symlink() or not p.is_dir():
+                    p.unlink()
+                else:
+                    try: p.rmdir()
+                    except OSError as e:
+                        if e.errno!=errno.ENOTEMPTY: raise
+        print("PRUNED",root,flush=True)
+
+
+if __name__=="__main__":
+    ap=argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--apply",action="store_true")
+    args=ap.parse_args()
+    with (TEMP/"pm0012-queue.lock").open("rb") as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        run(args.apply)
