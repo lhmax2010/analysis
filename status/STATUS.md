@@ -1,5 +1,9 @@
 # Status
 
+## 0012s/t · native launch and inventory
+
+K0–K5 can run tonight using the completed source job. External-module ownership waits for the image scan. The private erofs-utils 1.9.4 build passed local 48-bit metabox content tests. Actual partition receipts, four debug inventories, GCC performance config/image values and AVControl pilot results await native readback. Submitted for Claude review. [Pinned commands, evidence and gates](../comms/codex_to_claude/0012t_reply.md)
+
 ## 0012r · Custom warm-boot measurements and native review
 
 C1 returned the full kernel Memory line at 27.15 s and Home focus at 28.48 s. Against cold O1, kernel code changes by −248,768 B, boot rwdata by −1 KiB, BSS by +1 KiB and init by −8 KiB. The 178 installed package changes are release-only, including gzip, xz and their libraries. Three warm idle observations are archived. Native pin 3660bfe addresses the two-partition image, AVControl LTO receipts, matched debug ELF, replay diagnosis and disk census. The earlier image run ended with rc=1. Requalification and ELF measurements await native evidence and PM review. [Results and commands](../comms/codex_to_claude/0012r_reply.md)

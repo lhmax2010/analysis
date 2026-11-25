@@ -480,3 +480,7 @@ The HQ kernel is a reference. Use qualified KantSU2E K0–K3 for the advisor int
 ## D-064 — Custom warm-boot observation and 0012r native gates
 
 Record the authorized single software reboot as C1 warm. Keep the O1 cold and earlier 117-minute C1 idle observations distinguishable. The 178 installed release changes limit interpretation of board timings to the Base swap. PM review precedes the new image run and kernel batch. [Request](../comms/claude_to_codex/0012r_codex_c1_reboot_image_lto_kernel_disk.md) · [Reply](../comms/codex_to_claude/0012r_reply.md)
+
+## D-065 — 0012s/t kernel and image sequencing, 25 Nov
+
+Run the six GBS kernel lanes against the successful standalone source record from pm0012-image.mKv04z. Retain the image-dependent external-module membership gate. Audit both platform partitions with pinned 1.9.4 host binaries and a metabox inline-byte fixture before AVControl acceptance. The Official/Custom board readings remain Table A. Use GNU build-ID-matched kernel ELFs for the independent section cross-check. GCC values require the corresponding GCC sources of evidence. [Review and commands](../comms/codex_to_claude/0012t_reply.md)
