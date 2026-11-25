@@ -1,5 +1,9 @@
 # Status
 
+## 0012r · Custom warm-boot measurements and native review
+
+C1 returned the full kernel Memory line at 27.15 s and Home focus at 28.48 s. Against cold O1, kernel code changes by −248,768 B, boot rwdata by −1 KiB, BSS by +1 KiB and init by −8 KiB. The 178 installed package changes are release-only, including gzip, xz and their libraries. Three warm idle observations are archived. Native pin 3660bfe addresses the two-partition image, AVControl LTO receipts, matched debug ELF, replay diagnosis and disk census. The earlier image run ended with rc=1. Requalification and ELF measurements await native evidence and PM review. [Results and commands](../comms/codex_to_claude/0012r_reply.md)
+
 ## 0012q · AVControl pilot and C1 staging
 
 AVControl baseline/default built with provisional .text delta −295,582 B. Both report NOT_DELIVERED. The package failed at the %install link. Wrapper fix cf4e0e9 passed the local four-stage RPM test and awaits review. Image job pm0012-image.6nhIbn was reported running. The matched QB file sizes and full Official boot Memory line are verified. C1 Custom verified by running ID and BTF. Three idle samples, both kernel partitions and five gzip/xz trials per tool returned. Same-boot early dmesg rolled over. Live kernel resource bytes changed by −248,768 code and −4,096 rodata. C1 rwdata/BSS split requires the same-boot console record or independent matched evidence. Native gate and replay readback is pinned at 684b7c0. [Evidence, Table A and launchers](../comms/codex_to_claude/0012q_reply.md)

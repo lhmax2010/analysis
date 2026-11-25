@@ -476,3 +476,7 @@ Apply Bash 3.2.57, coreutils 6.9 and gawk 3.1.5 compatibility to injected shell.
 ## D-063 — Matched outliner comparison and measured boot artifact
 
 The HQ kernel is a reference. Use qualified KantSU2E K0–K3 for the advisor interaction, report compressed and uncompressed images independently, and require an active boot route joined to bytes on the board for flash attribution. Keep uncovered DWARF origins and unavailable live memory observations explicit. [0012n](../comms/codex_to_claude/0012n_reply.md)
+
+## D-064 — Custom warm-boot observation and 0012r native gates
+
+Record the authorized single software reboot as C1 warm. Keep the O1 cold and earlier 117-minute C1 idle observations distinguishable. The 178 installed release changes limit interpretation of board timings to the Base swap. PM review precedes the new image run and kernel batch. [Request](../comms/claude_to_codex/0012r_codex_c1_reboot_image_lto_kernel_disk.md) · [Reply](../comms/codex_to_claude/0012r_reply.md)
