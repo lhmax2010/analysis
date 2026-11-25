@@ -1,5 +1,9 @@
 # Status
 
+## 0012v · G1 warm board and image tooling
+
+GCC Home confirmed after one reboot and 10 signed workload trials. Warm median MemAvailable 1,088,000 KiB (C1 1,086,360). G1/C1 gzip medians 0.42/0.41 s, xz 0.83/0.93 s. Full G1 roster 2,343 rows. The upstream EROFS dev fix passed the two-filesystem byte fixture. The native kernel batch runs independently; next stages await completion and disk gates. Claude review pending. [Weekly data](../reports/weekly/2026-11-27/draft-data.md) · [Review packet](../comms/codex_to_claude/0012v_reply.md)
+
 ## 0012u · GCC board reference
 
 G1 Product, running kernel, USB pair, both slot prefixes and BTF match QB 37564293. G1 Text is 9,364,188 B. The two LLVM image-to-boot checks passed for all five fixed fields. G1 Data/BSS/init use that verified derivation. The original G1 boot line is unavailable. TV left on GCC at Home, SDB uid 5001. GCC perf config comparison awaits the native readback. Claude review pending. [HQ table and evidence](../comms/codex_to_claude/0012u_reply.md)

@@ -1,0 +1,11 @@
+8208186b-0f10-4fc6-8ba2-6eee8cf8b843
+360.14 1021.14
+MemTotal:        1601132 kB
+MemFree:          234044 kB
+MemAvailable:    1090696 kB
+Cached:           851364 kB
+Shmem:              5196 kB
+Slab:              90688 kB
+KernelStack:        5984 kB
+[get_focused_pid]
+[get_focused_pid] result: 479

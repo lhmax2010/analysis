@@ -1,0 +1,27 @@
+{
+  "installed_rows": {
+    "G1": 2343,
+    "O1": 2342,
+    "C1": 2342
+  },
+  "by_name_arch": {
+    "G1->O1": {
+      "same": 2157,
+      "release_only": 175,
+      "epoch_or_version": 9,
+      "added": 1,
+      "removed": 2
+    },
+    "G1->C1": {
+      "same": 2157,
+      "release_only": 175,
+      "epoch_or_version": 9,
+      "added": 1,
+      "removed": 2
+    },
+    "O1->C1": {
+      "same": 2164,
+      "release_only": 178
+    }
+  }
+}

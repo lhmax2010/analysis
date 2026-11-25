@@ -488,3 +488,7 @@ Run the six GBS kernel lanes against the successful standalone source record fro
 ## 0012u · GCC board-reference provenance
 
 User-approved method: admit GCC image-derived Data, BSS and init only after the same print-site procedure reproduces the observed Official and Custom triplets exactly. Both controls passed. Text and rodata retain the live inclusive physical-range definition. The GCC comparison spans different Product and Base snapshots at the same kernel source CL. [Instruction](../comms/claude_to_codex/0012u_method_validation.md) · [Result](../comms/codex_to_claude/0012u_reply.md)
+
+## 0012v · G1 whole-board comparison and upstream extractor
+
+User requested a single warm series and the same C1 signed workload on GCC, with the native kernel batch left independent. C1/G1 values describe complete images. For tomorrow's review, the EROFS launcher uses upstream dev 7e52cbf including b9dd73fb, with the existing exact-byte fixture and tool-hash receipt. The order after kernel completion is gcc, erofs, image, pilot with a fresh free-space gate at each step. [Inputs](../comms/claude_to_codex/0012v.md) · [Measurements and review command](../comms/codex_to_claude/0012v_reply.md)

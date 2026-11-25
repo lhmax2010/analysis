@@ -1,0 +1,96 @@
+STEP discovery
+PATH gzip /usr/bin/gzip
+gzip-1.3.12-1.13.armv7l
+d69c049784388d5fa3a817f2d3443bcb5f9c217ecb996a1aeb2ac4262f58bf00  /usr/bin/gzip
+PATH xz /usr/bin/xz
+xz-5.8.1-1.15.armv7l
+8346e3ea805b6e3666343d3ea22bfb68f400760c76cbca36f30ce0b6c7723b56  /usr/bin/xz
+PATH openssl /usr/bin/openssl
+openssl3-3.0.20-1.16.armv7l
+a63031ff3978a91a95906246804e26c6bed237b944e6aac106b37956e41be114  /usr/bin/openssl
+PATH sqlite3 /usr/bin/sqlite3
+sqlite-3.50.2-1.16.armv7l
+3a396caab192a9e0d159ec95fa87ae53564d695b9ac16280a41f273966b79ba3  /usr/bin/sqlite3
+PATH taskset /usr/bin/taskset
+util-linux-2.39.3-1.1.armv7l
+79e5eeb3d17e609cccd839eb3beb5baedf7c8da2ab4fd04ee1d4519db31a307f  /usr/bin/taskset
+PATH dd /usr/bin/dd
+coreutils-6.9-14.3.armv7l
+eaa4c769d3663eb35d3b0a3b43eadb33c0f0a947a9b44b5c2870e2054cdbd811  /usr/bin/dd
+PATH sha256sum /usr/bin/sha256sum
+coreutils-6.9-14.3.armv7l
+69cb65070c96113f0fcb4d136c5971d70c78ef6676f24aa6a49fedaf91785b2c  /usr/bin/sha256sum
+LIBRARIES taskset
+	libc.so.6 => /usr/lib/libc.so.6 (0xb5f93000)
+	/lib/ld-linux.so.3 (0xb6124000)
+	libgcc_s.so.1 => /usr/lib/libgcc_s.so.1 (0xb5f79000)
+205bb5e509e46c774b607ebecbf9aa6cd1214a32e19153eb7c08ae1b8149c53f  /usr/lib/libc.so.6
+779d39aeb0d4581df2aa1e0daeba690caccf2fb68288692e64e75576d43349b9  /lib/ld-linux.so.3
+977c6a34f33a019ba2c4b5c2f39730fef016cb7a79b70719d99235e99a4e8475  /usr/lib/libgcc_s.so.1
+gzip 1.3.12
+Copyright (C) 2007 Free Software Foundation, Inc.
+LIBRARIES gzip
+	libgcc_s.so.1 => /usr/lib/libgcc_s.so.1 (0xb6097000)
+	libc.so.6 => /usr/lib/libc.so.6 (0xb5f32000)
+	/lib/ld-linux.so.3 (0xb6136000)
+977c6a34f33a019ba2c4b5c2f39730fef016cb7a79b70719d99235e99a4e8475  /usr/lib/libgcc_s.so.1
+205bb5e509e46c774b607ebecbf9aa6cd1214a32e19153eb7c08ae1b8149c53f  /usr/lib/libc.so.6
+779d39aeb0d4581df2aa1e0daeba690caccf2fb68288692e64e75576d43349b9  /lib/ld-linux.so.3
+xz (XZ Utils) 5.8.1
+liblzma 5.8.1
+LIBRARIES xz
+	liblzma.so.5 => /usr/lib/liblzma.so.5 (0xb614d000)
+	libgcc_s.so.1 => /usr/lib/libgcc_s.so.1 (0xb6133000)
+	libc.so.6 => /usr/lib/libc.so.6 (0xb5fce000)
+	/lib/ld-linux.so.3 (0xb61a8000)
+	libpthread.so.0 => /usr/lib/libpthread.so.0 (0xb5fca000)
+7e782690ef13de38821060ce71e6803a54caf189b9e00bf9d3a326a7ffa249b3  /usr/lib/liblzma.so.5
+977c6a34f33a019ba2c4b5c2f39730fef016cb7a79b70719d99235e99a4e8475  /usr/lib/libgcc_s.so.1
+205bb5e509e46c774b607ebecbf9aa6cd1214a32e19153eb7c08ae1b8149c53f  /usr/lib/libc.so.6
+779d39aeb0d4581df2aa1e0daeba690caccf2fb68288692e64e75576d43349b9  /lib/ld-linux.so.3
+f0a59ca555442f2fd01beea78267f65bbed5dad84d18121f732c7c32792759af  /usr/lib/libpthread.so.0
+pid 3537's current affinity list: 0-3
+0-3
+performance
+
+RC 0
+STEP scratch
+/tmp/pm0012v.xr3630
+
+RC 0
+STEP input
+16+0 records in
+16+0 records out
+16777216 bytes (17 MB) copied, 0.0478082 s, 351 MB/s
+INPUT 16777216 080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e  /tmp/pm0012v.xr3630/zeros
+
+RC 0
+STEP timed
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL gzip 1 550.21 550.63 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL gzip 2 550.73 551.15 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL gzip 3 551.25 551.67 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL gzip 4 551.79 552.20 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL gzip 5 552.31 552.74 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL xz 1 552.85 553.68 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL xz 2 553.78 554.61 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL xz 3 554.74 555.59 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL xz 4 555.72 556.54 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+TRIAL xz 5 556.64 557.47 0
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 1350000
+
+RC 0
+STEP cleanup
+5001
+8208186b-0f10-4fc6-8ba2-6eee8cf8b843
+
+RC 0
