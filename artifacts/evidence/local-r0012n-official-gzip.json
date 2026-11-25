@@ -1,0 +1,21 @@
+{
+  "uImage": 11348968,
+  "zImage": 5326504,
+  "uimage_os_arch_type_compression": [
+    5,
+    2,
+    2,
+    0
+  ],
+  "gzip_offset": 30065,
+  "gzip_bytes": 5296393,
+  "expanded_bytes": 11348644,
+  "gzip_over_expanded": 0.46669831215077323,
+  "expanded_sha256": "6073c4278bf03cdcd7c978cea072682444081f3a8764e52cde08ffce43836e83",
+  "qb": 37736448,
+  "source": "Retained Official USB bundle",
+  "file_sha256": {
+    "uImage": "eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6",
+    "zImage": "f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab"
+  }
+}

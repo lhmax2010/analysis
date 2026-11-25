@@ -468,3 +468,11 @@ PM accepted 0012j. Check the published boot images for IKCONFIG first. Accept a 
 ## D-061 — K0 qualifies the same-build perf candidate
 
 0012l extends D-060: use the exact perf header config in the pinned devel RPM as a candidate. Promote it to the Official perf build config only after K0 reproduces its bytes and the required outputs. Report Thumb/unwinder changes together, retain each lane’s symbol files by GNU build ID, and require a symbolized on-target trace through an observed site. The new Thursday pin is submitted for review. [PM decision](../comms/claude_to_codex/0012l.md) · [Review packet](../comms/codex_to_claude/0012l_reply.md)
+
+## D-062 — Build-root shell floor and baseline qualification
+
+Apply Bash 3.2.57, coreutils 6.9 and gawk 3.1.5 compatibility to injected shell. Require foreground AVControl baseline compile/link forwarding proof and a built RPM before expanding to three lanes or starting K0–K5. Step 5 rev3 supplies one immutable benchmark for both board lanes. [0012m](../comms/codex_to_claude/0012m_reply.md)
+
+## D-063 — Matched outliner comparison and measured boot artifact
+
+The HQ kernel is a reference. Use qualified KantSU2E K0–K3 for the advisor interaction, report compressed and uncompressed images independently, and require an active boot route joined to bytes on the board for flash attribution. Keep uncovered DWARF origins and unavailable live memory observations explicit. [0012n](../comms/codex_to_claude/0012n_reply.md)

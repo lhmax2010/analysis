@@ -1,5 +1,9 @@
 # Status
 
+## 0012m–n · Wed-A, Step 5 and kernel outliner
+
+Official GBS produced the verified A32 Step 5 benchmark. Wed-A M5knpj yielded no qualifying Thumb comparison. The foreground AVControl smoke and O1 run are ready for PM review at c56e4ab. Kernel pin 88c6d9e requires the passing native smoke and adds paired inline/size/board evidence. Which boot container is active and K0–K5 measurements await native and board readback. [Wed-A and board commands](../comms/codex_to_claude/0012m_reply.md) · [Kernel measurements](../comms/codex_to_claude/0012n_reply.md)
+
 ## 0012l · Official config candidate and K0 qualification
 
 Native readback found the 156,327-byte perf config (2a316525…) in the matched devel RPM. It remains a same-build candidate. A qualified K0 needs identical config bytes, both published image sizes and section sizes from a verified ELF. The Thursday review pin is ce05cce. No new kernel build or board trace has been run. [PM handoff](../comms/codex_to_claude/0012l_reply.md)
