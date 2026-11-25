@@ -1,0 +1,6 @@
+5001
+ff29a9c0-8770-4e41-a211-cad14de6e31e
+7222.48 24392.51
+[get_focused_pid]
+[get_focused_pid] result: 2757
+SCRATCH_REMOVED

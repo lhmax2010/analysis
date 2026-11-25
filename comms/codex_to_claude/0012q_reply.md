@@ -15,7 +15,7 @@
 | zImage file | 5,326,504 | 5,222,032 | −104,472 |
 | tztv-kernel-perf RPM | 19,345,448 | 19,160,700 | −184,748 |
 
-Boot rows express the kernel’s integer KiB readout in bytes. Their resolution is 1,024 B. Berkeley ELF sizes remain a separate measurement. The RPI Total definition remains unverified. Both fallback Total values include a 260-byte trailer beyond the header-declared payload. Both CRC-checked payloads match the respective expanded zImages. Custom boot rows await the C1 cold-boot line. The source-matched pair changes the LLVM Base. [Matched pair](../../artifacts/evidence/native-run-r0011-step2-pair-gate-20261124.txt) · [QB size receipts](../../artifacts/evidence/native-run-r0012m-pilot-and-r0012p-size-20261125.txt)
+Boot rows express the kernel’s integer KiB readout in bytes. Their resolution is 1,024 B. Berkeley ELF sizes remain a separate measurement. The RPI Total definition remains unverified. Both fallback Total values include a 260-byte trailer beyond the header-declared payload. Both CRC-checked payloads match the respective expanded zImages. C1 boot rows remain open. The early ring rolled over before the first read; the independent same-board resource comparison is below. The source-matched pair changes the LLVM Base. [Matched pair](../../artifacts/evidence/native-run-r0011-step2-pair-gate-20261124.txt) · [QB size receipts](../../artifacts/evidence/native-run-r0012m-pilot-and-r0012p-size-20261125.txt)
 
 O1, boot ID `45fac48b-bc2b-4ba9-9b98-a75d0b5f3bf0`, log SHA-256 `b97c0c648cfbb5f7720a34d564977f416c33a096c42a1f694d29dc3461f83de5`. [Cold-boot log, line 48](../../artifacts/evidence/board/o1-37736448/cold/early-memory-log.txt#L48)
 
@@ -78,8 +78,35 @@ The two canonical debug RPM paths did not yield a kernel ELF in either QB. Repos
 
 ## Board evidence and signed workloads
 
-C1 awaits operator confirmation that Home is idle for five minutes after the Custom cold boot. First collect the entire boot Memory line and verify boot ID, product 20261123.1 and the Custom running kernel ID. Then return Table A, collect shipped BTF hash, six-column RPM roster, three idle samples a minute apart, and the slot and p5/p6 image-prefix evidence. A journal entry must refer to the current boot. If the ring has rolled over, use a retained same-boot serial or journal line. Neither prior GBS measurements nor a previous QB boot fills a missing cell.
+**C1 verified.** Product `20261123.1`, GNU build ID `4d95bb9eb9dc71983a87f90352fc8c2b7bd8a006`, boot ID `ff29a9c0-8770-4e41-a211-cad14de6e31e`. The shipped BTF digest `2aecd204227d918a3a4486883d4f5c3f9f563b5d764a1ceef95e79ea54c6d353` matches Custom. The boot command line says slot A. Both p5 and p6 carried a legacy uImage header and matched all 11,085,240 bytes of the verified Custom uImage by SHA-256. The equal partitions leave the precise partition read by BOOST unresolved. [Identity](../../artifacts/evidence/board/c1-37736427/identity.txt) · [BTF and partition receipts](../../artifacts/evidence/board/c1-37736427/route.txt)
 
-The O1 installed roster lists gzip 1.3.12 and xz 5.8.1. C1 executable discovery, RPM ownership, exact binary/library hashes, execution checks and affinity precede the timing. Planned repeatable workload per available tool: create 16 MiB of zero bytes in a unique authorized scratch directory under /tmp, verify input length 16,777,216 B and SHA-256 `080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e`, then run five timed trials each of `taskset -c 0 gzip -n -6 -c "$input" >/dev/null` and `taskset -c 0 xz -T1 -3 -c "$input" >/dev/null` as the SDK user. Record installed versions, CPU governor/frequency, thermal and Home state, trial wall times, median, range and coefficient of variation. Apply the same input, settings and ordering on O2. Report any missing tool, unsupported option or refused execution separately. O1 has zero signed-workload timings. An installed executable can come from any toolchain; the source gate established the release advisors for the kernel. A difference in these workloads measures the whole-board result of the Base swap. Tool and library identity, plus the Base proof, constrain narrower attribution. [O1 roster](../../artifacts/evidence/board/o1-37736448/installed-rpms.tsv) · [O1 execution evidence](0012o_reply.md)
+The first read ran at uptime 6,898.70 s. The earliest retained ring entry was at 6,411.83 s. A privileged 8 MiB ring read, current-boot journal and saved-log checks yielded no early Memory line. No boot-time free or reserved value was reconstructed. The operator’s power-on, Home-ready and idle-since times were placeholders. The same boot and Home focus were verified during sampling; the final later focus query returned PID 2757. [Log readback](../../artifacts/evidence/board/c1-37736427/early-log.txt) · [Final state](../../artifacts/evidence/board/c1-37736427/final-state.txt)
 
-Input SHA-256 `6d818ebe45b05729b2173c1a11f00e02c1c8a4926e8baf8249666d20b92202f4`. Native pilot predicates, directory coverage, replay ranges and all C1 measurements are open.
+**Live kernel resource comparison.** Both images expose physical resource extents through /proc/iomem. Sizes use the inclusive start/end pair in each capture, with identical arithmetic on both sides. O1 code and rodata truncated to KiB reproduce its actual boot line. These values can be published with the iomem measurement label. The combined data resource provides no independent rwdata/BSS split for C1. [Official map](../../artifacts/evidence/board/o1-37736448/iomem.txt) · [Custom map](../../artifacts/evidence/board/c1-37736427/kernel-resources.txt) · [Exact-byte ledger](../../artifacts/evidence/board/c1-37736427/kernel-resource-sizes.tsv)
+
+| Resource (B) | Official | Custom | Δ B |
+|---|---:|---:|---:|
+| Kernel code | 8,564,632 | 8,315,864 | −248,768 |
+| Kernel rodata | 1,679,360 | 1,675,264 | −4,096 |
+| Kernel data, whole mapped range | 4,803,528 | 4,803,528 | 0 |
+
+**RPM roster.** Both visits have the same 2,342 name/architecture keys. Of these, 2,164 match all six RPM fields and 178 differ. C1 roster SHA-256 `3a10620e68397faa383a1a497a62e2addbbc63ef9e83f0dc4a3a0046e5b950b8`. This comparison uses the two live rosters. [C1 roster](../../artifacts/evidence/board/c1-37736427/installed-rpms.tsv) · [178 differences](../../artifacts/evidence/board/c1-37736427/roster-delta.tsv)
+
+**Idle memory, KiB.** Sample starts were 60 seconds apart at Home. C1 was sampled around 117 minutes after boot; O1 sampling started at uptime 345 s. The visits have different cache and uptime histories. [All memory fields](../../artifacts/evidence/board/c1-37736427/idle-summary.tsv) · [Top 25 by PSS per sample](../../artifacts/evidence/board/c1-37736427/top25-per-sample.tsv)
+
+| Sample | Uptime s | MemTotal | MemAvailable | MemFree | Cached | Slab |
+|---|---:|---:|---:|---:|---:|---:|
+| 1 | 6,992.81 | 1,602,220 | 1,088,636 | 99,320 | 988,460 | 87,028 |
+| 2 | 7,052.80 | 1,602,220 | 1,092,728 | 96,744 | 995,124 | 87,028 |
+| 3 | 7,112.80 | 1,602,220 | 1,091,824 | 95,840 | 995,124 | 87,060 |
+
+**Installed workload results.** C1 ran RPM-owned /usr/bin/gzip and /usr/bin/xz as SDK uid 5001, CPU 0, performance governor, observed frequency 1,350,000 kHz. Input was 16,777,216 zero bytes, SHA-256 `080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e`. The harness checked Home focus before and after each trial. Timing used the target uptime clock with 0.01 s resolution. No readable thermal-zone values appeared in the SDK-user samples. The raw receipt includes tool and dynamic dependency hashes. OpenSSL and sqlite3 were also present. [All command output and hashes](../../artifacts/evidence/board/c1-37736427/workloads.txt) · [Timing summary](../../artifacts/evidence/board/c1-37736427/workload-summary.tsv)
+
+| Command following taskset -c 0 | Five trials (s) | Median (s) | Sample CV |
+|---|---|---:|---:|
+| gzip -n -6 -c "$input" >/dev/null | 0.41, 0.41, 0.41, 0.41, 0.42 | 0.41 | 1.09% |
+| xz -T1 -3 -c "$input" >/dev/null | 0.93, 0.93, 0.93, 0.92, 0.92 | 0.93 | 0.59% |
+
+The scratch input was removed, SDK uid 5001 restored and the Custom boot ID rechecked. O2 will provide the first Official signed-workload timings using the same binaries/options, input, run order and CPU affinity with a binary/library hash comparison. C1 alone establishes within-visit repeatability. [Readout checksums](../../artifacts/evidence/board/c1-37736427/SHA256SUMS)
+
+Native input SHA-256 `6d818ebe45b05729b2173c1a11f00e02c1c8a4926e8baf8249666d20b92202f4`. A same-boot serial transcript is required to fill the missing C1 boot line from this visit. Native pilot predicates, debug directory coverage and replay range readbacks remain open.

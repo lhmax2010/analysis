@@ -1,0 +1,10 @@
+ff29a9c0-8770-4e41-a211-cad14de6e31e
+  040082c0-047f6697 : Kernel code
+  047f7000-0498ffff : Kernel rodata
+  049f4000-04e88bc7 : Kernel data
+MAP_FILES
+SAVED_LOG_FILES
+LOG_BUFFER_BOUNDS
+[ 6727.966963] [SOFTIRQ_MON]     [<c002b5f4>] 0xc002b5f4
+[ 7222.127008] [D/SOC_EMMC] clock_gating: clock status: OFF
+ff29a9c0-8770-4e41-a211-cad14de6e31e

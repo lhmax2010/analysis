@@ -1,0 +1,36 @@
+ff29a9c0-8770-4e41-a211-cad14de6e31e
+dtsversion=260727.0_KSU2E_1_kantsu2e-2.0G-Builtin console=ttyS0,115200 earlycon rs232=0 maxcpus=4 no_console_suspend only_entry_model root=/dev/dm-1       KDUMP=16 SELP_ENABLE=20102011 _nvtca9-16m rootfstype=erofs rw init=/sbin/iniz mem=703744K@64M mem=394M@2048M mem=512M@2560M vmalloc=300M rootwait quiet trace_event=early_event,user bdinfo=00000010 model=4kbtin   blperf=8_2_432           pba_none partition_ab=a dm-mod.waitfor=/dev/mmcblk0p18 dm-mod.create="plt_linear, , 0, ro, 0 2271232 linear /dev/mmcblk0p18 2048;plt_verity, , 1, ro, 0 2234784 verity 1 /dev/dm-0 /dev/dm-0 4096 4096 279348 279348 sha256 471e2bb9f259157d90e1e7deb575c46c55c0cb016570707e348abd99881793b2 d64db6a3b9ccc3113bce18b4af5e077a21a79fa9ba7e28d5d99f6803c37be564 11 check_at_most_once ignore_zero_blocks panic_on_corruption use_fec_from_device /dev/dm-0 fec_roots 2 fec_blocks 281550 fec_start 281550;prd_linear, , 2, ro, 0 79872 linear /dev/mmcblk0p18 2273280;prd_verity, , 3, ro, 0 78568 verity 1 /dev/dm-2 /dev/dm-2 4096 4096 9821 9821 sha256 a0b4966f47aa73c65366aa8e3e88a8bd03f418113f0488dac46d7bc1a10ba8ec 4ca6cb82c77d497962fce35fa2772ebc621c4ba8b2fb009242debfd60eca3cbd 11 check_at_most_once ignore_zero_blocks panic_on_corruption use_fec_from_device /dev/dm-2 fec_roots 2 fec_blocks 9899 fec_start 9899"                                                                                                                                                                              
+DEVICE /dev/mmcblk0p5
+MAJOR=179
+MINOR=5
+DEVNAME=mmcblk0p5
+DEVTYPE=partition
+DISKSEQ=30
+PARTN=5
+PARTNAME=uImage
+ 27 05 19 56 35 f2 71 73 6b 03 db 69 00 a9 24 74
+ 40 00 80 00 40 00 80 00 25 a4 8d af 05 02 02 00
+ 4c 69 6e 75 78 2d 36 2e 31 32 2e 36 30 00 00 00
+ 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+12d21cf52647b897d008860e240e82a82377a76aa864e3d8f9726ae495bd87e7  -
+ab64429e40890034747e7fa7dad2bbd868e418df4d9975c644238309eab068c4  -
+DEVICE /dev/mmcblk0p6
+MAJOR=179
+MINOR=6
+DEVNAME=mmcblk0p6
+DEVTYPE=partition
+DISKSEQ=30
+PARTN=6
+PARTNAME=uImage
+ 27 05 19 56 35 f2 71 73 6b 03 db 69 00 a9 24 74
+ 40 00 80 00 40 00 80 00 25 a4 8d af 05 02 02 00
+ 4c 69 6e 75 78 2d 36 2e 31 32 2e 36 30 00 00 00
+ 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+12d21cf52647b897d008860e240e82a82377a76aa864e3d8f9726ae495bd87e7  -
+ab64429e40890034747e7fa7dad2bbd868e418df4d9975c644238309eab068c4  -
+BTF
+2aecd204227d918a3a4486883d4f5c3f9f563b5d764a1ceef95e79ea54c6d353  /lib/modules/6.12.60/kernel/vmlinux
+tztv-kernel-perf-1-1.armv7l
+LARGER_RING
+BOOT_FILES
+ff29a9c0-8770-4e41-a211-cad14de6e31e

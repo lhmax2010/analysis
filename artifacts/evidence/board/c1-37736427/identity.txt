@@ -1,0 +1,23 @@
+ff29a9c0-8770-4e41-a211-cad14de6e31e
+6917.60 23395.25
+[Version]
+Model=T-KSU2EJAKUC-0101;
+Version=T-KSU2EJAKUC-0101-0823.10;
+Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1;
+BuildType=perf;
+Operator=;
+
+[Build]
+Date=2026-11-23;
+Time=12:16:54;
+Linux version 6.12.60 (abuild@A1307DKG) (clang version 22.1.8, LLD 22.1.8) #1 SMP PREEMPT Mon Nov 23 06:21:18 UTC 2026
+ 06 00 00 00 01 00 00 00 00 01 00 00 4c 69 6e 75
+ 78 00 00 00 00 00 00 00 06 00 00 00 04 00 00 00
+ 01 01 00 00 4c 69 6e 75 78 00 00 00 00 00 00 00
+ 04 00 00 00 14 00 00 00 03 00 00 00 47 4e 55 00
+ 4d 95 bb 9e b9 dc 71 98 3a 87 f9 03 52 fc 8c 2b
+ 7b d8 a0 06
+sha256sum: /lib/modules/6.12.60/kernel/vmlinux: Permission denied
+[get_focused_pid]
+[get_focused_pid] result: 494
+5001

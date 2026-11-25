@@ -1,0 +1,18 @@
+{
+  "method": "Linux v6.12.60 mm/mm_init.c mem_init_print_info; selected live linker bounds",
+  "missing_or_zero": [
+    "_stext",
+    "_etext",
+    "_sdata",
+    "_edata",
+    "__start_rodata",
+    "__end_rodata",
+    "__bss_start",
+    "__bss_stop",
+    "__init_begin",
+    "__init_end",
+    "_sinittext",
+    "_einittext"
+  ],
+  "rc": 2
+}

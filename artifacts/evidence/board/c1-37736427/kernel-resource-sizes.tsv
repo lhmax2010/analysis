@@ -1,0 +1,4 @@
+resource	Official_bytes	Custom_bytes	diff_bytes	Official_floor_KiB	Custom_floor_KiB
+code	8564632	8315864	-248768	8363	8120
+rodata	1679360	1675264	-4096	1640	1636
+data	4803528	4803528	0	4690	4690
