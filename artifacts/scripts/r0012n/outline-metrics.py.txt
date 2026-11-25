@@ -1,0 +1,214 @@
+"""Host-side measurements of the delivered perf kernel. All sizes are bytes."""
+from collections import Counter, defaultdict
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import struct
+import subprocess
+import zlib
+
+RAM = (".text", ".rodata", ".data", ".bss")
+DEBUG = (".debug_frame", ".debug_loc", ".debug_loclists", ".debug_line", ".debug_ranges", ".debug_rnglists")
+
+def image_pair(u, z):
+    if len(u)<64 or u[:4]!=bytes.fromhex("27051956"):
+        raise ValueError("invalid legacy uImage")
+    size = int.from_bytes(u[12:16],"big")
+    payload = u[64:64+size]
+    header = bytearray(u[:64])
+    crc = int.from_bytes(header[4:8],"big")
+    header[4:8]=bytes(4)
+    if (len(payload)!=size or not size or zlib.crc32(header)!=crc or
+        zlib.crc32(payload)!=int.from_bytes(u[24:28],"big") or tuple(u[28:32])!=(5,2,2,0)):
+        raise ValueError("uImage header CRC, payload CRC, ARM/kernel/type/compression check failed")
+    for m in re.finditer(b"\x1f\x8b\x08",z):
+        stream=zlib.decompressobj(31)
+        try: decoded=stream.decompress(z[m.start():], size+1)
+        except zlib.error: continue
+        if stream.eof and decoded==payload:
+            compressed=len(z)-m.start()-len(stream.unused_data)
+            return {"uImage":len(u),"zImage":len(z),"uimage_os_arch_type_compression":list(u[28:32]),
+                    "gzip_offset":m.start(),"gzip_bytes":compressed,"expanded_bytes":size,
+                    "gzip_over_expanded":compressed/size,"expanded_sha256":hashlib.sha256(payload).hexdigest()}
+    raise ValueError("gzip stream in zImage did not reproduce the uImage payload")
+
+def body_pattern(body):
+    ops=[op.split(".")[0] for _,op,_ in body]
+    data=[(op.split(".")[0],arg.lower()) for _,op,arg in body]
+    if any(op.startswith(("push","pop","vpush","vpop")) or
+           (op.startswith(("str","ldr","stm","ldm")) and re.search(r"\b(?:lr|r14|pc)\b",arg) and re.search(r"\b(sp|r13)\b",arg))
+           for op,arg in data): return "PROLOGUE_EPILOGUE"
+    if any(op.startswith(("ldr","str","vldr","vstr","ldm","stm")) and re.search(r"\b(?:sp|r13)\b",arg)
+           for op,arg in data): return "SPILL_RELOAD"
+    if any(op in ("bl","blx") for op in ops): return "CALL_SETUP"
+    return "OTHER" if body else "UNRESOLVED_BODY"
+
+def hot(path, caller):
+    path="/"+path.strip("/")+"/"
+    for prefix,label in (("/kernel/sched/","scheduler"),("/mm/","memory"),("/net/core/","network"),
+                         ("/drivers/media/","media"),("/drivers/dma/","dma"),("/kernel/dma/","dma"),
+                         ("/drivers/gpu/","graphics"),("/drivers/dma-buf/","dma")):
+        if prefix in path:return label
+    if "/arch/arm/" in path and re.search(r"entry|exception|vector|syscall",path+caller,re.I):return "arm_entry"
+    if "/lib/" in path and re.search("str|memcpy|memmove|memset|memcmp",caller,re.I):return "string_memory"
+    return ""
+
+def frames(image, addresses):
+    """GNU addr2line -i walks DWARF inline DIEs and emits enclosing call_file/call_line locations."""
+    addresses=sorted(set(addresses))
+    result={}
+    if not addresses: return result
+    out=subprocess.run(["addr2line","-a","-f","-i","-e",image],text=True,
+                       input="".join(f"{a:x}\n" for a in addresses),capture_output=True,check=True)
+    addr=None
+    for line in out.stdout.splitlines():
+        if re.fullmatch(r"0x[\da-fA-F]+",line):
+            addr=int(line,16); result[addr]=[]
+        elif addr is not None: result[addr].append(line)
+    return {a:list(zip(stack[::2],stack[1::2])) for a,stack in result.items()}
+
+def sequence(ins):
+    return [(op, re.sub(r"\s+", "",arg.lower())) for _,op,arg in ins]
+
+def original_ranges(peer, helpers, disasm):
+    # Match unmodified straight-line instructions in the paired, non-outlined caller.
+    # Relocations, branches, PC-relative and rewritten returns need stronger provenance.
+    by_name=defaultdict(list)
+    callers={c["caller"] for h in helpers.values() for c in h["calls"]}
+    for sec,name,base,ins in disasm(peer):
+        if name in callers: by_name[(sec,name)].append(ins)
+    result={}
+    for a,h in helpers.items():
+        body=list(h["body"])
+        if body and body[-1][1]=="bx" and body[-1][2].strip()=="lr": body.pop()
+        seq=sequence(body)
+        unsafe=not seq or any(re.search(r"\b(pc|r15)\b|[<>]",arg) or re.fullmatch(r"b(?:l|lx|x)?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?(?:\.[nw])?",op) or op.startswith((".","adr","cbz","cbnz","tbb","tbh"))
+                              for op,arg in seq)
+        for c in h["calls"]:
+            key=(a,c["pc"]); result[key]=[]
+            choices=by_name[c["section"],c["caller"]]
+            if unsafe or len(choices)!=1: continue
+            ins=choices[0]; old=sequence(ins); n=len(seq)
+            hits=[i for i in range(len(old)-n+1) if old[i:i+n]==seq]
+            # Repeated motifs in a caller require an unambiguous adjacent instruction too.
+            if len(hits)>1:
+                left=sequence(c["before"])[-1:]; right=sequence(c["after"])[:1]
+                hits=[i for i in hits if (left and old[max(0,i-1):i]==left) or (right and old[i+n:i+n+1]==right)]
+            if len(hits)!=1: continue
+            i=hits[0]
+            if i+n>=len(ins):continue
+            spans=[(ins[j][0],ins[j+1][0]-ins[j][0]) for j in range(i,i+n)]
+            if all(width in (2,4) for _,width in spans):result[key]=spans
+    # Multiple new sites mapping to the very same peer instructions cannot be independent evidence.
+    uses=Counter(pc for spans in result.values() for pc,_ in spans)
+    return {k:(v if all(uses[pc]==1 for pc,_ in v) else []) for k,v in result.items()}
+
+def inline_kind(stack):
+    if not stack or any(fn=="??" or not re.search(r":([1-9]\d*)(?:\s|$)",loc) for fn,loc in stack):
+        return "UNKNOWN_DWARF"
+    return "INLINE" if len(stack)>1 else "NO_INLINE_FRAME_RECORDED"
+
+def write_sites(folder,image,peer,helpers,disasm):
+    ranges=original_ranges(peer,helpers,disasm) if peer else {}
+    peer_frames=frames(peer,[pc for spans in ranges.values() for pc,_ in spans]) if peer else {}
+    final_frames=frames(image,[c["pc"] for h in helpers.values() for c in h["calls"]])
+    kinds=Counter(); body_site_bytes=Counter(); evidence_bytes=Counter(); patterns=Counter(); top=[]; hot_count=0; unmapped=0
+    with (folder/"outline-sites.jsonl").open("w") as out,(folder/"outline-hot.tsv").open("w") as hot_out:
+        hw=csv.writer(hot_out,delimiter="\t"); hw.writerow(("subsystem","caller","site","helper","source","measurement"))
+        for a,h in helpers.items():
+            pattern=body_pattern(h["body"]); patterns[pattern]+=1
+            top.append((h["bytes"]*len(h["calls"]),h["name"],a,h["bytes"],len(h["calls"]),pattern))
+            for c in h["calls"]:
+                stack=final_frames.get(c["pc"],[])
+                spans=ranges.get((a,c["pc"]),[])
+                if not spans: unmapped+=1
+                rows=[]
+                for pc,w in spans:
+                    orig=peer_frames.get(pc,[])
+                    kind=inline_kind(orig); evidence_bytes[kind]+=w
+                    rows.append([pc,w,kind,orig])
+                ks={r[2] for r in rows}
+                label=(next(iter(ks)) if len(ks)==1 else "MIXED" if ks else "UNRESOLVED_ORIGINAL_RANGE")
+                kinds[label]+=1
+                body_site_bytes[label]+=h["bytes"]
+                out.write(json.dumps(dict(caller=c["caller"],site=c["pc"],helper=h["name"],helper_address=a,
+                                          final_site_frames=stack,peer_instructions=rows,range_status=label))+"\n")
+                paths=set(p for p,_ in c["input_candidates"]) | {loc.rsplit(":",1)[0] for _,loc in stack}
+                hot_rows={(hot(path,c["caller"]),path) for path in paths if hot(path,c["caller"])}
+                if hot_rows:hot_count+=1
+                for subsystem,path in sorted(hot_rows):
+                    hw.writerow((subsystem,c["caller"],hex(c["pc"]),h["name"],path,
+                                 {"scheduler":"pipe/context switches","memory":"minor faults",
+                                  "network":"network workload","string_memory":"memory copy","arm_entry":"syscalls"
+                                  }.get(subsystem,"4K playback CPU/drops and DMA activity")))
+    known=evidence_bytes["INLINE"]+evidence_bytes["NO_INLINE_FRAME_RECORDED"]
+    return {"helper_patterns":dict(patterns),"top20_score_name_address_bytes_direct_sites_class":sorted(top,reverse=True)[:20],
+            "site_counts":dict(kinds),"helper_bytes_times_site_count_by_status":dict(body_site_bytes),"mapped_original_bytes":dict(evidence_bytes),
+            "inline_fraction_of_classifiable_mapped_bytes":evidence_bytes["INLINE"]/known if known else None,
+            "unmapped_sites_unknown_byte_length":unmapped,"hot_path_sites":hot_count}
+
+def write_summary(work,results):
+    extra=sorted({k for row in results.values() for k in row.get("static",{}).get("sections",{})
+                  if k.startswith(".init.") or k in DEBUG})
+    keys=("uImage","zImage","gzip_bytes","expanded_bytes","gzip_over_expanded",*RAM,"ram_section_sum","init_alloc","debug_frame",
+          "flash_delta_vs_peer")
+    with (work/"outliner-lanes.tsv").open("w") as f:
+        writer=csv.writer(f,delimiter="\t");writer.writerow(("lane","status",*keys))
+        for lane,row in results.items():
+            m=row.get("outliner_hq",{})
+            writer.writerow((lane,row.get("status",""),*(row.get("static",{}).get("sections",{}).get(x) if x in extra else m.get(x) for x in keys)))
+    qualified=all(results.get(k,{}).get("status")=="STATIC_MEASURED" for k in ("K0","K1","K2","K3"))
+    data={}
+    if qualified:
+        metrics={k:v["outliner_hq"] for k,v in results.items() if "outliner_hq" in v}
+        for key in (*RAM,"ram_section_sum","init_alloc","uImage","zImage","debug_frame"):
+            if all(metrics.get(k,{}).get(key) is not None for k in ("K0","K1","K2","K3")):
+                a=metrics["K1"][key]-metrics["K0"][key]; b=metrics["K3"][key]-metrics["K2"][key]
+                data[key]={"K1-K0":a,"K3-K2":b,"interaction":a-b}
+        a=metrics["K1"].get("inline_fraction_of_classifiable_mapped_bytes")
+        b=metrics["K3"].get("inline_fraction_of_classifiable_mapped_bytes")
+        data["inline_fraction_K1_minus_K3"]=a-b if None not in (a,b) else None
+    (work/"outline-interaction.json").write_text(json.dumps({"qualified":qualified,"bytes":data},indent=2)+"\n")
+
+def collect(folder,tree,rpm,q,lib,rec,lane,results,audit):
+    u=folder/"uImage"; z=folder/"zImage"
+    for name,path in (("uImage",u),("zImage",z)):
+        q["extract_member"](rpm,"/perf/"+name,path,rec["images"][name][1],lib)
+    out=image_pair(u.read_bytes(),z.read_bytes())
+    sections=rec["static"]["sections"]
+    out.update({k:sections[k] for k in RAM})
+    out.update(ram_section_sum=sum(sections[k] for k in RAM),init_alloc=rec["static"]["init_alloc_bytes"],
+               debug_frame=sections.get(".debug_frame"),debug_sections={n:sections[n] for n in DEBUG if n in sections},
+               flash_delta_vs_peer=None,boot_selection="BOARD_BOOT_SOURCE_REQUIRED")
+    peer={"K1":"K0","K3":"K2","K5":"K4"}.get(lane)
+    if peer:
+        exe=next((shutil.which(x) for x in ("llvm-objdump-22","llvm-objdump","arm-linux-gnueabi-objdump","arm-linux-gnueabihf-objdump") if shutil.which(x)),None)
+        if not exe:raise ValueError("ARM-capable disassembler required")
+        prior=results.get(peer,{}).get("symbols",{})
+        old=Path(prior["directory"])/"vmlinux" if prior else None
+        out.update(write_sites(folder,tree/"vmlinux",old,rec["static"]["helpers"],lambda p:audit["functions"](exe,p)))
+    return out
+
+if __name__=="__main__":
+    import sys
+    work=Path(sys.argv[1])
+    rows=json.loads((work/"kernel-matrix.json").read_text())
+    print((work/"outliner-lanes.tsv").read_text().rstrip())
+    print("INTERACTION",json.loads((work/"outline-interaction.json").read_text()))
+    for lane in ("K1","K3","K5"):
+        entry=rows.get(lane,{}); m=entry.get("outliner_hq",{})
+        print("LANE",lane,entry.get("status","MISSING"))
+        for key in ("site_counts","mapped_original_bytes","unmapped_sites_unknown_byte_length",
+                    "helper_bytes_times_site_count_by_status","inline_fraction_of_classifiable_mapped_bytes",
+                    "helper_patterns","hot_path_sites"):
+            print(key,m.get(key))
+        for rank,r in enumerate(m.get("top20_score_name_address_bytes_direct_sites_class",[]),1):
+            print("RANK",rank,*r)
+        table=work/lane/"outline-hot.tsv"
+        if table.exists():
+            with table.open() as f:
+                from itertools import islice
+                for line in islice(f,11): print("HOT",line.rstrip())

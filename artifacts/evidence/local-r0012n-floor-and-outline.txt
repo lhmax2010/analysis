@@ -1,0 +1,25 @@
+GNU bash, version 3.2.57(3)-release (x86_64-unknown-linux-gnu)
+cp (GNU coreutils) 6.9
+GNU Awk 3.1.5
+SHELL 3.2.57(3)-release
+PASS phase-empty setup
+PASS phase-edited setup
+PASS observe setup
+PASS cfg chain, exact mode, idempotent edit across driver names, loud failure and missing-tool gate
+PASS F6 classification, guest-root absolute links and four GCC driver spellings with original argv
+PASS exact RPM-expanded %build; restricted PATH; physical libc parent, linker, GCC CRT and libc lookup, static proof
+PASS each of seven missing commands rejected before compiler invocation; target tools replayed
+PASS Step5 prep
+PASS Step5 install
+PASS thumb-check
+PASS matrix spec and inventory
+PASS matrix clang
+PASS matrix make
+PASS matrix ld.lld
+PASS spec wrapper, response argv, linked output identity, compile-phase ELF helper, LTO exclusions, devel identity gates
+PASS K0 identity and raw-only gates, config diff packet, retained symbols, static sizes, real ARM ELF direct edge and EHABI range, LR shapes, offline trace parser and buildroot command inventory
+PASS startup probe
+PASS module header guard
+PASS T7 probe
+PASS real Bash 3.2.57, static rejection corpus and cmTC exec argv
+PASS separate image sizes, gzip denominator, header and payload CRC, real ARM DWARF inline DIE/call_file/call_line, ambiguous ranges, pattern and hot rows, interaction and smoke gates

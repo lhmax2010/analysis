@@ -1,0 +1,122 @@
+"""Read boot environment, selected-slot partition prefixes and kernel memory messages via SDB."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+import struct
+import subprocess
+import tempfile
+
+TEMP=Path("/home1/chengkai/vd-tree/workspace/temp")
+SERIAL="192.168.108.25:26101"
+USB=TEMP.parent/"usb/37736448/updateSU2E"
+PINS={"uImage":"eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6",
+      "zImage":"f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab"}
+OFFICIAL_ID="419813f26f2d03bee00bde1d7173b0c2fd887530"
+
+def guest(cmd):
+    r=subprocess.run(["sdb","-s",SERIAL,"shell","( "+cmd+" ); echo REMOTE_RC=$?"],capture_output=True,text=True,timeout=90)
+    text=r.stdout.replace("\r","")
+    if r.returncode or not text.rstrip().endswith("REMOTE_RC=0"):
+        raise ValueError((r.stderr+text)[-600:])
+    return text.rsplit("REMOTE_RC=",1)[0].rstrip()
+
+def capture(lane,matrix,partition):
+    work=Path(tempfile.mkdtemp(dir=TEMP,prefix="pm0012n-boot."))
+    print("WORKDIR",work,flush=True)
+    if lane=="O1":
+        paths={k:USB/k for k in PINS}
+        ident=OFFICIAL_ID
+    else:
+        row=json.loads((matrix/"kernel-matrix.json").read_text())[lane]
+        if row["status"]!="STATIC_MEASURED":raise ValueError("lane unqualified")
+        paths={k:matrix/lane/k for k in PINS}
+        ident=row["symbols"]["build_id"]
+    expected={k:hashlib.sha256(p.read_bytes()).hexdigest() for k,p in paths.items()}
+    if lane=="O1" and expected!=PINS:raise ValueError("Official USB identity mismatch")
+    if lane!="O1" and any(expected[k]!=row["images"][k][1] for k in expected):raise ValueError("lane image hash mismatch")
+    subprocess.run(["sdb","connect","192.168.108.25"],timeout=20,check=True)
+    blob=bytes.fromhex(guest("od -An -tx1 -v /sys/kernel/notes"))
+    note=struct.pack("<III",4,len(bytes.fromhex(ident)),3)+b"GNU\0"+bytes.fromhex(ident)
+    if note not in blob:raise ValueError("running GNU build ID differs from lane")
+    data=dict(lane=lane,build_id=ident,images=expected,product=guest("cat /etc/prd_info.ini"),cmdline=guest("cat /proc/cmdline"),
+              boot_id=guest("cat /proc/sys/kernel/random/boot_id"),tool_errors={},prefix_matches={})
+    if lane=="O1" and "Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2;" not in data["product"].splitlines():
+        raise ValueError("wrong Official product")
+    for name,cmd in (("env","fw_printenv"),("dmesg","dmesg"),("parts",
+            'for f in /sys/class/block/mmcblk*/uevent; do cat "$f" && echo END || exit 2; done')):
+        try:
+            if name=="env":
+                # Query only boot-related variables; firmware environments may contain unrelated values.
+                text=guest('command -v fw_printenv >/dev/null || exit 2; for n in bootcmd bootargs bootpart kernelpart boot_partition boot_slot active_slot; do fw_printenv "$n" 2>/dev/null || :; done')
+            else:text=guest(cmd)
+        except (ValueError,subprocess.TimeoutExpired) as exc:
+            data["tool_errors"][name]=str(exc);text=""
+        if name=="dmesg":
+            data["memory_lines"]=[x for x in text.splitlines() if "Memory:" in x and "kernel code" in x]
+            vals=[int(x) for l in data["memory_lines"] for x in re.findall(r"(\d+)K kernel code",l)]
+            data["kernel_code_kib"]=vals[0] if len(vals)==1 else None
+        elif name=="env":data["boot_env"]=text
+        else:
+            data["partition_labels"]={}
+            for block in text.split("END"):
+                fields=dict(v.split("=",1) for v in block.splitlines() if "=" in v)
+                dev=fields.get("DEVNAME",""); label=fields.get("PARTNAME","")
+                if re.fullmatch(r"mmcblk\d+p\d+",dev):
+                    data["partition_labels"][dev]=label
+    # Allow a reviewed bundle map to identify an atypically named partition explicitly.
+    for dev,label in data["partition_labels"].items():
+        if dev!=partition and not re.search(r"kernel|uimage|zimage|^boot(?:$|[_-])",label,re.I):continue
+        for k,p in paths.items():
+            size=p.stat().st_size
+            try:
+                result=guest(f"test -r /dev/{dev} && head -c {size} /dev/{dev} | sha256sum")
+                if result.split()[0]==expected[k]:data["prefix_matches"].setdefault(dev,[]).append(k)
+            except (ValueError,IndexError) as exc:data["tool_errors"][dev]=str(exc)
+    partmap=USB/"partition.txt"
+    if partmap.is_file():
+        (work/"official-partition.txt").write_bytes(partmap.read_bytes())
+    (work/"receipt.json").write_text(json.dumps(data,indent=2)+"\n")
+    print("BOOT_READBACK",work/"receipt.json",json.dumps({k:data[k] for k in ("lane","build_id","kernel_code_kib","memory_lines","partition_labels","prefix_matches","tool_errors")}))
+    print("BOOT_ENV",data.get("boot_env","")[:4000])
+    if partmap.is_file():
+        print("BUNDLE_MAP",*[s[:240] for s in partmap.read_text(errors="replace").splitlines() if re.search("boot|kernel|[uz]Image",s,re.I)][:35],sep="\n")
+
+def compare(matrix,first,second,device,proof):
+    results=json.loads((matrix/"kernel-matrix.json").read_text())
+    reads=[json.loads(p.read_text()) for p in (first,second)]
+    for r,lane in zip(reads,("K0","K1")):
+        row=results[lane]
+        if (r["lane"] not in (("O1","K0") if lane=="K0" else ("K1",)) or row["status"]!="STATIC_MEASURED"
+                or row["symbols"]["build_id"]!=r["build_id"] or any(r["images"][k]!=row["images"][k][1] for k in PINS)):
+            raise ValueError("board and qualified matrix identities must match exactly")
+    a,b=[r["kernel_code_kib"] for r in reads]
+    print("DMESG_KERNEL_CODE_KiB_K0_K1_DELTA",a,b,b-a if None not in (a,b) else "UNAVAILABLE")
+    # Operator supplies reviewed boot route (active slot + device per visit) from serial/bootloader.
+    if not device or not proof:print("FLASH_DELTA UNRESOLVED_BOOT_ROUTE");return
+    devices=device.split(",")
+    if len(devices)!=2:raise ValueError("two active partition names required, in K0,K1 order")
+    text=proof.read_text()
+    images=[]
+    for r,dev in zip(reads,devices):
+        match=r["prefix_matches"].get(dev,[])
+        if not re.fullmatch(r"mmcblk\d+p\d+",dev) or len(match)!=1 or dev not in text:
+            raise ValueError("reviewed active route and partition bytes required for both visits")
+        images.append(match[0])
+    if images[0]!=images[1]:raise ValueError("boot packaging changed across lanes")
+    key=images[0]
+    a,b=(results[l]["images"][key][0] for l in ("K0","K1"))
+    print("BOOT_ARTIFACT_FLASH_BYTES",key,a,b,b-a,"ROUTE_REVIEW",hashlib.sha256(proof.read_bytes()).hexdigest())
+
+if __name__=="__main__":
+    ap=argparse.ArgumentParser()
+    sub=ap.add_subparsers(dest="op",required=True)
+    c=sub.add_parser("capture");c.add_argument("lane",choices=["O1","K0","K1"]);c.add_argument("--matrix",type=Path);c.add_argument("--partition")
+    c=sub.add_parser("compare");c.add_argument("matrix",type=Path);c.add_argument("k0",type=Path);c.add_argument("k1",type=Path)
+    c.add_argument("--reviewed-devices");c.add_argument("--route-log",type=Path)
+    args=ap.parse_args()
+    if args.op=="capture":
+        if args.lane!="O1" and not args.matrix:ap.error("K0/K1 require --matrix")
+        capture(args.lane,args.matrix,args.partition)
+    else:compare(args.matrix,args.k0,args.k1,args.reviewed_devices,args.route_log)

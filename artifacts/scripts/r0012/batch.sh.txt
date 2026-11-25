@@ -24,7 +24,7 @@ if [[ ${1:-} == launch || ${1:-} == attended ]]; then
     shift
     pin=$1 index_sha=$2 day=$3
     shift 3
-    case "$day" in image|smoke|pilot|wed-a|wed|wed-night|thu|thu-night|research|fri|tue) ;; *) exit 2 ;; esac
+    case "$day" in image|smoke|pilot|kernel|wed-a|wed|wed-night|thu|thu-night|research|fri|tue) ;; *) exit 2 ;; esac
     run=$(mktemp -d "$native/pm0012-$day.XXXXXX")
     mkdir -p "$run/jobs"
     cp -- "$0" "$run/batch.sh.txt"
@@ -174,6 +174,23 @@ while IFS=$'\t' read -r commit path sha name; do
     get "$commit" "$path" "$sha" "$here/$name"
 done <"$here/downloads.tsv"
 
+kernel_job() {
+    if [[ -n ${PM12_IMAGE_RUN:-} ]]; then
+        proofs=( "$PM12_IMAGE_RUN"/jobs/sources/proof.*/native-proofs.json )
+        if [[ ${#proofs[@]} == 1 && -s "${proofs[0]}" ]]; then
+            hq=$(cat "$PM12_IMAGE_RUN/hq-dir.txt")
+            official_scan=$(awk '$1=="HQ_ELF_WORKDIR" {print $2}' "$hq/llvm.log")
+            job kernel-thumb bash -c 'sudo -n true && p4 login -s && python3 -B -u "$1" "$2" "$3"' _ "$here/kernel-matrix.py.txt" "${proofs[0]}" "$official_scan/installed-owners.tsv"
+        else
+            failed=1
+            status_line 'KERNEL_THUMB_BLOCKED missing uniquely identified matched kernel source/config proof'
+        fi
+    else
+        failed=1
+        status_line 'KERNEL_THUMB_BLOCKED missing PM12_IMAGE_RUN'
+    fi
+}
+
 case "$day" in
     image)
         source "$here/image-chain.sh.txt"
@@ -183,6 +200,7 @@ case "$day" in
         fi
         ;;
     smoke) job thumb-org.tizen.AVControl gbs thumb-smoke org.tizen.AVControl ;;
+    kernel) kernel_job ;;
     pilot) job thumb-org.tizen.AVControl gbs thumb org.tizen.AVControl ;;
     wed-a)
         for package in org.tizen.AVControl org.tizen.tv-viewer libpisa-ipc org.tizen.webserver libgcrypt rpm nnstreamer bluetooth-impl-sec-oal widevine-cdm; do
@@ -231,20 +249,7 @@ case "$day" in
         if [[ -f "$here/jobs/trial-plan/packages.txt" ]]; then
             while IFS= read -r owner; do job "pic-$owner" gbs trial "$owner" "$plan"; done <"$here/jobs/trial-plan/packages.txt"
         fi
-        if [[ -n ${PM12_IMAGE_RUN:-} ]]; then
-            proofs=( "$PM12_IMAGE_RUN"/jobs/sources/proof.*/native-proofs.json )
-            if [[ ${#proofs[@]} == 1 && -s "${proofs[0]}" ]]; then
-                hq=$(cat "$PM12_IMAGE_RUN/hq-dir.txt")
-                official_scan=$(awk '$1=="HQ_ELF_WORKDIR" {print $2}' "$hq/llvm.log")
-                job kernel-thumb bash -c 'sudo -n true && p4 login -s && python3 -B -u "$1" "$2" "$3"' _ "$here/kernel-matrix.py.txt" "${proofs[0]}" "$official_scan/installed-owners.tsv"
-            else
-                failed=1
-                status_line 'KERNEL_THUMB_BLOCKED missing uniquely identified matched kernel source/config proof'
-            fi
-        else
-            failed=1
-            status_line 'KERNEL_THUMB_BLOCKED missing PM12_IMAGE_RUN'
-        fi
+        kernel_job
         if [[ -n ${PM12_RETRY_PACKAGES:-} ]]; then
             for package in $PM12_RETRY_PACKAGES; do
                 [[ "$package" =~ ^[[:alnum:]][[:alnum:]_.+-]*$ ]] || exit 2

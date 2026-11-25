@@ -1,5 +1,6 @@
 """Run the six local perf kernel lanes serially in the existing Thursday job."""
 import json
+import os
 from pathlib import Path
 import re
 import runpy
@@ -58,14 +59,36 @@ def argv_proof(tree,lane):
     return samples,options
 
 
+def smoke_gate(temp, path):
+    if not path:
+        raise ValueError("set PM12_SMOKE_RUN to the AVControl baseline-only PASS")
+    run=Path(path).resolve(strict=True)
+    if run.parent!=temp or not run.name.startswith("pm0012-smoke."):
+        raise ValueError("expected a native smoke batch directory")
+    if not (run/"status.txt").read_text().splitlines()[-1].endswith("DONE smoke rc=0"):
+        raise ValueError("smoke batch incomplete")
+    evidence={}
+    for line in (run/"jobs/thumb-org.tizen.AVControl/job.log").read_text().splitlines():
+        name,_,value=line.partition(" ")
+        if name in ("PM12_SMOKE_ARGV","PM12_SMOKE_ELF","PM12_AVCONTROL_SMOKE"):
+            evidence[name]=json.loads(value)
+    pairs=evidence.get("PM12_SMOKE_ARGV",{})
+    if (evidence.get("PM12_AVCONTROL_SMOKE")!="PASS" or not evidence.get("PM12_SMOKE_ELF")
+        or set(pairs)!={"compile","link"} or any(not p.get("exec") or p["exec"]!=p.get("wrapper_input") for p in pairs.values())):
+        raise ValueError("AVControl cmTC forwarding or RPM ELF proof missing")
+    print("KERNEL_SMOKE_GATE_PASS",run,flush=True)
+
+
 def run(work,proof,owners):
     dev=load("development")
+    smoke_gate(dev["TEMP"],os.environ.get("PM12_SMOKE_RUN"))
     facts=json.loads(dev["input_path"](proof).read_text())
     if not facts.get("spec_diff") or not facts.get("official_input_objects"):
         raise ValueError("direct 9.1 / 11.1 SRPM spec and Official model proof required")
     s=dev["repositories"](HERE)
     q=load("matched-qb")
-    audit=load("kernel-audit")["audit"]
+    audit=load("kernel-audit")
+    hq=load("outline-metrics")
     results={}
     with s.perf["locks"]():
         s.gbs.available(work,55,16)
@@ -158,7 +181,7 @@ def run(work,proof,owners):
                     link=record["outliner_phase"]["lld"]
                     print("KERNEL_THUMB_FINAL_LLD",lane,link["version"],"argc",len(link["argv"]),
                           "full argv in",work/"kernel-matrix.json",flush=True)
-                record["static"]=audit(tree,tree/"vmlinux",s.scan["secs_of"],effective)
+                record["static"]=audit["audit"](tree,tree/"vmlinux",s.scan["secs_of"],effective)
                 static=record["static"]
                 static["resident_linked_bytes"]=qual["resident"](tree/"System.map")
                 if lane=="K0":
@@ -176,6 +199,7 @@ def run(work,proof,owners):
                             else static["resident_linked_bytes"]-prev["resident_linked_bytes"]}
                 if lane in ("K1","K3","K5") and not record["static"]["helper_count"]:
                     raise ValueError("flag delivered but zero surviving linked helpers")
+                record["outliner_hq"]=hq["collect"](folder,tree,rpm,q,s.lib,record,lane,results,audit)
                 record["status"]="STATIC_MEASURED" if qualified_k0 else "RAW_ONLY"
             except (ValueError,OSError,IndexError,subprocess.SubprocessError) as exc:
                 record["status"]="BLOCKED_OR_FAILED"
@@ -188,6 +212,7 @@ def run(work,proof,owners):
                 if root.exists(): root.rename(folder/"GBS-ROOT")
                 (work/"kernel-matrix.json").write_text(json.dumps(results,indent=2)+"\n")
                 qual["write_table"](work,results)
+                hq["write_summary"](work,results)
                 print("KERNEL_THUMB_LANE",lane,record["status"],record.get("diagnostic",""),flush=True)
             if lane=="K0" and record["status"]=="BLOCKED_OR_FAILED": break
         qualified=[lane for lane in ("K0","K1","K4","K5") if results.get(lane,{}).get("status")=="STATIC_MEASURED"]

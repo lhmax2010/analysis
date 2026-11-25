@@ -180,7 +180,8 @@ def audit(tree, image, scan, config):
     totals={name:sec[5] for name,sec in secs}
     arm=config.get("CONFIG_UNWINDER_ARM")=="y"
     fp=config.get("CONFIG_UNWINDER_FRAME_POINTER")=="y"
-    report={"sections":{k:v for k,v in totals.items() if k in (".text",".rodata",".data",".bss",".ARM.exidx",".ARM.extab") or k.startswith(".init.")},
+    report={"sections":{k:v for k,v in totals.items() if k in (".text",".rodata",".data",".bss",".ARM.exidx",".ARM.extab") or k.startswith((".init.",".debug_"))},
+            "init_alloc_bytes":sum(sec[5] for n,sec in secs if n.startswith(".init.") and sec[2]&2),
             "unwinder":"ARM_EHABI" if arm else "FRAME_POINTER" if fp else "UNKNOWN",
             "ehabi_bytes":sum(size for name,size in totals.items() if name.startswith((".ARM.exidx",".ARM.extab"))),
             "call_classes":{},"board_site":None,
