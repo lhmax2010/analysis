@@ -176,6 +176,11 @@ done <"$here/downloads.tsv"
 
 kernel_job() {
     if [[ -n ${PM12_IMAGE_RUN:-} ]]; then
+        if [[ ! -f "$PM12_IMAGE_RUN/status.txt" ]] || ! tail -1 "$PM12_IMAGE_RUN/status.txt" | grep -Eq ' DONE image rc=0$'; then
+            failed=1
+            status_line 'KERNEL_THUMB_BLOCKED image run has no successful DONE receipt'
+            return
+        fi
         proofs=( "$PM12_IMAGE_RUN"/jobs/sources/proof.*/native-proofs.json )
         if [[ ${#proofs[@]} == 1 && -s "${proofs[0]}" ]]; then
             hq=$(cat "$PM12_IMAGE_RUN/hq-dir.txt")

@@ -63,7 +63,7 @@ def main(shell, base):
         prev=$arg
     done'''
     clang="armv7l-tizen-linux-gnueabi-clang"
-    for name in ("clang","clang++",clang,clang+"++","gcc","g++","cc","c++","ld.lld"):
+    for name in ("clang","clang++",clang,clang+"++","gcc","g++","cc","c++","ld.lld","make"):
         stub(name,fake_driver)
     env=dict(os.environ,PATH=str(binpath)+":"+os.environ["PATH"],TMPDIR=str(base))
     def run(name,code,folder,extra=None):
@@ -88,14 +88,15 @@ def main(shell, base):
         for args in (["-c","file.c"],["file.o","-o","final"],["-flto","file.c","-o","final"],["-Wl,--version"]):
             subprocess.run([shell,wrappers/clang,*args],cwd=work,env=env,capture_output=True,check=True)
     wrappers=generate("r0012m/observe-driver.sh.txt","observe",dev["EMPTY"])
-    receipts=work/"receipts"; receipts.mkdir()
+    receipts=wrappers/"receipts"; receipts.mkdir()
+    (wrappers/"stage").write_text("build\n")
     for args in (["-c","testCXXCompiler.cxx","-DSTRING=a b","-o","cmTC_a.o"],["cmTC_a.o","-o","cmTC_a"]):
         dest=work/"argv"
-        subprocess.run([shell,wrappers/(clang+"++"),*args],cwd=work,env=dict(env,PM12_RECEIPTS=str(receipts),ARG_LOG=str(dest)),check=True)
+        subprocess.run([shell,wrappers/(clang+"++"),*args],cwd=work,env=dict(env,ARG_LOG=str(dest)),check=True)
         assert dest.read_bytes()==b''.join(os.fsencode(a)+b'\0' for a in args)
     log=work/"gbs.log";log.write_bytes(b''.join(p.read_bytes() for p in receipts.iterdir()))
     assert set(dev["smoke_argv"](log))=={"compile","link"},log.read_text()
-    subprocess.run([shell,wrappers/"cc","-c","file.c"],env=dict(env,PM12_RECEIPTS=str(receipts)),check=True)
+    subprocess.run([shell,wrappers/"cc","-c","file.c"],env=env,check=True)
     # Existing successful cfg-link/permission fixture, executed with this shell.
     orig=subprocess.run
     def use_floor(cmd,*args,**kw):
@@ -135,11 +136,13 @@ def main(shell, base):
     k=base/"kernel";specpath=k/"spec"
     specpath.write_text("%build\n"+load("r0008a/gbs-mlgo-t7.py.txt")["INSTRUMENT"])
     subprocess.run(["patch","--fuzz=0","--batch",specpath,ART/"patches/kernel/perf-machine-outliner.spec.patch"],check=True,stdout=subprocess.DEVNULL)
-    kernel=specpath.read_text().split("%build\n")[1].replace("%{_builddir}",str(k)).replace("%%","%").replace("@LANE@","K1")
+    matrix=load("r0012f/kernel-matrix.py.txt")
+    kernel=matrix["stage_spec"](specpath.read_text(),"K1",dev).split("%build\n")[1].replace("%{_builddir}",str(k)).replace("%%","%").replace("@LANE@","K1")
     run("matrix spec and inventory",kernel,k)
     for wrapper,var in [("clang","PM_REAL_CLANG"),("make","PM_REAL_MAKE"),("ld.lld","PM_REAL_LLD")]:
         body=(k/".pm0012f-tools"/wrapper).read_text()
-        run("matrix "+wrapper,body,k,{var:"/bin/true","PM_KERNEL_LANE":"K1"})
+        scan("matrix "+wrapper,body)
+        subprocess.run([shell,k/".pm0012f-tools"/wrapper],cwd=k,env=env,check=True)
     with patch.object(subprocess,"run",use_floor):
         for round_ in ("r0012k","r0012l"):
             runpy.run_path(str(ART/"tests"/round_/"check.py"))

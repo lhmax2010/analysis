@@ -18,6 +18,14 @@ def load(name):
     return runpy.run_path(str(HERE/(name+".py.txt")))
 
 
+def stage_spec(template, lane, dev):
+    before, begin, tail = template.replace("@LANE@", lane).partition("# PM12_KERNEL_TOOLS_BEGIN\n")
+    setup, end, after = tail.partition("# PM12_KERNEL_TOOLS_END\n")
+    if not begin or not end:
+        raise ValueError("kernel wrapper block missing")
+    return dev["rpm_stage_tools"](before + after, "%{_builddir}/.pm0012f-tools", setup)
+
+
 def official_inputs(work,q,s):
     _,_,pkgs=q["retained"]("official",s.lib)
     row=pkgs["tztv-kernel-perf"]
@@ -113,7 +121,7 @@ def run(work,proof,owners):
             folder=work/lane
             folder.mkdir()
             record=results[lane]={}
-            spec.write_text(template.replace("@LANE@",lane))
+            spec.write_text(stage_spec(template, lane, dev))
             try:
                 if root.exists() or any((shared/"empty-repo").iterdir()): raise ValueError("GBS root/repo carried earlier lane products")
                 s.thumb["run_gbs"](s.gbs,folder,src,spec.name,cfg,s.buildconf,root,True,False)

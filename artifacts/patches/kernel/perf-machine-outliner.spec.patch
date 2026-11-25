@@ -1,7 +1,8 @@
 --- a/packaging/tztv-kernel.spec
 +++ b/packaging/tztv-kernel.spec
-@@ -3,8 +3,115 @@
+@@ -4,8 +4,134 @@
  export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1"
++# PM12_KERNEL_TOOLS_BEGIN
 +for pm_tool in mkdir cat clang ld.lld armv7l-tizen-linux-gnueabi-clang make grep sha256sum cut cp find xargs touch chmod sed rpm readelf; do
 +    command -v "$pm_tool" >/dev/null || { echo "PM_BUILD_MISSING_TOOL $pm_tool" >&2; exit 2; }
 +done
@@ -9,12 +10,19 @@
 +pm_lane=@LANE@
 +export PM_KERNEL_LANE="$pm_lane"
 +export PM_KERNEL_EVIDENCE="%{_builddir}/pm0012f-evidence"
-+pm_tools="$PWD/.pm0012f-tools"
-+mkdir "$pm_tools"
++pm_tools="%{_builddir}/.pm0012f-tools"
++mkdir -p "$pm_tools" || exit 2
 +export PM_REAL_CLANG="$(command -v clang)" PM_REAL_MAKE="$(command -v make)"
 +export PM_REAL_LLD="$(command -v ld.lld)"
++printf '%%s\n' "$PM_REAL_CLANG" > "$pm_tools/PM_REAL_CLANG" || exit 2
++printf '%%s\n' "$PM_REAL_MAKE" > "$pm_tools/PM_REAL_MAKE" || exit 2
++printf '%%s\n' "$PM_REAL_LLD" > "$pm_tools/PM_REAL_LLD" || exit 2
++printf '%%s\n' "$PM_KERNEL_LANE" > "$pm_tools/PM_KERNEL_LANE" || exit 2
++printf '%%s\n' "$PM_KERNEL_EVIDENCE" > "$pm_tools/PM_KERNEL_EVIDENCE" || exit 2
 +cat > "$pm_tools/ld.lld" <<'PMLLD'
 +#!/bin/sh
++IFS= read -r PM_REAL_LLD < "${0%%/*}/PM_REAL_LLD" || exit 2
++IFS= read -r pm_stage < "${0%%/*}/stage" || exit 2
 +# Save the exact final link while cwd and response files still exist.
 +prev=
 +out=
@@ -28,6 +36,7 @@
 +    dir=$out.pm0012k-link
 +    mkdir -p "$dir"
 +    printf '%%s\0' "$PM_REAL_LLD" "$@" > "$dir/argv"
++    echo "$pm_stage" > "$dir/rpm-stage"
 +    pwd -P > "$dir/cwd"
 +    "$PM_REAL_LLD" --version > "$dir/version"
 +    i=0
@@ -44,6 +53,8 @@
 +PMLLD
 +cat > "$pm_tools/clang" <<'PMCLANG'
 +#!/bin/sh
++IFS= read -r PM_REAL_CLANG < "${0%%/*}/PM_REAL_CLANG" || exit 2
++IFS= read -r pm_stage < "${0%%/*}/stage" || exit 2
 +# Capture diagnostics only on the real scheduler TU, beside the output object.
 +obj=
 +prev=
@@ -63,6 +74,10 @@
 +PMCLANG
 +cat > "$pm_tools/make" <<'PMMAKE'
 +#!/bin/sh
++IFS= read -r PM_REAL_MAKE < "${0%%/*}/PM_REAL_MAKE" || exit 2
++IFS= read -r PM_KERNEL_LANE < "${0%%/*}/PM_KERNEL_LANE" || exit 2
++IFS= read -r PM_KERNEL_EVIDENCE < "${0%%/*}/PM_KERNEL_EVIDENCE" || exit 2
++IFS= read -r pm_stage < "${0%%/*}/stage" || exit 2
 +# Scope the make override to Linux Kbuild. Keep any explicit incoming KCFLAGS.
 +directory=$PWD
 +prev=
@@ -101,7 +116,11 @@
 +fi
 +PMMAKE
 +chmod 755 "$pm_tools/make" "$pm_tools/clang" "$pm_tools/ld.lld"
-+export PATH="$pm_tools:$PATH"
++
++# PM12_KERNEL_TOOLS_END
++pm_tools="%{_builddir}/.pm0012f-tools"
++IFS= read -r pm_lane < "$pm_tools/PM_KERNEL_LANE" || exit 2
++IFS= read -r PM_REAL_CLANG < "$pm_tools/PM_REAL_CLANG" || exit 2
 +case "$pm_lane" in K4|K5)
 +    pm_def=linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig
 +    test -f "$pm_def" || exit 2
@@ -119,7 +138,7 @@
 +    pm_elf=$pm_tool
 +    printf 'GBS_TOOL %%s invoked %%s\n' "$pm_tool" "$pm_elf"
      if command -v readelf >/dev/null; then
-@@ -13,3 +120,3 @@
+@@ -14,3 +140,3 @@
      sha256sum "$pm_elf" | sed 's/^/GBS_TOOL_SHA256 /'
 -    rpm -qf "$pm_elf" --qf 'GBS_TOOL_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :
 +    rpm -qf "$pm_elf" --qf 'GBS_TOOL_PATH_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :

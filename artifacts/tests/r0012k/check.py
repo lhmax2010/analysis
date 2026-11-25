@@ -37,6 +37,8 @@ with tempfile.TemporaryDirectory() as folder:
     fake = work/'ld.lld'
     fake.write_text('#!/bin/sh\nif [ "$1" = --version ]; then echo "LLD 22.1.8"; else cp /bin/sh vmlinux; fi\n')
     fake.chmod(0o755)
+    (work/'PM_REAL_LLD').write_text(str(fake)+'\n')
+    (work/'stage').write_text('install\n')
     (work/'link inputs').write_text('"some file.o" vmlinux.a')
     subprocess.run(['sh',wrapper,'@link inputs','-o','vmlinux'],cwd=work,
                    env={**os.environ,'PM_REAL_LLD':str(fake)},check=True)

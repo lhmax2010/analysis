@@ -1,0 +1,53 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ SMOKE_RUN=/home1/chengkai/vd-tree/workspace/temp/pm0012-smoke.neJb0i pm12m pilot
+/home1/chengkai/vd-tree/workspace/temp/pm0012m-get.pmBWPB/launch: OK
+User hao.lin ticket expires in 11 hours 44 minutes.
+PM12_BATCH_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-pilot.FejM73
+[sudo] password for chengkai:
+2026-11-25T15:46:12+08:00 START pilot
+2026-11-25T15:46:31+08:00 JOB thumb-org.tizen.AVControl START
+2026-11-25T16:06:18+08:00 JOB thumb-org.tizen.AVControl END rc=2
+2026-11-25T16:06:18+08:00 DONE pilot rc=1
+PM12_FAILURE_CONTEXT {"abort": [], "compiler": ["[  577s] [  0%] Built target bg_layout.edj", "[  577s] [  3%] Linking CXX executable AVControl", "[  577s] /home/abuild/rpmbuild/BUILD/org.tizen.AVControl-0.2.0/.pm12-driver/armv7l-tizen-linux-gnueabi-clang++: line 15: PM12_RECEIPTS: unbound variable", "[  577s] make[2]: *** [CMakeFiles/AVControl.dir/build.make:501: AVControl] Error 1", "[  577s] make[1]: *** [CMakeFiles/Makefile2:109: CMakeFiles/AVControl.dir/all] Error 2", "[  577s] make: *** [Makefile:136: all] Error 2", "[  577s] error: Bad exit status from /var/tmp/rpm-tmp.qo3HKt (%install)", "[  577s] ", "[  577s] "], "configure": [], "solver": []}
+PM12_EXPERIMENT ["THUMB", "org.tizen.AVControl", {"baseline": ["NOT_DELIVERED", {"a32_share": 0.9998393550442516, "alloc": 1055461, "arm": 740645, "bytes": 2386562, "exec": 740764, "text": 736944}, null], "default": ["NOT_DELIVERED", {"a32_share": 0.00953568299750657, "alloc": 758644, "arm": 4245, "bytes": 2088630, "exec": 445170, "text": 441362}, null], "package": ["BUILD_OR_INPUT_FAILED", {}, "GBS_FAILURE_LOG log.txt [  577s] risc-v-Alienware-Aurora-R16 failed \"build org.tizen.AVControl.spec\" at Wed Nov 25 08:06:17 UTC 2026."]}]
+chengkai@risc-v-Alienware-Aurora-R16:config$ (
+  set -eu
+  cd /home1/chengkai/vd-tree
+  d=$(mktemp -d "$PWD/workspace/temp/pm0012p-get.XXXXXX")
+  export TMPDIR="$d"
+  pin=d68c178a81174f56f04283d76f720653c2f36474
+  curl -fsSL --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012p/kernel-size.py.txt" -o "$d/kernel-size.py"
+  printf '%s  %s\n' 50d0afd9a687fd0dce6506fd76eb5e87a9cc16295ee46b7d0c128a5cae9ae564 "$d/kernel-size.py" | sha256sum -c -
+  exec python3 -B "$d/kernel-size.py"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0012p-get.WPZA1f/kernel-size.py: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0012p-size.37vl9b79
+LANE official {"qb": "37736448", "build_id": "419813f26f2d03bee00bde1d7173b0c2fd887530", "flat_sha256": "6073c4278bf03cdcd7c978cea072682444081f3a8764e52cde08ffce43836e83", "trailer": 260}
+ELF official {}
+LOOKUP official last attempts ['http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/armv7l/debug/tztv-kernel-perf-debuginfo-1-1.armv7l.rpm', 'http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/armv7l/debug/tztv-kernel-debuginfo-1-1.armv7l.rpm', ['/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux', "ELF GNU build ID mismatch ['e0b8e
+LANE custom {"qb": "37736427", "build_id": "4d95bb9eb9dc71983a87f90352fc8c2b7bd8a006", "flat_sha256": "2bf5edd3884b94189a174b2567bbed38425edd5959a6075d51c195a380a5b092", "trailer": 260}
+ELF custom {}
+LOOKUP custom last attempts ['http://repos.vd.sec.samsung.net/priv/168.219.236.27:81/PRV/builds/b755/19414755/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/repos/product/armv7l/debug/tztv-kernel-perf-debuginfo-1-1.armv7l.rpm', 'http://repos.vd.sec.samsung.net/priv/168.219.236.27:81/PRV/builds/b755/19414755/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/repos/product/armv7l/debug/tztv-kernel-debuginfo-1-1.armv7l.rpm', ['/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux', "ELF GNU build ID mismatch ['33f711d0d
+Table A (bytes)
+| Kernel | Metric | Official MLGO (baseline) | Custom MLGO | Diff (B) |
+|---|---|---:|---:|---:|
+| VDLinux | Text | — | — | — |
+| VDLinux | Data | — | — | — |
+| VDLinux | BSS | — | — | — |
+| VDLinux | Total | 11,348,904 | 11,085,176 | -263,728 |
+Table B (bytes)
+| Kernel | Metric | Official MLGO (baseline) | Custom MLGO | Diff (B) | Diff (%) |
+|---|---|---:|---:|---:|---:|
+| VDLinux | Text | — | — | — | — |
+| VDLinux | Data | — | — | — | — |
+| VDLinux | BSS | — | — | — | — |
+| VDLinux | dec | — | — | — | — |
+| VDLinux | .text | — | — | — | — |
+| VDLinux | .rodata | — | — | — | — |
+| VDLinux | .init.* | — | — | — | — |
+| VDLinux | runtime RAM | — | — | — | — |
+| VDLinux | U-Boot declared payload | 11,348,644 | 11,084,916 | -263,728 | -2.32% |
+| VDLinux | uImage | 11,348,968 | 11,085,240 | -263,728 | -2.32% |
+| VDLinux | zImage | 5,326,504 | 5,222,032 | -104,472 | -1.96% |
+| VDLinux | tztv-kernel-perf RPM | 19,345,448 | 19,160,700 | -184,748 | -0.95% |
+Total = uImage file bytes minus 64; any trailer is included. U-Boot declared payload = CRC-verified ih_size, also checked against zImage.
+ELF_TABLES PARTIAL proof_sha256 9048e2c567da9d3c11b739fcd883490278f82aac9f09c159a1e1e0f15ef81149

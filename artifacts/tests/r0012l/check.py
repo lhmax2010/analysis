@@ -118,13 +118,16 @@ with tempfile.TemporaryDirectory(dir=os.environ['TMPDIR']) as tmp:
     import shutil
     for name in ('cp','find','xargs','grep','chmod','mkdir','sha256sum','cut','touch'):
         (tools/name).symlink_to(shutil.which(name))
-    script=w/'make-wrapper';script.write_text(section.partition("<<'PMMAKE'\n")[2].partition('\nPMMAKE\n')[0])
+    script=w/'make-wrapper';script.write_text(section.partition("<<'PMMAKE'\n")[2].partition('\nPMMAKE\n')[0].replace('%%','%'))
     for name in ('arch/arm/Makefile','scripts/Kbuild.include','arch/arm/boot/zImage','kernel/sched/core.o.pm0012f-options','.core.o.cmd','core.o'):
         f=w/name;f.parent.mkdir(exist_ok=True,parents=True);f.write_text('OUTLINED_FUNCTION_0')
     with tempfile.TemporaryDirectory(dir=os.environ['TMPDIR']) as receipt_dir:
         env={**os.environ,'PATH':str(tools),'PM_KERNEL_LANE':'K1','PM_REAL_MAKE':'/bin/true','PM_KERNEL_EVIDENCE':receipt_dir}
+        for key in ('PM_REAL_MAKE','PM_KERNEL_LANE','PM_KERNEL_EVIDENCE'):
+            (w/key).write_text(env.pop(key)+'\n')
+        (w/'stage').write_text('install\n')
         subprocess.run(['/bin/sh',script],env=env,cwd=w,check=True)
-        snapshot=Path(env['PM_KERNEL_EVIDENCE'])/sha((w/'arch/arm/boot/zImage').read_bytes())
+        snapshot=Path(receipt_dir)/sha((w/'arch/arm/boot/zImage').read_bytes())
         assert (snapshot/'complete').exists() and (snapshot/'System.map').read_bytes()==table.read_bytes()
         assert (snapshot/'core.o').is_file()
 print('PASS K0 identity and raw-only gates, config diff packet, retained symbols, static sizes, real ARM ELF direct edge and EHABI range, LR shapes, offline trace parser and buildroot command inventory')

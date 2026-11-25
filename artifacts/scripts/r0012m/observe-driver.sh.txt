@@ -9,8 +9,11 @@ for arg do
         *cmTC_*|*testCCompiler.c|*testCXXCompiler.cxx) cmake=yes ;;
     esac
 done
-receipt=$PM12_RECEIPTS/driver.$$
+tool_dir=${0%/*}
+IFS= read -r stage < "$tool_dir/stage" || exit 2
+receipt="$tool_dir/receipts/driver.$$"
 {
+    echo "PM12_STAGE $stage"
     printf 'PM12_DRIVER %s %q' "$phase" "$real"
     printf ' %q' "$@"
     printf ' HOOK=%q\n' "${CCC_OVERRIDE_OPTIONS:-}"

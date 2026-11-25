@@ -180,8 +180,10 @@ for name in cc c++ gcc g++ armv7l-tizen-linux-gnueabi-gcc armv7l-tizen-linux-gnu
         printf 'real=%%q\n' "$path"
         cat <<'PM_GCC_TRACE'
 printf -v record ' %%q' "$real" "$@"
-if [ -n "${PM12_RECEIPTS:-}" ]; then
-    printf 'PM_GCC_ARGV%%s\n' "$record" >>"$PM12_RECEIPTS/driver.$$"
+if [ -d "${0%%/*}/receipts" ]; then
+    IFS= read -r stage < "${0%%/*}/stage" || exit 2
+    echo "PM12_STAGE $stage" >> "${0%%/*}/receipts/driver.$$"
+    printf 'PM_GCC_ARGV%%s\n' "$record" >>"${0%%/*}/receipts/driver.$$"
 else
     printf 'PM_GCC_ARGV%%s\n' "$record" >&2
 fi
@@ -197,7 +199,7 @@ def hook_source(body, edits):
     for phase in PHASES:
         if any(not isinstance(flag, str) or not re.fullmatch(r"-[^%\s]+", flag) for flag in edits[phase]):
             raise ValueError("invalid hook edit")
-    lines = ['pm12_bin="$PWD/.pm12-driver"', 'mkdir -p "$pm12_bin"',
+    lines = ['pm12_bin="$PWD/.pm12-driver"', 'mkdir -p "$pm12_bin" || exit 2',
              'for pm12_name in clang clang++ clang-22 clang++-22 armv7l-tizen-linux-gnueabi-clang armv7l-tizen-linux-gnueabi-clang++; do',
              '  pm12_real=$(command -v "$pm12_name" || :)',
              '  test -n "$pm12_real" || continue', '  { echo "#!/usr/bin/env bash"',
@@ -207,11 +209,31 @@ def hook_source(body, edits):
         spelling = " ".join(shlex.quote(flag) for flag in edits[phase]).replace("%", "%%")
         lines.append(f"{phase}_edits=({spelling})")
     lines.extend(body.splitlines()[2:])
-    lines.extend(("PM12_HOOK", '  } >"$pm12_bin/$pm12_name"', '  chmod u+x "$pm12_bin/$pm12_name"',
+    lines.extend(("PM12_HOOK", '  } >"$pm12_bin/$pm12_name" || exit 2', '  chmod u+x "$pm12_bin/$pm12_name" || exit 2',
                   "done", 'export PATH="$pm12_bin:$PATH"', 'export V=1 VERBOSE=1',
                   'export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1 VERBOSE=1"'))
     # RPM percent escaping applies to generated printf directives inside wrapper bodies.
     return "\n".join(lines[:7] + [line.replace("%", "%%") for line in lines[7:]]) + "\n"
+
+
+def thumb_stage_setup(meta):
+    setup = meta.partition('export PATH="$pm12_bin:$PATH"')[0]
+    setup = setup.replace('pm12_bin="$PWD/.pm12-driver"', 'pm12_bin="$pm_dir"')
+    return ('for t in bash env cat mkdir chmod; do command -v "$t" >/dev/null || '
+            '{ echo "PM_BUILD_MISSING_TOOL $t" >&2; exit 2; }; done\n' +
+            setup + 'mkdir -p "$pm_dir/receipts" || exit 2\n')
+
+
+def rpm_stage_tools(spec, tool_dir, setup):
+    """Each RPM stage has its own shell and cwd. The tools live beside the source tree."""
+    def enter(match):
+        stage = match[1]
+        return (match[0] + '\npm_dir="' + tool_dir + '"\n'
+                + 'if [ ! -f "$pm_dir/.ready" ]; then\n' + setup
+                + '\n    : > "$pm_dir/.ready" || exit 2\nfi\n'
+                + f'echo {stage} > "$pm_dir/stage" || exit 2\n'
+                + 'export PATH="$pm_dir:$PATH"\n')
+    return re.sub(r"(?m)^%(prep|build|install|check)[ \t]*$", enter, spec)
 
 
 def inject(spec, body):
@@ -411,19 +433,19 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
     if recipe["id"] in ("T1","THUMB"):
         meta = meta.replace('export PATH="$pm12_bin:$PATH"', GCC_TRACE + 'export PATH="$pm12_bin:$PATH"')
     if recipe["id"] == "THUMB":
-        meta += '\nexport PM12_RECEIPTS="$pm12_bin/receipts"\nmkdir "$PM12_RECEIPTS" || exit 2\n'
-        # Flush private driver receipts after the package build (CMake hides successful try-compiles).
-        start = re.search(r"(?m)^%build\s*$", original).end()
-        boundary = re.search(r"(?m)^%(?:install|check|files|clean|changelog)\b", original[start:])
-        if not boundary:
-            raise ValueError("missing spec section after %build")
-        pos = start + boundary.start()
-        original = original[:pos] + '\ncat "$PM12_RECEIPTS"/driver.* || exit 2\n' + original[pos:]
+        tools = "%{_builddir}/.pm12-driver"
+        setup = thumb_stage_setup(meta)
+        # Keep the package invocation records ahead of the synthetic interwork probes.
+        check = libraries(directory, "thumb-accept")[0]
+        flush = ('pm_receipts="%{_builddir}/.pm12-driver/receipts"\n'
+                 'for f in "$pm_receipts"/driver.*; do test ! -f "$f" || cat "$f" || exit 2; done\n')
+        original = check["instrument"](original, (directory/"thumb-check.sh.txt").read_text(), recipe["package_name"])
+        original = original.replace("echo PM_THUMB_CHECK_REACHED", flush + "echo PM_THUMB_CHECK_REACHED", 1)
+        # The configuration probe must see the original drivers in %build.
+        original = rpm_stage_tools(original, tools, setup)
+        meta = 'export V=1 VERBOSE=1\nexport MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1 VERBOSE=1"\n'
     if recipe.get("original_hook") and label == "C":
         prefix += "export CCC_OVERRIDE_OPTIONS=" + shlex.quote(recipe["original_hook"]) + "\n"
-    if recipe["id"] == "THUMB":
-        check = libraries(directory, "thumb-accept")[0]
-        original = check["instrument"](original, (directory/"thumb-check.sh.txt").read_text(), recipe["package_name"])
     spec.write_text(inject(original, prefix + meta))
     conf = lane / "build.conf"
     conf.write_text(text)
