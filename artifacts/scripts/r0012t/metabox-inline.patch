@@ -1,0 +1,20 @@
+--- a/fsck/main.c
++++ b/fsck/main.c
+@@ -632,7 +632,16 @@
+ 				u64 count = min_t(u64, alloc_rawsize,
+ 						  map.m_llen);
+ 
+-				ret = erofs_read_one_data(inode, &map, raw, p, count);
++				if ((map.m_flags & EROFS_MAP_META) &&
++				    erofs_inode_in_metabox(inode)) {
++					struct erofs_vfile vf;
++
++					ret = erofs_iopen(&vf, inode);
++					if (!ret)
++						ret = erofs_pread(&vf, raw, count, map.m_la + p);
++				} else {
++					ret = erofs_read_one_data(inode, &map, raw, p, count);
++				}
+ 				if (ret)
+ 					goto out;
+ 

@@ -1,0 +1,182 @@
+"""Read saved Product inputs. Copy only ELF debug data into our own scratch."""
+import base64
+import hashlib
+import json
+import re
+import runpy
+import stat
+import subprocess
+import sys
+import tempfile
+import zlib
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+WS = Path("/home1/chengkai/vd-tree/workspace")
+
+
+def library(name):
+    return runpy.run_path(str(HERE / (name + ".py.txt")))
+
+
+def packet(work, name, value):
+    data = json.dumps(value, separators=(",", ":")).encode()
+    (work/name).write_bytes(data)
+    print("ZLIB_BASE64", name, hashlib.sha256(data).hexdigest(),
+          base64.b64encode(zlib.compress(data, 9)).decode())
+
+
+def exact(stream, n):
+    data = stream.read(n)
+    if len(data) != n:
+        raise ValueError("truncated RPM payload")
+    return data
+
+
+def inspect(pkg, work, payload, bid, size):
+    roster = size["command"]("rpm","-qlp",pkg).splitlines()
+    members = {}
+    aliases = {}
+    keys = {}
+    candidate = work/"scratch.elf"
+    with subprocess.Popen(["rpm2cpio",pkg], stdout=subprocess.PIPE) as proc:
+        stream = proc.stdout
+        while True:
+            header = exact(stream,110)
+            if header[:6] not in (b"070701", b"070702"):
+                raise ValueError("expected RPM newc archive")
+            ino,mode,_,_,links,_,n,major,minor,_,_,nn,_ = [
+                int(header[o:o+8],16) for o in range(6,110,8)]
+            if not 0 < nn <= 65536:
+                raise ValueError("invalid cpio name length")
+            name = exact(stream,nn)[:-1].decode()
+            exact(stream,(-(110+nn))%4)
+            if name == "TRAILER!!!":
+                while stream.read(1<<20):
+                    pass
+                break
+            path = "/" + name.removeprefix("./").lstrip("/")
+            prefix = exact(stream,min(4,n))
+            elf = stat.S_ISREG(mode) and prefix == b"\x7fELF"
+            key = (major,minor,ino)
+            if stat.S_ISREG(mode) and links>1 and not n:
+                aliases[path]=key
+            out = candidate.open("wb") if elf else None
+            try:
+                if out:
+                    out.write(prefix)
+                left = n-len(prefix)
+                while left:
+                    block = exact(stream,min(left,1<<20))
+                    if out:
+                        out.write(block)
+                    left-=len(block)
+            finally:
+                if out:
+                    out.close()
+            exact(stream,(-n)%4)
+            if elf:
+                meta=size["command"]("readelf","-WhSn",candidate)
+                ids=re.findall(r"Build ID:\s*([0-9a-f]+)",meta)
+                kind=re.search(r"\bType:\s+(\S+)",meta)[1]
+                module=kind=="REL" and (".modinfo" in meta or path.endswith((".ko",".ko.debug")))
+                row={"bytes":n,"ids":ids,"type":kind,"module":module}
+                if kind=="EXEC" and re.search(r"\s\.text\s",meta) and re.search(r"\s\.bss\s",meta):
+                    row["kernel_candidate"]=True
+                    if ids==[bid]:
+                        dest=work/(bid+".elf")
+                        candidate.replace(dest)
+                        try:
+                            row["sections"],row["measurement"]=size["measure"](dest,payload,bid,work)
+                        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as e:
+                            row["measurement_error"]=str(e)
+                members[path]=row
+                keys[key]=row
+        if proc.wait():
+            raise ValueError("rpm2cpio failed")
+    members.update({k:keys[v] for k,v in aliases.items() if v in keys})
+    if set(members)-set(roster):
+        raise ValueError("ELF payload / RPM header paths disagree")
+    return {"rpm_listing":roster,"elfs":members,"rpm_sha256":size["digest"](pkg)}
+
+
+def debug(work, qb, size):
+    for lane in ("official","custom"):
+        cap,receipt,_=qb["retained"](lane,{"file_sha":size["digest"]})
+        job,_,_,_,uh,zh=size["PINS"][lane]
+        usb=WS/"usb"/job/"updateSU2E"
+        data,bid=size["raw_kernel"](size["verified"](usb/"uImage",uh).read_bytes(),
+                                    size["verified"](usb/"zImage",zh).read_bytes())
+        saved=WS/"temp/pm0012p-size.6krhgqbj"/lane
+        report={}
+        for name in ("tztv-kernel-perf-debuginfo","tztv-kernel-debuginfo"):
+            full=name+"-1-1.armv7l"
+            fmt="%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH} %{SOURCERPM}"
+            identity=full+" tztv-kernel-1-1.src.rpm"
+            pkg=None
+            for f in sorted(saved.glob("*.rpm")):
+                try:
+                    if size["command"]("rpm","-qp","--qf",fmt,f)==identity:
+                        pkg=f
+                        break
+                except subprocess.CalledProcessError:
+                    continue
+            if pkg is None:
+                pkg=work/(lane+"-"+full+".rpm")
+                uri=receipt["product"]+"repos/product/armv7l/debug/"+full+".rpm"
+                if not size["download"](uri,pkg,size["MAX_RPM"]) or size["command"]("rpm","-qp","--qf",fmt,pkg)!=identity:
+                    report[name]={"error":"package unavailable","url":uri}
+                    continue
+            report[name]=inspect(pkg,work,data,bid,size)
+        rows=[v for r in report.values() for v in r.get("elfs",{}).values()]
+        candidates=[v for v in rows if v.get("kernel_candidate")]
+        verdict=("A_MATCHED" if any(v["ids"]==[bid] for v in candidates) else
+                 "INCOMPLETE" if any("error" in r for r in report.values()) else
+                 "B_KERNEL_CANDIDATE_ID_DIFFERS" if candidates else
+                 "C_MODULES_ONLY" if rows and all(v["module"] for v in rows) else "UNCLASSIFIED")
+        print("DEBUG_RESULT",lane,bid,verdict,len(rows),"ELF paths")
+        packet(work,lane+"-debug.json",report)
+
+
+def gcc(work,qb,size):
+    repo={"file_sha":size["digest"]}
+    configs={}
+    for lane in ("official","gcc"):
+        cap,receipt,rows=qb["retained"](lane,repo)
+        pkg=qb["matched_payload"](cap,receipt,rows["tztv-kernel-devel"],repo)
+        member="/usr/include/kernel_header/perf/.config"
+        dest=work/(lane+".config")
+        qb["extract_member"](pkg,member,dest,qb["member_checksums"](pkg)[member][1],repo)
+        if lane=="official":
+            size["verified"](dest,"2a31652557d89d100d3c1bc6b0116556e32a56f03b0145eba12af425c75379f3")
+        configs[lane]=library("official-config")["config_map"](dest.read_bytes())
+        print("PERF_CONFIG",lane,size["digest"](dest),rows["tztv-kernel-devel"]["vcs"])
+    a,b=configs.values()
+    packet(work,"gcc-config-delta.json",{k:[a.get(k),b.get(k)] for k in sorted(a.keys()|b.keys()) if a.get(k)!=b.get(k)})
+    perf=library("perf-bundle")
+    with perf["locks"]():
+        _,job,archive,pin=perf["captured"](cap)
+        base=WS/"usb"/job
+        if not base.exists():
+            perf["stage"](job,archive,pin)
+        usb=base/"updateSU2E"
+        identity=json.loads((base/"identity.json").read_text())
+        if identity["qb"]!=job or identity["archive_sha256"]!=pin:
+            raise ValueError("USB staging identity mismatch")
+        subprocess.run(["sha256sum","--quiet","-c",base/"manifest.sha256"],cwd=usb,check=True)
+        kernel=qb["matched_payload"](cap,receipt,rows["tztv-kernel-perf"],repo)
+        checks=qb["member_checksums"](kernel)
+        for name in ("uImage","zImage"):
+            hits=[v[1] for k,v in checks.items() if k.endswith("/perf/"+name) or k=="/perf/"+name]
+            if len(hits)!=1 or hits[0]!=size["digest"](usb/name):
+                raise ValueError("GCC kernel RPM and USB mismatch: "+name)
+        u=(usb/"uImage").read_bytes()
+        z=(usb/"zImage").read_bytes()
+        raw,bid=size["raw_kernel"](u,z)
+        print("GCC_USB_VERIFIED",usb,"uImage",len(u),"zImage",len(z),"U_BOOT_DECLARED",len(raw),"RPM",kernel.stat().st_size,"BUILD_ID",bid)
+
+
+if __name__=="__main__":
+    dest=Path(tempfile.mkdtemp(dir=WS/"temp",prefix="pm0012t-kernel-info."))
+    print("WORKDIR",dest,flush=True)
+    {"debug":debug,"gcc":gcc}[sys.argv[1]](dest,library("matched-qb"),library("kernel-size"))

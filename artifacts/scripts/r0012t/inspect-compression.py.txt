@@ -1,0 +1,57 @@
+"""Read the two platform superblocks before building host tools; no image writes survive."""
+import json
+from pathlib import Path
+import runpy
+import shutil
+import subprocess
+import tarfile
+import tempfile
+
+HERE = Path(__file__).parent
+load = lambda name: runpy.run_path(str(HERE / (name + ".py.txt")))
+
+
+def inspect(image, scratch, tree):
+    with image.open("rb") as f:
+        sparse = f.read(4) == bytes.fromhex("3aff26ed")
+    if sparse:
+        with image.open("rb") as f:
+            import struct
+            f.seek(12)
+            block,count=struct.unpack("<II",f.read(8))
+        tree["room"](scratch,block*count)
+        expanded = scratch/"expanded.img"
+        subprocess.run(["simg2img", image, expanded], check=True)
+        image = expanded
+    result = {}
+    for label, (start, length) in tree["partitions"](image).items():
+        info = tree["filesystem"](image, start)
+        if info["fs"] != "erofs":
+            raise ValueError(f"unexpected filesystem in {label}: {info}")
+        result[label] = info
+    if set(result) != {"platform", "prd"}:
+        raise ValueError(f"missing named partitions: {list(result)}")
+    return result
+
+
+if __name__ == "__main__":
+    perf, qb, tree = map(load, ("perf-bundle","matched-qb","image-tree"))
+    for lane in ("official", "gcc"):
+        cap, receipt, _ = qb["retained"](lane, {"file_sha":tree["sha"]})
+        with tempfile.TemporaryDirectory(dir=HERE) as directory:
+            tmp = Path(directory)
+            if lane == "official":
+                path = qb["ROOT"]/"usb/37736448/updateSU2E/platform.img"
+                if tree["sha"](path) != qb["PLATFORM_DIGESTS"][lane]:
+                    raise ValueError("Official USB platform digest")
+            else:
+                _, _, archive, _ = perf["captured"](cap)
+                path = tmp/"platform.img"
+                with tarfile.open(archive, "r|gz") as stream:
+                    for name, member in perf["flat_members"](stream):
+                        if name == path.name:
+                            tree["room"](tmp, 3 * member.size)
+                            with stream.extractfile(member) as src, path.open("xb") as out:
+                                shutil.copyfileobj(src, out, 1<<20)
+                            break
+            print("SOURCE_COMPRESSORS", lane, json.dumps(inspect(path,tmp,tree)), flush=True)

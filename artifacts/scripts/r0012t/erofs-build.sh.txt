@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Host build, isolated prefix. Usage: bash erofs-build.sh.txt <pinned repository revision>
+set -eu -o pipefail
+pin=$1
+[[ $pin =~ ^[0-9a-f]{40}$ ]]
+scratch=/home1/chengkai/vd-tree/workspace/temp
+work=$(mktemp -d "$scratch/pm0012t-erofs-utils.XXXXXX")
+printf 'EROFS_BUILD_WORKDIR %s\n' "$work"
+cd "$work"
+prefix=$work/prefix
+export TMPDIR=$work PYTHONDONTWRITEBYTECODE=1 LC_ALL=C
+exec 3>&1 >build.log 2>&1
+trap 's=$?; if ((s)); then tail -24 build.log >&3; fi' EXIT
+get() {
+    curl -fsSL --retry 4 --retry-all-errors --retry-delay 4 --connect-timeout 15 --max-time 300 "$1" -o "$2.tar.gz"
+    printf '%s  %s.tar.gz\n' "$3" "$2" | sha256sum -c -
+    tar --no-same-owner -xzf "$2.tar.gz"
+}
+export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+export CPPFLAGS="-I$prefix/include" LDFLAGS="-L$prefix/lib -Wl,-rpath,$prefix/lib"
+probe() {
+    printf '#include <%s>\nint main(void){return 0;}\n' "$2" | cc -x c - $CPPFLAGS $LDFLAGS "-l$3" -o probe && pkg-config --exists "$1"
+}
+missing() { printf 'BUILD_PRIVATE_DEP missing_or_unusable=%s header=%s\n' "$1" "$2" >&3; }
+if ! probe liblz4 lz4.h lz4; then
+    missing liblz4 lz4.h
+    get https://codeload.github.com/lz4/lz4/tar.gz/refs/tags/v1.10.0 lz4 537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b
+    make -j2 -C lz4-1.10.0/lib install PREFIX="$prefix"
+fi
+if ! probe libzstd zstd.h zstd; then
+    missing libzstd zstd.h
+    get https://codeload.github.com/facebook/zstd/tar.gz/refs/tags/v1.5.7 zstd 37d7284556b20954e56e1ca85b80226768902e2edabd3b649e9e72c0c9012ee3
+    make -j2 -C zstd-1.5.7/lib install PREFIX="$prefix"
+fi
+if ! probe liblzma lzma.h lzma; then
+    missing liblzma lzma.h
+    get https://codeload.github.com/tukaani-project/xz/tar.gz/refs/tags/v5.6.4 xz f6820629a1f7304b4c7364b5f5dae04fa8b799e41224e96cae1a8d94cf7d0b55
+    cmake -S xz-5.6.4 -B xz-build -DCMAKE_INSTALL_PREFIX="$prefix" -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=ON
+    cmake --build xz-build -j2
+    cmake --install xz-build
+fi
+if ! probe zlib zlib.h z; then
+    missing zlib zlib.h
+    get https://codeload.github.com/madler/zlib/tar.gz/refs/tags/v1.3.1 zlib 17e88863f3600672ab49182f217281b6fc4d3c762bde361935e436a95214d05c
+    (cd zlib-1.3.1 && ./configure --prefix="$prefix" && make -j2 && make install)
+fi
+get "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012t/erofs-utils-1.9.4.tar.gz" release 3673855fa9e8c647e0556b7ea49027006b3f5a97daacf27fad18835a70f589a9
+curl -fsSL --retry 4 --retry-all-errors --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012t/metabox-inline.patch" -o metabox-inline.patch
+printf '%s  %s\n' 7114037b830396ff01eed2e5a2a15e11c1e9b4d48faa44412ba116bdd975931e metabox-inline.patch | sha256sum -c -
+(cd erofs-utils-1.9.4 && patch -p1 < ../metabox-inline.patch && ./configure --prefix="$prefix" --enable-lz4 --enable-lzma --with-zlib --with-libzstd && make -j2 && make install)
+"$prefix/bin/fsck.erofs" --help >help.txt 2>&1
+for algo in lz4 lzma deflate zstd; do grep -w "$algo" help.txt; done
+mkdir probe-src
+printf 'pm0012t metabox inline\n' >probe-src/inline
+for algo in lz4 zstd; do
+    "$prefix/bin/mkfs.erofs" -E48bit -m4096 "-z$algo" "$algo.img" probe-src
+    "$prefix/bin/fsck.erofs" --extract="$work/$algo.tree" "$algo.img"
+    cmp probe-src/inline "$algo.tree/inline"
+done
+echo METABOX_INLINE_BYTES_VERIFIED >&3
+cd "$work"
+sha256sum prefix/bin/{fsck,dump}.erofs > tools.sha256
+"$prefix/bin/fsck.erofs" -V >&3
+sha256sum tools.sha256 >&3
+printf 'export PM12_EROFS_RECEIPT=%q PM12_EROFS_SHA=%q\n' "$work/tools.sha256" "$(sha256sum tools.sha256 | cut -d' ' -f1)" >&3

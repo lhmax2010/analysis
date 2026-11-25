@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Native host only. Download pinned inputs into one fresh workspace directory.
+set -eu -o pipefail
+pin=$1
+index_sha=$2
+batch_sha=$3
+mode=$4
+[[ $pin =~ ^[0-9a-f]{40}$ && $index_sha =~ ^[0-9a-f]{64}$ && $batch_sha =~ ^[0-9a-f]{64}$ ]]
+cd /home1/chengkai/vd-tree
+tmp=$PWD/workspace/temp
+dir=$(mktemp -d "$tmp/pm0012t-get.XXXXXX")
+export TMPDIR=$dir PYTHONDONTWRITEBYTECODE=1
+get() {
+    local revision=$1 path=$2 hash=$3 out=$4
+    curl -fsSL --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 15 --max-time 120 \
+        "https://raw.githubusercontent.com/lhmax2010/analysis/$revision/$path" -o "$dir/$out"
+    printf '%s  %s\n' "$hash" "$dir/$out" | sha256sum -c - >/dev/null
+}
+case "$mode" in
+  image|pilot)
+    get "$pin" artifacts/scripts/r0012/batch.sh.txt "$batch_sha" batch.sh.txt
+    if [[ $mode == image ]]; then
+        [[ -f ${PM12_EROFS_RECEIPT:?use the export printed by erofs} ]]
+        printf '%s  %s\n' "${PM12_EROFS_SHA:?}" "$PM12_EROFS_RECEIPT" | sha256sum -c -
+        export PM12_WEDA_RUN="$tmp/pm0012-wed-a.M5knpj"
+        exec bash "$dir/batch.sh.txt" launch "$pin" "$index_sha" image
+    fi
+    [[ ${PM12_IMAGE_RUN:?set exact completed image directory} == "$tmp"/pm0012-image.* ]]
+    grep -q ' DONE image rc=0$' "$PM12_IMAGE_RUN/status.txt"
+    p4 login -s
+    rc=0
+    bash "$dir/batch.sh.txt" attended "$pin" "$index_sha" pilot | tee "$dir/launch.log" || rc=$?
+    run=$(awk '$1=="PM12_BATCH_DIR" {print $2;exit}' "$dir/launch.log")
+    [[ $run == "$tmp"/pm0012-pilot.* ]]
+    python3 -B - "$run" <<'PYREAD'
+import json,sys
+from pathlib import Path
+job=Path(sys.argv[1])/"jobs/thumb-org.tizen.AVControl"
+p=job/"thumb-acceptance.json"
+if not p.is_file():
+    print("PILOT_GATES_UNAVAILABLE", (job/"job.log").read_text(errors="replace")[-1400:])
+    sys.exit(2)
+for lane,r in json.loads(p.read_text())["lanes"].items():
+    for i in range(1,9):
+        k="T"+str(i)
+        print(lane,k,r["gates"].get(k,"UNMEASURED"),r.get("reasons",{}).get(k) or r.get("build_error") or "")
+PYREAD
+    exit "$rc" ;;
+  gcc|debug|retained|erofs) ;;
+  *) exit 2 ;;
+esac
+get "$pin" artifacts/scripts/r0012/downloads.tsv "$index_sha" downloads.tsv
+while IFS=$'\t' read -r rev path hash out; do
+    case "$out" in
+        matched-qb.py.txt|perf-bundle.py.txt|image-tree.py.txt|kernel-inventory.py.txt|kernel-size.py.txt|official-config.py.txt|inspect-compression.py.txt|erofs-build.sh.txt|lto-delivery.py.txt|image_mode_scan.py.txt|thumb-map.py.txt|thumb-options.py.txt)
+            [[ $rev == SELF ]] && rev=$pin
+            get "$rev" "$path" "$hash" "$out" ;;
+    esac
+done < "$dir/downloads.tsv"
+case "$mode" in
+    retained) exec python3 -Bu "$dir/lto-delivery.py.txt" ;;
+    gcc|debug) exec python3 -Bu "$dir/kernel-inventory.py.txt" "$mode" ;;
+    erofs)
+        python3 -Bu "$dir/inspect-compression.py.txt" | tee "$dir/source-compressors.log"
+        exec bash "$dir/erofs-build.sh.txt" "$pin" ;;
+esac

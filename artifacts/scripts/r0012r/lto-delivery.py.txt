@@ -33,26 +33,83 @@ def ir_modes(ir):
     return dict(modes)
 
 
+def read_trace(lane, roots):
+    calls = set((lane/"driver-argv.txt").read_text().splitlines())
+    plans = set((lane/"link-argv.txt").read_text().splitlines())
+    paths = [p for root in roots for p in root.glob(".pm12-driver/receipts/driver.*")]
+    for path in paths:
+        for line in path.read_text(errors="replace").splitlines():
+            if line.startswith("PM12_DRIVER "):
+                calls.add(line)
+            elif re.match(r'^"[^"]*/(?:[^"/]*-)?ld(?:\.(?:bfd|gold|lld))?"\s', line):
+                plans.add("PM12_LINK_ARGV "+line)
+    # A verbose build can call an absolute cached compiler directly. Accept its
+    # emitted invocation separately from the stored (unexecuted) link.txt plan.
+    log = lane/"gbs.log"
+    if log.is_file():
+        for raw in log.open(errors="replace"):
+            line=re.sub(r"^\[\s*[\d.]+s\]\s*", "", raw).strip()
+            if re.match(r"^/(?:usr/|emul/)[^ ]*(?:clang(?:\+\+)?|clang-22)(?: |$)",line) and " -o " in line and not re.search(r"&&|[;|<>]",line):
+                calls.add("PM12_DRIVER "+("compile " if " -c " in line else "link ")+line)
+    unique = set()
+    for row in calls:
+        args=shlex.split(row)
+        if args and args[-1].startswith("HOOK=") and args[-1]=="HOOK=":
+            args.pop()
+        unique.add(tuple(args))
+    return sorted(unique), [shlex.split(p) for p in sorted(plans)], len(paths)
+
+
+def expanded(args, base):
+    result=[]
+    for arg in args:
+        if arg.startswith("@"):
+            f=(base/arg[1:]).resolve()
+            if not f.is_relative_to(base) or not f.is_file():
+                raise ValueError("unresolved response file "+arg)
+            inner=shlex.split(f.read_text())
+            if any(x.startswith("@") for x in inner):
+                raise ValueError("nested response file "+arg)
+            result.extend(inner)
+        else:
+            result.append(arg)
+    return result
+
+
 def audit(directory, lane, metrics, arm_control=False):
     scan = runpy.run_path(str(directory/"image_mode_scan.py.txt"))["secs_of"]
     mapping = runpy.run_path(str(directory/"thumb-map.py.txt"))["text_map"]
-    receipts = [shlex.split(x) for x in (lane/"driver-argv.txt").read_text().splitlines()]
-    links = [r[3:] for r in receipts if r[:2]==["PM12_DRIVER","link"]]
+    roots = list((lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*/home/abuild/rpmbuild/BUILD"))
+    receipts,planned,count=read_trace(lane,roots)
+    links = [r[3:] for r in receipts if r[:2]==("PM12_DRIVER","link")]
     compiles = collections.defaultdict(list)
     for r in receipts:
-        if r[:2]==["PM12_DRIVER","compile"] and "-c" in r:
+        if r[:2]==("PM12_DRIVER","compile") and "-c" in r:
             compiles[option(r,"-o")].append(r)
     roots = list((lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*/home/abuild/rpmbuild/BUILD"))
-    plans = (lane/"link-argv.txt").read_text().splitlines()
+
     wanted = "-thumb-mode" if arm_control or lane.name=="baseline" else "+thumb-mode"
     result = {"status":"REVIEW", "linked":[], "gaps":[]}
     for row in metrics.get("files",[]):
         output = Path(row["path"]).name
-        matches = [args for args in links if Path(option(args,"-o")).name==output]
+        matches = sorted(set(args for args in links if Path(option(args,"-o")).name==output))
+        cmake=[f for root in roots for f in root.rglob("link.txt") if f.parent.parent.name=="CMakeFiles"
+               and any(Path(option(shlex.split(line),"-o")).name==output for line in f.read_text(errors="replace").splitlines())]
+        result.setdefault("diagnostics",{})[output]={"raw_receipt_files":count,"driver_matches":len(matches),
+            "lto_matches":sum(lto(args) for args in matches),"cmake_plans":[str(f) for f in cmake],
+            "response_files":[a for args in matches for a in args if a.startswith("@")]}
+        if len(matches)>1 and len(cmake)==1:
+            cmake_args=[tuple(shlex.split(line)[1:]) for line in cmake[0].read_text().splitlines()]
+            matches=[args for args in matches if tuple(args) in cmake_args]
         if len(matches)!=1 or not lto(matches[0]):
-            result["gaps"].append("no unique LTO driver link for "+output)
+            result["gaps"].append(f"{output}: driver matches={len(matches)}; effective -flto={sum(lto(a) for a in matches)}; see diagnostics")
             continue
-        argv = matches[0]
+        argv=list(matches[0])
+        if any(a.startswith("@") for a in argv):
+            if len(cmake)!=1:
+                result["gaps"].append(output+": response path has no unique CMake working directory")
+                continue
+            argv=expanded(argv,cmake[0].parent.parent.parent)
         objs = [a for a in argv if a.endswith(".o")]
         targets = {a.split(".dir/")[0]+".dir" for a in objs if "CMakeFiles/" in a and ".dir/" in a}
         if len(roots)!=1 or len(targets)!=1 or not objs:
@@ -69,8 +126,8 @@ def audit(directory, lane, metrics, arm_control=False):
         if len(good)!=1:
             result["gaps"].append("missing or ambiguous retained build objects for "+output)
             continue
-        planned = [shlex.split(p) for p in plans]
-        if not any(Path(option(p,"-o")).name==output and ("LLVMgold.so" in " ".join(p) or "ld.lld" in Path(p[1]).name) and all(o in p for o in objs) for p in planned):
+        plan_rows=[expanded(p,good[0]) for p in planned if len(p)>1 and Path(option(p,"-o")).name==output]
+        if not any(Path(option(p,"-o")).name==output and ("LLVMgold.so" in " ".join(p) or "ld.lld" in Path(p[1]).name) and all(o in p for o in objs) for p in plan_rows):
             result["gaps"].append("linker/plugin argv unproved for "+output)
         if any(a.startswith("@") or a.endswith((".a",".bc")) or a in ("-static","-Wl,-Bstatic") for a in argv):
             result["gaps"].append("additional archive/response inputs require resolution for "+output)
@@ -79,11 +136,13 @@ def audit(directory, lane, metrics, arm_control=False):
             result["gaps"].append("compile receipts absent from final target link: "+repr(unlinked))
         dis = shutil.which("llvm-dis-22") or shutil.which("llvm-dis")
         counts = {}
+        joined_sources = {}
         for obj in objs:
             comp = compiles.get(obj,[])
             if len(comp)!=1 or not lto(comp[0]) or not any(s.endswith((".c",".cpp",".C",".cc",".cxx")) for s in comp[0]):
                 result["gaps"].append("compile receipt: "+obj)
                 continue
+            joined_sources[obj]=option(comp[0],"-c") if option(comp[0],"-c").endswith((".c",".cpp",".C",".cc",".cxx")) else next(s for s in reversed(comp[0]) if s.endswith((".c",".cpp",".C",".cc",".cxx")))
             blob=(good[0]/obj).read_bytes()
             secs=[s for n,s in scan(blob) or [] if n==".llvm.lto"]
             if not dis or len(secs)!=1:
@@ -101,11 +160,23 @@ def audit(directory, lane, metrics, arm_control=False):
         retain_id=row.get("build_id")
         if not linked_file.is_file() or not retain_id or not re.search(r'Build ID: '+re.escape(retain_id)+r'\b',subprocess.check_output(["readelf","-nW",linked_file],text=True)):
             result["gaps"].append("retained link output/build ID unresolved: "+output)
+        else:
+            delivered=lane/"elf-proof"/(row.get("sha256","")+".elf")
+            if delivered.is_file():
+                def text_bytes(path):
+                    blob=path.read_bytes()
+                    sec,=[s for n,s in scan(blob) if n==".text"]
+                    return blob[sec[4]:sec[4]+sec[5]]
+                if text_bytes(linked_file)==text_bytes(delivered):
+                    native=linked_file.read_bytes()
+                    linked_map=mapping(native,scan(native))
+                    if linked_map and not linked_map["bytes"].get("unknown"):
+                        maps=linked_map
         code=(maps or {}).get("bytes",{})
         mode="$a" if arm_control or lane.name=="baseline" else "$t"
         if not maps or maps.get("id")!=retain_id or maps["size"]!=row["text"] or code.get("unknown") or code.get(mode,0)<=code.get("$t" if mode=="$a" else "$a",0):
             result["gaps"].append("incomplete final ISA mapping: "+output)
-        result["linked"].append({"output":output,"link":argv,"functions_by_object":counts,"mapping_bytes":code})
+        result["linked"].append({"output":output,"link":argv,"joined_sources":joined_sources,"functions_by_object":counts,"mapping_bytes":code})
     if result["linked"] and not result["gaps"]: result["status"]="PASS"
     return result
 
@@ -124,12 +195,17 @@ def retained(directory):
             result=audit(directory,lane,receipt["metrics"])
         except (OSError,ValueError,KeyError,subprocess.SubprocessError) as e:
             result={"status":"REVIEW","gaps":[str(e)],"linked":[]}
+        print("JOIN", label,result.get("diagnostics",{}))
+        for r in receipt["metrics"].get("files",[]):
+            print("DELIVERED_ISA",label,{k:r.get(k) for k in ("path","basis","arm","exec","sha256")})
         original=receipt["delivery"]
         if original["response_unresolved"] or not original["relevant_links"] or original["treated_links"]!=original["relevant_links"]:
             result["gaps"].append("response or link delivery coverage")
             result["status"]="REVIEW"
         (scratch/(label+".json")).write_text(json.dumps(result,indent=2)+"\n")
         drivers=options["parse"](lane/"gbs.log")[0]
+        for driver in options["DRIVERS"][:4]:
+            print("ISA_PROBE",label,driver,{k:drivers[driver].get(k,[]) for k in ("BUILT","FAILED")})
         gaps=options["config_gate"](drivers,label=="default",lane)
         print("LTO",label,result["status"],"config_gaps",gaps,"object_gaps",len(result["gaps"]),result["gaps"][:35])
     print("DEFAULT T1",result["status"],"CONFIG",gaps or "PASS")

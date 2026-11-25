@@ -28,6 +28,26 @@ def instrument(spec,body,package):
     if package in ("rpm","libgcrypt") and not re.search(r"(?m)^\s*(?:%make_build|make|%make)\s+.*?\bcheck\b",tests):
         extra="\nmake check\n"
     body=body.replace("%","%%").replace("%%{buildroot}","%{buildroot}")
+    if package=="org.tizen.AVControl":
+        install=re.search(r"(?m)^%install\s*$",spec)
+        if not install:
+            raise ValueError("AVControl %install missing")
+        end=re.search(r"(?m)^%(?:clean|check|files|post|pre|changelog)\b",spec[install.end():])
+        if not end:
+            raise ValueError("AVControl %install boundary missing")
+        pos=install.end()+end.start()
+        tests = """if command -v ctest >/dev/null; then
+find . -path '*/CMakeFiles/AVControl.dir/link.txt' -print >.pm-ctest-plans
+if test "$(awk 'END {print NR}' .pm-ctest-plans)" = 1; then
+    IFS= read -r pm_link <.pm-ctest-plans
+    pm_ctest_dir=${pm_link%%/CMakeFiles/AVControl.dir/link.txt}
+    if test -f "$pm_ctest_dir/CTestTestfile.cmake"; then
+        (cd "$pm_ctest_dir" && ctest -N && ctest --output-on-failure) >.pm-ctest-log 2>&1 || { cat .pm-ctest-log; exit 1; }
+        if grep -Eq 'Total Tests: +[1-9]' .pm-ctest-log; then echo PM_THUMB_CTEST_PASS; fi
+    fi
+fi
+fi"""
+        return spec[:pos]+"\necho PM_THUMB_CHECK_REACHED\n"+body+"\n"+tests+"\n"+spec[pos:]
     return spec[:pos]+("\n%check\n" if start is None else "\n")+extra+"\necho PM_THUMB_CHECK_REACHED\n"+body+"\n"+spec[pos:]
 
 def cc1_modes(log):
@@ -154,7 +174,13 @@ def evaluate(directory,work,name,results,source,spec,controls):
         compiled_names=set()
         for item in items:
             compiled_names.update(Path(n).name for n in item["cu_names"] if n)
-        unmatched={n for n in modes_seen if n not in compiled_names}
+        linked = result["delivery"].get("lto_delivery",{}).get("linked",[])
+        joined = {Path(path).name for x in linked for path in x.get("joined_sources",{}).values()}
+        probes={"CMakeCXXCompilerABI.cpp","CMakeCXXCompilerId.cpp","CMakeCCompilerABI.c","CMakeCCompilerId.c"}
+        excluded={n for n in modes_seen if n in probes and all(re.search(r"(?:/|^)(?:CMakeFiles/|Modules/CMake.*CompilerABI)",path) for path,_ in modes_seen[n])}
+        unmatched=set(modes_seen)-compiled_names-joined-excluded
+        report["excluded_configure_probes"]=sorted(excluded)
+        report["joined_link_sources"]=sorted(joined)
         report["compile_inputs_without_retained_cu"]=sorted(unmatched)
         response=result["delivery"]["response_unresolved"]
         proof=result["delivery"]
@@ -167,6 +193,8 @@ def evaluate(directory,work,name,results,source,spec,controls):
           "T6":outcome("PM_THUMB_INTERWORK_PASS" in plain.splitlines() and all(i["identical"] or "PM_THUMB_SMOKE_PASS "+i["path"] in plain.splitlines() for i in items)),
           "T7":"REVIEW_ASM_SITES" if assembly else ("PASS" if scope and compiled_names and not unmatched and not proof["missing_dwarf_elfs"] and all((source / n).is_file() for i in items for n in i["cu_names"] if not Path(n).is_absolute()) and all(not Path(n).is_absolute() for i in items for n in i["cu_names"]) else "REVIEW_GENERATED_SOURCES"),
           "T8":outcome(result["arm_compile_calls"] and results["baseline"]["arm_compile_calls"] and all(i["identical"] and verified_map(i) and i["maps"][0]==i["maps"][1] for i in items)) if name in controls and "PM_THUMB_ASM_ARM_PASS" in plain.splitlines() else ("REVIEW" if name in controls else "N/A")}
+        if name=="org.tizen.AVControl" and "PM_THUMB_CTEST_PASS" in plain.splitlines() and not result["error"]:
+            report["gates"]["T5"]="PASS"
         if "lto_delivery" in proof:
             report["gates"]["T1"]=outcome(proof["observed"] and proof["lto_delivery"]["status"]=="PASS")
         report["gates"]["driver_config_and_IT"]=outcome(all(options.get(x) and not options[x]["driver_gaps"] for x in ("baseline",lane)))
@@ -188,6 +216,14 @@ def evaluate(directory,work,name,results,source,spec,controls):
                     "cpio":size,"rpm":rpm.stat().st_size,"installed_header":int(fields[2])}
         if not report["payload_bytes"][lane] or report["payload_bytes"][lane].keys()!=report["payload_bytes"]["baseline"].keys():
             report["gates"]["T3"]="REVIEW_RPM_SCOPE"
+        reasons={"T1":str(proof.get("lto_delivery",{}).get("gaps",[])[:6])+"; delivery="+str(proof["observed"]),
+                 "T2":"incomplete mapping or retained ARM spans: "+str([(i["path"],(i["maps"][1] or {}).get("bytes")) for i in items]),
+                 "T3":"payload identity sets differ or incomplete", "T4":str([(i["path"],i["abi"],i["dynamic_equal"]) for i in items]),
+                 "T5":"check reached="+str("PM_THUMB_CHECK_REACHED" in plain.splitlines())+"; registered passing package tests unproved",
+                 "T6":"interwork="+str("PM_THUMB_INTERWORK_PASS" in plain.splitlines())+"; missing executable/DSO smoke="+str([i["path"] for i in items if not i["identical"] and "PM_THUMB_SMOKE_PASS "+i["path"] not in plain.splitlines()]),
+                 "T7":"assembly sites="+str(len(assembly))+"; missing CU producers="+str(proof["missing_dwarf_elfs"])+"; unjoined="+str(sorted(unmatched)),
+                 "T8":"ARM control explicit-assembly and ELF identity gate"}
+        report["reasons"]={k:reasons.get(k,v) for k,v in report["gates"].items() if v not in ("PASS","N/A")}
         report["status"]="REVIEW" if any(v not in ("PASS","N/A") for v in report["gates"].values()) else "PASS"
     (work/"thumb-acceptance.json").write_text(json.dumps({"package":name,"lanes":pairs,"asm":assembly},separators=(",",":"))+"\n")
     print("THUMB_ACCEPT",name,{k:(v["status"],v["gates"]) for k,v in pairs.items()})

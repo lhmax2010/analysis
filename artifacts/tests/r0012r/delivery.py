@@ -32,6 +32,14 @@ with tempfile.TemporaryDirectory() as temp:
     metrics={"files":[{"text":2,"path":"/usr/bin/App","build_id":build_id,"debug_file":str(project/"App")}]}
     r=audit(work,lane,metrics)
     assert r["status"]=="PASS",r
+    raw=project.parent/".pm12-driver/receipts/driver.123"
+    raw.parent.mkdir(parents=True)
+    raw.write_text(f"PM12_DRIVER compile clang -flto -c main.c -o {obj} HOOK=\nPM12_DRIVER link clang -flto @objects.rsp -o App HOOK=\n")
+    (project/"objects.rsp").write_text(obj)
+    (project/obj).with_name("link.txt").write_text("clang -flto @objects.rsp -o App\n")
+    (lane/"driver-argv.txt").write_text("")
+    assert audit(work,lane,metrics)["status"]=="PASS"
+    raw.unlink()
     (lane/"driver-argv.txt").write_text(f"PM12_DRIVER link clang -flto {obj} -o App\n")
     assert audit(work,lane,metrics)["status"]=="REVIEW"
     cfg=root/"usr/bin/clang.cfg"

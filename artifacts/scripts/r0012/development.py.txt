@@ -272,7 +272,7 @@ def failure_context(lane):
 
 def link_trace(lane_dir):
     trace, links, errors = set(), set(), set()
-    for path in (lane_dir / "gbs.log", *sorted((lane_dir / "GBS-ROOT/local/repos").glob("**/log.txt"))[:8]):
+    for path in (lane_dir / "gbs.log", *sorted((lane_dir/"GBS-ROOT/local/BUILD-ROOTS").glob("*/home/abuild/rpmbuild/BUILD/.pm12-driver/receipts/driver.*")), *sorted((lane_dir / "GBS-ROOT/local/repos").glob("**/log.txt"))[:8]):
         if not path.is_file():
             continue
         with path.open(errors="replace") as stream:

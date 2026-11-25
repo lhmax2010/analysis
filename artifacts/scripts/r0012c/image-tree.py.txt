@@ -35,8 +35,8 @@ class IntegrityError(ValueError):
 def command(*args):
     p = subprocess.run(args, text=True, errors="replace", stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT, timeout=3600, env={**os.environ, "LC_ALL": "C"})
-    if p.returncode or (str(args[0]) == "fsck.erofs" and re.search(r"<E>|(?:^|: )(?:error|corrupted|failed)\b|checksum mismatch", p.stdout, re.I | re.M)):
-        raise (IntegrityError if str(args[0]) == "fsck.erofs" else ValueError)(f"{args[0]} rc={p.returncode}: {p.stdout[-700:]}")
+    if p.returncode or (Path(args[0]).name == "fsck.erofs" and re.search(r"<E>|(?:^|: )(?:error|corrupted|failed)\b|checksum mismatch", p.stdout, re.I | re.M)):
+        raise (IntegrityError if Path(args[0]).name == "fsck.erofs" else ValueError)(f"{args[0]} rc={p.returncode}: {p.stdout[-700:]}")
     return p.stdout
 
 
@@ -50,9 +50,25 @@ def filesystem(image, start):
     if sb[:4] == bytes.fromhex("e2e1f5e0") and len(sb) == 128:
         compat, = struct.unpack_from("<I", sb, 8)
         incompat, mask = struct.unpack_from("<IH", sb, 80)
-        algorithms = [n for i, n in enumerate(("LZ4", "LZMA", "DEFLATE", "ZSTD")) if mask & (1 << i)]
-        return {"fs": "erofs", "feature_compat": compat, "feature_incompat": incompat,
-                "compression_config": algorithms if incompat & 2 else "legacy LZ4 if compressed"}
+        algorithms = ("LZ4", "LZMA", "DEFLATE", "ZSTD")
+        records = {}
+        if incompat & 2:
+            if mask & ~15:
+                raise IntegrityError("unknown EROFS compression mask "+hex(mask))
+            offset = start + 1024 + 128 + sb[13]*16
+            with image.open("rb") as stream:
+                for i, algorithm in enumerate(algorithms):
+                    if mask & (1<<i):
+                        stream.seek((offset+3) & ~3)
+                        size, = struct.unpack("<H", stream.read(2))
+                        record = stream.read(size)
+                        if not size or len(record)!=size:
+                            raise IntegrityError("truncated EROFS compressor config")
+                        records[algorithm]=record.hex()
+                        offset=stream.tell()
+        return {"fs":"erofs", "feature_compat":compat, "feature_incompat":incompat,
+                "compression_config":list(records) if incompat & 2 else "legacy LZ4 if compressed",
+                "compr_cfgs":records}
     if sb[56:58] == bytes.fromhex("53ef"):
         return {"fs": "ext"}
     raise ValueError(f"unrecognized filesystem at byte {start}, superblock={sb[:8].hex()}")
@@ -111,17 +127,38 @@ def rpm_rows(tree, work, fmt):
         return result.stdout
 
 
+def erofs_tools():
+    path = Path(os.environ.get("PM12_EROFS_RECEIPT", ""))
+    pin = os.environ.get("PM12_EROFS_SHA", "")
+    if not path.is_absolute() or path.resolve(strict=True)!=path or sha(path)!=pin:
+        raise IntegrityError("require absolute hash-pinned erofs-utils build receipt")
+    tools = {}
+    for row in path.read_text().splitlines():
+        digest, name = row.split()
+        if name not in ("prefix/bin/fsck.erofs", "prefix/bin/dump.erofs"):
+            raise IntegrityError("unexpected tool in EROFS receipt")
+        binary = path.parent/name
+        if binary.resolve(strict=True)!=binary or sha(binary)!=digest:
+            raise IntegrityError("EROFS tool hash mismatch "+name)
+        tools[binary.name] = str(binary)
+    if len(tools)!=2:
+        raise IntegrityError("incomplete EROFS tool receipt")
+    return tools
+
+
 def cached_tree(raw, work, digest=None):
     image_hash = digest or sha(raw)
     CACHE.mkdir(mode=0o700, exist_ok=True)
     if CACHE.resolve() != CACHE:
         raise ValueError("unsafe image cache location")
-    dest = CACHE/image_hash
+    tools = erofs_tools()
+    receipt_sha = os.environ["PM12_EROFS_SHA"]
+    dest = CACHE/(image_hash+"-"+receipt_sha)
     with (CACHE/(image_hash+".lock")).open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if dest.exists():
             info = json.loads((dest/"receipt.json").read_text())
-            if info["image_sha256"] != image_hash or not (dest/"tree").is_dir():
+            if info.get("erofs_tools_receipt") != receipt_sha or info["image_sha256"] != image_hash or not (dest/"tree").is_dir():
                 raise ValueError("invalid cache receipt")
             return dest/"tree", info
         with tempfile.TemporaryDirectory(dir=CACHE, prefix=".extract.") as tmp:
@@ -157,20 +194,34 @@ def cached_tree(raw, work, digest=None):
                     if part.stat().st_size != length or filesystem(part, 0) != info:
                         raise ValueError("partition slice mismatch")
                 if info["fs"] == "erofs":
-                    tool = "fsck.erofs"
-                    version = command(tool, "-V").strip()
-                    check = command(tool, part)
+                    tool = tools["fsck.erofs"]
+                    dump = tools["dump.erofs"]
+                    version = command(tool, "-V").splitlines()[0]
+                    if not re.search(r"\b1\.9\.4\b",version):
+                        raise IntegrityError("unexpected erofs-utils version "+version)
+                    info["dump_superblock"] = command(dump, "-s", part)
+                    print("EROFS_PARTITION", label, hex(info["feature_incompat"]), info["compression_config"], flush=True)
+                    check = command(tool, "--extract", part)
                     if "corrupt" in check.lower() or "checksum" in check.lower() and "mismatch" in check.lower():
                         raise IntegrityError("fsck.erofs integrity failure: "+check[-500:])
-                    info["dump_root"] = command("dump.erofs", "--path=/", part).strip()
+                    info["dump_root"] = command(dump, "--path=/", part).strip()
                     command(tool, "--no-preserve-owner", "--preserve-perms", "--extract="+str(tree), part)
-                    # dump.erofs 1.7.1 supplies inode metadata, fsck supplies file contents.
+                    stats = command(dump, "-S", part)
+                    count = re.search(r"(?m)^Filesystem total file count:\s*(\d+)\s*$",stats)
+                    def raise_walk_error(err):
+                        raise err
+                    actual = 1 + sum(len(dirs)+len(files) for _,dirs,files in
+                                     os.walk(tree, onerror=raise_walk_error))
+                    info.update(dump_entries=int(count[1]) if count else None, extracted_entries=actual)
+                    if actual!=info["dump_entries"]:
+                        raise IntegrityError(f"{label}: dump entries {info['dump_entries']} extracted {actual}")
+                    print("EROFS_CHECK_EXTRACT",label,version,actual,"entries",flush=True)
                     try:
                         db, _ = db_in_tree(tree)
                     except ValueError:
                         pass
                     else:
-                        info["dump_rpmdb"] = command("dump.erofs", "--path=/"+db.relative_to(tree).as_posix(), part)
+                        info["dump_rpmdb"] = command(dump, "--path=/"+db.relative_to(tree).as_posix(), part)
                 elif info["fs"] == "squashfs":
                     tool = "unsquashfs"
                     version = command(tool, "-version").splitlines()[0]
@@ -205,7 +256,7 @@ def cached_tree(raw, work, digest=None):
                             if src.read(4) == b"\x7fELF":
                                 elfs += 1
                                 prd_elfs += file.is_relative_to(tree/"prd")
-            info.update(image_sha256=image_hash, extracted_regular_bytes=total, elf_files=elfs,
+            info.update(erofs_tools_receipt=receipt_sha, image_sha256=image_hash, extracted_regular_bytes=total, elf_files=elfs,
                         elf_files_under_prd=prd_elfs)
             (stage/"receipt.json").write_text(json.dumps(info, indent=2)+"\n")
             stage.rename(dest)

@@ -71,7 +71,16 @@ while IFS= read -r file; do
     hdr=$(readelf -hW "$file" 2>/dev/null) || continue
     case "$hdr" in *ARM*) ;; *) continue ;; esac
     if readelf -lW "$file" | grep -q 'INTERP'; then
-        case "$path" in /usr/bin/rpm) arg=--version ;; *) echo "PM_THUMB_SMOKE_UNQUALIFIED $path"; continue ;; esac
+        case "$path" in
+        */org.tizen.AVControl/bin/AVControl)
+            interp=$(readelf -lW "$file" | awk '/Requesting program interpreter:/ {gsub(/]/,"",$NF); print $NF}')
+            case "$interp" in /lib/ld-linux*.so*) ;; *) echo "PM_THUMB_LOADER_UNKNOWN $path"; continue ;; esac
+            if LD_LIBRARY_PATH="$root/usr/lib:$root/lib" "$d/deadline" 15 "$interp" --list "$file"; then
+                echo "PM_THUMB_LOADER_PASS $path"
+            else echo "PM_THUMB_LOADER_FAIL $path"; fi
+            echo "PM_THUMB_SMOKE_UNQUALIFIED $path"
+            continue ;;
+        /usr/bin/rpm) arg=--version ;; *) echo "PM_THUMB_SMOKE_UNQUALIFIED $path"; continue ;; esac
         if "$d/deadline" 10 "$file" "$arg" >/dev/null; then echo "PM_THUMB_SMOKE_PASS $path"; else echo "PM_THUMB_SMOKE_FAIL $path"; fi
     elif echo "$hdr" | grep -Eq 'Type: +DYN'; then
         readelf --dyn-syms -W "$file" >"$d/symbols" || exit 1
