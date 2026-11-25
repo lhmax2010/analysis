@@ -1,0 +1,53 @@
+chengkai@risc-v-Alienware-Aurora-R16:config$ pm12r size
+/home1/chengkai/vd-tree/workspace/temp/pm0012r-launch.tCWi6c/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0012p-size.6krhgqbj
+PERF_DEBUG_FETCH http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/armv7l/debug/tztv-kernel-perf-debuginfo-1-1.armv7l.rpm rc 0
+LANE official {"qb": "37736448", "build_id": "419813f26f2d03bee00bde1d7173b0c2fd887530", "flat_sha256": "6073c4278bf03cdcd7c978cea072682444081f3a8764e52cde08ffce43836e83", "trailer": 260}
+ELF official {}
+LOOKUP official last attempts ['http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/armv7l/debug/tztv-kernel-perf-debuginfo-1-1.armv7l.rpm', 'http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/armv7l/debug/tztv-kernel-debuginfo-1-1.armv7l.rpm', ['/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/official/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux', "ELF GNU build ID mismatch ['e0b8e
+PERF_DEBUG_FETCH http://repos.vd.sec.samsung.net/priv/168.219.236.27:81/PRV/builds/b755/19414755/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/repos/product/armv7l/debug/tztv-kernel-perf-debuginfo-1-1.armv7l.rpm rc 0
+LANE custom {"qb": "37736427", "build_id": "4d95bb9eb9dc71983a87f90352fc8c2b7bd8a006", "flat_sha256": "2bf5edd3884b94189a174b2567bbed38425edd5959a6075d51c195a380a5b092", "trailer": 260}
+ELF custom {}
+LOOKUP custom last attempts ['http://repos.vd.sec.samsung.net/priv/168.219.236.27:81/PRV/builds/b755/19414755/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/repos/product/armv7l/debug/tztv-kernel-perf-debuginfo-1-1.armv7l.rpm', 'http://repos.vd.sec.samsung.net/priv/168.219.236.27:81/PRV/builds/b755/19414755/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/repos/product/armv7l/debug/tztv-kernel-debuginfo-1-1.armv7l.rpm', ['/home1/chengkai/vd-tree/workspace/temp/pm0005-gbs-kernel.mtob625f/custom/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux', "ELF GNU build ID mismatch ['33f711d0d
+Table A (bytes)
+| Kernel | Metric | Official MLGO (baseline) | Custom MLGO | Diff (B) |
+|---|---|---:|---:|---:|
+| VDLinux | Text | — | — | — |
+| VDLinux | Data | — | — | — |
+| VDLinux | BSS | — | — | — |
+| VDLinux | Total | 11,348,904 | 11,085,176 | -263,728 |
+Table B (bytes)
+| Kernel | Metric | Official MLGO (baseline) | Custom MLGO | Diff (B) | Diff (%) |
+|---|---|---:|---:|---:|---:|
+| VDLinux | Text | — | — | — | — |
+| VDLinux | Data | — | — | — | — |
+| VDLinux | BSS | — | — | — | — |
+| VDLinux | dec | — | — | — | — |
+| VDLinux | .text | — | — | — | — |
+| VDLinux | .rodata | — | — | — | — |
+| VDLinux | .data | — | — | — | — |
+| VDLinux | .bss | — | — | — | — |
+| VDLinux | .init.* | — | — | — | — |
+| VDLinux | runtime RAM | — | — | — | — |
+| VDLinux | U-Boot declared payload | 11,348,644 | 11,084,916 | -263,728 | -2.32% |
+| VDLinux | uImage | 11,348,968 | 11,085,240 | -263,728 | -2.32% |
+| VDLinux | zImage | 5,326,504 | 5,222,032 | -104,472 | -1.96% |
+| VDLinux | tztv-kernel-perf RPM | 19,345,448 | 19,160,700 | -184,748 | -0.95% |
+Total = uImage file bytes minus 64; any trailer is included. U-Boot declared payload = CRC-verified ih_size, also checked against zImage.
+ELF_TABLES PARTIAL proof_sha256 9048e2c567da9d3c11b739fcd883490278f82aac9f09c159a1e1e0f15ef81149
+REPLAY_SYMBOLS_INCOMPLETE official 'elf'
+REPLAY_SYMBOLS_INCOMPLETE custom 'elf'
+chengkai@risc-v-Alienware-Aurora-R16:config$ pm12r retained
+/home1/chengkai/vd-tree/workspace/temp/pm0012r-launch.ftpcb2/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0012r-lto.vh9wk2c_
+LTO baseline REVIEW config_gaps [] object_gaps 1 ['no unique LTO driver link for AVControl']
+LTO default REVIEW config_gaps [['clang', ['/usr/bin/clang.cfg'], ['C/assembly mapping']], ['clang++', ['/usr/bin/clang++.cfg'], ['C/assembly mapping']], ['armv7l-tizen-linux-gnueabi-clang', ['/usr/bin/clang.cfg'], ['C/assembly mapping']], ['armv7l-tizen-linux-gnueabi-clang++', ['/usr/bin/clang++.cfg'], ['C/assembly mapping']]] object_gaps 1 ['no unique LTO driver link for AVControl']
+DEFAULT T1 REVIEW CONFIG [['clang', ['/usr/bin/clang.cfg'], ['C/assembly mapping']], ['clang++', ['/usr/bin/clang++.cfg'], ['C/assembly mapping']], ['armv7l-tizen-linux-gnueabi-clang', ['/usr/bin/clang.cfg'], ['C/assembly mapping']], ['armv7l-tizen-linux-gnueabi-clang++', ['/usr/bin/clang++.cfg'], ['C/assembly mapping']]]
+RETAINED OTHER GATES {'T2': 'REVIEW', 'T3': 'PASS', 'T4': 'REVIEW', 'T5': 'CHECK_NOT_OBSERVED', 'T6': 'REVIEW', 'T7': 'REVIEW_GENERATED_SOURCES', 'T8': 'N/A'}
+CHECK_EVIDENCE PM_THUMB_CHECK_REACHED []
+CHECK_EVIDENCE PM_THUMB_INTERWORK_PASS []
+CHECK_EVIDENCE PM_THUMB_SMOKE_PASS []
+T7_UNJOINED_INPUTS ['AVControlApp.cpp', 'AVControlAudio.cpp', 'AVControlCommandProcessor.cpp', 'AVControlEcoModeCommandHandler.cpp', 'AVControlGetCommandProcessor.cpp', 'AVControlGetCommandProcessorEx.cpp', 'AVControlHelper.cpp', 'AVControlHotel.cpp', 'AVControlKPILogger.cpp', 'AVControlMediaPlayerCommandHandler.cpp', 'AVControlPIPCommandHandler.cpp', 'AVControlParser.cpp', 'AVControlPictureColorToneHandler.cpp', 'AVControlPictureCommandHandler.cpp', 'AVControlPictureProcessingHandler.cpp', 'AVControlPictureWhiteBalanceHandler.cpp', 'AVControlRVUCommandHandler.cpp', 'AVControlSoundCommandHandler.cpp', 'AVControlSourceCommandHandler.cpp', 'AVControlTranslationString.cpp', 'AVControlVolumeChannelHelper.cpp', 'AVmain.cpp', 'CMakeCXXCompilerABI.cpp', 'CMakeCXXCompilerId.cpp', 'KeycodeGenerate.cpp', 'antennaUtil.cpp', 'tvService.cpp', 'xutil.cpp']
+ELF /usr/apps/org.tizen.AVControl/bin/AVControl mapping {'unknown': 441362} A32 functions [] dynamic_equal True ABI ABIDIFF_UNAVAILABLE export_and_loader_diff {'removed': [], 'added': [], 'soname': [], 'needed': [], 'versions': []}
+LTO_PACKET baseline.json 9be1ea2192e4e434c833e0dc0651319b90a41b8e1ebfed2c2a680c172347a89e eJyr5lJQUCouSSwpLVayUlAKcg3zdA1X0gGJ5mTmZaemAEWjY8H89MQCkJpoIBvIy8tXKM3LLCxNVfAJ8VdIKcosSy1SAGlRSMsvUnAMc87PKynKz1ECqo7lquUCAN2FHZ0=
+LTO_PACKET default.json 9be1ea2192e4e434c833e0dc0651319b90a41b8e1ebfed2c2a680c172347a89e eJyr5lJQUCouSSwpLVayUlAKcg3zdA1X0gGJ5mTmZaemAEWjY8H89MQCkJpoIBvIy8tXKM3LLCxNVfAJ8VdIKcosSy1SAGlRSMsvUnAMc87PKynKz1ECqo7lquUCAN2FHZ0=

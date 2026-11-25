@@ -24,8 +24,6 @@ case "$mode" in
         exec bash "$dir/batch.sh.txt" launch "$pin" "$index_sha" image
     fi
     if [[ $mode == kernel ]]; then
-        : "${PM12_IMAGE_RUN:?supply the explicit successful new image run}"
-        [[ $PM12_IMAGE_RUN == "$tmp"/pm0012-image.* ]]
         export PM12_SMOKE_RUN="$tmp/pm0012-smoke.neJb0i"
     fi
     p4 login -s

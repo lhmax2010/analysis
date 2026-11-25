@@ -1,0 +1,59 @@
+chengkai@risc-v-Alienware-Aurora-R16:~$ S=/home1/chengkai/vd-tree/workspace/temp/pm0012-image.mKv04z
+grep -E 'END rc=[^0]' "$S/status.txt"
+for j in $(grep -oE 'JOB [^ ]+ END rc=[^0]' "$S/status.txt" | awk '{print $2}' | head -n 3); do echo "=== $j"; tail -n 25 "$S/jobs/$j/job.log" 2>/dev/null; done
+tail -n 25 "$S/combined.txt" 2>/dev/null
+2026-11-25T20:42:54+08:00 JOB platform END rc=1
+2026-11-25T20:42:54+08:00 JOB base-proof END rc=2
+2026-11-25T20:44:08+08:00 JOB hq END rc=1
+2026-11-25T20:44:08+08:00 JOB roster-gcc END rc=2
+2026-11-25T20:44:08+08:00 JOB roster-official END rc=2
+2026-11-25T20:44:19+08:00 JOB audit-official END rc=2
+2026-11-25T20:44:29+08:00 JOB audit-gcc END rc=2
+=== platform
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0011e-qb.ahbhtu2r
+KERNEL_SOURCE ["gcc","tztv-kernel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732"]
+KERNEL_SOURCE ["gcc","tztv-kernel-devel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732"]
+KERNEL_SOURCE ["gcc","tztv-kernel-perf","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732"]
+KERNEL_SOURCE ["gcc","tztv-kernel-release","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732"]
+Traceback (most recent call last):
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0012-image.mKv04z/matched-qb.py.txt", line 364, in <module>
+    raise SystemExit(main())
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0012-image.mKv04z/matched-qb.py.txt", line 355, in main
+    platforms(repo, work)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0012-image.mKv04z/matched-qb.py.txt", line 229, in platforms
+    tree, info = lib["cached_tree"](path, work, digest)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0012-image.mKv04z/image-tree.py.txt", line 162, in cached_tree
+    check = command(tool, part)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0012-image.mKv04z/image-tree.py.txt", line 39, in command
+    raise (IntegrityError if str(args[0]) == "fsck.erofs" else ValueError)(f"{args[0]} rc={p.returncode}: {p.stdout[-700:]}")
+<run_path>.IntegrityError: fsck.erofs rc=1: <E> erofs: unidentified incompatible feature 180, please upgrade kernel version
+<E> erofs: failed to read superblock
+
+=== base-proof
+=== hq
+2026-11-25T20:42:54+08:00 JOB platform END rc=1
+2026-11-25T20:42:54+08:00 JOB base-proof START
+2026-11-25T20:42:54+08:00 JOB base-proof END rc=2
+2026-11-25T20:42:54+08:00 JOB sources START
+2026-11-25T20:43:57+08:00 JOB sources END rc=0
+2026-11-25T20:43:57+08:00 JOB hq START
+2026-11-25T20:44:08+08:00 JOB hq END rc=1
+2026-11-25T20:44:08+08:00 JOB roster-gcc START
+2026-11-25T20:44:08+08:00 JOB roster-gcc END rc=2
+2026-11-25T20:44:08+08:00 JOB roster-official START
+2026-11-25T20:44:08+08:00 JOB roster-official END rc=2
+2026-11-25T20:44:08+08:00 JOB audit-official START
+2026-11-25T20:44:19+08:00 JOB audit-official END rc=2
+2026-11-25T20:44:19+08:00 JOB audit-gcc START
+2026-11-25T20:44:29+08:00 JOB audit-gcc END rc=2
+2026-11-25T20:44:29+08:00 JOB pilot-options START
+2026-11-25T20:44:30+08:00 JOB pilot-options END rc=0
+2026-11-25T20:44:30+08:00 DONE image rc=1
+PM12_ERROR "fsck.erofs rc=1: <E> erofs: unidentified incompatible feature 180, please upgrade kernel version\n<E> erofs: failed to read superblock\n"
+PM12_ERROR "fsck.erofs rc=1: <E> erofs: unidentified incompatible feature 180, please upgrade kernel version\n<E> erofs: failed to read superblock\n"
+THUMB_GROUPS thumb-bluetooth-impl-sec-oal {'baseline': [], 'default': [], 'package': []} new_lto_units 0
+THUMB_GROUPS thumb-libgcrypt {} new_lto_units 0
+THUMB_GROUPS thumb-libpisa-ipc {'baseline': [], 'default': [], 'package': []} new_lto_units 0
+SOURCE1005_BYTES {'official': '7d89083453e1d75707a4a6b3a6d9510a4c31e09d8e99865de2a18e07945bf76f', 'custom': '7d89083453e1d75707a4a6b3a6d9510a4c31e09d8e99865de2a18e07945bf76f', 'byte_equal': True, 'review_copy_matches_both': True}
+KERNEL_SRPM_CONTENT_MATCH UNAVAILABLE
+chengkai@risc-v-Alienware-Aurora-R16:~$

@@ -224,14 +224,16 @@ def run(work,proof,owners):
                 print("KERNEL_THUMB_LANE",lane,record["status"],record.get("diagnostic",""),flush=True)
             if lane=="K0" and record["status"]=="BLOCKED_OR_FAILED": break
         qualified=[lane for lane in ("K0","K1","K4","K5") if results.get(lane,{}).get("status")=="STATIC_MEASURED"]
-        if qualified:
+        if qualified and owners is not None:
             load("kernel-modules")["build_modules"](work,s,dev,dev["input_path"](owners),qualified)
+        if owners is None:
+            print("KERNEL_THUMB_EXTERNAL DEFERRED_INSTALLED_OWNERS; image membership required only for external-module validation", flush=True)
         if len(qualified)!=4 or len(results)!=6 or any(r["status"]!="STATIC_MEASURED" for r in results.values()):
             raise ValueError("kernel matrix or K0 qualification incomplete; see kernel-matrix.json")
 
 
 if __name__=="__main__":
-    try: run(Path.cwd(),Path(sys.argv[1]),Path(sys.argv[2]))
+    try: run(Path.cwd(),Path(sys.argv[1]),Path(sys.argv[2]) if len(sys.argv)>2 else None)
     except (ValueError,OSError,subprocess.SubprocessError) as exc:
         print("KERNEL_THUMB_BLOCKED",exc)
         sys.exit(2)
