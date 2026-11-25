@@ -1,0 +1,10 @@
+Switched to 'root' account mode
+0
+FOCUS 486 TA_native-home
+/usr/bin/team-launcher
+/proc/1618/comm home-mainhub
+/proc/486/comm TA_native-home
+68554.34 230513.59
+45fac48b-bc2b-4ba9-9b98-a75d0b5f3bf0
+Switched to 'sdk user' account mode
+ROOT_RESTORED_5001

@@ -1,0 +1,8 @@
+VISIT 37736448 /home/toolchain/Desktop/temp/pm0012m-board.official.60vOYB
+/home/toolchain/Desktop/temp/.work-tmp/0012o/pm0010-board.LqvfAg/microbench: OK
+192.168.108.25:26101 is already connected
+List of devices attached 
+192.168.108.25:26101	device    	0
+Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2;
+chmod: cannot access `/tmp/pm0012m/microbench': Permission denied
+PM_REMOTE_EXIT 1

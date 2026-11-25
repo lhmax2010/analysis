@@ -1,0 +1,2 @@
+chmod: cannot access `/tmp/pm0012m/microbench': Permission denied
+PM_REMOTE_EXIT 1

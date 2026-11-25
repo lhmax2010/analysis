@@ -1,0 +1,9 @@
+5001
+SCRATCH_ABSENT
+45fac48b-bc2b-4ba9-9b98-a75d0b5f3bf0
+[get_focused_pid]
+[get_focused_pid] result: 486
+Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2;
+[68977.533192] audit: type=1400 audit(1795597213.156:226): lsm=SMACK fn=smack_inode_getattr action=denied mode=enforcing subject="User::Shell" object="System" requested=r ppid=2377 ppid_comm="sh" pid=2384 comm="chmod" path="/tmp/pm0012m/microbench" dev="tmpfs" ino=1804
+[68977.533230] audit: type=1400 audit(1795597213.156:227): lsm=SMACK fn=smack_inode_getattr action=denied mode=enforcing subject="User::Shell" object="System" requested=r ppid=2377 ppid_comm="sh" pid=2384 comm="chmod" path="/tmp/pm0012m/microbench" dev="tmpfs" ino=1804
+[69049.676578] [Verification fail] file /tmp/pm0012m/microbench is not signed. Sign it.(fsname:tmp, mnt_flags:1020)

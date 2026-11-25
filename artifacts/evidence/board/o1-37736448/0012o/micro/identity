@@ -1,0 +1,13 @@
+Linux version 6.12.60 (abuild@A1106DJG) (clang version 22.1.8, LLD 22.1.8) #1 SMP PREEMPT Mon Nov 23 06:24:04 UTC 2026
+45fac48b-bc2b-4ba9-9b98-a75d0b5f3bf0
+[Version]
+Model=T-KSU2EJAKUC-0101;
+Version=T-KSU2EJAKUC-0101-0823.20;
+Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2;
+BuildType=perf;
+Operator=;
+
+[Build]
+Date=2026-11-23;
+Time=12:22:11;
+PM_REMOTE_EXIT 0

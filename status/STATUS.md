@@ -2,7 +2,7 @@
 
 ## 0012o · O1 visit and native smoke
 
-PM accepted the passing AVControl baseline smoke and cleanup of 19 lane roots. Pilot, image scan and kernel follow in that order. PC-to-TV TCP/26101 timed out before the USB transfer. O1 microbenchmark and boot-route receipts await restored connectivity. [Visit status](../comms/codex_to_claude/0012o_reply.md)
+PM accepted the passing AVControl baseline smoke and cleanup of 19 lane roots. Pilot, image scan and kernel follow in that order. PC-to-TV connectivity recovered. The kit and target binary hashes match. Slot A is active and both kernel partitions match Official uImage. The same-boot early log reports 8,363 KiB of kernel code. After the 302.68-second Home idle window, O1 produced 0/5 trials. The SDK-owned executable passed its on-board hash check and the PERF kernel rejected its missing signature. The board remains on Official for PM review. [Visit status](../comms/codex_to_claude/0012o_reply.md)
 
 ## 0012p · Matched PERF kernel sizes
 

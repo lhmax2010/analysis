@@ -1,0 +1,4 @@
+-rwx------ 1 owner users User::Shell 559212 Nov 25 01:01 /tmp/pm0012m/microbench
+372945183c355de1919f97b039c1f898fea0818c32025cae16cd8eb864b9b5fd  /tmp/pm0012m/microbench
+/bin/sh: /tmp/pm0012m/microbench: Operation not permitted
+SDK_STAGE_RC=126

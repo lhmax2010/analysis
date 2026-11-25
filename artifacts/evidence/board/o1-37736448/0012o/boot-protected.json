@@ -1,0 +1,55 @@
+{
+  "lane": "O1",
+  "build_id": "419813f26f2d03bee00bde1d7173b0c2fd887530",
+  "images": {
+    "uImage": "eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6",
+    "zImage": "f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab"
+  },
+  "product": "[Version]\nModel=T-KSU2EJAKUC-0101;\nVersion=T-KSU2EJAKUC-0101-0823.20;\nBuild=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2;\nBuildType=perf;\nOperator=;\n\n[Build]\nDate=2026-11-23;\nTime=12:22:11;",
+  "cmdline": "dtsversion=260727.0_KSU2E_1_kantsu2e-2.0G-Builtin console=ttyS0,115200 earlycon rs232=0 maxcpus=4 no_console_suspend only_entry_model root=/dev/dm-1       KDUMP=16 SELP_ENABLE=20102011 _nvtca9-16m rootfstype=erofs rw init=/sbin/iniz mem=703744K@64M mem=394M@2048M mem=512M@2560M vmalloc=300M rootwait quiet trace_event=early_event,user bdinfo=00000010 model=4kbtin   blperf=8_53_430          pba_none partition_ab=a dm-mod.waitfor=/dev/mmcblk0p18 dm-mod.create=\"plt_linear, , 0, ro, 0 2271232 linear /dev/mmcblk0p18 2048;plt_verity, , 1, ro, 0 2234576 verity 1 /dev/dm-0 /dev/dm-0 4096 4096 279322 279322 sha256 1bfaada02c74f31318e49e5f13b2aef70fb4c3d7cbfb8b5f942ca90017819a11 61f8a01644a640ae1200bb8db7347ccfeda3afd9cdd640ae5edc2bb10d21df8e 11 check_at_most_once ignore_zero_blocks panic_on_corruption use_fec_from_device /dev/dm-0 fec_roots 2 fec_blocks 281524 fec_start 281524;prd_linear, , 2, ro, 0 79872 linear /dev/mmcblk0p18 2273280;prd_verity, , 3, ro, 0 78568 verity 1 /dev/dm-2 /dev/dm-2 4096 4096 9821 9821 sha256 d5a255f5a900e87ba10834b63b54f2fe8d450d7d84bf57c7096ed48cd40ca36d 6fc7539bcdb01fe358a501dc92981b856e9f02476b402dfb109581da55f00781 11 check_at_most_once ignore_zero_blocks panic_on_corruption use_fec_from_device /dev/dm-2 fec_roots 2 fec_blocks 9899 fec_start 9899\"",
+  "boot_id": "45fac48b-bc2b-4ba9-9b98-a75d0b5f3bf0",
+  "tool_errors": {
+    "env": "REMOTE_RC=2\n"
+  },
+  "prefix_matches": {
+    "mmcblk0p5": [
+      "uImage"
+    ],
+    "mmcblk0p6": [
+      "uImage"
+    ]
+  },
+  "boot_env": "",
+  "memory_lines": [],
+  "kernel_code_kib": null,
+  "partition_labels": {
+    "mmcblk0p1": "ddr.init",
+    "mmcblk0p10": "sign.bin",
+    "mmcblk0p11": "VD-HEADER",
+    "mmcblk0p12": "secos.bin",
+    "mmcblk0p13": "secos.bin",
+    "mmcblk0p14": "secos_drv.bin",
+    "mmcblk0p15": "secos_drv.bin",
+    "mmcblk0p16": "NONE",
+    "mmcblk0p17": "NONE",
+    "mmcblk0p18": "platform.img",
+    "mmcblk0p19": "platform.img",
+    "mmcblk0p2": "ddr.init",
+    "mmcblk0p20": "systemrw.img",
+    "mmcblk0p21": "data.img",
+    "mmcblk0p22": "factory_peq.img",
+    "mmcblk0p23": "factory_peq.img",
+    "mmcblk0p24": "EMTOKEN.bin",
+    "mmcblk0p25": "NONE",
+    "mmcblk0p26": "seret.bin.golden",
+    "mmcblk0p27": "ddr.init.golden",
+    "mmcblk0p28": "reserved",
+    "mmcblk0p3": "seret.bin",
+    "mmcblk0p4": "seret.bin",
+    "mmcblk0p5": "uImage",
+    "mmcblk0p6": "uImage",
+    "mmcblk0p7": "dtb.bin",
+    "mmcblk0p8": "dtb.bin",
+    "mmcblk0p9": "sign.bin"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "mount": "/opt/media/USBDriveA1",
+  "device": "/dev/sda1",
+  "fs": "exfat",
+  "bytes": 312298,
+  "archive_sha256": "ee1e42701592082d2a02e44be35df2e34155940ce0a45c08706eb32f28063e33",
+  "member_sha256": {
+    "board-tools.json": "96ea0f97f85f04aefb79d3851d502c18f7a7248862284adc43a57de1b642a28e",
+    "gbs-board-bench.py.txt": "0159982a99f3fa50dc2a2459d922e8aaaa62cdd0c22d716e8ff01b85bf628a88",
+    "gbs-mlgo-t7.py.txt": "1089c21b3b4bf4205bd13ba64cace371c57a7d4ec86376877f3b2d069f551a9c",
+    "gbs-thumb.py.txt": "928cff87ac0cb501a6d0575da5f1d80157bd02918d2378a5e061c2262cf11a92",
+    "image_mode_scan.py.txt": "1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75",
+    "inputs.sha256": "e5030e1109ba8b8be0e7a1fc5260a1758826896f20cae20bcbeabde17d2fc996",
+    "microbench": "372945183c355de1919f97b039c1f898fea0818c32025cae16cd8eb864b9b5fd",
+    "microbench-provenance.json": "96ea0f97f85f04aefb79d3851d502c18f7a7248862284adc43a57de1b642a28e",
+    "microbench.sha256": "0b6c291f1899c351695afbbb2b00d585e5a6705cc793124fdf1d71f7cb302d0d",
+    "mlgo-tv-identity.sh.txt": "21070fc762b878343faac9a331235ad2dfde06eb87cfa7f2f5ac24a5b855e5cf",
+    "mlgo-tv-measure.sh.txt": "d065017fb0bd825bb9c1ff86ced0616406f414ef7f41b794b35c54fcf17850e4",
+    "mlgo-tv-microbench.c.txt": "04981794ea071c5d7aef39a911086abf451cb136796e4e8edc6bffa39f66796a",
+    "mlgo-tv-run.sh.txt": "fa28ef445fed4ee573d1504ad0b7b19aad066d9b595cb90ea9a8d53c0aa64f3b",
+    "olevel.py.txt": "7ea4a4c99204ae9a280e83d46a1e3de2b7ff721ce7a8079294e36393401259bf",
+    "perf-bundle.py.txt": "4f27cada1fc6d707b463d0c713fa683b2027db1a0dbc393e64022e58aa09715b",
+    "thumb-qb-sample.py.txt": "b7a725e9c5e68072b9f5388a35df91494874f13f67a00fb7426a3067e04a3579"
+  },
+  "native_pins_verified": 11
+}

@@ -1,0 +1,28 @@
+Switched to 'root' account mode
+WORKDIR /home/toolchain/Desktop/temp/.work-tmp/0012o/pm0012n-boot.wo8easm9
+192.168.108.25:26101 is already connected
+BOOT_READBACK /home/toolchain/Desktop/temp/.work-tmp/0012o/pm0012n-boot.wo8easm9/receipt.json {"lane": "O1", "build_id": "419813f26f2d03bee00bde1d7173b0c2fd887530", "kernel_code_kib": null, "memory_lines": [], "partition_labels": {"mmcblk0p1": "ddr.init", "mmcblk0p10": "sign.bin", "mmcblk0p11": "VD-HEADER", "mmcblk0p12": "secos.bin", "mmcblk0p13": "secos.bin", "mmcblk0p14": "secos_drv.bin", "mmcblk0p15": "secos_drv.bin", "mmcblk0p16": "NONE", "mmcblk0p17": "NONE", "mmcblk0p18": "platform.img", "mmcblk0p19": "platform.img", "mmcblk0p2": "ddr.init", "mmcblk0p20": "systemrw.img", "mmcblk0p21": "data.img", "mmcblk0p22": "factory_peq.img", "mmcblk0p23": "factory_peq.img", "mmcblk0p24": "EMTOKEN.bin", "mmcblk0p25": "NONE", "mmcblk0p26": "seret.bin.golden", "mmcblk0p27": "ddr.init.golden", "mmcblk0p28": "reserved", "mmcblk0p3": "seret.bin", "mmcblk0p4": "seret.bin", "mmcblk0p5": "uImage", "mmcblk0p6": "uImage", "mmcblk0p7": "dtb.bin", "mmcblk0p8": "dtb.bin", "mmcblk0p9": "sign.bin"}, "prefix_matches": {"mmcblk0p5": ["uImage"], "mmcblk0p6": ["uImage"]}, "tool_errors": {"env": "REMOTE_RC=2\n"}}
+BOOT_ENV 
+DEVICE /dev/mmcblk0p5
+ 27 05 19 56 23 67 3d c9 6b 03 dc 18 00 ad 2a a4
+ 40 00 80 00 40 00 80 00 02 4e b8 a1 05 02 02 00
+ 4c 69 6e 75 78 2d 36 2e 31 32 2e 36 30 00 00 00
+ 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6  -
+54929820e8eeb4c1004c5500e28bea4cceb4f8c1a1c50536ebe1f3a1c5950f7d  -
+DEVICE /dev/mmcblk0p6
+ 27 05 19 56 23 67 3d c9 6b 03 dc 18 00 ad 2a a4
+ 40 00 80 00 40 00 80 00 02 4e b8 a1 05 02 02 00
+ 4c 69 6e 75 78 2d 36 2e 31 32 2e 36 30 00 00 00
+ 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6  -
+54929820e8eeb4c1004c5500e28bea4cceb4f8c1a1c50536ebe1f3a1c5950f7d  -
+DMESG_START [67957.403558] [D/SOC_THERMAL]TMU: NORMAL polling. 60'C
+dmesg: write error
+DMESG_MEMORY [0;1;39mNo journal files were found.[0m
+CHOSEN boot-modes
+CHOSEN bootargs
+CHOSEN name
+CHOSEN stdout-path
+Switched to 'sdk user' account mode
+ROOT_RESTORED_5001

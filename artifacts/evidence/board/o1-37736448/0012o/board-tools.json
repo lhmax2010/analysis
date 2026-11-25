@@ -1,0 +1,119 @@
+{
+  "gbs_log": "/home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/gbs.log",
+  "rpm": "/home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/GBS-ROOT/local/repos/qb1111/armv7l/RPMS/pm-board-microbench-1-1.armv7l.rpm",
+  "rpm_sha256": "bf82c67d005247a0b89c3cddf09246ab5bd2dafc044cf25d181507092051a32a",
+  "source_sha256": "04981794ea071c5d7aef39a911086abf451cb136796e4e8edc6bffa39f66796a",
+  "microbench_sha256": "372945183c355de1919f97b039c1f898fea0818c32025cae16cd8eb864b9b5fd",
+  "official_base": "20261113.1",
+  "linked_image_isa": {
+    "mode": "ARM",
+    "basis": "map",
+    "a32_bytes": 340064,
+    "exec_bytes": 347412
+  },
+  "linker": {
+    "invoked": "/usr/bin/ld",
+    "physical_directory_path": "/usr/bin/ld",
+    "version": "GNU ld (GNU Binutils) 2.43"
+  },
+  "installed_tools": [
+    [
+      "armv7l-tizen-linux-gnueabi-clang",
+      "clang-22.1.8-9.1.armv7l",
+      "/usr/bin/armv7l-tizen-linux-gnueabi-clang"
+    ],
+    [
+      "awk",
+      "gawk-3.1.5-1.17.armv7l",
+      "/usr/bin/awk"
+    ],
+    [
+      "ld",
+      "binutils-2.43-3.49.armv7l",
+      "/usr/bin/ld"
+    ],
+    [
+      "readelf",
+      "binutils-2.43-3.49.armv7l",
+      "/usr/bin/readelf"
+    ],
+    [
+      "rpm",
+      "rpm-4.14.1.1-1.65.armv7l",
+      "/bin/rpm"
+    ],
+    [
+      "sha256sum",
+      "coreutils-6.9-14.18.armv7l",
+      "/usr/bin/sha256sum"
+    ],
+    [
+      "tail",
+      "coreutils-6.9-14.18.armv7l",
+      "/usr/bin/tail"
+    ]
+  ],
+  "gcc_installation_lookup": {
+    "expected_directory": "/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/",
+    "static_libc": {
+      "map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/libc.a",
+      "physical_directory_path": "/usr/lib/libc.a",
+      "via_gcc_14_2": true
+    },
+    "startup_objects": [
+      {
+        "map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/crt1.o",
+        "physical_directory_path": "/usr/lib/crt1.o",
+        "via_gcc_14_2": true
+      },
+      {
+        "map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/crti.o",
+        "physical_directory_path": "/usr/lib/crti.o",
+        "via_gcc_14_2": true
+      },
+      {
+        "map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/../../../../lib/crtn.o",
+        "physical_directory_path": "/usr/lib/crtn.o",
+        "via_gcc_14_2": true
+      },
+      {
+        "map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtbeginT.o",
+        "physical_directory_path": "/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtbeginT.o",
+        "via_gcc_14_2": true
+      },
+      {
+        "map_path": "/usr/bin/../lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtend.o",
+        "physical_directory_path": "/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/crtend.o",
+        "via_gcc_14_2": true
+      }
+    ]
+  },
+  "compiler": "/bin/armv7l-tizen-linux-gnueabi-clang",
+  "compile_flags": [
+    "-O2",
+    "-static",
+    "-std=c11",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "link_evidence_flag": "-Wl,-Map,microbench.map",
+  "benchmark_main_isa": "A32",
+  "static_glibc": {
+    "path": "/usr/lib/libc.a",
+    "sha256": "c8ff58b1c0325dee12541745bf096fc2055189d24d97ee2de280b399b5749fa7",
+    "rpm_nevra": [
+      "glibc-devel-static",
+      "0",
+      "2.40",
+      "1.111",
+      "armv7l"
+    ],
+    "origin": {
+      "status": "BASE_PROVEN_FROM_GBS_DOWNLOAD",
+      "artifact": "http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/armv7l/packages/armv7l/glibc-devel-static-2.40-1.111.armv7l.rpm"
+    },
+    "provider_rpm_sha256": "9618c524c413b837e439146130d346655693c31eea90f3355526a0366b87f24a"
+  },
+  "linkage": "STATIC_NO_PT_INTERP_OR_DT_NEEDED"
+}
