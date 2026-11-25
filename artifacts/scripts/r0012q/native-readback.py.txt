@@ -1,0 +1,239 @@
+"""Retained pilot gates, scoped QB directory indexes, flat kernel mismatch ranges. Native, read-only inputs."""
+import base64
+import bisect
+import gzip
+import hashlib
+import json
+import mmap
+from pathlib import Path
+import re
+import runpy
+import shutil
+import subprocess
+import sys
+import tempfile
+from urllib.parse import urljoin, urlsplit
+import zlib
+
+WS = Path("/home1/chengkai/vd-tree/workspace")
+TEMP = WS / "temp"
+PILOT = TEMP / "pm0012-pilot.FejM73/jobs/thumb-org.tizen.AVControl"
+REPLAY = TEMP / "pm0005-gbs-kernel.mtob625f"
+P = runpy.run_path(str(Path(__file__).with_name("kernel-size.py.txt")))
+
+
+def pilot():
+    lanes = json.loads((PILOT/"experiment.json").read_bytes())["lanes"]
+    acceptance_file = PILOT/"thumb-acceptance.json"
+    acceptance = json.loads(acceptance_file.read_bytes())["lanes"] if acceptance_file.exists() else {}
+    for name, lane in lanes.items():
+        if lane["status"] == "BUILD_OR_INPUT_FAILED":
+            print("PILOT", name, lane["status"], lane.get("error"))
+            continue
+        proof = lane["evidence"]
+        reasons = []
+        if not proof.get("dwarf_option_proof"): reasons.append("DWARF producer/options")
+        for key in ("compile_calls","relevant_links"):
+            if not proof.get(key): reasons.append(key+"=0")
+        for key in ("missing_dwarf_elfs","response_unresolved"):
+            if proof.get(key): reasons.append(key)
+        if proof.get("treated_links") != proof.get("relevant_links"): reasons.append("link options")
+        if any(proof.get("driver_mode_gaps",{}).values()): reasons.append("config gate")
+        if "driver_mode_probe" in proof and isinstance(proof["driver_mode_probe"],str):
+            reasons.append(proof["driver_mode_probe"])
+        a=acceptance.get(name,{})
+        unmatched=a.get("compile_inputs_without_retained_cu",[])
+        print("T1",name,a.get("gates",{}).get("T1","no separate gate for this lane"),
+              "unmatched_inputs",len(unmatched),unmatched[:8],"cu_and_mode_verified",
+              [(i.get("path"),i.get("cu_count"),i.get("cu_mode_verified")) for i in a.get("files",[])][:8])
+        print("PILOT",name,lane["status"],"failed_predicates",json.dumps(reasons),
+              "delivery",json.dumps(proof),"acceptance",json.dumps(a.get("gates",{})))
+
+
+def debug_dirs(root, folder):
+    # Visit same-publication directory listings and its matching debug sibling if advertised.
+    parent=urljoin(root,"../")
+    stamp=root.rstrip("/").split("/")[-1]
+    arch=root+"repos/product/armv7l/"
+    queue=[parent,root,root+"repos/",root+"repos/product/",arch,arch+"debug/",arch+"debuginfo/"]
+    seen=set()
+    hits=set()
+    records=[]
+    while queue and len(seen)<60:
+        url=queue.pop(0)
+        if url in seen: continue
+        seen.add(url)
+        idx=folder/"listing.html"
+        res=subprocess.run(["curl","--noproxy",P["HOST"],"--connect-timeout","4","--max-time","20",
+             "--max-filesize","33554432","-sS","-o",idx,"-w","%{http_code}",url],capture_output=True,text=True)
+        rec={"url":url,"http":res.stdout,"curl_rc":res.returncode}
+        records.append(rec)
+        if url != parent:
+            for u,_ in P["metadata_rows"](url,folder): hits.add(u)
+        if res.returncode or res.stdout!="200": continue
+        html=P["Index"]()
+        html.feed(idx.read_text(errors="replace"))
+        children=[]
+        for href in html.links:
+            link=urljoin(url,href)
+            if (not link.startswith(url) or link==url or urlsplit(link).query or urlsplit(link).fragment
+                or not re.fullmatch(r"[a-zA-Z0-9_./:+-]+",urlsplit(link).path)): continue
+            leaf=link.rstrip("/").rsplit("/",1)[-1]
+            children.append(leaf)
+            if link.endswith("/"):
+                if url==parent: follow=leaf.startswith(stamp) and "debug" in leaf.lower()
+                else: follow=leaf in ("repos","product","armv7l","arm","packages","RPMS","noarch") or "debug" in leaf.lower()
+                if follow and link not in seen: queue.append(link)
+            elif "tztv-kernel" in leaf.lower() and "debug" in leaf.lower() and leaf.endswith(".rpm"):
+                hits.add(link)
+        rec.update(children=sorted(set(children)))
+        if "debug" in url.lower() or url==arch:
+            print("LISTING",url,"children",len(rec["children"]),"kernel_or_subdir",
+                  [n for n in rec["children"] if "kernel" in n.lower() or "." not in n][:25])
+    (folder/"directories.json").write_text(json.dumps(records,indent=2))
+    print("DEBUG_INDEX",[(r["url"].removeprefix(parent),r["http"],r["curl_rc"],len(r.get("children",[]))) for r in records])
+    print("DEBUG_CANDIDATES",json.dumps(sorted(hits)),"unvisited",len(set(queue)-seen))
+    return hits
+
+
+def sections(elf, flat):
+    """objdump gives LMAs; require exact initialized section bytes at the proposed mapping."""
+    dump=P["command"]("objdump","-hw",elf)
+    table=[]
+    for line in dump.splitlines():
+        m=re.match(r"\s*\d+\s+(\S+)\s+([\da-fA-F]+)\s+\S+\s+([\da-fA-F]+)\s+([\da-fA-F]+)\s+\S+\s+(.*)",line)
+        if not m: continue
+        name,size,lma,offset,flags=m.groups()
+        if name not in (".comment",".note") and all(k in flags for k in ("CONTENTS","ALLOC","LOAD")) and int(size,16):
+            table.append((int(lma,16),int(size,16),int(offset,16),name))
+    table.sort()
+    if not table:
+        raise ValueError("objdump did not expose allocated loadable initialized sections")
+    origin=table[0][0]
+    out=[]
+    with elf.open("rb") as f,mmap.mmap(f.fileno(),0,access=mmap.ACCESS_READ) as image:
+        for addr,size,offset,name in table:
+            lo=addr-origin
+            if image[offset:offset+size]!=flat[lo:lo+size] or out and lo<out[-1][1]:
+                raise ValueError("unverified ELF-to-flat mapping for "+name)
+            out.append((lo,lo+size,name))
+    return out
+
+
+def diff_ranges(a,b,table,output):
+    note=P["NOTE"]
+    ignore=[]
+    if a.count(note)==b.count(note)==1 and a.index(note)==b.index(note):
+        begin=a.index(note)+len(note)
+        if any(lo<=begin and begin+20<=hi and "note" in name.lower() for lo,hi,name in table):
+            ignore.append((begin,begin+20,"GNU build ID"))
+    # Accept only the two equal-position, equal-length, full printable Linux banner strings.
+    banner=rb'Linux version [ -~]{12,512}\n\x00'
+    left=list(re.finditer(banner,a))
+    right=list(re.finditer(banner,b))
+    if len(left)==len(right)==1 and left[0].span()==right[0].span():
+        ignore.append((*left[0].span(),"Linux version banner"))
+    common=min(len(a),len(b))
+    size=max(len(a),len(b))
+    cuts={0,len(a),len(b),size}
+    for lo,hi,_ in table+ignore: cuts.update((lo,hi))
+    cuts=sorted(n for n in cuts if 0<=n<=size)
+    starts=[r[0] for r in table]
+    stats={"different_bytes":0,"other_bytes":0,"ranges":0}
+    sample=[]
+    with gzip.open(output,"wt") as f:
+        f.write("start_hex\tend_exclusive_hex\treplay_section\tclassification\n")
+        for lo,hi in zip(cuts,cuts[1:]):
+            if a[lo:hi]==b[lo:hi]: continue
+            idx=bisect.bisect_right(starts,lo)-1
+            section=table[idx][2] if idx>=0 and hi<=table[idx][1] else "padding-or-outside-replay"
+            why=next((reason for begin,end,reason in ignore if begin<=lo and hi<=end),"other")
+            start=None
+            for n in range(lo,hi+1):
+                diff=n<hi and (n>=common or a[n]!=b[n])
+                if diff and start is None: start=n
+                if not diff and start is not None:
+                    stats["different_bytes"]+=n-start
+                    if why=="other": stats["other_bytes"]+=n-start
+                    stats["ranges"]+=1
+                    row=(hex(start),hex(n),section,why)
+                    f.write("\t".join(row)+"\n")
+                    if len(sample)<12: sample.append(row)
+                    start=None
+    print("DIFF_RANGES",json.dumps(stats),"first",json.dumps(sample))
+    return stats
+
+
+def compare(which,folder):
+    qb,stamp,receipt_pin,_,up,zp=P["PINS"][which]
+    cap=WS/"qb-evidence"/(qb+"-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_"+stamp)
+    receipt=json.loads(P["verified"](cap/"identity.json",receipt_pin).read_bytes())
+    root=receipt["product"]
+    if urlsplit(root).hostname!=P["HOST"] or not root.endswith(stamp+"/"): raise ValueError("unexpected publication")
+    hits=set()
+    try: hits=debug_dirs(root,folder)
+    except (OSError,ValueError,subprocess.SubprocessError) as e: print("DEBUG_LOOKUP_INCOMPLETE",str(e)[:400])
+    usb=WS/"usb"/qb/"updateSU2E"
+    payload,bid=P["raw_kernel"](P["verified"](usb/"uImage",up).read_bytes(),P["verified"](usb/"zImage",zp).read_bytes())
+    for url in sorted(hits):
+        if not P["RPM_NAME"].fullmatch(url.rsplit("/",1)[-1]):
+            continue
+        pkg=folder/"candidate.rpm"
+        if not P["download"](url,pkg,P["MAX_RPM"]):
+            print("DEBUG_RPM_READ_FAILED",url)
+            continue
+        try:
+            for member,debug in P["rpm_elfs"](pkg,bid,folder):
+                try:
+                    metrics,info=P["measure"](debug,payload,bid,folder)
+                except (ValueError,KeyError,subprocess.SubprocessError) as exc:
+                    print("DEBUG_ELF_REJECTED",member,str(exc)[:140])
+                    continue
+                print("DEBUG_ELF_MATCH",url,member,bid,P["digest"](pkg),info["berkeley_status"],metrics)
+                break
+        except (OSError,ValueError,subprocess.SubprocessError) as exc:
+            print("DEBUG_RPM_INCOMPLETE",url,str(exc)[:140])
+    elf=REPLAY/which/"GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux"
+    flatfile=folder/"replay.Image"
+    tool=next((shutil.which(name) for name in ["llvm-objcopy",*[f"llvm-objcopy-{n}" for n in range(22,10,-1)],"arm-linux-gnueabi-objcopy","arm-linux-gnueabihf-objcopy"] if shutil.which(name)),None)
+    if tool: P["command"](tool,"-O","binary","-R",".comment","-R",".note","-S",elf,flatfile)
+    else:
+        flatfile=elf.parent/"arch/arm/boot/Image"
+        if not flatfile.is_file():
+            # The replay PERF packaging directory can also hold the two boot containers.
+            raw,_=P["raw_kernel"]((elf.parent/"uImage").read_bytes(),(elf.parent/"zImage").read_bytes())
+            flatfile=folder/"replay.Image";flatfile.write_bytes(raw)
+    flat=flatfile.read_bytes()
+    table=sections(elf,flat)
+    ids=re.findall(r"Build ID:\s*([0-9a-f]+)",P["command"]("readelf","-nW",elf))
+    if len(ids)!=1 or flat.count(P["NOTE"]+bytes.fromhex(ids[0]))!=1: raise ValueError("replay ELF/image mismatch")
+    print("PAYLOAD",which,"QB",bid,len(payload),hashlib.sha256(payload).hexdigest(),
+          "GBS",ids[0],len(flat),hashlib.sha256(flat).hexdigest())
+    result=diff_ranges(flat,payload,table,folder/"ranges.tsv.gz")
+    if result["other_bytes"] or len(flat)!=len(payload): print("REPLAY_SECTION_PROXY REJECTED")
+    else:
+        print("REPLAY_SECTION_PROXY", "EXACT" if not result["ranges"] else "BUILD_ID_OR_BANNER_ONLY")
+        size=next((shutil.which(n) for n in ["llvm-size",*[f"llvm-size-{v}" for v in range(22,10,-1)]] if shutil.which(n)),None)
+        print("REPLAY_BERKELEY",P["berkeley"](size,elf) if size else "llvm-size unavailable")
+
+
+def main():
+    if len(sys.argv)>1:
+        path=Path(sys.argv[1]).resolve(strict=True)
+        if path.name not in ("directories.json","ranges.tsv.gz") or path.parents[2]!=TEMP or not path.parents[1].name.startswith("pm0012q-"): raise ValueError("unknown evidence path")
+        data=path.read_bytes()
+        if path.suffix!=".gz": data=zlib.compress(data)
+        part=int(sys.argv[2]); chunk=9000; total=(len(data)+chunk-1)//chunk
+        if not 1<=part<=total: raise ValueError("invalid part")
+        print(path.name,"PACKET",part,total,hashlib.sha256(data).hexdigest(),base64.b64encode(data[(part-1)*chunk:part*chunk]).decode())
+        return
+    work=Path(tempfile.mkdtemp(dir=TEMP,prefix="pm0012q-readback."))
+    print("WORKDIR",work,flush=True)
+    try: pilot()
+    except (OSError,ValueError,KeyError) as e: print("PILOT_READ_INCOMPLETE",str(e))
+    for lane in P["PINS"]:
+        folder=work/lane;folder.mkdir()
+        print("LANE",lane,flush=True)
+        try: compare(lane,folder)
+        except (OSError,ValueError,IndexError,KeyError,subprocess.SubprocessError) as e: print("PAYLOAD_READ_INCOMPLETE",str(e)[:450])
+if __name__=="__main__": main()
