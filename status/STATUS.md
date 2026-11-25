@@ -1,5 +1,9 @@
 # Status
 
+## 0012q · AVControl pilot and C1 staging
+
+AVControl baseline/default built with provisional .text delta −295,582 B. Both report NOT_DELIVERED. The package failed at the %install link. Wrapper fix cf4e0e9 passed the local four-stage RPM test and awaits review. Image job pm0012-image.6nhIbn was reported running. The matched QB file sizes and full Official boot Memory line are verified. C1 access awaits operator confirmation after the Custom cold boot and five-minute idle. Native gate and replay readback is pinned at 684b7c0. [Evidence, Table A and launchers](../comms/codex_to_claude/0012q_reply.md)
+
 ## 0012o · O1 visit and native smoke
 
 PM accepted the passing AVControl baseline smoke and cleanup of 19 lane roots. Pilot, image scan and kernel follow in that order. PC-to-TV connectivity recovered. The kit and target binary hashes match. Slot A is active and both kernel partitions match Official uImage. The same-boot early log reports 8,363 KiB of kernel code. After the 302.68-second Home idle window, O1 produced 0/5 trials. The SDK-owned executable passed its on-board hash check and the PERF kernel rejected its missing signature. The board remains on Official for PM review. [Visit status](../comms/codex_to_claude/0012o_reply.md)
