@@ -1,0 +1,65 @@
+"""Export the ARM instructions around this kernel's Memory: print; read-only."""
+import argparse
+import base64
+import hashlib
+import json
+from pathlib import Path
+import re
+import struct
+import zlib
+
+PINS = {
+    "37564293": "f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e",
+    "37736448": "eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6",
+    "37736427": "12d21cf52647b897d008860e240e82a82377a76aa864e3d8f9726ae495bd87e7",
+}
+
+
+def immediate(word):
+    return ((word >> 4) & 0xf000) | (word & 0xfff)
+
+
+def collect(qb, path):
+    image = path.read_bytes()
+    digest = hashlib.sha256(image).hexdigest()
+    if digest != PINS[qb]:
+        raise ValueError(f"{path} SHA-256 {digest}")
+    length = struct.unpack_from(">I", image, 12)[0]
+    data = image[64:64 + length]
+    if zlib.crc32(data) != struct.unpack_from(">I", image, 24)[0]:
+        raise ValueError("uImage data CRC")
+    prefix = b"\x016Memory: %luK/%luK available ("
+    if data.count(prefix) != 1:
+        raise ValueError("ambiguous Memory format")
+    fmt = data.index(prefix)
+    base = 0xc0008000
+    addr = base + fmt
+    hits = []
+    # movw/movt of the actual format address into printk's r0.
+    for pos in range(0, len(data) - 128, 4):
+        low, = struct.unpack_from("<I", data, pos)
+        if low & 0xfff0f000 != 0xe3000000 or immediate(low) != addr & 65535:
+            continue
+        for off in range(pos + 4, pos + 128, 4):
+            high, = struct.unpack_from("<I", data, off)
+            if high & 0xfff0f000 == 0xe3400000 and immediate(high) == addr >> 16:
+                hits.append(pos)
+                break
+    if len(hits) != 1:
+        raise ValueError(f"ambiguous r0 format load: {hits}")
+    site = hits[0]
+    start = site - 1024
+    fragment = data[start:site + 128]
+    return dict(qb=qb, sha256=digest, start_va=base + start, site_va=base + site,
+                format_va=addr, format=data[fmt:data.index(b"\0", fmt)].decode(),
+                code_sha256=hashlib.sha256(fragment).hexdigest(),
+                code_zlib_b64=base64.b64encode(zlib.compress(fragment, 9)).decode())
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("qb", choices=PINS)
+    parser.add_argument("--path", type=Path)
+    args = parser.parse_args()
+    path = args.path or Path("/home1/chengkai/vd-tree/workspace/usb") / args.qb / "updateSU2E/uImage"
+    print(json.dumps(collect(args.qb, path)))
