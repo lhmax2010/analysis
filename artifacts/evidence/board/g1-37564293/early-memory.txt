@@ -1,0 +1,5 @@
+156dc475-c1a0-4a45-a2f9-b377c22d0379
+301.22 881.02
+  040082c0-048f659b : Kernel code
+  048f7000-04a9ffff : Kernel rodata
+  04b08000-04f9c777 : Kernel data

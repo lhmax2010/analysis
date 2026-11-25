@@ -1,0 +1,6 @@
+field	link_start	link_end_exclusive	exact_bytes	print_KiB
+code	0xc00082c0	0xc08f659c	9364188	9144
+rwdata	0xc0b08000	0xc0baefac	683948	667
+rodata	0xc08f7000	0xc0aa0000	1740800	1700
+init	0xc0aa1000	0xc0b08000	421888	412
+bss	0xc0baefac	0xc0f9c778	4118476	4021

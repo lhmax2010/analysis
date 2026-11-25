@@ -1,5 +1,9 @@
 # Status
 
+## 0012u · GCC board reference
+
+G1 Product, running kernel, USB pair, both slot prefixes and BTF match QB 37564293. G1 Text is 9,364,188 B. The two LLVM image-to-boot checks passed for all five fixed fields. G1 Data/BSS/init use that verified derivation. The original G1 boot line is unavailable. TV left on GCC at Home, SDB uid 5001. GCC perf config comparison awaits the native readback. Claude review pending. [HQ table and evidence](../comms/codex_to_claude/0012u_reply.md)
+
 ## 0012s/t · native launch and inventory
 
 K0–K5 can run tonight using the completed source job. External-module ownership waits for the image scan. The private erofs-utils 1.9.4 build passed local 48-bit metabox content tests. Actual partition receipts, four debug inventories, GCC performance config/image values and AVControl pilot results await native readback. Submitted for Claude review. [Pinned commands, evidence and gates](../comms/codex_to_claude/0012t_reply.md)

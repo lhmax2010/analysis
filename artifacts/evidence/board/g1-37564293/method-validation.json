@@ -1,0 +1,53 @@
+[
+  {
+    "qb": "37736448",
+    "uImage_sha256": "eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6",
+    "method_KiB": {
+      "code": 8363,
+      "rwdata": 666,
+      "rodata": 1640,
+      "init": 404,
+      "bss": 4024
+    },
+    "boot_line_KiB": {
+      "code": 8363,
+      "rwdata": 666,
+      "rodata": 1640,
+      "init": 404,
+      "bss": 4024
+    },
+    "status": "EXACT_5_OF_5"
+  },
+  {
+    "qb": "37736427",
+    "uImage_sha256": "12d21cf52647b897d008860e240e82a82377a76aa864e3d8f9726ae495bd87e7",
+    "method_KiB": {
+      "code": 8120,
+      "rwdata": 665,
+      "rodata": 1636,
+      "init": 396,
+      "bss": 4025
+    },
+    "boot_line_KiB": {
+      "code": 8120,
+      "rwdata": 665,
+      "rodata": 1636,
+      "init": 396,
+      "bss": 4025
+    },
+    "status": "EXACT_5_OF_5"
+  },
+  {
+    "qb": "37564293",
+    "uImage_sha256": "f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e",
+    "method_KiB": {
+      "code": 9144,
+      "rwdata": 667,
+      "rodata": 1700,
+      "init": 412,
+      "bss": 4021
+    },
+    "boot_line_KiB": {},
+    "status": "KERNEL_DERIVED"
+  }
+]

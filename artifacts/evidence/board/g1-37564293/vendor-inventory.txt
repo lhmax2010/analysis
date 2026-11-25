@@ -1,0 +1,15 @@
+cat: /proc/dtvlogd_info: Is a directory
+-rw-rw---- 1 root  506 0 Nov 25 06:33 /proc/dtvlogd
+-r--r----- 1 root  506 0 Nov 25 06:33 /proc/dtvlogd_all
+-rwxrwxrwx 1 root root 0 Nov 25 06:33 /proc/klog
+-rwxrwxrwx 1 root root 0 Nov 25 06:33 /proc/klog2
+
+/proc/dtvlogd_info:
+total 0
+-r--r----- 1 root 506 0 Nov 25 06:38 buff_size
+-r--r----- 1 root 506 0 Nov 25 06:38 version
+ls: cannot access /opt/storage: No such file or directory
+ls: cannot access /mtd_rwarea: No such file or directory
+/run/log:
+serial8250
+tztv_bootmode@B

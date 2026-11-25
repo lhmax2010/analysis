@@ -1,0 +1,2 @@
+[0;1;39mNo journal files were found.[0m
+ls: cannot access /var/log/dlog/*/*: No such file or directory

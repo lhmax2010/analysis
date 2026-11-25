@@ -1,0 +1,44 @@
+[0;1;39mNo journal files were found.[0m
+[0;1;39mNo journal files were found.[0m
+-- No entries --
+ls: cannot access /opt/usr/share/feedback/: No such file or directory
+/opt/var/log/:
+total 32
+-rw-r--r-- 1 root          root              194 Nov 12 11:19 alternatives.log
+drwxr-xr-x 1 root          root                3 Nov 12 11:52 appfw
+drwxrwxrwx 1 root          app_logging         0 Nov 12 11:52 dlog
+-rw------- 1 root          root            24648 Nov 12 11:11 faillog
+drwxr-sr-x 1 root          systemd-journal     0 Nov 12 11:52 journal
+drwx------ 1 root          root                0 Nov 12 11:52 krb5
+drwxr-xr-x 1 owner         users               0 Dec 31  1969 malort
+drwxr-xr-x 1 multimedia_fw multimedia_fw       0 Nov 12 11:52 mused
+drwx------ 1 root          root                0 Dec 31  1969 private
+-rw------- 1 root          root                0 Nov 12 11:05 tallylog
+drwx------ 1 owner         users               1 Dec 31  1969 userpresence
+
+/var/log/dlog/:
+total 0
+
+/var/log/journal/:
+total 0
+dtvlogd
+dtvlogd_all
+dtvlogd_info
+emrg_log_partition
+klog
+klog2
+reboot
+security
+total 0
+drwxr-xr-x 12 root root 240 Nov 25 06:32 cgroup
+drwxr-xr-x  2 root root   0 Nov 25 06:38 ecryptfs
+drwxr-xr-x  5 root root   0 Nov 25 06:38 erofs
+drwxr-xr-x  3 root root   0 Nov 25 06:38 fuse
+dr-xr-xr-x  2 root root   0 Dec 31  1969 kdbus
+drwxr-xr-x  2 root root   0 Dec 31  1969 smackfs
+drwxr-xr-x  5 root root   0 Nov 25 06:38 vdfs4
+ls: cannot access /opt/storage/*/log*: No such file or directory
+ls: cannot access /mtd_rwarea/*log*: No such file or directory
+ls: cannot access /mnt/*log*: No such file or directory
+drwxr-xr-x 1 root root 11 Dec 31  1969 /opt/var/log
+drwxrwxrwx 1 root root  0 Nov 12 11:52 /opt/var/log_smart_deadlock

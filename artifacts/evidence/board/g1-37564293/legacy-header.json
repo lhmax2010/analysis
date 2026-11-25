@@ -1,0 +1,19 @@
+{
+  "gnu_build_id": "137d01259d95739d5eb71e468bf289ee467a65b0",
+  "uImage_sha256": "f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e",
+  "zImage_sha256": "161721c1f37e44f4a114849fba0dac95d73766a432a575365b602c8735e1f132",
+  "header_crc": "5201d896",
+  "header_crc_computed": "5201d896",
+  "ih_size": 12218284,
+  "data_crc": "463c5f3e",
+  "data_crc_computed": "463c5f3e",
+  "uImage_file_size": 12218608,
+  "zImage_file_size": 5664248,
+  "uImage_minus_64": 12218544,
+  "trailing_bytes": 260,
+  "load": "0x40008000",
+  "entry": "0x40008000",
+  "image_name": "Linux-6.12.60",
+  "compression": "none",
+  "zImage_gzip_matches_payload": true
+}

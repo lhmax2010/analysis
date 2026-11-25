@@ -1,0 +1,11 @@
+chengkai@risc-v-Alienware-Aurora-R16:~$ (
+set -eu
+p=/home1/chengkai/vd-tree/workspace/qb-evidence/37564293-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/e78789c2d95eb9a0-tztv-kernel-perf-1-1.armv7l.rpm
+printf '%s  %s\n' e78789c2d95eb9a0e629646fad73e01d02a088ae470cce9e297ee8642b7399e5 "$p" | sha256sum -c -
+rpm -qp --dump "$p" | awk '$1=="/perf/uImage" || $1=="/perf/zImage" || $1 ~ /\/kernel\/vmlinux$/ {print $1,$2,$4}'
+)
+/home1/chengkai/vd-tree/workspace/qb-evidence/37564293-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/e78789c2d95eb9a0-tztv-kernel-perf-1-1.armv7l.rpm: OK
+/lib/modules/perf/6.12.60/kernel/vmlinux 3630143 1a5ee77d0f3760df26546522966b0083a703343f1609b5d0decc473980ab979f
+/perf/uImage 12218608 f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e
+/perf/zImage 5664248 161721c1f37e44f4a114849fba0dac95d73766a432a575365b602c8735e1f132
+chengkai@risc-v-Alienware-Aurora-R16:~$

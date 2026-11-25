@@ -1,0 +1,11 @@
+/dev/sda1 /opt/media/USBDriveA1 exfat rw,dirsync,nosuid,noexec,noatime,gid=10001,fmask=0000,dmask=0000,shrink_batch=0,allow_utime=0022,codepage=cp437,iocharset=utf8,namecase=0,errors=remount-ro 0 0
+[Version]
+Model=T-KSU2EJAKUC-0101;
+Version=T-KSU2EJAKUC-0101-0813.10;
+Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1;
+BuildType=perf;
+Operator=;
+
+[Build]
+Date=2026-11-12;
+Time=19:47:48;

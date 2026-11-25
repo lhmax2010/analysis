@@ -1,0 +1,21 @@
+dtsversion=260727.0_KSU2E_1_kantsu2e-2.0G-Builtin console=ttyS0,115200 earlycon rs232=0 maxcpus=4 no_console_suspend only_entry_model root=/dev/dm-1       KDUMP=16 SELP_ENABLE=20102011 _nvtca9-16m rootfstype=erofs rw init=/sbin/iniz mem=703744K@64M mem=394M@2048M mem=512M@2560M vmalloc=300M rootwait quiet trace_event=early_event,user bdinfo=00000010 model=4kbtin   blperf=8_2_437           pba_none partition_ab=a dm-mod.waitfor=/dev/mmcblk0p18 dm-mod.create="plt_linear, , 0, ro, 0 2322432 linear /dev/mmcblk0p18 2048;plt_verity, , 1, ro, 0 2285712 verity 1 /dev/dm-0 /dev/dm-0 4096 4096 285714 285714 sha256 cebeb92bcbc079b81661363c5abdd3011c8d329cc1cdc5168c12e16a6f10c5c4 aa0dc5ffc95d3c0c1446dc11de86bf92dacc756b87eec4a58d12a6bb21ba02eb 11 check_at_most_once ignore_zero_blocks panic_on_corruption use_fec_from_device /dev/dm-0 fec_roots 2 fec_blocks 287966 fec_start 287966;prd_linear, , 2, ro, 0 81920 linear /dev/mmcblk0p18 2324480;prd_verity, , 3, ro, 0 79152 verity 1 /dev/dm-2 /dev/dm-2 4096 4096 9894 9894 sha256 c38aafd9b41f1887a4e9f06a3631f1990713e0166156837b97a60786ec8aaf2a f2f9a35e62c04c223046f0b6759b38dc31db1331c9d7a74e137ca9d5ee3744fb 11 check_at_most_once ignore_zero_blocks panic_on_corruption use_fec_from_device /dev/dm-2 fec_roots 2 fec_blocks 9973 fec_start 9973"                                                                                                                                                                              
+SLOT_PARTITION_5
+MAJOR=179
+MINOR=5
+DEVNAME=mmcblk0p5
+DEVTYPE=partition
+DISKSEQ=30
+PARTN=5
+PARTNAME=uImage
+53248
+f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e  -
+SLOT_PARTITION_6
+MAJOR=179
+MINOR=6
+DEVNAME=mmcblk0p6
+DEVTYPE=partition
+DISKSEQ=30
+PARTN=6
+PARTNAME=uImage
+53248
+f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e  -

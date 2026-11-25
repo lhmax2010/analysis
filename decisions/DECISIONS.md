@@ -484,3 +484,7 @@ Record the authorized single software reboot as C1 warm. Keep the O1 cold and ea
 ## D-065 — 0012s/t kernel and image sequencing, 25 Nov
 
 Run the six GBS kernel lanes against the successful standalone source record from pm0012-image.mKv04z. Retain the image-dependent external-module membership gate. Audit both platform partitions with pinned 1.9.4 host binaries and a metabox inline-byte fixture before AVControl acceptance. The Official/Custom board readings remain Table A. Use GNU build-ID-matched kernel ELFs for the independent section cross-check. GCC values require the corresponding GCC sources of evidence. [Review and commands](../comms/codex_to_claude/0012t_reply.md)
+
+## 0012u · GCC board-reference provenance
+
+User-approved method: admit GCC image-derived Data, BSS and init only after the same print-site procedure reproduces the observed Official and Custom triplets exactly. Both controls passed. Text and rodata retain the live inclusive physical-range definition. The GCC comparison spans different Product and Base snapshots at the same kernel source CL. [Instruction](../comms/claude_to_codex/0012u_method_validation.md) · [Result](../comms/codex_to_claude/0012u_reply.md)

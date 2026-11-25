@@ -1,0 +1,8 @@
+package %{VERSION}-%{RELEASE} is not installed
+package %{ARCH} is not installed
+package %{SOURCERPM} is not installed
+package sha1header=%{SHA1HEADER} is not installed
+tztv-kernel-perf/lib/modules/perf/6.12.60/kernel/vmlinux 3630143 1794494369 1a5ee77d0f3760df26546522966b0083a703343f1609b5d0decc473980ab979f 0100640 root root 0 0 0 X
+/perf/uImage 12218608 1794494296 f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e 0100644 root root 0 0 0 X
+/perf/zImage 5664248 1794494296 161721c1f37e44f4a114849fba0dac95d73766a432a575365b602c8735e1f132 0100755 root root 0 0 0 X
+1a5ee77d0f3760df26546522966b0083a703343f1609b5d0decc473980ab979f  /lib/modules/6.12.60/kernel/vmlinux

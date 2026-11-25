@@ -1,0 +1,117 @@
+"""PC-only constant propagation through the three shipped ARM Memory print paths.
+
+No image instructions are executed. Runtime counters and call returns stay unknown.
+"""
+import base64
+import hashlib
+import json
+from pathlib import Path
+import re
+import struct
+import subprocess
+import sys
+import tempfile
+import zlib
+
+MASK = 0xffffffff
+
+
+def instructions(packet):
+    code = zlib.decompress(base64.b64decode(packet["code_zlib_b64"], validate=True))
+    assert len(code) == 1152 and hashlib.sha256(code).hexdigest() == packet["code_sha256"]
+    with tempfile.TemporaryDirectory() as folder:
+        p = Path(folder)
+        (p / "slice").write_bytes(code)
+        subprocess.run(["llvm-objcopy", "-I", "binary", "-O", "elf32-littlearm", "-B", "arm",
+                        "--rename-section", ".data=.text,alloc,load,readonly,code,contents",
+                        "slice", "slice.o"], cwd=p, check=True)
+        listing = subprocess.check_output(["llvm-objdump", "--triple=armv7-linux-gnueabi", "-d",
+                                           "--adjust-vma=" + hex(packet["start_va"]), "slice.o"],
+                                          cwd=p, text=True)
+    rows = []
+    for line in listing.splitlines():
+        match = re.match(r'^([a-f0-9]+):\s+([a-f0-9]{8})\s+(\w+)\s+(.+)', line)
+        if match:
+            address, word, op, args = match.groups()
+            address = int(address, 16)
+            assert int(word, 16) == struct.unpack_from('<I', code, address-packet['start_va'])[0]
+            rows.append((address, op, args.split(' <')[0].strip()))
+    start = max(i for i, (pc, op, args) in enumerate(rows)
+                if pc < packet["site_va"] and op == "push" and "lr" in args)
+    if start and rows[start-1][1:] == ("mov", "r12, sp"):
+        start -= 1
+    return rows[start:]
+
+
+def fields(packet):
+    regs = {"sp": 0x10000}
+    stack = {}
+    flags = {}
+    def val(name):
+        return int(name[1:], 0) & MASK if name.startswith("#") else regs.get(name)
+    def compare(a, b):
+        assert a is not None and b is not None, "condition depends on runtime input"
+        flags.update(lo=a < b, hs=a >= b, hi=a > b, ls=a <= b, eq=a == b, ne=a != b)
+    for pc, opcode, args in instructions(packet):
+        pred = opcode[-2:]
+        if pred in ("lo", "hs", "hi", "ls", "eq", "ne"):
+            opcode = opcode[:-2]
+            if not flags[pred]:
+                continue
+        parts = args.split(", ")
+        dest = parts[0]
+        if opcode == "push":
+            regs["sp"] -= 4 * len(parts)
+        elif opcode == "bl":
+            if pc > packet["site_va"] and regs.get("r0") == packet["format_va"]:
+                sp = regs["sp"]
+                result = dict(zip(("code","rwdata","rodata","init","bss"),
+                                  [regs.get("r3")] + [stack.get(sp+i) for i in (0,4,8,12)]))
+                assert None not in result.values(), "size field depends on runtime state"
+                return result
+            for key in ("r0","r1","r2","r3","r12","lr"):
+                regs.pop(key, None)
+            flags.clear()
+        elif opcode == "cmp":
+            compare(val(dest), val(parts[1]))
+        elif opcode in ("mov", "movw", "movt"):
+            v = val(parts[1])
+            regs[dest] = ((regs[dest] & 65535) | (v << 16)) if opcode == "movt" else v
+        elif opcode in ("ldr", "str"):
+            m = re.fullmatch(r'\w+, \[(\w+)(?:, #(-?(?:0x[0-9a-f]+|\d+)))?\]', args)
+            assert m, args
+            base, offset = m.groups()
+            address = val(base)
+            if address is not None:
+                address = (address + int(offset or '0', 0)) & MASK
+            if opcode == "str":
+                assert base in ("r11","sp"), args
+                stack[address] = val(dest)
+            else:
+                regs[dest] = stack.get(address) if base in ("r11","sp") else None
+        elif opcode in ("add","sub","subs","and","lsr","lsl","bic"):
+            a,b = map(val, parts[1:3])
+            if opcode == "subs":
+                compare(a,b)
+            if a is None or b is None:
+                regs[dest] = None
+            elif opcode == "bic":
+                assert parts[3:] == ["asr #31"], args
+                regs[dest] = 0 if b >> 31 else a
+            else:
+                assert len(parts) == 3
+                if opcode == "add": v = a + b
+                elif opcode.startswith("sub"): v = a - b
+                elif opcode == "and": v = a & b
+                elif opcode == "lsr": v = a >> b
+                else: v = a << b
+                regs[dest] = v & MASK
+        else:
+            raise ValueError((hex(pc),opcode,args))
+    raise ValueError("no call with the expected format pointer")
+
+
+if __name__ == "__main__":
+    for source in sys.argv[1:]:
+        obj = json.loads(Path(source).read_text())
+        print(obj["qb"], json.dumps(fields(obj), sort_keys=True))

@@ -1,0 +1,8 @@
+[    4.334774] [E/SOC_KCAL] Koffset Value = 598F1455
+[    4.334781] [E/SOC_KCAL] Koffset Value = 00008074
+[    4.334788] [E/SOC_KCAL] Koffset Value = 00000000
+dmesg: write error
+/usr/bin/journalctl
+alternatives.log  dlog	   journal  malort  private   userpresence
+appfw		  faillog  krb5     mused   tallylog
+ls: cannot access /sys/fs/pstore: No such file or directory
