@@ -2,7 +2,7 @@
 
 ## 0012v · G1 warm board and image tooling
 
-GCC Home confirmed after one reboot and 10 signed workload trials. Warm median MemAvailable 1,088,000 KiB (C1 1,086,360). G1/C1 gzip medians 0.42/0.41 s, xz 0.83/0.93 s. Full G1 roster 2,343 rows. The upstream EROFS dev fix passed the two-filesystem byte fixture. The native kernel batch runs independently; next stages await completion and disk gates. Claude review pending. [Weekly data](../reports/weekly/2026-11-27/draft-data.md) · [Review packet](../comms/codex_to_claude/0012v_reply.md)
+GCC Home confirmed after one reboot and 10 signed workload trials. Warm median MemAvailable 1,088,000 KiB (C1 1,086,360). G1/C1 gzip medians 0.42/0.41 s, xz 0.83/0.93 s. Full G1 roster 2,343 rows. The upstream EROFS dev fix passed the two-filesystem byte fixture. The native kernel batch runs independently; next stages await completion and disk gates. Claude review pending. The local native pin awaits approved publication; raw download is currently blocked. [Weekly data](../reports/weekly/2026-11-27/draft-data.md) · [Review packet](../comms/codex_to_claude/0012v_reply.md)
 
 ## 0012u · GCC board reference
 

@@ -51,6 +51,8 @@ The configure-ready archive SHA-256 is `b2046a0a2b633c43cfe95d1761032fcfbd62fb38
 
 ## Tomorrow on the native server · for Claude review
 
+**Publication gate:** code commit `0db8f90257b1f76a67208b82da92234f8102d9ce` and data commit `f56f8e81f6e5cade9f68723703a432b7f1d4e4b6` are local. Automatic approval review rejected the push to `origin/main` because the destination’s authorization for internal board and project data was unverified. The raw-GitHub launcher below requires publication of the code pin to an approved destination before use.
+
 Start after the kernel batch's terminal completion is available. The kernel job was left to run independently overnight. For disk planning let K be the **additional allocated GiB since** the operator's ~135 GiB reading, including retained kernel roots. Starting free space is approximately 135 − K GiB. Use the current workspace filesystem reading at each handoff. The estimates below assume fresh trees and retention of the previous outputs.
 
 | Step | Additional peak allowance | Retained allowance charged to next step | Planning start free | What establishes completion |
