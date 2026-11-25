@@ -1,0 +1,119 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ # Paste once per terminal: defines pm12m (pin c56e4ab) and boot12n (pin 88c6d9e). Runs nothing.
+pm12m() (
+  set -eu
+  pin=c56e4ab5f3eb31f70a8a5f80db0fab1297a11e20
+  dir=$(mktemp -d /home1/chengkai/vd-tree/workspace/temp/pm0012m-get.XXXXXX)
+  curl -fsSL --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012m/launch.sh.txt" -o "$dir/launch"
+  printf '%s  %s\n' 87a426d83789958a9b4445396d9193ea6a45787b8b72cccab7d8fec4df006496 "$dir/launch" | sha256sum -c -
+  exec bash "$dir/launch" "$pin" "$@"
+)
+boot12n() (
+  set -eu
+  pin=88c6d9e69b435f2ba26e983856779ba54ee3c361
+  d=$(mktemp -d /home1/chengkai/vd-tree/workspace/temp/pm0012n-get.XXXXXX)
+  curl -fsSL --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012n/boot-proof.py.txt" -o "$d/read"
+  printf '%s  %s\n' 885dda881f4898a45ee4487b3a62ab0f5e8e47787bb6f08f14732643fdb7d0cf "$d/read" | sha256sum -c -
+  exec python3 -B "$d/read" "$@"
+)
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ pm12m inventory
+/home1/chengkai/vd-tree/workspace/temp/pm0012m-get.H8dHgs/launch: OK
+[sudo] password for chengkai:
+CFG official-step5 clang.cfg 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec b'-target armv7l-tizen-linux-gnueabi\n-resource-dir /usr/lib/clang/22\n-D_FILE_OFFSET_BITS=64\n'
+CFG pisa-baseline clang.cfg 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec b'-target armv7l-tizen-linux-gnueabi\n-resource-dir /usr/lib/clang/22\n-D_FILE_OFFSET_BITS=64\n'
+CFG_COMPARE clang.cfg SAME
+CFG official-step5 clang++.cfg 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec b'-target armv7l-tizen-linux-gnueabi\n-resource-dir /usr/lib/clang/22\n-D_FILE_OFFSET_BITS=64\n'
+CFG pisa-baseline clang++.cfg 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec b'-target armv7l-tizen-linux-gnueabi\n-resource-dir /usr/lib/clang/22\n-D_FILE_OFFSET_BITS=64\n'
+CFG_COMPARE clang++.cfg SAME
+PISA_FIRST_CAUSE baseline [  113s]     armv7l-tizen-linux-gnueabi-clang++: error: -Wl,-z,relro: 'linker' input unused [-Werror,-Wunused-command-line-argument]
+PISA_FIRST_CAUSE default [  184s]     armv7l-tizen-linux-gnueabi-clang++: error: -Wl,-z,relro: 'linker' input unused [-Werror,-Wunused-command-line-argument]
+PISA_FIRST_CAUSE package [  195s]     /home/abuild/rpmbuild/BUILD/libpisa-ipc-2.10.11/.pm12-driver/armv7l-tizen-linux-gnueabi-clang++: line 31: link_edits[@]: unbound variable
+INIT_DIAGNOSTICS /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/gbs.log {'liblto_plugin.so': "[   57s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory", '/usr/bin/lua': "[   57s] chroot: failed to run command '/usr/bin/lua': No such file or directory", 'gcc-warning-build-env.post': '[   58s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found', 'gcc-force-options-only': '[   58s] /usr/bin/gcc-force-options-only: line 17: find: command not found', 'limits.conf': "[   58s] sed: can't read /etc/security/limits.conf: No such file or directory"}
+INIT_DIAGNOSTICS /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/baseline/gbs.log {'liblto_plugin.so': "[   80s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory", '/usr/bin/lua': "[   80s] chroot: failed to run command '/usr/bin/lua': No such file or directory", 'gcc-warning-build-env.post': '[   80s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found', 'gcc-force-options-only': '[   80s] /usr/bin/gcc-force-options-only: line 17: find: command not found', 'limits.conf': "[   80s] sed: can't read /etc/security/limits.conf: No such file or directory", 'kernel-install': '[  100s] /usr/bin/kernel-install: No such file or directory'}
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/baseline/GBS-ROOT 4078972928
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/default/GBS-ROOT 4079009792
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/package/GBS-ROOT 4078985216
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/baseline/GBS-ROOT 2827288576
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/default/GBS-ROOT 2827411456
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/package/GBS-ROOT 2827309056
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/baseline/GBS-ROOT 2577960960
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/default/GBS-ROOT 2578030592
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/baseline/GBS-ROOT 2767904768
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/default/GBS-ROOT 2768027648
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/package/GBS-ROOT 2767921152
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/baseline/GBS-ROOT 3354722304
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/default/GBS-ROOT 3354816512
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/package/GBS-ROOT 3354722304
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/baseline/GBS-ROOT 2504552448
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/default/GBS-ROOT 2504634368
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/baseline/GBS-ROOT 3983364096
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/default/GBS-ROOT 3983433728
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/package/GBS-ROOT 3983360000
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ pm12m cleanup
+/home1/chengkai/vd-tree/workspace/temp/pm0012m-get.8R8APf/launch: OK
+CFG official-step5 clang.cfg 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec b'-target armv7l-tizen-linux-gnueabi\n-resource-dir /usr/lib/clang/22\n-D_FILE_OFFSET_BITS=64\n'
+CFG pisa-baseline clang.cfg 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec b'-target armv7l-tizen-linux-gnueabi\n-resource-dir /usr/lib/clang/22\n-D_FILE_OFFSET_BITS=64\n'
+CFG_COMPARE clang.cfg SAME
+CFG official-step5 clang++.cfg 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec b'-target armv7l-tizen-linux-gnueabi\n-resource-dir /usr/lib/clang/22\n-D_FILE_OFFSET_BITS=64\n'
+CFG pisa-baseline clang++.cfg 2ec8547a727989ea470d0bfc2a2d97083cc154faba2f13e939198a32adb3b3ec b'-target armv7l-tizen-linux-gnueabi\n-resource-dir /usr/lib/clang/22\n-D_FILE_OFFSET_BITS=64\n'
+CFG_COMPARE clang++.cfg SAME
+PISA_FIRST_CAUSE baseline [  113s]     armv7l-tizen-linux-gnueabi-clang++: error: -Wl,-z,relro: 'linker' input unused [-Werror,-Wunused-command-line-argument]
+PISA_FIRST_CAUSE default [  184s]     armv7l-tizen-linux-gnueabi-clang++: error: -Wl,-z,relro: 'linker' input unused [-Werror,-Wunused-command-line-argument]
+PISA_FIRST_CAUSE package [  195s]     /home/abuild/rpmbuild/BUILD/libpisa-ipc-2.10.11/.pm12-driver/armv7l-tizen-linux-gnueabi-clang++: line 31: link_edits[@]: unbound variable
+INIT_DIAGNOSTICS /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/gbs.log {'liblto_plugin.so': "[   57s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory", '/usr/bin/lua': "[   57s] chroot: failed to run command '/usr/bin/lua': No such file or directory", 'gcc-warning-build-env.post': '[   58s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found', 'gcc-force-options-only': '[   58s] /usr/bin/gcc-force-options-only: line 17: find: command not found', 'limits.conf': "[   58s] sed: can't read /etc/security/limits.conf: No such file or directory"}
+INIT_DIAGNOSTICS /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/baseline/gbs.log {'liblto_plugin.so': "[   80s] mv: cannot stat `/usr/lib/gcc/armv7l-tizen-linux-gnueabi/14.2.0/liblto_plugin.so': No such file or directory", '/usr/bin/lua': "[   80s] chroot: failed to run command '/usr/bin/lua': No such file or directory", 'gcc-warning-build-env.post': '[   80s] .init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found', 'gcc-force-options-only': '[   80s] /usr/bin/gcc-force-options-only: line 17: find: command not found', 'limits.conf': "[   80s] sed: can't read /etc/security/limits.conf: No such file or directory", 'kernel-install': '[  100s] /usr/bin/kernel-install: No such file or directory'}
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/baseline/GBS-ROOT 4078972928
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/baseline/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/default/GBS-ROOT 4079009792
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/default/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/package/GBS-ROOT 4078985216
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-bluetooth-impl-sec-oal/package/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/baseline/GBS-ROOT 2827288576
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/baseline/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/default/GBS-ROOT 2827411456
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/default/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/package/GBS-ROOT 2827309056
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-libpisa-ipc/package/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/baseline/GBS-ROOT 2577960960
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/baseline/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/default/GBS-ROOT 2578030592
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-nnstreamer/default/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/baseline/GBS-ROOT 2767904768
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/baseline/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/default/GBS-ROOT 2768027648
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/default/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/package/GBS-ROOT 2767921152
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.AVControl/package/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/baseline/GBS-ROOT 3354722304
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/baseline/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/default/GBS-ROOT 3354816512
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/default/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/package/GBS-ROOT 3354722304
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.tv-viewer/package/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/baseline/GBS-ROOT 2504552448
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/baseline/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/default/GBS-ROOT 2504634368
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-org.tizen.webserver/default/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/baseline/GBS-ROOT 3983364096
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/baseline/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/default/GBS-ROOT 3983433728
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/default/GBS-ROOT
+LANE_ROOT_BYTES /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/package/GBS-ROOT 3983360000
+PRUNED /home1/chengkai/vd-tree/workspace/temp/pm0012-wed-a.M5knpj/jobs/thumb-widevine-cdm/package/GBS-ROOT
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ pm12m smoke
+/home1/chengkai/vd-tree/workspace/temp/pm0012m-get.khk2gy/launch: OK
+Perforce password (P4PASSWD) invalid or unset.
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ p4 login
+Enter password:
+User hao.lin logged in.
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ pm12m smoke
+/home1/chengkai/vd-tree/workspace/temp/pm0012m-get.FayIJx/launch: OK
+User hao.lin ticket expires in 11 hours 59 minutes.
+PM12_BATCH_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-smoke.neJb0i
+2026-11-25T13:37:15+08:00 START smoke
+2026-11-25T13:37:37+08:00 JOB thumb-org.tizen.AVControl START
+2026-11-25T13:42:08+08:00 JOB thumb-org.tizen.AVControl END rc=0
+2026-11-25T13:42:08+08:00 DONE smoke rc=0
+PM12_SMOKE_ARGV {"compile": {"exec": ["/bin/armv7l-tizen-linux-gnueabi-clang++", "-DEFL_BETA_API_SUPPORT", "-v", "-MD", "-MT", "CMakeFiles/cmTC_cd5a0.dir/CMakeCXXCompilerABI.cpp.o", "-MF", "CMakeFiles/cmTC_cd5a0.dir/CMakeCXXCompilerABI.cpp.o.d", "-o", "CMakeFiles/cmTC_cd5a0.dir/CMakeCXXCompilerABI.cpp.o", "-c", "/usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp"], "wrapper_input": ["/bin/armv7l-tizen-linux-gnueabi-clang++", "-DEFL_BETA_API_SUPPORT", "-v", "-MD", "-MT", "CMakeFiles/cmTC_cd5a0.dir/CMakeCXXCompilerABI.cpp.o", "-MF", "CMakeFiles/cmTC_cd5a0.dir/CMakeCXXCompilerABI.cpp.o.d", "-o", "CMakeFiles/cmTC_cd5a0.dir/CMakeCXXCompilerABI.cpp.o", "-c", "/usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp"]}, "link": {"exec": ["/bin/armv7l-tizen-linux-gnueabi-clang++", "-DEFL_BETA_API_SUPPORT", "-v", "-Wl,-v", "-rdynamic", "CMakeFiles/cmTC_cd5a0.dir/CMakeCXXCompilerABI.cpp.o", "-o", "cmTC_cd5a0"], "wrapper_input": ["/bin/armv7l-tizen-linux-gnueabi-clang++", "-DEFL_BETA_API_SUPPORT", "-v", "-Wl,-v", "-rdynamic", "CMakeFiles/cmTC_cd5a0.dir/CMakeCXXCompilerABI.cpp.o", "-o", "cmTC_cd5a0"]}}
+PM12_SMOKE_ELF [["org.tizen.AVControl", "/usr/apps/org.tizen.AVControl/bin/AVControl", "ARM", "97e5d0b429bc6160b98d7de9317bbadafddfece6f7460019ad0fc3af000f9a32"]]
+PM12_AVCONTROL_SMOKE "PASS"
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$

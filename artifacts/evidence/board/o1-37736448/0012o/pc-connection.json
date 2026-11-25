@@ -1,0 +1,31 @@
+{
+  "time_utc": "2026-11-25T07:44:33.541033+00:00",
+  "route": {
+    "command": [
+      "ip",
+      "route",
+      "get",
+      "192.168.108.25"
+    ],
+    "rc": 0,
+    "output": "192.168.108.25 via 192.168.107.1 dev enp128s31f6 src 192.168.107.10 uid 1000 \n    cache"
+  },
+  "connect": {
+    "command": [
+      "sdb",
+      "connect",
+      "192.168.108.25:26101"
+    ],
+    "rc": 0,
+    "output": "error: failed to connect to remote target '192.168.108.25'"
+  },
+  "devices": {
+    "command": [
+      "sdb",
+      "devices"
+    ],
+    "rc": 0,
+    "output": "List of devices attached"
+  },
+  "tcp": "timed out"
+}

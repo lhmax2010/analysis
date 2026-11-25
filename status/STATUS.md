@@ -1,5 +1,9 @@
 # Status
 
+## 0012o · O1 visit and native smoke
+
+PM accepted the passing AVControl baseline smoke and cleanup of 19 lane roots. Pilot, image scan and kernel follow in that order. PC-to-TV TCP/26101 timed out before the USB transfer. O1 microbenchmark and boot-route receipts await restored connectivity. [Visit status](../comms/codex_to_claude/0012o_reply.md)
+
 ## 0012p · Matched PERF kernel sizes
 
 Official → Custom reduces uImage by 263,728 B, zImage by 104,472 B and RPM size by 184,748 B. The two QB-linked ELF tables await the native readback. The RPI Total uses an unknown measure. [Size tables and native collection](../comms/codex_to_claude/0012p_reply.md)
