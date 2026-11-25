@@ -1,0 +1,410 @@
+"""Measure only the two source-matched KantSU2E PERF kernels. Python 3.10, native host."""
+import csv
+import hashlib
+import gzip
+import bz2
+from html.parser import HTMLParser
+import json
+import mmap
+import os
+from pathlib import Path
+import re
+import shutil
+import struct
+import subprocess
+import tempfile
+from urllib.parse import urljoin, urlsplit
+import xml.etree.ElementTree as ET
+import zlib
+
+WS = Path("/home1/chengkai/vd-tree/workspace")
+HOST = "repos.vd.sec.samsung.net"
+# Matched capture receipt, kernel RPM, USB uImage and zImage.
+PINS = {
+    "official": ("37736448", "20261123.2", "f164cf5f56ced88fd0618c68df686c79ec36aca85dbeb53972a4b128f135862d",
+                 "91254010607414093524cf675f51c766a0d72a84fc631b521a303e8ea060a8a6",
+                 "eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6",
+                 "f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab"),
+    "custom": ("37736427", "20261123.1", "59e000f5b7ec8a508f5251b2e11e36cd3b29036ac91b3cf7034d3aadbb0a3e5b",
+               "ca4d110fc85bacf358a8a6ec9e267cf312b4f7aadb1e387e52dde04f4c204b71",
+               "12d21cf52647b897d008860e240e82a82377a76aa864e3d8f9726ae495bd87e7",
+               "5481cf2ee178fd1ff30d841cc7702d89ee27d1039f8c34a41d9c30a5e439f941"),
+}
+A = ("Text", "Data", "BSS", "Total")
+B = ("Text", "Data", "BSS", "dec", ".text", ".rodata", ".init.*", "runtime RAM", "uImage", "zImage", "tztv-kernel-perf RPM")
+NOTE = struct.pack("<III", 4, 20, 3) + b"GNU\0"
+RPM_NAME = re.compile(r"tztv-kernel(?:-perf)?-debuginfo-1-1\.armv7l\.rpm$")
+MAX_RPM = 1024**3
+
+
+def command(*args):
+    return subprocess.check_output(args, text=True, stderr=subprocess.PIPE, env={**os.environ, "LC_ALL":"C"})
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def verified(path, pin):
+    if digest(path) != pin:
+        raise ValueError("SHA256 mismatch " + str(path))
+    return path
+
+
+def raw_kernel(u, z):
+    h = bytearray(u[:64])
+    if len(h) != 64 or h[:4] != bytes.fromhex("27051956") or h[28:32] != bytes((5,2,2,0)):
+        raise ValueError("expected an uncompressed ARM Linux legacy uImage")
+    crc, _, length, _, _, data_crc = struct.unpack_from(">6I", h, 4)
+    h[4:8] = bytes(4)
+    p = u[64:64+length]
+    if not length or len(p)!=length or zlib.crc32(p)!=data_crc or zlib.crc32(h)!=crc:
+        raise ValueError("invalid uImage lengths/CRC")
+    for m in re.finditer(b"\x1f\x8b\x08", z):
+        obj = zlib.decompressobj(31)
+        try:
+            flat = obj.decompress(z[m.start():], length+1)
+        except zlib.error:
+            continue
+        if obj.eof and flat == p:
+            break
+    else:
+        raise ValueError("zImage does not reproduce the uImage payload")
+    if p.count(NOTE)!=1:
+        raise ValueError("missing/ambiguous GNU SHA1 build-ID note in flat kernel")
+    i = p.index(NOTE)+len(NOTE)
+    return p, p[i:i+20].hex()
+
+
+def elf_sections(buf):
+    if buf[:6] != b"\x7fELF\x01\x01" or struct.unpack_from("<HH",buf,16)!=(2,40):
+        raise ValueError("expected linked little-endian ARM ELF32")
+    shoff = struct.unpack_from("<I",buf,32)[0]
+    step,n,strings = struct.unpack_from("<HHH",buf,46)
+    if step!=40 or not 0<strings<n or shoff+step*n>len(buf):
+        raise ValueError("invalid section headers")
+    rows = [struct.unpack_from("<10I", buf, shoff+i*step) for i in range(n)]
+    offset,size = rows[strings][4:6]
+    names = buf[offset:offset+size]
+    return [(names[r[0]:].split(b"\0",1)[0].decode(),r,shoff+i*step) for i,r in enumerate(rows) if r[2]&2 and r[5]]
+
+
+def berkeley(tool, path):
+    output = command(tool, "-B", path)
+    rows = re.findall(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+[0-9a-fA-F]+\s+",output,re.M)
+    if len(rows)!=1:
+        raise ValueError("unexpected llvm-size output "+output[:200])
+    values = dict(zip(("Text","Data","BSS","dec"),map(int, rows[0])))
+    if values["dec"] != sum(values[x] for x in A[:3]):
+        raise ValueError("inconsistent Berkeley total")
+    return values
+
+
+def measure(path, payload, bid, work, replay=False):
+    ids = re.findall(r"Build ID:\s*([0-9a-f]+)", command("readelf","-nW",path))
+    if ids != [bid]:
+        raise ValueError("ELF GNU build ID mismatch "+str(ids[:3]))
+    with path.open("rb") as f, mmap.mmap(f.fileno(),0,access=mmap.ACCESS_READ) as buf:
+        rows = elf_sections(buf)
+        sizes = {name:r[5] for name,r,_ in rows}
+        named = {k:sizes[k] for k in (".text",".rodata",".data",".bss")}
+        named["runtime RAM"] = sum(named.values())
+        named[".init.*"] = sum(r[5] for name,r,_ in rows if name.startswith(".init."))
+        notes = []
+        note = NOTE + bytes.fromhex(bid)
+        for _,r,_ in rows:
+            if r[1]==7:
+                pos = buf[r[4]:r[4]+r[5]].find(note)
+                if pos>=0:
+                    notes.append(r[3]+pos)
+        if len(notes)!=1:
+            raise ValueError("no unique allocated note anchor")
+        base = notes[0] - payload.index(note)
+        text, = (r for name,r,_ in rows if name==".text")
+        if replay:
+            # Recreate arm/boot/Image with the arm Kbuild objcopy list and compare every byte.
+            begin=text[3]-base
+            if text[1]==8 or begin<0 or payload[begin:begin+text[5]]!=buf[text[4]:text[4]+text[5]]:
+                raise ValueError("replay .text differs from the shipped payload")
+            flat=path.parent/"arch/arm/boot/Image"
+            if not flat.is_file() or flat.read_bytes()!=payload:
+                flat=work/"replay.Image"
+                objcopy=shutil.which("llvm-objcopy") or shutil.which("arm-linux-gnueabi-objcopy")
+                if not objcopy:
+                    raise ValueError("no matching retained Image or ARM-capable objcopy")
+                # The build ID can occupy .notes or a named note section. Retain the
+                # actual allocated note and compare the complete binary, including gaps.
+                command(objcopy,"-O","binary","-R",".comment","-R",".note","-S",path,flat)
+                if flat.read_bytes()!=payload:
+                    raise ValueError("replay flat image differs")
+        btool=shutil.which("llvm-size") or next((shutil.which(f"llvm-size-{n}") for n in range(22,10,-1) if shutil.which(f"llvm-size-{n}")),None)
+        info={"sections":sizes,"build_id":bid,"elf_sha256":digest(path),"reference":str(path)}
+        if not btool:
+            return named,{**info,"berkeley_status":"llvm-size missing"}
+        raw=berkeley(btool,path)
+        info.update(raw_berkeley=raw,tool=command(btool,"--version").splitlines()[:2])
+        if not any(name==".data" and r[1]==8 for name,r,_ in rows) and text[1]!=8:
+            return {**named,**raw},{**info,"berkeley_status":"linked ELF"}
+        # Debug splitting often turns initialized writable sections into NOBITS.
+        # Keep exact QB sh_size/flags. Recover writable bytes only when the flat
+        # image proves initialization. A zero-only range inside Image is ambiguous.
+        changes=[]
+        uncertain=[]
+        for name,r,off in rows:
+            if not (r[1]==8 and r[2]&1):
+                continue
+            start,size=r[3]-base,r[5]
+            if any(other!=name and r[3]<s[3]+s[5] and s[3]<r[3]+size for other,s,_ in rows):
+                uncertain.append(name)
+            elif 0<=start and start+size<=len(payload) and any(payload[start:start+size]):
+                changes.append((name,off,payload[start:start+size]))
+            elif name==".bss" and start>=0 and not any(payload[start:start+size]):
+                continue
+            else:
+                uncertain.append(name)
+        info.update(restored_sections=[c[0] for c in changes],unclassified_writable=uncertain)
+        if uncertain:
+            return {**named,"Text":raw["Text"],"dec":raw["dec"]},{**info,"berkeley_status":"Data/BSS unresolved"}
+        view=work/"berkeley-view.elf"
+        shutil.copyfile(path,view)
+        with view.open("r+b") as f:
+            for _,off,data in changes:
+                pos=f.seek(0,2)
+                f.write(data)
+                f.seek(off+4)
+                f.write(struct.pack("<I",1))
+                f.seek(off+16)
+                f.write(struct.pack("<I",pos))
+        corrected=berkeley(btool,view)
+        if raw["dec"]!=corrected["dec"] or raw["Text"]!=corrected["Text"]:
+            raise ValueError("allocated totals changed during split-debug restoration")
+        return {**named,**corrected},{**info,"berkeley_status":"llvm-size -B on matched debug ELF with restored initialized writable contents"}
+
+
+class Index(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.links=[]
+    def handle_starttag(self, tag, attrs):
+        if tag=="a":
+            self.links.extend(v for k,v in attrs if k=="href" and v)
+
+
+def download(url, dest, limit):
+    # No redirects or credentials; fetch only objects inside the pinned QB publication.
+    if urlsplit(url).hostname!=HOST or urlsplit(url).scheme not in ("http","https"):
+        raise ValueError("unexpected repository host")
+    result=subprocess.run(["curl","--noproxy",HOST,"--max-redirs","0","-fsS","--connect-timeout","4","--max-time",
+                           "240" if limit==MAX_RPM else "12","--max-filesize",str(limit),"-o",dest,
+                           "-w","%{http_code}",url],capture_output=True,text=True)
+    return result.returncode==0 and result.stdout=="200"
+
+
+def metadata_rows(repo,work):
+    idx=work/"repomd.xml"
+    if not download(repo+"repodata/repomd.xml",idx,2*1024**2):
+        return
+    primary=ET.parse(idx).find(".//{*}data[@type='primary']")
+    if primary is None:
+        return
+    link=primary.find("{*}location").get("href")
+    if not re.fullmatch(r"repodata/[A-Za-z0-9._-]+",link):
+        return
+    packed=work/"primary.download"
+    check=primary.find("{*}checksum")
+    if not download(repo+link,packed,80*1024**2):
+        return
+    data=packed.read_bytes()
+    algo=check.get("type")
+    if hashlib.new("sha1" if algo=="sha" else algo,data).hexdigest()!=check.text.strip():
+        raise ValueError("primary checksum mismatch "+repo)
+    if data.startswith(b"\x1f\x8b"):
+        data=gzip.decompress(data)
+    elif data.startswith(b"BZh"):
+        data=bz2.decompress(data)
+    elif data.startswith(b"\xfd7zXZ"):
+        data=subprocess.check_output(["xz","-dc",packed])
+    elif data.startswith(bytes.fromhex("28b52ffd")):
+        data=subprocess.check_output(["zstd","-qdc",packed])
+    for item in ET.fromstring(data).findall("{*}package"):
+        if item.findtext("{*}name") not in ("tztv-kernel-perf-debuginfo","tztv-kernel-debuginfo"):
+            continue
+        href=item.find("{*}location").get("href")
+        check=item.find("{*}checksum")
+        if check.get("type")=="sha256" and urljoin(repo,href).startswith(repo):
+            yield urljoin(repo,href),check.text.strip()
+
+
+def debug_packages(cap,meta,work,rows):
+    root=meta["product"]
+    prefix=root+"repos/product/armv7l/"
+    seen=set()
+    def fetch(url,pin=None):
+        if url in seen or not url.startswith(root) or not RPM_NAME.fullmatch(url.rsplit("/",1)[-1]):
+            return None
+        seen.add(url)
+        out=work/("lookup-"+str(len(seen))+".rpm")
+        if download(url,out,MAX_RPM):
+            if pin:
+                verified(out,pin)
+            return out,url
+        return None
+    for p in sorted(cap.rglob("*debuginfo*.rpm")):
+        if "tztv-kernel" in p.name:
+            yield p,str(p)
+    for row in rows:
+        if row["srpm"]=="tztv-kernel-1-1.src.rpm" and RPM_NAME.fullmatch(row["url"].split("/")[-1]):
+            entry=fetch(row["url"],row["sha256"])
+            if entry:
+                yield entry
+    # Published Tizen snapshots can split packages and debug subrepositories.
+    # Try canonical locations even when HTTP directory indexing is disabled.
+    for folder in ("debug/armv7l/","packages/armv7l/","debuginfo/armv7l/","debug/","packages/"):
+        for pkg in ("tztv-kernel-perf","tztv-kernel"):
+            entry=fetch(prefix+folder+pkg+"-debuginfo-1-1.armv7l.rpm")
+            if entry:
+                yield entry
+    for repo in (prefix+"debug/",prefix+"debuginfo/"):
+        for url,pin in metadata_rows(repo,work):
+            entry=fetch(url,pin)
+            if entry:
+                yield entry
+    queue=[root,root+"repos/",prefix,prefix+"debug/",prefix+"packages/armv7l/"]
+    visited=set()
+    while queue and len(visited)<40:
+        url=queue.pop(0)
+        if url in visited:
+            continue
+        visited.add(url)
+        idx=work/"last-index.html"
+        if not download(url,idx,16*1024**2):
+            continue
+        page=Index()
+        page.feed(idx.read_text(errors="replace"))
+        for link in page.links:
+            child=urljoin(url,link)
+            if not child.startswith(url) or child==url or any(x in child for x in ("?","#","/../","%2f")):
+                continue
+            leaf=child.rstrip("/").rsplit("/",1)[-1].lower()
+            if child.endswith("/") and (leaf in {"repos","product","armv7l","packages","rpms"} or "debug" in leaf):
+                queue.append(child)
+            elif RPM_NAME.fullmatch(leaf):
+                entry=fetch(child)
+                if entry:
+                    yield entry
+    (work/"lookup.json").write_text(json.dumps(dict(directories=sorted(visited),rpm_urls=sorted(seen)),indent=2))
+
+
+def rpm_elfs(pkg, bid, work):
+    info=command("rpm","-qp","--qf",r"%{NAME}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\t%{SOURCERPM}",pkg).split("\t")
+    if info[0] not in ("tztv-kernel-debuginfo","tztv-kernel-perf-debuginfo") or info[1:]!=["1","1","armv7l","tztv-kernel-1-1.src.rpm"]:
+        return
+    members=command("rpm","-qpl",pkg).splitlines()
+    for m in members:
+        if not (re.fullmatch(r"vmlinux(?:[-.].*)?",Path(m).name) or m.endswith("/"+bid[:2]+"/"+bid[2:]+".debug")):
+            continue
+        if not m.startswith("/") or ".." in Path(m).parts:
+            continue
+        output=work/"candidate.elf"
+        with output.open("wb") as f, subprocess.Popen(["rpm2cpio",pkg],stdout=subprocess.PIPE) as unpack:
+            cp=subprocess.run(["cpio","--quiet","-i","--to-stdout","--","."+m,m.lstrip("/")],stdin=unpack.stdout,stdout=f,stderr=subprocess.PIPE)
+            if cp.returncode or unpack.wait():
+                raise ValueError("cpio failed on "+m)
+        with output.open("rb") as f:
+            if f.read(4)==b"\x7fELF":
+                yield m,output
+
+
+def lane(which,work,result):
+    qb,stamp,capsha,rpmsha,usha,zsha=PINS[which]
+    cap=WS/"qb-evidence"/(qb+"-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_"+stamp)
+    receipt=json.loads(verified(cap/"identity.json",capsha).read_text())
+    ledger=verified(cap/"rpm-identities.tsv",receipt["files"]["rpm-identities.tsv"])
+    with ledger.open() as f:
+        rows=list(csv.DictReader(f,delimiter="\t"))
+    row,=(r for r in rows if r["name"]=="tztv-kernel-perf" and r["sha256"]==rpmsha and r["srpm"]=="tztv-kernel-1-1.src.rpm" and r["vcs"].endswith("#14293732"))
+    rpm,=(cap/i["file"] for i in receipt["payloads"] if i["sha256"]==row["sha256"])
+    verified(rpm,rpmsha)
+    usb=WS/"usb"/qb/"updateSU2E"
+    u=verified(usb/"uImage",usha).read_bytes()
+    z=verified(usb/"zImage",zsha).read_bytes()
+    payload,bid=raw_kernel(u,z)
+    if which=="official" and bid!="419813f26f2d03bee00bde1d7173b0c2fd887530":
+        raise ValueError("O1 running build ID differs")
+    result.update(qb=qb,build_id=bid,flat_sha256=hashlib.sha256(payload).hexdigest(),trailer=len(u)-64-len(payload),
+                  metrics={"Total":len(payload),"uImage":len(u),"zImage":len(z),"tztv-kernel-perf RPM":rpm.stat().st_size},attempts=[])
+    seen=set()
+    for pkg,origin in debug_packages(cap,receipt,work,rows):
+        h=digest(pkg)
+        if h in seen:
+            continue
+        seen.add(h)
+        result["attempts"].append(origin)
+        for member,elf in rpm_elfs(pkg,bid,work):
+            try:
+                values,info=measure(elf,payload,bid,work)
+            except (ValueError,subprocess.CalledProcessError,KeyError) as exc:
+                result["attempts"].append([member,str(exc)])
+                continue
+            kept=work/("matched-"+info["elf_sha256"]+".elf")
+            elf.replace(kept)
+            info["reference"]=str(kept)
+            result.update(elf=info,rpm_sha256=h,rpm_source=origin,member=member)
+            result["metrics"].update(values)
+            if all(x in values for x in A[:3]):
+                return
+    replay=WS/"temp/pm0005-gbs-kernel.mtob625f"/which/"GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux"
+    if replay.is_file():
+        try:
+            values,info=measure(replay,payload,bid,work,True)
+            result.update(elf=info,source="byte-matched retained GBS ELF")
+            result["metrics"].update(values)
+        except (ValueError,subprocess.SubprocessError,KeyError) as exc:
+            result["attempts"].append([str(replay),str(exc)])
+
+
+def tables(results):
+    out=[]
+    for label,keys in (("A",A),("B",B)):
+        out.extend([f"Table {label} (bytes)", "| Kernel | Metric | Official MLGO (baseline) | Custom MLGO | Diff (B) |"+(" Diff (%) |" if label=="B" else ""),
+                    "|---|---|---:|---:|---:|"+("---:|" if label=="B" else "")])
+        for k in keys:
+            a,b=[results[n].get("metrics",{}).get(k) for n in PINS]
+            delta=None if a is None or b is None else b-a
+            vals=[f"{x:,}" if x is not None else "—" for x in (a,b,delta)]
+            if label=="B":
+                vals.append(f"{100*delta/a:+.2f}%" if delta is not None and a else "—")
+            out.append("| VDLinux | "+k+" | "+" | ".join(vals)+" |")
+    return "\n".join(out)
+
+
+def main():
+    work=Path(tempfile.mkdtemp(dir=WS/"temp",prefix="pm0012p-size."))
+    print("WORKDIR",work,flush=True)
+    results={}
+    for which in PINS:
+        folder=work/which
+        folder.mkdir()
+        result=results[which]={}
+        try:
+            lane(which,folder,result)
+        except (OSError,ValueError,KeyError,subprocess.SubprocessError) as exc:
+            result["error"]=str(exc)
+        print("LANE",which,json.dumps({k:result[k] for k in ("qb","build_id","flat_sha256","trailer","rpm_source","rpm_sha256","member","error") if k in result}))
+        print("ELF",which,json.dumps({k:v for k,v in result.get("elf",{}).items() if k!="sections"}))
+        print("LOOKUP",which,"last attempts",str(result.get("attempts",[])[-3:])[:640])
+    (work/"proof.json").write_text(json.dumps(results,indent=2)+"\n")
+    report=tables(results)
+    (work/"tables.md").write_text(report+"\n")
+    print(report)
+    ok=all(all(k in r.get("metrics",{}) for k in (*A,*B)) for r in results.values())
+    print("ELF_TABLES", "MATCHED" if ok else "PARTIAL", "proof_sha256",digest(work/"proof.json"))
+    return 0 if ok else 2
+
+
+if __name__=="__main__":
+    raise SystemExit(main())
