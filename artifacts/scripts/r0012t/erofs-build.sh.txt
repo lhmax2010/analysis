@@ -44,10 +44,9 @@ if ! probe zlib zlib.h z; then
     get https://codeload.github.com/madler/zlib/tar.gz/refs/tags/v1.3.1 zlib 17e88863f3600672ab49182f217281b6fc4d3c762bde361935e436a95214d05c
     (cd zlib-1.3.1 && ./configure --prefix="$prefix" && make -j2 && make install)
 fi
-get "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012t/erofs-utils-1.9.4.tar.gz" release b461c83774c4dde715b3bdacaabe132b6a28dd5fa0b114cf9c3b6db0b0635bd1
-curl -fsSL --retry 4 --retry-all-errors --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012t/metabox-inline.patch" -o metabox-inline.patch
-printf '%s  %s\n' 7114037b830396ff01eed2e5a2a15e11c1e9b4d48faa44412ba116bdd975931e metabox-inline.patch | sha256sum -c -
-(cd erofs-utils-1.9.4 && patch -p1 < ../metabox-inline.patch && ./configure --prefix="$prefix" --enable-lz4 --enable-lzma --with-zlib --with-libzstd && make -j2 && make install)
+upstream=7e52cbffa83fbe9eb10bbf110cb12d503a048081
+get "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0012v/erofs-utils-dev-7e52cbf.tar.gz" release b2046a0a2b633c43cfe95d1761032fcfbd62fb38252aa4bdb4a58de4ad2ffbb5
+(cd erofs-utils-1.9.4 && ./configure --prefix="$prefix" --enable-lz4 --enable-lzma --with-zlib --with-libzstd && make -j2 && make install)
 "$prefix/bin/fsck.erofs" --help >help.txt 2>&1
 for algo in lz4 lzma deflate zstd; do grep -w "$algo" help.txt; done
 mkdir probe-src
@@ -57,7 +56,7 @@ for algo in lz4 zstd; do
     "$prefix/bin/fsck.erofs" --extract="$work/$algo.tree" "$algo.img"
     cmp probe-src/inline "$algo.tree/inline"
 done
-echo METABOX_INLINE_BYTES_VERIFIED >&3
+printf 'UPSTREAM_COMMIT %s\nMETABOX_INLINE_BYTES_VERIFIED\n' "$upstream" >&3
 cd "$work"
 sha256sum prefix/bin/{fsck,dump}.erofs > tools.sha256
 "$prefix/bin/fsck.erofs" -V >&3

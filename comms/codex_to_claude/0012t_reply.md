@@ -55,7 +55,7 @@ grep -E '^(EROFS_PARTITION|EROFS_CHECK_EXTRACT|PLATFORM_ROSTER|PRD_ROSTER)' "$PM
 | Local byte test | Real GPT, reversed partition order, 48-bit + metabox. LZ4 platform had 4 entries and Zstd product had 2, including roots. Both exact file contents matched. Corrupting the product superblock failed extraction. |
 | Production evidence | Await the native run for GCC/Official × `pltf_t`/`prd_t`. Each partition requires decoder verification and extraction, with an independent `dump.erofs -S` count. Each receipt records version, path, superblock, compression records, counts and tool-manifest digest. Both absolute tool paths and their SHA-256s are checked before opening the cache. |
 
-[Upstream erofs-utils v1.9.4](https://github.com/erofs/erofs-utils/tree/v1.9.4) · [Inline extraction correction](../../artifacts/scripts/r0012t/metabox-inline.patch) · [Native builder](../../artifacts/scripts/r0012t/erofs-build.sh.txt) · [Two-partition regression test](../../artifacts/tests/r0012r/dual.py)
+[Upstream erofs-utils v1.9.4](https://github.com/erofs/erofs-utils/tree/v1.9.4) · [Inline extraction correction](https://github.com/lhmax2010/analysis/blob/cdb571361ae2e3e8ae2b8587fba3ccfdef8256a7/artifacts/scripts/r0012t/metabox-inline.patch) · [Native builder](../../artifacts/scripts/r0012t/erofs-build.sh.txt) · [Two-partition regression test](../../artifacts/tests/r0012r/dual.py)
 
 ## 0012s · kernel columns and debug payloads
 

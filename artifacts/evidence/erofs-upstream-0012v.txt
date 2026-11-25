@@ -1,0 +1,14 @@
+UPSTREAM 7e52cbffa83fbe9eb10bbf110cb12d503a048081 2026-11-22 erofs-utils: add Windows binaries to release artifacts
+UPSTREAM b9dd73fb478ac88fc142e6430ed71be43dc65cab 2026-11-12 erofs-utils: lib: fix metabox inline data reads
+Last official release v1.9.4 (peeled master f36cadb5c563995ab3aa8572a60ed6b721b9557d).
+Git archive overlaid on configure-ready make dist. 138/138 upstream regular files compared byte-for-byte after unpacking. No source patches.
+b2046a0a2b633c43cfe95d1761032fcfbd62fb38252aa4bdb4a58de4ad2ffbb5  analysis/artifacts/scripts/r0012v/erofs-utils-dev-7e52cbf.tar.gz
+<W> erofs: EXPERIMENTAL libzstd compressor in use. Note that `fitblk` isn't supported by upstream zstd for now.
+<W> erofs: If unaligned compression isn't used (without -E48bit), it will take more time in order to get the optimal result.
+EROFS_PARTITION platform 0x181 legacy LZ4 if compressed
+EROFS_CHECK_EXTRACT platform fsck.erofs (erofs-utils) 1.9.4 4 entries
+EROFS_PARTITION prd 0x183 ['ZSTD']
+EROFS_CHECK_EXTRACT prd fsck.erofs (erofs-utils) 1.9.4 2 entries
+EROFS_PARTITION platform 0x181 legacy LZ4 if compressed
+EROFS_CHECK_EXTRACT platform fsck.erofs (erofs-utils) 1.9.4 4 entries
+PASS reversed named GPT, both EROFS trees, /prd overlay, ELF counts, corrupted product rejected

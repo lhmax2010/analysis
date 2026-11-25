@@ -48,5 +48,5 @@ SELF	artifacts/scripts/r0012r/workspace-disk.py.txt	032cb3b62c07a7163b86ade80b0e
 SELF	artifacts/scripts/r0012r/replay-symbols.py.txt	15508fd00cac8804917dac2a8351c7052b73298e3fe9c0a964dbda27162c6d09	replay-symbols.py.txt
 SELF	artifacts/scripts/r0012p/kernel-size.py.txt	1b0b6b883d0aa78dd2bd9698b2d6c417ee8620d3b1addcf9ef88d4b103d4a925	kernel-size.py.txt
 SELF	artifacts/scripts/r0012t/inspect-compression.py.txt	87769a62fd4144c42f8d07140da16d317e42bcf9c295aad0a16419055e1069cd	inspect-compression.py.txt
-SELF	artifacts/scripts/r0012t/erofs-build.sh.txt	7202f2b40e21e8d1d6903f43a6c75a7bb35217a9bd7b45055e46d7ffaabeccf7	erofs-build.sh.txt
+SELF	artifacts/scripts/r0012t/erofs-build.sh.txt	f428cff23ebd9c56a8b76d88ec4ac62c13daa1d3f5b82742475a0b960fb6cd65	erofs-build.sh.txt
 SELF	artifacts/scripts/r0012t/kernel-inventory.py.txt	b6cde1e538270de536c8c1b84df72a52d953d07617cabd3704c4a2c793264917	kernel-inventory.py.txt
