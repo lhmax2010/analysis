@@ -1,5 +1,9 @@
 # Status
 
+## 0012p · Matched PERF kernel sizes
+
+Official → Custom reduces uImage by 263,728 B, zImage by 104,472 B and RPM size by 184,748 B. The two QB-linked ELF tables await the native readback. The RPI Total uses an unknown measure. [Size tables and native collection](../comms/codex_to_claude/0012p_reply.md)
+
 ## 0012m–n · Wed-A, Step 5 and kernel outliner
 
 Official GBS produced the verified A32 Step 5 benchmark. Wed-A M5knpj yielded no qualifying Thumb comparison. The foreground AVControl smoke and O1 run are ready for PM review at c56e4ab. Kernel pin 88c6d9e requires the passing native smoke and adds paired inline/size/board evidence. Which boot container is active and K0–K5 measurements await native and board readback. [Wed-A and board commands](../comms/codex_to_claude/0012m_reply.md) · [Kernel measurements](../comms/codex_to_claude/0012n_reply.md)
