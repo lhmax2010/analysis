@@ -1,0 +1,155 @@
+"""Read the retained kernel tree and search the QB's RPM metadata for the image writer."""
+import fnmatch
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import subprocess
+import sys
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+ROOT = Path("/home1/chengkai/vd-tree/workspace")
+CANDIDATE = re.compile(r"^(?:erofs(?:-utils)?|mic|image-creator|image-configurations)(?:$|-core$|-tools$)", re.I)
+HIT = re.compile(r"COMPRESSION_ZLIB|zlib_inflate|inflateInit|libz\.h|ZLIB_INFLATE|decompressor_zlib|z_erofs_zlib|mkfs\.erofs|Samsung|Copyright.*Tizen", re.I)
+URI = re.compile(r"https?://[^\s<>\"']+")
+
+
+def evidence(label, name, data, limit=15):
+    result = [f"{i}:{line.strip()[:260]}" for i, line in enumerate(data.decode(errors="replace").splitlines(), 1) if HIT.search(line)]
+    if result:
+        print(label, name, hashlib.sha256(data).hexdigest(), *result[:limit], sep="\n  ")
+
+
+def srpm_files(path, work):
+    """Read source RPM bytes as data. Only plain members are materialized in private scratch."""
+    area = work/(path.name+".members")
+    area.mkdir(exist_ok=True)
+    with subprocess.Popen(["rpm2cpio", path], stdout=subprocess.PIPE) as cmd:
+        f = cmd.stdout
+        while True:
+            h = f.read(110)
+            if h[:6] not in (b"070701", b"070702") or len(h) != 110:
+                raise ValueError("invalid source RPM newc header")
+            length = int(h[54:62],16)
+            n = int(h[94:102],16)
+            if not 1 <= n <= 4096 or length > 120*1024**2:
+                raise ValueError("SRPM member exceeds source-inspection limit")
+            name = f.read(n).rstrip(b"\0").decode()
+            f.read(-(110+n)%4)
+            if name == "TRAILER!!!":
+                f.read()
+                break
+            content = f.read(length)
+            if len(content) != length:
+                raise ValueError("short SRPM member")
+            f.read(-length%4)
+            if int(h[14:22],16) >> 12 != 8:
+                continue
+            safe = Path(name).name
+            if safe.endswith((".spec",".diff",".patch")):
+                evidence("SRPM_SPEC_PATCH",safe,content)
+                if safe.endswith(".spec"):
+                    for line in content.decode(errors="replace").splitlines():
+                        if re.match(r"^(?:Source|Patch)\d*\s*:|^%(?:patch|autopatch|autosetup)",line,re.I):
+                            print("SPEC_INPUT",line[:240])
+            elif re.search(r"\.tar(?:\.(?:gz|bz2|xz|zst))?$|\.tgz$",safe):
+                tar = area/safe
+                tar.write_bytes(content)
+                names = subprocess.check_output(["tar","-tf",tar],text=True).splitlines()
+                for member in names:
+                    if not re.search(r"(?:^|/)(?:erofs_fs\.h|decompress(?:or)?\.c|compr(?:essor)?(?:_zlib)?\.c|compressor_zlib\.c|fs_related\.py|erofs(?:img)?\.py)$",member):
+                        continue
+                    body = subprocess.check_output(["tar","-xOf",tar,"--",member])
+                    evidence("SRPM_SOURCE",member,body)
+        if cmd.wait():
+            raise ValueError("rpm2cpio failed")
+
+
+def search(repo, url, work, seen):
+    ns, cm = repo["REP"], repo["COM"]
+    root = ET.fromstring(repo["fetch"](url+"repodata/repomd.xml",2<<20))
+    entry = root.find(f"{ns}data[@type='primary']")
+    dest = urljoin(url,entry.find(ns+"location").get("href"))
+    raw = repo["fetch"](dest)
+    checksum = entry.find(ns+"checksum")
+    algo = checksum.get("type")
+    if hashlib.new("sha1" if algo=="sha" else algo,raw).hexdigest() != checksum.text.strip():
+        raise ValueError("primary checksum")
+    print("PRIMARY_OK",url,checksum.text)
+    for pkg in ET.fromstring(repo["unpack"](raw)).findall(cm+"package"):
+        name = pkg.findtext(cm+"name")
+        if not CANDIDATE.match(name):
+            continue
+        v = pkg.find(cm+"version").attrib
+        arch = pkg.findtext(cm+"arch")
+        href = urljoin(url,pkg.find(cm+"location").get("href"))
+        repo["require_repo"](href)
+        digest = pkg.find(cm+"checksum")
+        srpm = pkg.findtext(cm+"format/"+repo["RPM"]+"sourcerpm")
+        print("PACKAGE_CANDIDATE",name,v.get("epoch","0"),v["ver"],v["rel"],arch,srpm,href,digest.text)
+        if arch in ("src","nosrc") and digest.get("type")=="sha256" and digest.text not in seen:
+            pkgsize = int(pkg.find(cm+"size").get("package"))
+            if pkgsize > 120*1024**2:
+                print("SOURCE_REVIEW size limit",href)
+                continue
+            path = repo["cached_rpm"]((href,digest.text),work)
+            srpm_files(path,work)
+            seen.add(digest.text)
+
+
+def main():
+    work = Path.cwd()
+    repo = runpy.run_path(str(work/"image-repo-lib.py.txt"))
+    job = ROOT/"temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb"
+    dirs = [job/"vdlinux/linux-6.12/fs/erofs",job/"shared/vdlinux/linux-6.12/fs/erofs"]
+    source = next((p for p in dirs if (p/"erofs_fs.h").is_file()),None)
+    if source:
+        print("RETAINED_SOURCE",source)
+        for p in sorted(source.iterdir()):
+            if p.is_file() and (p.name in ("Kconfig","erofs_fs.h","compress.h","Makefile") or fnmatch.fnmatch(p.name,"decompressor*.c")):
+                evidence("KERNEL_FILE",p,p.read_bytes(),35)
+    else:
+        print("KERNEL_TREE_MISSING",*dirs)
+    repos = set()
+    for lane,stamp in (("37564293","20261113.1"),("37736448","20261123.2")):
+        cap = ROOT/"qb-evidence"/f"{lane}-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_{stamp}"
+        xml = ET.parse(cap/"build.xml").getroot()
+        base = xml.findtext("base_repo").rstrip("/")+"/"
+        for rel in ("repos/base/x86_64/packages/","repos/base/armv7l/packages/","repos/base/source/packages/","repos/base/source/","repos/base/src/packages/","source/","SRPMS/"):
+            repos.add(urljoin(base,rel))
+        product = json.loads((cap/"identity.json").read_text())["product"]
+        for rel in ("repos/product/armv7l/packages/","repos/product/x86_64/packages/","repos/product/source/packages/","repos/product/source/"):
+            repos.add(urljoin(product.rstrip("/")+"/",rel))
+        for node in xml.iter():
+            if re.search(r"(?:tools?.*repo|repo.*tools?|image.*creator|mkfs)",node.tag,re.I):
+                value=(node.text or "").strip()
+                print("QB_TOOL_FIELD",lane,node.tag,value[:500])
+                if value.startswith(("http://","https://")) and not any(c.isspace() for c in value):
+                    repos.add(value.split("repodata/")[0].rstrip("/")+"/")
+        for f in (cap/"build.xml",cap/"perf-manifest.json",ROOT/"usb"/lane/"updateSU2E/toolchain_info.txt"):
+            if not f.is_file():
+                continue
+            for line in f.read_text(errors="replace").splitlines():
+                if not re.search(r"mkfs\.erofs|erofs-utils|image.creator|mic[-_ ]version|tools[-_ ]repo",line,re.I):
+                    continue
+                print("BUILDER_REFERENCE",lane,f.name,line.strip()[:500])
+                for uri in URI.findall(line):
+                    if "/repodata/" in uri:
+                        repos.add(uri.split("repodata/")[0])
+                    elif uri.endswith("/") and "tools" in uri.lower():
+                        repos.add(uri)
+    repos.update(u.rstrip("/")+"/" for u in os.environ.get("PM12Z_TOOLS_REPO","").split())
+    seen = set()
+    for url in sorted(repos):
+        try:
+            search(repo,url,work,seen)
+        except (ValueError,OSError,ET.ParseError,AttributeError,subprocess.SubprocessError) as exc:
+            print("SOURCE_PROBE_REVIEW",url,str(exc)[:250])
+    print("SRPMS_INSPECTED",len(seen),"builder linkage requires matching job evidence")
+
+
+if __name__ == "__main__":
+    main()

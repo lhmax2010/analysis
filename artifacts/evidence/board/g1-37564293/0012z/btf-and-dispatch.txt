@@ -1,0 +1,31 @@
+GCC board /lib/modules/6.12.60/kernel/vmlinux 1a5ee77d0f3760df26546522966b0083a703343f1609b5d0decc473980ab979f
+[10270] STRUCT 'z_stream_s' size=48 vlen=12
+	'Z_EROFS_COMPRESSION_LZ4' val=0
+	'Z_EROFS_COMPRESSION_LZMA' val=1
+	'Z_EROFS_COMPRESSION_DEFLATE' val=2
+	'Z_EROFS_COMPRESSION_ZSTD' val=3
+	'Z_EROFS_COMPRESSION_ZLIB' val=4
+	'Z_EROFS_COMPRESSION_MAX' val=5
+	'Z_EROFS_COMPRESSION_SHIFTED' val=5
+	'Z_EROFS_COMPRESSION_INTERLACED' val=6
+	'Z_EROFS_COMPRESSION_ZLIB_HW' val=7
+	'Z_EROFS_COMPRESSION_RUNTIME_MAX' val=8
+	'z' type_id=10270 bits_offset=32
+[11458] STRUCT 'z_erofs_zlib' size=4148 vlen=3
+	'z' type_id=10270 bits_offset=32
+	'comp_stream' type_id=10270 bits_offset=0
+	'decomp_stream' type_id=10270 bits_offset=384
+[82432] FUNC 'z_erofs_deflate_decompress' type_id=82431 linkage=static
+[82436] FUNC 'z_erofs_delegate_decompress' type_id=82435 linkage=static
+[82471] FUNC 'z_erofs_load_zlib_config' type_id=82464 linkage=static
+[82500] FUNC 'z_erofs_zlib_decompress' type_id=82431 linkage=static
+[82559] FUNC 'zlib_inflate' type_id=82547 linkage=static
+[82560] FUNC 'zlib_inflateEnd' type_id=82549 linkage=static
+[82562] FUNC 'zlib_inflateIncomp' type_id=82561 linkage=static
+[82564] FUNC 'zlib_inflateInit2' type_id=82563 linkage=static
+[82565] FUNC 'zlib_inflateReset' type_id=82549 linkage=static
+[82567] FUNC 'zlib_inflate_blob' type_id=82566 linkage=static
+[82569] FUNC 'zlib_inflate_table' type_id=82568 linkage=static
+[82570] FUNC 'zlib_inflate_workspacesize' type_id=131 linkage=static
+GCC f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e uImage payload offset of entry 0 0xb44e78 ['lz4', 'lzma', 'deflate', 'zstd', 'zlib', 'shifted', 'interlaced', 'zlib-hw']
+Official eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6 uImage payload offset of entry 0 0xa70a44 ['lz4', 'lzma', 'deflate', 'zstd', 'zlib', 'shifted', 'interlaced', 'zlib-hw']

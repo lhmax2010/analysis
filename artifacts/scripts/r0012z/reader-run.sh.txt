@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+rev=$1
+mode=$2
+[[ $rev =~ ^[0-9a-f]{40}$ ]]
+cd /home1/chengkai/vd-tree/workspace/temp
+work=$(mktemp -d "$PWD/pm0012z-erofs.XXXXXX")
+cd "$work"
+export TMPDIR="$work" PYTHONDONTWRITEBYTECODE=1
+get() {
+    local file=$1 sha=$2 name=${1##*/}
+    curl -fsSL --retry 4 --retry-all-errors --retry-delay 5 --connect-timeout 15 --max-time 120 \
+      "https://raw.githubusercontent.com/lhmax2010/analysis/$rev/$file" -o "$name"
+    printf '%s  %s\n' "$sha" "$name" | sha256sum -c -
+}
+printf 'WORKDIR %s\n' "$work"
+case "$mode" in
+source)
+    get artifacts/scripts/r0005/image-repo-lib.py.txt 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f
+    get artifacts/scripts/r0012z/vendor-source.py.txt fc5dee02317f2c944c5ed089a23259f5b393bf4182c17a6c6970f313097bbfdb
+    rc=0
+    python3 -Bu vendor-source.py.txt >source.log 2>&1 || rc=$?
+    awk '/^(PACKAGE_CANDIDATE|SRPMS_INSPECTED|RETAINED_SOURCE|KERNEL_TREE_MISSING|QB_TOOL_FIELD|BUILDER_REFERENCE)/ && ++n<=65' source.log
+    awk '/^KERNEL_FILE|^SRPM_SPEC_PATCH|^SRPM_SOURCE|^  [0-9]+:/ && ++n<=130' source.log
+    tail -n 8 source.log
+    exit "$rc" ;;
+verify)
+    : "${PM12_EROFS_RECEIPT:?set reviewed vendor-tool receipt}" "${PM12_EROFS_SHA:?set receipt SHA-256}"
+    exec 9>../pm0012-queue.lock
+    flock -n 9 || { echo 'Native queue busy'; exit 2; }
+    get artifacts/scripts/r0012c/image-tree.py.txt f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726
+    get artifacts/scripts/r0012z/verify-reader.py.txt bd185578c36dcf420e2992e6abb381070609f4bdfeb6eb82cf0ff383fa2e1855
+    python3 -Bu verify-reader.py.txt | tee partitions.log ;;
+*) exit 2 ;;
+esac

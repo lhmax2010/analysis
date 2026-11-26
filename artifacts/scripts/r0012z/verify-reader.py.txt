@@ -1,0 +1,113 @@
+"""Exercise a reviewed vendor reader against the four fixed USB partitions, rootless."""
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import struct
+import sys
+import tempfile
+
+WS = Path("/home1/chengkai/vd-tree/workspace")
+IMAGES = {
+    "37564293": "b6677a554fdd48adb44dff6c70929b530f2c5aa08b6f12961a2c6ef2335229eb",
+    "37736448": "4dedcae9475edb6ba18c522ba34887c928d28ba910a2c178a5631ee6b1d7e823",
+}
+# O1 target-hashes.tsv and G1 0012z/lower-mount-hashes.txt.
+SAMPLES = {
+    ("37564293","platform"): {"etc/os-release":"5dde7fb3ea9fb1368c443d3dbae79dc7b7a416d3b3bef00c0f36634e2d56ea4f",
+                              "usr/bin/gzip":"d69c049784388d5fa3a817f2d3443bcb5f9c217ecb996a1aeb2ac4262f58bf00"},
+    ("37564293","prd"): {"bin/rpmi":"2d0c2bfb2f32e5f094788ba62700d193ff638629f402c753ca6f434b9c00ebc6",
+                         "bin/usb_mount.sh":"08e8aa6f1af2cd4849b4f32b335dff8a5956eb52e8eac9e95aa636c177a88377"},
+    ("37736448","platform"): {"usr/apps/org.tizen.AVControl/bin/AVControl":"fa474d0ea3a18677dceec81deeecc50123e9a31f9c113bb45e0050122626c209",
+                              "usr/apps/org.tizen.tv-viewer/bin/tv-viewer":"ac95b4f07e7277b29be385e99acdc950e519635a752f0c8992163e151f307f46"},
+    ("37736448","prd"): {"bin/rpmi":None, "bin/usb_mount.sh":None},
+}
+
+
+def check_partition(api, tools, image, offset, length, out, refs):
+    api["room"](out,length*5)
+    part, files = out/"partition", out/"extracted"
+    api["command"]("dd","if="+str(image),"of="+str(part),"bs=4M","iflag=skip_bytes,count_bytes",
+                   "skip="+str(offset),"count="+str(length),"status=none")
+    with part.open("rb") as f:
+        f.seek(1024)
+        sb = f.read(128)
+    if (part.stat().st_size != length or sb[:4].hex() != "e2e1f5e0" or struct.unpack_from("<IH",sb,80)!=(0x1a3,0x10)):
+        raise ValueError("unexpected partition slice or compression configuration")
+    fsck, dump = tools["fsck.erofs"], tools["dump.erofs"]
+    api["command"](fsck,"--extract",part)
+    api["command"](fsck,"--no-preserve-owner","--preserve-perms","--extract="+str(files),part)
+    stats = api["command"](dump,"-S",part)
+    m = re.search(r"^Filesystem total file count:\s*(\d+)\s*$",stats,re.M)
+    compressed = re.search(r"^Filesystem compressed files:\s*(\d+)\s*$",stats,re.M)
+    if "<E>" in stats or not m or not compressed or int(compressed[1])==0:
+        raise ValueError("missing complete dump and positive compression census")
+    def fail(err):
+        raise err
+    actual = 1 + sum(len(dirs)+len(names) for _,dirs,names in os.walk(files,onerror=fail))
+    if actual!=int(m[1]):
+        raise ValueError(f"dump={m[1]} extraction={actual}")
+    samples = {}
+    for name,expected in refs.items():
+        p=files/name
+        if p.resolve(strict=True) != p or not p.is_file():
+            raise ValueError("expected a regular file within partition: "+name)
+        digest=api["sha"](p)
+        samples[name]=digest
+        if expected and digest!=expected:
+            raise ValueError(f"board mismatch: {name} extraction={digest} board={expected}")
+    return dict(fsck="passed",entries=actual,dump_entries=int(m[1]),compressed=int(compressed[1]),
+                board="matched" if all(refs.values()) else "awaiting Official prd hashes",sha256=samples)
+
+
+def main():
+    work=Path.cwd()
+    api=runpy.run_path(str(work/"image-tree.py.txt"))
+    tools=api["erofs_tools"]()
+    extra=os.environ.get("PM12Z_OFFICIAL_PRD_SHA256SUMS")
+    if extra:
+        manifest=Path(extra).resolve(strict=True)
+        if not manifest.is_relative_to(WS):
+            raise ValueError("Official board readback must be retained in workspace")
+        text=manifest.read_text()
+        if "Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2;" not in text.splitlines():
+            raise ValueError("Official board Product missing")
+        for name in SAMPLES["37736448","prd"]:
+            matches=re.findall(r"(?m)^([0-9a-f]{64})  "+re.escape("/.org_rootfs/prd/"+name)+r"$",text)
+            if len(matches)!=1:
+                raise ValueError("missing Official board sample "+name)
+            SAMPLES["37736448","prd"][name]=matches[0]
+    completed=True
+    for qb,digest in IMAGES.items():
+        raw=WS/"usb"/qb/"updateSU2E/platform.img"
+        if api["sha"](raw)!=digest:
+            raise ValueError("USB platform digest mismatch: "+qb)
+        with tempfile.TemporaryDirectory(dir=work) as tmp:
+            stage=Path(tmp)
+            with raw.open("rb") as f:
+                head=f.read(28)
+            image=raw
+            if head[:4].hex()=="3aff26ed":
+                block,count=struct.unpack_from("<II",head,12)
+                api["room"](stage,block*count)
+                image=stage/"expanded"
+                api["command"]("simg2img",raw,image)
+            layout=api["partitions"](image)
+            if set(layout)!={"platform","prd"}:
+                raise ValueError("incorrect GPT partition names")
+            for label,(offset,length) in layout.items():
+                try:
+                    with tempfile.TemporaryDirectory(dir=stage) as part:
+                        row=check_partition(api,tools,image,offset,length,Path(part),SAMPLES[qb,label])
+                    completed &= row["board"]=="matched"
+                except (OSError,ValueError) as exc:
+                    row={"error":str(exc)}
+                    completed=False
+                print("PARTITION",qb,label,json.dumps(row,sort_keys=True),flush=True)
+    print("FOUR_PARTITION_BOARD_VALIDATION", "COMPLETE" if completed else "OPEN")
+    return 0 if completed else 2
+
+
+if __name__=="__main__":
+    sys.exit(main())
