@@ -183,7 +183,7 @@ def main():
     compact("CONFIG",refs);compact("CONFIG_UNREADABLE",unread)
     totals,token,errors=walk_tree(TARGET,set())
     compact("ENTRY",totals);compact("TREE_UNREADABLE",errors)
-    if hits or denied or errors or os.geteuid()!=0:
+    if hits or denied or errors or unread or os.geteuid()!=0:
         print("HOLD no removal token");
         if apply:raise ValueError("incomplete deletion preflight")
         return
