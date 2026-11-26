@@ -1,5 +1,9 @@
 # Status
 
+## 0012z · AVControl and EROFS
+
+Pilot pin dd210fb requires the retained smoke and runs independently of image extraction. Kernel pin 5a692bc remains scheduled after the pilot. All four image headers advertise vendor ZLIB ID 4. G1 BTF and both kernel dispatch tables confirm it. Vendor SRPM provenance and four offline extractions are open. [Commands and evidence](../comms/codex_to_claude/0012z_reply.md)
+
 ## 0012w/x/y · native handoff
 
 GCC USB verified; config packet verified with 34 symbol differences. OwlD9Q stopped at GBS spec export before compilation. The 0012y pin combines the 0012w retained-source spec fix with the K2/K3 perf-config switch. The failed EROFS inspection has a separate four-partition retry; native headers/census outstanding. New November 25 capture and gate receipts are pending. Local regressions passed, scripts published for Claude review. [EROFS and kernel commands](../comms/codex_to_claude/0012y_reply.md) · [New pair capture](../comms/codex_to_claude/0012x_reply.md) · [GBS diagnosis](../comms/codex_to_claude/0012w_reply.md)

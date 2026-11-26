@@ -496,3 +496,7 @@ User requested a single warm series and the same C1 signed workload on GCC, with
 ### 0012w/x/y · baseline and trial controls
 
 The user designated 37777148/37777264 for the next MLGO image comparison. Preserve 37736448/37736427 for in-flight jobs and existing board results. Kernel table transfer is conditional on per-lane artifact identity. In local K2/K3 change the perf Kconfig parent MLGO to n; disallow unrelated generated config drift and verify both advisor pairs disappear on the same TU. [0012x](../comms/codex_to_claude/0012x_reply.md) · [0012y](../comms/codex_to_claude/0012y_reply.md)
+
+### 0012z · sequence and decoder
+
+Run the three AVControl lanes from the qualified smoke and retain the shared locks. Defer image-to-RPM matches until the reader is qualified. Preserve the reviewed kernel pin. Prefer the vendor SRPM reader, then a separately reviewed decoder port, then board file reads. [0012z](../comms/codex_to_claude/0012z_reply.md)
