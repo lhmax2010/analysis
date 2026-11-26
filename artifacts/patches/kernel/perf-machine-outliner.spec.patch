@@ -1,6 +1,6 @@
 --- a/packaging/tztv-kernel.spec
 +++ b/packaging/tztv-kernel.spec
-@@ -4,8 +4,134 @@
+@@ -4,8 +4,140 @@
  export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1"
 +# PM12_KERNEL_TOOLS_BEGIN
 +for pm_tool in mkdir cat clang ld.lld armv7l-tizen-linux-gnueabi-clang make grep sha256sum cut cp find xargs touch chmod sed rpm readelf; do
@@ -89,7 +89,6 @@
 +done
 +if [ -f "$directory/arch/arm/Makefile" ] && [ -f "$directory/scripts/Kbuild.include" ]; then
 +    case "$PM_KERNEL_LANE" in K1|K3|K5) set -- "$@" "KCFLAGS=${kc:+$kc }-moutline";; esac
-+    case "$PM_KERNEL_LANE" in K2|K3) set -- "$@" CONFIG_MLGO_INLINER= CONFIG_MLGO_REGALLOC=;; esac
 +fi
 +"$PM_REAL_MAKE" "$@" || exit $?
 +# Some packaging steps clean the perf build tree before rpm exits.
@@ -121,7 +120,14 @@
 +pm_tools="%{_builddir}/.pm0012f-tools"
 +IFS= read -r pm_lane < "$pm_tools/PM_KERNEL_LANE" || exit 2
 +IFS= read -r PM_REAL_CLANG < "$pm_tools/PM_REAL_CLANG" || exit 2
-+case "$pm_lane" in K4|K5)
++case "$pm_lane" in K2|K3)
++    pm_def=linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig
++    grep -qx 'CONFIG_MLGO=y' "$pm_def" || exit 2
++    chmod u+w "$pm_def" || exit 2
++    sed -i 's/^CONFIG_MLGO=y$/# CONFIG_MLGO is not set/' "$pm_def" || exit 2
++    echo PM_KERNEL_PERF_DEFCONFIG_MLGO_OFF
++    ;;
++K4|K5)
 +    pm_def=linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig
 +    test -f "$pm_def" || exit 2
 +    chmod u+w "$pm_def"
@@ -138,7 +144,7 @@
 +    pm_elf=$pm_tool
 +    printf 'GBS_TOOL %%s invoked %%s\n' "$pm_tool" "$pm_elf"
      if command -v readelf >/dev/null; then
-@@ -14,3 +140,3 @@
+@@ -14,3 +146,3 @@
      sha256sum "$pm_elf" | sed 's/^/GBS_TOOL_SHA256 /'
 -    rpm -qf "$pm_elf" --qf 'GBS_TOOL_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :
 +    rpm -qf "$pm_elf" --qf 'GBS_TOOL_PATH_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :

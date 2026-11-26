@@ -1,0 +1,74 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ # Paste once per terminal: defines pm12t (pin 0db8f90, reviewed) and space (free-disk check). Runs nothing.
+pm12t() (
+  set -eu
+  cd /home1/chengkai/vd-tree
+  p=0db8f90257b1f76a67208b82da92234f8102d9ce
+  d=$(mktemp -d "$PWD/workspace/temp/pm0012t-launch.XXXXXX")
+  curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0012t/next.sh.txt" -o "$d/run"
+  printf '%s  %s\n' 9556607c280158caf57a6a568fc8454bfc1d958ff3ba2ffc2bf2a70b04a93049 "$d/run" | sha256sum -c -
+  exec bash "$d/run" "$p" bceab9fc2dfdcadadc1186dcd5012e5c6007238d605e395d76a9075b690bb700 a984c67ad51ee218c32a0e138ee45d1dfc09ad31e1996a510bf89ebb16aca2a7 "$1"
+)
+space() (
+  set -eu -o pipefail
+  df -Pk /home1/chengkai/vd-tree/workspace/temp |
+    awk -v required="$1" 'NR==2 {free=$4/1048576; printf "AVAILABLE %.2f GiB; planning minimum %d GiB\n",free,required; ok=(free>=required)} END {exit !ok}'
+)
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ space 54 && pm12t gcc && space 56 && pm12t erofs
+AVAILABLE 175.27 GiB; planning minimum 54 GiB
+/home1/chengkai/vd-tree/workspace/temp/pm0012t-launch.x3YYX4/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0012t-kernel-info.lzrf5h0g
+KERNEL_SOURCE ["official","tztv-kernel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-devel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-perf","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-release","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+PERF_CONFIG official 2a31652557d89d100d3c1bc6b0116556e32a56f03b0145eba12af425c75379f3 //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732
+KERNEL_SOURCE ["gcc","tztv-kernel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732"]
+KERNEL_SOURCE ["gcc","tztv-kernel-devel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732"]
+KERNEL_SOURCE ["gcc","tztv-kernel-perf","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732"]
+KERNEL_SOURCE ["gcc","tztv-kernel-release","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732"]
+PERF_CONFIG gcc bb8208f4ea953a2a3102a6acf6d0b9e44f151f51f548c62b2d99d51243f5f071 //TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#vbs-vdlinux-20260929.194254-0-14293732
+ZLIB_BASE64 gcc-config-delta.json 0694a479f529e795de2b503ae6058012b6a17989e03b866f957b2d282c9bff77 eNp9VO9r2zAQ/VeMP62QBtnNIAz2QZZlReQsGUlOf6xDlNClBs8dXTvYxv73ndOwxJ3sT4G857v37t7pd8y0KqTw1HppvVB1/OFT99K2s/hn/Hk2RAE2JcKIzHrKAN5wY6VWPZymJCHLeBaniwtCTqow5hlVHqRaB7uc4N466iQbo62wI9O1cjz32XVQ04FVSuWLWjGH4jwFKVTJlZuqa6jKrTM1c1N1b7jRqBbA1xZFGC7seNEN7/2wdWW048xp4x2M0mVZgWTS+QKru5XRtVj1Sm7j88vm67e22TbP51/u2vb54enxZfdwG+Oox8CP7xEelsfJAVVizFyfAjY6eKU9NYZe+wynn9sJGo5QKqErrzEaBejLMe4hOd7xK/fqc9vedbvox/3T9+axi9J0nsyXB5e77TZ655pf912EKqNkMU/nJEpJuiBLkkTJ/OLs8OfQdyGPrrv/XPdIMMGD9Fa1z/CXq1xS9c9Nd0LJeVYLb/lr2kppS+rYKkgVR+d9R4LNkgVJB/eyD04vXe6DprQpMcE33EsMvsCPJza5/3bNLN4T02UlgZvgAiDvN54V+QQKkAd7IPrGwtuLhyElONcShA6W7wG0is/BXvsIAS8Ph6NZkHG8ZXwEAILbN5zmNAOOr1gZXJXTGqy3dVVp45AOYTVTLwKW+/MX2e+Q1Q==
+USB_FILE EMTOKEN.bin 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+USB_FILE data.img 1118674944 f2a47268226802d80f716749a01a32983e50dcf53729374a705041cd5513c7a4
+USB_FILE ddr.init 258048 942b83d65e7dedefa68781172e505b5dbdf61440e16dbca831df284cd0371759
+USB_FILE ddr.init.elf 503268 052f333057380169bdf38f7325198ee046e15f1ca8ef08445c7fdee4fe409390
+USB_FILE ddr.init.golden 258048 942b83d65e7dedefa68781172e505b5dbdf61440e16dbca831df284cd0371759
+USB_FILE dtb.bin 1564672 1c7b8691089f690eab62a59773a21e38ba13ab3365304175019e2dea2191cdd6
+USB_FILE factory_peq.img 589824 89554ea7fd2edab8d61f5d752bf06cc3578d2be33340e962b7d64119aaff3e4b
+USB_FILE file_size.txt 6201013 0d84624891fdf23fe0b2c657d480302454eceaab8221ae144af5dff8b4b2b704
+USB_FILE onboot.bin 18441 5bfe2ea335f76e507e33537ebb98f4f31902d7507c8cb5c29e992cfa1c68f22e
+USB_FILE onboot_emmc_b0 122584 3cb8760ddd607a62abe01a1795a00638ac3d16947da80c90d3b08a199d232e60
+USB_FILE onboot_emmc_b1 170076 6c3bc944466324f60b1922bfe43bfd5894e9f271cd615e799c164fccb6d4a45c
+USB_FILE partition.txt 2415 cf7253b9263a74058a44ad6eb9ba1beca7453a068e9f041d4dc0812227c39c5e
+USB_FILE partition_8G.txt 2415 cf7253b9263a74058a44ad6eb9ba1beca7453a068e9f041d4dc0812227c39c5e
+USB_FILE platform.img 1233125376 b6677a554fdd48adb44dff6c70929b530f2c5aa08b6f12961a2c6ef2335229eb
+USB_FILE prd_info.ini 191 1d2e98cab68326d5b3e3e275302fd9de376d3505cc20dd5bfa5db7881149ea4f
+USB_FILE secos.bin 8380416 b45cf1b4efed1696d3d2973a7c2e464abc683c92e528633cacfb3b0cbb37638f
+USB_FILE secos_drv.bin 3137536 a47a14d64ba5cc30c21d3612e7c6377b5a094d832894382ea95c07acb6137619
+USB_FILE seret.bin 2494880 de420106a533e0f47ef35028ef6befbb5fe1ad684645f7b86c442e57b251f66e
+USB_FILE seret.bin.golden 2494880 de420106a533e0f47ef35028ef6befbb5fe1ad684645f7b86c442e57b251f66e
+USB_FILE seret.tmp 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+USB_FILE sign.bin 1024 5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef
+USB_FILE systemrw.img 1630208 fd76c7f52a7ae41897197c87580a5f97d64ba52655abc680593494b4a1827e4c
+USB_FILE toolchain_info.txt 460374 365f231e8803cb787cbfc77868aaabb597e432b767a5b02cb0927aed7a9f4f41
+USB_FILE uImage 12218608 f9bb12a1fa900c2dca61f15b86241f85724dd1a2caf4fbeeb9699cd061a9fe0e
+USB_FILE version.dat 102400 5bffe8227627e23c0ab6276f691b8d29a9ae72e9cbb5fe37530645da9a7903e0
+USB_FILE zImage 5664248 161721c1f37e44f4a114849fba0dac95d73766a432a575365b602c8735e1f132
+USB_PREP_READY /home1/chengkai/vd-tree/workspace/usb/37564293/updateSU2E MANIFEST /home1/chengkai/vd-tree/workspace/usb/37564293/manifest.sha256
+USB_WORKSPACE_FREE_BYTES 185799966720
+GCC_IMAGE_FILES 12218608 5664248 TOTAL_MINUS_HEADER 12218544
+GCC_USB_VERIFIED /home1/chengkai/vd-tree/workspace/usb/37564293/updateSU2E uImage 12218608 zImage 5664248 U_BOOT_DECLARED 12218284 RPM 20018029 BUILD_ID 137d01259d95739d5eb71e468bf289ee467a65b0
+AVAILABLE 173.04 GiB; planning minimum 56 GiB
+/home1/chengkai/vd-tree/workspace/temp/pm0012t-launch.9ZcWDE/run: OK
+KERNEL_SOURCE ["official","tztv-kernel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-devel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-perf","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-release","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+Traceback (most recent call last):
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0012t-get.GKWtgq/inspect-compression.py.txt", line 57, in <module>
+    print("SOURCE_COMPRESSORS", lane, json.dumps(inspect(path,tmp,tree)), flush=True)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0012t-get.GKWtgq/inspect-compression.py.txt", line 28, in inspect
+    info = tree["filesystem"](image, start)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0012t-get.GKWtgq/image-tree.py.txt", line 57, in filesystem
+    raise IntegrityError("unknown EROFS compression mask "+hex(mask))
+<run_path>.IntegrityError: unknown EROFS compression mask 0x10

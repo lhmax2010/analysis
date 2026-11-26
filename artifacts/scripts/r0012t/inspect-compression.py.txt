@@ -6,12 +6,14 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import sys
+import struct
 
 HERE = Path(__file__).parent
 load = lambda name: runpy.run_path(str(HERE / (name + ".py.txt")))
 
 
-def inspect(image, scratch, tree):
+def inspect(image, scratch, tree, dump, lane):
     with image.open("rb") as f:
         sparse = f.read(4) == bytes.fromhex("3aff26ed")
     if sparse:
@@ -25,7 +27,18 @@ def inspect(image, scratch, tree):
         image = expanded
     result = {}
     for label, (start, length) in tree["partitions"](image).items():
-        info = tree["filesystem"](image, start)
+        with image.open("rb") as f:
+            f.seek(start+1024)
+            sb=f.read(128)
+        print("EROFS_HEADER",lane,label,"offset",start,"bytes",length,"sb_hex",sb.hex(),flush=True)
+        try:
+            info = tree["filesystem"](image,start)
+            stats = tree["command"](dump, "-S", "--offset="+str(start), image)
+            tree["compression_usage"](info,stats)
+        except (OSError,ValueError) as exc:
+            print("PARTITION_REVIEW",lane,label,str(exc)[:650],flush=True)
+            result[label]={"error":str(exc)}
+            continue
         if info["fs"] != "erofs":
             raise ValueError(f"unexpected filesystem in {label}: {info}")
         result[label] = info
@@ -36,6 +49,7 @@ def inspect(image, scratch, tree):
 
 if __name__ == "__main__":
     perf, qb, tree = map(load, ("perf-bundle","matched-qb","image-tree"))
+    failed=False
     for lane in ("official", "gcc"):
         cap, receipt, _ = qb["retained"](lane, {"file_sha":tree["sha"]})
         with tempfile.TemporaryDirectory(dir=HERE) as directory:
@@ -54,4 +68,7 @@ if __name__ == "__main__":
                             with stream.extractfile(member) as src, path.open("xb") as out:
                                 shutil.copyfileobj(src, out, 1<<20)
                             break
-            print("SOURCE_COMPRESSORS", lane, json.dumps(inspect(path,tmp,tree)), flush=True)
+            result=inspect(path,tmp,tree,sys.argv[1],lane)
+            print("SOURCE_COMPRESSORS",lane,json.dumps(result),flush=True)
+            failed |= any("error" in row for row in result.values())
+    sys.exit(2 if failed else 0)

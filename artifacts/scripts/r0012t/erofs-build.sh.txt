@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Host build, isolated prefix. Usage: bash erofs-build.sh.txt <pinned repository revision>
 set -eu -o pipefail
+runner=$(cd -- "$(dirname -- "$0")" && pwd -P)
 pin=$1
 [[ $pin =~ ^[0-9a-f]{40}$ ]]
 scratch=/home1/chengkai/vd-tree/workspace/temp
@@ -61,4 +62,5 @@ cd "$work"
 sha256sum prefix/bin/{fsck,dump}.erofs > tools.sha256
 "$prefix/bin/fsck.erofs" -V >&3
 sha256sum tools.sha256 >&3
+python3 -Bu "$runner/inspect-compression.py.txt" "$prefix/bin/dump.erofs" | tee "$runner/source-compressors.log" >&3
 printf 'export PM12_EROFS_RECEIPT=%q PM12_EROFS_SHA=%q\n' "$work/tools.sha256" "$(sha256sum tools.sha256 | cut -d' ' -f1)" >&3

@@ -37,19 +37,39 @@ def official_inputs(work,q,s):
 
 
 
+def advisor_argv(cmd):
+    args=shlex.split(cmd)
+    options=[]
+    for i,arg in enumerate(args):
+        if any(arg.startswith("-"+name+"=") for name in ADVISORS):
+            if not i or args[i-1]!="-mllvm":
+                raise ValueError("advisor flag without -mllvm on scheduler compile")
+            options.extend(args[i-1:i+1])
+    return options
+
+
+def off_config(base,effective):
+    allowed={"CONFIG_MLGO","CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC"}
+    changed={k for k in base.keys()|effective.keys() if base.get(k)!=effective.get(k)}
+    return (changed==allowed and all(base.get(k)=="y" for k in allowed)
+            and effective.get("CONFIG_MLGO")=="n"
+            and all(effective.get(k) in (None,"n") for k in allowed))
+
+
 def argv_proof(tree,lane):
     samples={}
     off=lane in ("K2","K3")
     outline=lane in ("K1","K3","K5")
     for group in GROUPS:
         for p in sorted((tree/group).rglob(".*.o.cmd")):
+            if group=="kernel/sched/" and p.name!=".core.o.cmd": continue
             cmd=p.read_text(errors="replace").splitlines()[0].partition(":=")[2].strip().split(";",1)[0]
             args=shlex.split(cmd)
             if "-c" not in args or "-D__KERNEL__" not in args or not any(x.endswith(".c") for x in args): continue
             if not any("clang" in Path(x).name for x in args[:3]): continue
             if ("-moutline" in args)!=outline: continue
             selected={name:[arg.split("=",1)[1] for arg in args if arg.startswith("-"+name+"=")] for name in ADVISORS}
-            if any((vals and vals[-1]!="default") if off else (not vals or vals[-1]!="release") for vals in selected.values()): continue
+            if any(bool(vals) if off else (not vals or vals[-1]!="release") for vals in selected.values()): continue
             modes=[x for x in args if x in ("-mthumb","-marm")]
             if group=="kernel/sched/" and (not modes or modes[-1]!=("-mthumb" if lane in ("K4","K5") else "-marm")): continue
             samples[group]=cmd
@@ -103,7 +123,7 @@ def run(work,proof,owners):
         qual=load("kernel-qualification")
         baseline=load("official-config")
         base=official_inputs(work,q,s)
-        if any(base.get(k)!="y" for k in ("CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC","CONFIG_LTO_NONE","CONFIG_UNWINDER_FRAME_POINTER")):
+        if any(base.get(k)!="y" for k in ("CONFIG_MLGO","CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC","CONFIG_LTO_NONE","CONFIG_UNWINDER_FRAME_POINTER")):
             raise ValueError("pinned candidate lacks expected A32/no-LTO/advisor settings")
         qualified_k0=False
         selection=load("kernel-spec")
@@ -184,12 +204,23 @@ def run(work,proof,owners):
                         raise ValueError("Thumb / EHABI config transition unverified")
                     if thumb_config and thumb_config!=effective: raise ValueError("K4/K5 config drift")
                     thumb_config=effective
+                elif lane in ("K2","K3"):
+                    if not off_config(base,effective):
+                        raise ValueError("expected only parent MLGO off and its dependent symbols off/absent")
                 elif lane!="K0" and record["config_delta"]: raise ValueError("effective config differs from matched Official")
                 if effective.get("CONFIG_LTO_NONE")!="y":
                     raise ValueError("generated config does not confirm no kernel LTO")
                 if lane not in ("K4","K5") and effective.get("CONFIG_UNWINDER_FRAME_POINTER")!="y":
                     raise ValueError("frame-pointer unwinder not confirmed")
                 record["samples"],record["advisor_options"]=argv_proof(tree,lane)
+                if lane in ("K2","K3"):
+                    peer=results[{"K2":"K0","K3":"K1"}[lane]]
+                    if not peer.get("samples"): raise ValueError("paired on-lane scheduler argv unavailable")
+                    before=advisor_argv(peer["samples"]["kernel/sched/"])
+                    after=advisor_argv(record["samples"]["kernel/sched/"])
+                    if sorted(before)!=sorted(["-mllvm","-enable-ml-inliner=release","-mllvm","-regalloc-enable-advisor=release"]) or after:
+                        raise ValueError("paired scheduler TU advisor delta differs from expected")
+                    print("MLGO_TU_DELTA",lane,"kernel/sched/core.c",json.dumps({"before":before,"after":after}),flush=True)
                 if lane in ("K1","K3","K5"):
                     phase=load("outliner-phase")["verify"]
                     record["outliner_phase"]=phase(tree,effective,s.scan["secs_of"],s.gbs.sha)

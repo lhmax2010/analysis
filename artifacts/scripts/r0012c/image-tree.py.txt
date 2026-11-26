@@ -49,29 +49,47 @@ def filesystem(image, start):
         sb = stream.read(128)
     if sb[:4] == bytes.fromhex("e2e1f5e0") and len(sb) == 128:
         compat, = struct.unpack_from("<I", sb, 8)
-        incompat, mask = struct.unpack_from("<IH", sb, 80)
+        incompat, = struct.unpack_from("<I", sb, 80)
+        word, = struct.unpack_from("<H", sb, 84)
+        info = {"fs":"erofs", "feature_compat":compat, "feature_incompat":incompat,
+                "compr_cfgs":{}, "compressed_files":None}
+        if not incompat & 0x2:
+            info.update(lz4_max_distance=word, compression_config="LZ4 (no compr_cfgs)")
+            return info
+        mask = word
         algorithms = ("LZ4", "LZMA", "DEFLATE", "ZSTD")
-        records = {}
-        if incompat & 2:
-            if mask & ~15:
-                raise IntegrityError("unknown EROFS compression mask "+hex(mask))
-            offset = start + 1024 + 128 + sb[13]*16
-            with image.open("rb") as stream:
-                for i, algorithm in enumerate(algorithms):
-                    if mask & (1<<i):
-                        stream.seek((offset+3) & ~3)
-                        size, = struct.unpack("<H", stream.read(2))
-                        record = stream.read(size)
-                        if not size or len(record)!=size:
-                            raise IntegrityError("truncated EROFS compressor config")
-                        records[algorithm]=record.hex()
-                        offset=stream.tell()
-        return {"fs":"erofs", "feature_compat":compat, "feature_incompat":incompat,
-                "compression_config":list(records) if incompat & 2 else "legacy LZ4 if compressed",
-                "compr_cfgs":records}
+        records = info["compr_cfgs"]
+        if mask & ~15:
+            raise IntegrityError(f"partition offset={start} incompat={incompat:#x} COMPR_CFGS=1 unsupported algorithm bits={mask & ~15:#x} union={mask:#x} sb={sb.hex()}")
+        offset = start + 1024 + 128 + sb[13]*16
+        with image.open("rb") as stream:
+            for i, algorithm in enumerate(algorithms):
+                if mask & (1<<i):
+                    stream.seek((offset+3) & ~3)
+                    header = stream.read(2)
+                    if len(header)!=2:
+                        raise IntegrityError("truncated EROFS compressor length")
+                    size = int.from_bytes(header, "little") or 65536
+                    record = stream.read(size)
+                    if not size or len(record)!=size:
+                        raise IntegrityError("truncated EROFS compressor config")
+                    records[algorithm]=record.hex()
+                    offset=stream.tell()
+        info.update(available_compr_algs=mask, compression_config=list(records))
+        return info
     if sb[56:58] == bytes.fromhex("53ef"):
         return {"fs": "ext"}
     raise ValueError(f"unrecognized filesystem at byte {start}, superblock={sb[:8].hex()}")
+
+
+def compression_usage(info, stats):
+    match = re.search(r"^Filesystem compressed files:\s*([0-9]+)\s*$", stats, re.M)
+    if not match or "<E>" in stats:
+        raise IntegrityError("dump.erofs did not complete the compressed-file census")
+    count = int(match[1])
+    info["compressed_files"] = count
+    info["file_compression"] = info["compression_config"] if count else "none"
+    return info
 
 
 def partitions(image):
@@ -207,6 +225,7 @@ def cached_tree(raw, work, digest=None):
                     info["dump_root"] = command(dump, "--path=/", part).strip()
                     command(tool, "--no-preserve-owner", "--preserve-perms", "--extract="+str(tree), part)
                     stats = command(dump, "-S", part)
+                    compression_usage(info, stats)
                     count = re.search(r"(?m)^Filesystem total file count:\s*(\d+)\s*$",stats)
                     def raise_walk_error(err):
                         raise err

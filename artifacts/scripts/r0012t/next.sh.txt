@@ -61,6 +61,5 @@ case "$mode" in
     retained) exec python3 -Bu "$dir/lto-delivery.py.txt" ;;
     gcc|debug) exec python3 -Bu "$dir/kernel-inventory.py.txt" "$mode" ;;
     erofs)
-        python3 -Bu "$dir/inspect-compression.py.txt" | tee "$dir/source-compressors.log"
         exec bash "$dir/erofs-build.sh.txt" "$pin" ;;
 esac
