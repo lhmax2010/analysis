@@ -1,6 +1,6 @@
 # KantSU2E PERF · Friday 27 November 2026
 
-Evidence cutoff 25 November. One board. All kernel size and Thumb ELF size figures are bytes.
+Evidence cutoff 26 November. One board. All kernel size and Thumb ELF size figures are bytes.
 
 ## Shipped kernel sizes
 
@@ -65,3 +65,33 @@ Installed name/architecture keys: G1 2,343, O1 and C1 2,342 each. G1 → either 
 | LTO non-PIC fallback | Source1005 in both Official and Custom SRPMs is byte-equal to the independent review copy (SHA-256 7d89083453e1d75707a4a6b3a6d9510a4c31e09d8e99865de2a18e07945bf76f). | Independent reviewer findings and disposition. No REVIEW-*.md is archived in the review directory. The regular-LTO IR patch leaves native consumption of fat objects as a separate consumer/link qualification. |
 
 [Image and Source1005 readback](../../../artifacts/evidence/native-run-r0012r-image-mKv04z-erofs-20261125.txt) · [Upstream tool fixture](../../../artifacts/evidence/erofs-upstream-0012v.txt) · [Independent review request](../../../reviews/lto-nonpic-fallback/README.md)
+
+## Current Thumb-2 board reference · 26 November capture
+
+| Artifact (bytes) | Official 37777148 | Custom 37777264 | Custom − Official |
+|---|---:|---:|---:|
+| uImage | 11,348,968 | 11,085,240 | −263,728 |
+| zImage | 5,326,496 | 5,222,024 | −104,472 |
+| tztv-kernel-perf RPM | 19,345,800 | 19,160,803 | −184,997 |
+
+Build IDs are `de1c600eee82b0fdebd9f2d1161d2271b2c9b4cc` and `8f9c7262bfae0f13de8b1b13710cc4669398ba37`. Relative to each earlier lane, uImage length is unchanged, zImage is eight bytes smaller, and the RPM grew by 352 or 103 bytes respectively. All artifact hashes changed. Published VCS matched 5,880/5,880. Submitted shelf and Base-list copies remain unproved. PM accepted this pair for the board comparison. The earlier kernel and board measurements retain their original QB labels. [Pair and USB evidence](../../../artifacts/evidence/native-run-r0012z-pilot-pair-reader-20261126.txt)
+
+## Optimization tracks · status at 26 November, before the overnight readback
+
+| Track | Evidence measured this week | Open measurement | Next gate |
+|---|---|---|---|
+| N1 Thumb-2 | Official 37736448 policy, AVControl local reference/scoped/packaging lanes. Smoke and T3 passed. Earlier scoped .text was 441,362 B. | Final byte coverage and acceptance; signed application and board PSS. | Re-evaluate retained outputs, then gated installed roster on 37777148/37777264. |
+| N2 strict text relocations | No new strict-link trial on 37777148. | Ownership, affected pages, actual link rejection. | E4 static census; strict-link trial stays gated. |
+| N3 kernel MLGO/outliner | Shipped byte table above, prior-board boot accounting, and GCC perf config comparison. | K0–K5 effective argv, section/call-site deltas and controlled hot-path timing. | Kernel batch running independently. |
+| N4 LTO enablement | No new size/ABI pair on 37777148. Prior inventory has 76 candidates plus four policy-enabled packages. | Final-link signature in published ELFs, A/B size, ABI and stability. | E3, then top ten in pkg; runtime gate before policy change. |
+| N5 optimization level | Prior four-package evidence; no new acceptance rows for the remaining 30. | Current 34-package per-ELF baseline and CU-qualified -Os pairs. | E2, then ranked pkg builds; preserve libgcrypt's low-level choices. |
+| GCC replacement | 20 Nov reference: 101 packages with GCC-marker ELFs, 27 reported hard-coded fixes. | New 37777148 census, fix inclusion and all-Clang status by source. | E1 byte/provenance evidence and submission manifest where needed. |
+| R1 forced options | November reference recipes and four-package cohort. No new matched R1 run this week. | New pair and signed-char board checks. | Prove treatment and source match before combining changes. |
+| R2 inline visibility | No new measured treatment. | Installed consumers of weak C++ exports and dynamic lookup. | E5 then installed hash join and package-specific ABI review. |
+| R3 ThinLTO | No new matched build timing. | Separate controlled timing/size comparison. | Retain full-LTO baseline and matching build resources. |
+| R4 inline threshold | No new measurement on 37777148. | Threshold-50 .text and codegen per package. | pkg paired runs, actual plugin argv, later hot-path timing. |
+| R5 machine outliner | New package and kernel outliner results outstanding. | .text, unwind and performance. | pkg four-package R5 plus separate K0–K5 experiment. |
+| R6 lld / ICF | No new matched result. | Linker-only A/B and subsequent safe ICF. | Resolve linker dependencies; qualify each change separately. |
+| R7 RELR | Earlier projection is historical. No new installed savings measured. | Packed-file estimate, loader evidence, acceptance by both linkers. | E6 and a future load/compatibility test. |
+
+[Pilot, reader and pair transcript](../../../artifacts/evidence/native-run-r0012z-pilot-pair-reader-20261126.txt) · [20 November reference figures](../2026-11-20/01_Optimization_Plan_and_New_Observations.md) · [Native measurements and gates](../../../comms/codex_to_claude/0013a_reply.md)

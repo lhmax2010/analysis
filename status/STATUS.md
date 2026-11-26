@@ -1,5 +1,10 @@
 # Status
 
+## 0013a/b · 26 November · commands ready for PM review
+
+K0–K5 holds the kernel GBS lock. The merged B/C/E command reads the retained AVControl lanes, vendor EROFS readers and published 37777148 RPMs. Tier 2 has a private package lock, one low-priority worker and a Friday 09:30 CST stop. The installed A32 roster needs both a passing pilot receipt and the shared locks. The received pilot passed smoke and both T3 checks; T8 was N/A. Reader validation and overnight optimization measurements await operator readback. PM accepted 37777148/37777264 for the next board run. [Commands and gates](../comms/codex_to_claude/0013a_reply.md) · [Weekly data](../reports/weekly/2026-11-27/draft-data.md)
+
+
 ## 0012z · AVControl and EROFS
 
 Pilot pin dd210fb requires the retained smoke and runs independently of image extraction. Kernel pin 5a692bc remains scheduled after the pilot. All four image headers advertise vendor ZLIB ID 4. G1 BTF and both kernel dispatch tables confirm it. Vendor SRPM provenance and four offline extractions are open. [Commands and evidence](../comms/codex_to_claude/0012z_reply.md)
