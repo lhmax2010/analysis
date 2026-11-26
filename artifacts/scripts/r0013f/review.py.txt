@@ -1,0 +1,303 @@
+"""Rework qp4O4m with pinned readers, a fresh extraction and a single table export."""
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import sqlite3
+import sys
+import stat
+import struct
+import subprocess
+import tarfile
+import tempfile
+import traceback
+from collections import Counter, defaultdict
+from contextlib import redirect_stdout
+
+HERE=Path(__file__).resolve().parent
+WS=Path("/home1/chengkai/vd-tree/workspace")
+OLD=WS/"temp/pm0013-bce.qp4O4m"
+GIB=1024**3
+def lib(name):return runpy.run_path(str(HERE/(name+".py.txt")))
+def rows(name):
+    with (OLD/(name+".jsonl")).open() as f:
+        for line in f:yield json.loads(line)
+def sha(p):
+    with p.open("rb") as f:
+        h=hashlib.sha256()
+        for chunk in iter(lambda:f.read(1<<20),b""):h.update(chunk)
+        return h.hexdigest()
+def save(name,obj):(HERE/name).write_text(json.dumps(obj,sort_keys=True)+"\n")
+def check(ok,msg):
+    if not ok:raise ValueError(msg)
+def normalize(tree):
+    """Only fresh, operator-owned extraction. Top-down access; skip links and special nodes."""
+    check(tree.parent.parent==HERE and tree.name=="extracted" and not tree.is_symlink(),"scratch scope")
+    def fail(exc):raise exc
+    tree.chmod(tree.stat().st_mode|0o700)
+    for parent,dirs,files in os.walk(tree,followlinks=False,onerror=fail):
+        for name in dirs+files:
+            p=Path(parent)/name
+            mode=p.lstat().st_mode
+            if stat.S_ISDIR(mode):p.chmod(mode|0o700)
+            elif stat.S_ISREG(mode):p.chmod(mode|0o400)
+
+def extract(qb,labels,results):
+    img,tree,verify,scan,repo=map(lib,("images","image-tree","verify-reader","image_mode_scan","image-repo-lib"))
+    raw=WS/"usb"/qb/"updateSU2E/platform.img"
+    if qb in verify["IMAGES"]:
+        expected=verify["IMAGES"][qb]
+    else:
+        manifest=raw.parent.parent/"manifest.sha256"
+        check(sha(manifest)==img["MANIFEST"][qb],"USB manifest SHA")
+        expected,=[l.split()[0] for l in manifest.read_text().splitlines() if l.split()[1]=="platform.img"]
+    check(sha(raw)==expected,"USB image SHA")
+    reader=qb if qb in img["PINS"] else "37736448"
+    url,h=img["PINS"][reader]
+    cached=OLD/(h[:16]+"-"+Path(img["RPM"]).name)
+    if cached.is_file():repo["cached_rpm"]((url+img["BIN"]+img["RPM"],h),HERE,cached)
+    tools=img["toolset"](repo,scan,HERE,reader,url+img["BIN"]+img["RPM"],h)
+    with tempfile.TemporaryDirectory(dir=HERE) as scratch:
+        with raw.open("rb") as f:head=f.read(28)
+        if head[:4]==bytes.fromhex("3aff26ed"):
+            block,count=struct.unpack_from("<II",head,12)
+            tree["room"](HERE,block*count)
+            expanded=Path(scratch)/"expanded"
+            tree["command"]("simg2img",raw,expanded)
+            raw=expanded
+        layout=tree["partitions"](raw)
+        for label in labels:
+            stage=Path(tempfile.mkdtemp(prefix=qb+"-"+label+".",dir=HERE))
+            files=stage/"extracted"
+            keep=False
+            def cmd(*args):
+                print("PHASE",qb,label,str(args[0]),[str(a)[:120] for a in args[1:3]],flush=True)
+                if "--preserve-perms" in args:
+                    args=tuple("--no-preserve-perms" if a=="--preserve-perms" else a for a in args)
+                out=tree["command"](*args)
+                if any(str(a).startswith("--extract=") for a in args):normalize(files)
+                return out
+            try:
+                start,length=layout[label]
+                # Validate symlinked board sample names inside the guest root after extraction.
+                row=verify["check_partition"](dict(tree,command=cmd),tools,raw,start,length,stage,{})
+                refs=verify["SAMPLES"].get((qb,label),{})
+                samples={}
+                for name,digest in refs.items():
+                    p=lib("pilot")["root_file"](files,"/"+name)
+                    check(p.resolve(strict=True).is_relative_to(files) and p.is_file(),"sample escapes tree")
+                    samples[name]=sha(p)
+                    check(not digest or samples[name]==digest,"board sample mismatch "+name)
+                row.update(sha256=samples,board="matched" if refs and all(refs.values()) else "unverified")
+                index=HERE/f"files-{qb}-{label}.tsv"
+                with index.open("w") as f:
+                    writer=csv.writer(f,delimiter="\t",lineterminator="\n")
+                    writer.writerow(("qb","path","sha256","mode","basis","exec_bytes","a32_est_bytes"))
+                    row["census"]=img["census"](files,qb,label,scan,writer)
+                if qb=="37777148" and label=="platform":
+                    keep=True
+                    row["root"]=str(files)
+                    try:
+                        roster=tree["rpm_rows"](files,stage,r"%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\t%{SOURCERPM}\n")
+                        (HERE/"installed.tsv").write_text(roster)
+                    except Exception as exc:row["roster_error"]=str(exc)
+                    row["root"]=str(files)
+                    keep=True
+                results[qb+"/"+label]=row
+            except Exception as exc:
+                results[qb+"/"+label]={"error":str(exc),"trace":traceback.format_exc()}
+            finally:
+                # Preserve the original extraction exception independently of cleanup.
+                try:
+                    if files.exists():normalize(files)
+                    if keep:(stage/"partition").unlink()
+                    else:shutil.rmtree(stage)
+                except OSError as exc:results[qb+"/"+label]["cleanup_error"]=str(exc)
+            save("partitions.json",results)
+
+def reason(row,gate):
+    if "error" in row:return row["error"]
+    err=row.get("errors",{})
+    if gate in err:return err[gate]
+    if gate=="T2":return json.dumps({"map":row.get("map"),"spans":row.get("a32_spans",[])})[:1500]
+    if gate=="T4":
+        diff=row.get("abi_diff",{})
+        return f"dynsym removed={len(diff.get('removed',[]))} added={len(diff.get('added',[]))}; tags={diff.get('tags',['?'])[:2]}"
+    if gate=="T6":return str({k:err.get(k) for k in ("loader","branches")})+"; interwork receipt also required"
+    if gate in ("T7","T1"):
+        return str(err.get("input_checks") or err.get("link_join") or
+                   {k:row.get(k) for k in ("official_lto","lto_link","object_count","lto_compile_count","lto_linker_delivery","unjoined","extra_compile_names","ir_gaps","debug_cus","asm_review","missing_dwarf")})[:800]+f"; T2={row['gates']['T2']} T7={row['gates']['T7']}"
+    return str(err or "gate receipt unavailable")
+
+def source_ownership(src,name):
+    path="/"+name.replace("\\","/").lower().strip("/")+"/"
+    # Build/debug-prefix source directory; a basename or an arbitrary producer is insufficient.
+    return bool(re.search(r"/"+re.escape(src.lower())+r"(?:-[0-9][^/]*)?/",path))
+
+def producer_tables(newfiles,summary):
+    inventory=json.loads((OLD/"inventory.json").read_bytes())
+    tracks=lib("tracks")
+    names={tracks["source"](r["srpm"]) for r in inventory}
+    historical={r[1]:r[3] for r in lib("tracks")["markdown_rows"](OLD/"doc06.md") if 1<=int(r[0])<=27}
+    errors=list(rows("errors"))
+    bad={n[0] for n in errors}
+    db=sqlite3.connect((OLD/"details.sqlite").as_uri()+"?mode=ro&immutable=1",uri=True)
+    counters=defaultdict(Counter)
+    seen=set()
+    with (HERE/"cu-evidence.tsv").open("w") as f:
+        wr=csv.writer(f,delimiter="\t")
+        wr.writerow(("source","rpm","elf","id","CU","producer","ownership"))
+        for raw,debug in db.execute("select p.data,d.data from payload p left join debug d on d.id=json_extract(p.data,'$.build_id')"):
+            r=json.loads(raw)
+            src=r["source"]
+            identity=(src,r["path"],r["sha256"])
+            if identity in seen:continue
+            seen.add(identity)
+            c=counters[src];c["elfs"]+=1;c["text"]+=r["text"] or 0
+            own=set();ambiguous=False
+            for cu in (json.loads(debug)["cus"] if debug else r["cus"]):
+                n,producer=cu["name"],cu["producer"]
+                gcc=bool(re.search(r"\bGNU C(?:\+\+)?(?:\d+)?(?:\s|$)",producer))
+                clang="clang" in producer.lower()
+                if not (gcc or clang):continue
+                crt=bool(re.search(r"(?:^|/)(?:crt[^/]*\.[cS]|libgcc(?:/|$)|csu/)",n))
+                owner="runtime" if crt and src not in ("gcc","glibc") else "package" if source_ownership(src,n) else "unproved"
+                if owner=="package":own.add("gcc" if gcc else "clang")
+                if owner=="unproved":ambiguous=True
+                wr.writerow((src,r["rpm"],r["path"],r["build_id"],n,producer,owner))
+            c["own_gcc_elfs"]+="gcc" in own
+            c["own_gcc_elf_text"]+=(r["text"] or 0) if "gcc" in own else 0
+            c["unproved_elfs"]+=not own or ambiguous
+            c["own_clang_elfs"]+="clang" in own
+            if not own and "GCC" in r["markers"] and "Clang" not in r["markers"]:c["gcc_only_marker_unproved"]+=1
+    db.close()
+    failed={tracks["source"](r["srpm"]) for r in inventory if r["name"] in bad}
+    cutoff=any(e[0]=="STOP" for e in errors)
+    fixed={}
+    for n in historical:
+        c=counters.get(n,{})
+        fixed[n]="NOT_IN_QB" if n not in names and not any(r["name"]==n for r in inventory) else "STILL_GCC" if c.get("own_gcc_elfs") else "FIXED_OBSERVED_CUS" if c.get("own_clang_elfs") and not c["unproved_elfs"] and n not in failed and not cutoff else "UNPROVED"
+    save("e1.json",counters);save("fixed27.json",{n:[fixed[n],counters.get(n,{}).get("text",0),historical[n]] for n in fixed})
+    summary.append(("E1",dict(sources_with_own_GNU_C_CXX=sum(c["own_gcc_elfs"]>0 for c in counters.values()),fixed27=Counter(fixed.values()),top10=Counter({n:c["own_gcc_elf_text"] for n,c in counters.items() if c["own_gcc_elfs"]}).most_common(10))))
+    bykey=defaultdict(set)
+    for r in rows("elfs"):bykey[r["path"],r["sha256"]].add((r["source"],r["rpm"],r["arm_relative"],r["relr_net_rel_bytes"]))
+    raw_bytes=0; totals=Counter();missing=0;covered=0
+    for path in newfiles:
+        with path.open() as f:
+            for r in csv.DictReader(f,delimiter="\t"):
+                match=bykey[r["path"],r["sha256"]]
+                if len(match)!=1:missing+=1;continue
+                src,rpm,n,saving=next(iter(match));totals[rpm]+=saving;raw_bytes+=8*n;covered+=1
+    top=totals.most_common(20)
+    save("installed-relr.json",dict(by_rpm=totals,top20=top,covered=covered,unmatched=missing,errors=errors))
+    summary.append(("E6",dict(rel_bytes=raw_bytes,relr_bytes=raw_bytes-sum(totals.values()),estimate_bytes=sum(totals.values()),coverage=[covered,missing,len(newfiles)],top20=top,scope="37777148 verified platform/prd rows; partial when coverage incomplete")))
+
+def target_loader(results):
+    root=Path(results["37777148/platform"]["root"])
+    guest=lib("pilot")["root_file"]
+    program=guest(root,"/usr/bin/true")
+    hdr=subprocess.check_output(["readelf","-lW",program],text=True)
+    interp=re.search(r"Requesting program interpreter: ([^\]]+)",hdr)[1]
+    loader=guest(root,interp)
+    data=loader.read_bytes()
+    check(data[:6]==b"\x7fELF\x01\x01" and int.from_bytes(data[18:20],"little")==40,"target loader architecture")
+    digest=sha(loader)
+    providers=sorted({(r["rpm"],r["srpm"]) for r in rows("elfs") if r["sha256"]==digest})
+    result=dict(interpreter=interp,real_path="/"+str(loader.relative_to(root)),sha256=digest,providers=providers,result="UNPROVED")
+    save("loader.json",result)
+    check(any(p=="glibc" or s.startswith("glibc-") for p,s in providers),"target glibc payload join")
+    f=OLD/"relr-fixture/ld.bfd.packed.so"
+    sections=dict(lib("image_mode_scan")["secs_of"](f.read_bytes()))
+    dyn=subprocess.check_output(["readelf","-Wd",f],text=True)
+    check("(RELR)" in dyn and not re.search(r"\((?:NEEDED|INIT|INIT_ARRAY)\)",dyn),"fixed data-only RELR probe")
+    data_sec=sections[".data"]
+    check(data_sec[5]==32 and not any(s[2]&4 and s[5] for s in sections.values()),"eight data words; no executable sections")
+    # Every relocated word in this specific fixture must point to its first data word.
+    addr=data_sec[3]
+    check(struct.unpack_from("<8I",f.read_bytes(),data_sec[4])==(addr,)*8,"fixture addends")
+    python=next((p for p in ("/usr/bin/python3","/bin/python3") if guest(root,p).is_file()),None)
+    check(python is not None and shutil.which("qemu-arm-static"),"image Python with ctypes and qemu-arm-static required")
+    code="""import ctypes
+lib=ctypes.CDLL('/pm-proof.so')
+lines=[s for s in open('/proc/self/maps') if s.rstrip().endswith('/pm-proof.so') and int(s.split()[2],16)==0]
+base=int(lines[0].split('-')[0],16)
+target=base+%d
+assert list((ctypes.c_uint32*8).from_address(target))==[target]*8
+print('RELR_8_OF_8')
+""" % addr
+    p=subprocess.run(["bwrap","--unshare-user","--unshare-net","--ro-bind",root,"/","--dev","/dev","--proc","/proc","--clearenv",
+                      "--ro-bind",f,"/pm-proof.so","--ro-bind",shutil.which("qemu-arm-static"),"/pm-qemu","/pm-qemu",python,"-BEc",code],
+                     capture_output=True,text=True,timeout=90)
+    result.update(result="PASS" if p.returncode==0 and "RELR_8_OF_8" in p.stdout.splitlines() else "UNPROVED",rc=p.returncode,diagnostic=p.stderr[-350:])
+    save("loader.json",result)
+    return result
+
+def headlines(summary):
+    for n,file,key in [(2,"n5-cu-baseline","source"),(3,"lto-baseline","package"),(4,"textrel","rpm"),(5,"r2-provider-consumer",1)]:
+        rank=Counter(); count=0
+        for r in rows(file):
+            count+=1
+            rank[r[key]]+=(r.get("text") or 0) if n in (2,3) else 1
+        summary.append((f"E{n}",dict(rows=count,distinct=len(rank),rank_unit=".text bytes" if n in (2,3) else "rows",top10=rank.most_common(10))))
+
+def main():
+    prior=json.loads((OLD/"images.json").read_bytes())
+    result={k:v for k,v in prior.items() if k.endswith("/prd") and v.get("fsck")=="passed"}
+    summary=[]
+    def attempt(name,fn):
+        try:return fn()
+        except Exception as exc:
+            traceback.print_exc(file=sys.stdout)
+            summary.append((name+"_REVIEW",str(exc)))
+    with (HERE/"detail.log").open("w") as log,redirect_stdout(log):
+        for qb in ("37564293","37736448","37777148"):
+            labels=("platform","prd") if qb=="37777148" else ("platform",)
+            attempt("READ_"+qb,lambda:extract(qb,labels,result))
+            tally=Counter()
+            for label in ("platform","prd"):
+                r=result.get(qb+"/"+label,{})
+                tally.update(r.get("census",{}))
+            summary.append(("IMAGE_"+qb,{"platform":{k:v for k,v in result.get(qb+"/platform",{}).items() if k in ("error","entries","dump_entries","compressed","census","board")},"parts":sum("census" in result.get(qb+"/"+p,{}) for p in ("platform","prd")),"totals":tally}))
+        save("partitions.json",result)
+        attempt("AVCONTROL",lib("pilot")["main"])
+        receipt=HERE/"pilot.json"
+        if receipt.exists():
+            pilot=json.loads(receipt.read_bytes())
+            summary.append(("PILOT_RECEIPT",[str(receipt),sha(receipt),"PASS" if pilot["passed"] else "REVIEW"]))
+            for lane,r in pilot["rows"].items():
+                summary.append((lane,dict(gates=r["gates"],size=r.get("size"),text=r.get("text"),map=r.get("map"),official_lto=r.get("official_lto"))))
+                if not r["gates"]:summary.append((lane+"_REVIEW",r.get("error")))
+                for g,status in r["gates"].items():
+                    if status=="REVIEW":summary.append((lane+"_"+g,reason(r,g)))
+        verified=[HERE/f"files-37777148-{p}.tsv" for p in ("platform","prd") if "census" in result.get("37777148/"+p,{})]
+        attempt("CU_RELR",lambda:producer_tables(verified,summary))
+        attempt("HEADLINES",lambda:headlines(summary))
+        def loader():
+            try:r=target_loader(result)
+            except Exception as exc:
+                r=json.loads((HERE/"loader.json").read_bytes()) if (HERE/"loader.json").exists() else {}
+                r.update(result="UNPROVED",diagnostic=str(exc))
+                save("loader.json",r)
+            summary.append(("ARM_LOADER",r))
+        loader()
+    save("summary.json",summary)
+    archive=HERE/"tables.tar.gz"
+    with tarfile.open(archive,"w:gz",compresslevel=1) as tar:
+        for base,prefix,globs in [(OLD,"qp4O4m",("*.jsonl","images.json","linkers.json","inventory.json")),(HERE,"review",("*.json","*.tsv","detail.log"))]:
+            for pattern in globs:
+                for p in sorted(base.glob(pattern)):tar.add(p,prefix+"/"+p.name,recursive=False)
+    # Exceptional extra diagnostics share one JSON line, keeping every REVIEW gate separate.
+    gates=[s for s in summary if re.fullmatch(r"(?:baseline|default|package)_T\d",s[0])]
+    other=[s for s in summary if s not in gates]
+    for key,value in gates:print(key,json.dumps(value,ensure_ascii=True))
+    for i,(key,value) in enumerate(other):
+        if len(gates)+i>=37:
+            print("OTHER",json.dumps(other[i:]));break
+        print(key,json.dumps(value,separators=(",",":")))
+    print("TABLES",sha(archive),archive)
+
+if __name__=="__main__":main()

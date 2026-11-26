@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+pin=${1:?full commit}
+[[ $pin =~ ^[a-f0-9]{40}$ ]]
+base=https://raw.githubusercontent.com/lhmax2010/analysis/$pin
+old=/home1/chengkai/vd-tree/workspace/temp/pm0013-bce.qp4O4m
+cd "$(dirname "$old")"
+d=$(mktemp -d "$PWD/pm0013f-review.XXXXXX")
+cd "$d"
+export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1
+get() { curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 150 "$base/$1" -o "$2"; }
+while read -r digest path; do
+  name=${path##*/}
+  if [[ -f "$old/$name" ]] && printf '%s  %s\n' "$digest" "$old/$name" | sha256sum --check --status; then
+    cp -- "$old/$name" "$name"
+  else
+    get "$path" "$name" 2>>download.log
+  fi
+  printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
+done <<'INPUTS'
+cc17ab9c88bc1c95f2423a9dffb869594979fc49cbbd28b0ff7de5d107b97aa0  artifacts/scripts/r0013f/review.py.txt
+6544238d08d63d816e736c090e9223cd73192d0af190db0e5f27afcb35b46f9e  artifacts/scripts/r0013f/pilot.py.txt
+d9620fad6f97d27014a2bde2f0e9c1d13500ff2239f253b69464ef2d0ac1e601  artifacts/scripts/r0013a/images.py.txt
+4ada3c3a74557d697045e28f8fd0b92aaf0e4bb05eb8d4f627bf43d4bcd134f7  artifacts/scripts/r0013a/tracks.py.txt
+f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726  artifacts/scripts/r0012c/image-tree.py.txt
+bd185578c36dcf420e2992e6abb381070609f4bdfeb6eb82cf0ff383fa2e1855  artifacts/scripts/r0012z/verify-reader.py.txt
+1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75  artifacts/scripts/r0004/image_mode_scan.py.txt
+8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f  artifacts/scripts/r0005/image-repo-lib.py.txt
+0eff2b451db99fb6f55998b8e74f0e3d5bde6cfa086dbc998859e4ef5261c928  artifacts/scripts/r0012r/lto-delivery.py.txt
+INPUTS
+exec nice -n 19 ionice -c 3 python3 -Bu review.py.txt 2>"$d/errors.log"
