@@ -18,7 +18,7 @@ Evidence cutoff 25 November. One board. All kernel size and Thumb ELF size figur
 
 Text and rodata use inclusive physical ranges from each running kernel. Data, BSS and init use boot accounting at whole-KiB resolution, converted to bytes. ¹GCC values are derived from its verified kernel image using the mem_init print formula. The same calculation reproduced Official 666/4,024/404 KiB and Custom 665/4,025/396 KiB exactly. Total is uImage file length minus the 64-byte header, including the 260-byte trailer. HQ's RPI Total definition remains unverified. [Raw byte table, formulas and identity](../../../comms/codex_to_claude/0012u_reply.md)
 
-All three use kernel source CL 14293732. Official and Custom have matching published Product source/VCS for all 5,880 rows and differ in LLVM Base, 20261113.1 versus 20261118.1. GCC uses Product 20261113.1 and Base 10.1/20260919.1. GCC versus LLVM also changes Product sources, installed releases and potentially kernel config. [QB pair gate](../../../artifacts/evidence/native-run-r0011-step2-pair-gate-20261124.txt)
+All three use kernel source CL 14293732. Official and Custom have matching published Product source/VCS for all 5,880 rows and differ in LLVM Base, 20261113.1 versus 20261118.1. GCC uses Product 20261113.1 and Base 10.1/20260919.1. GCC versus LLVM also changes Product sources, installed releases and compiler-dependent config. Of 34 differing config symbols, only MLGO and its two children differ as enabled optimization selections. [QB pair gate](../../../artifacts/evidence/native-run-r0011-step2-pair-gate-20261124.txt)
 
 ## AVControl and the Thumb-2 census
 
@@ -58,8 +58,8 @@ Installed name/architecture keys: G1 2,343, O1 and C1 2,342 each. G1 → either 
 
 | Item | Evidence available | Blocking input |
 |---|---|---|
-| Image scan and installed-owner census | pm0012-image.mKv04z platform rc=1, unsupported EROFS features 0x180. New upstream host tool passed 48-bit/metabox LZ4 and Zstd extraction with exact byte comparison. | Native GCC, Official and Custom partition receipts, RPM DB comparison and image job rc=0. |
-| Kernel K0–K5 and GCC perf config | Standalone kernel batch launched per operator. Official perf config digest starts 2a316525. | Batch readback after completion, GCC/Official devel-config diff and external-module owners from image census. |
+| Image scan and installed-owner census | pm0012-image.mKv04z platform rc=1, unsupported EROFS features 0x180. New upstream host tool passed 48-bit/metabox LZ4 and Zstd extraction with exact byte comparison. | The latest preflight failed on algorithm mask 0x10. The 0012y retry records each raw superblock and a compressed-file census; native receipts, RPM DB comparison and image job rc=0 remain open. |
+| Kernel K0–K5 and GCC perf config | OwlD9Q stopped before compilation at GBS spec selection. GCC USB verified. Perf config digests GCC bb8208f4 and Official 2a316525. | Relaunch receipt with HEAD spec selection and parent CONFIG_MLGO=n in K2/K3; external-module owners from image census. |
 | Whole-board MLGO comparison | C1 and G1 have signed workload data. GCC and Custom differ in OS libraries and Product. | O2 signed workloads on the Official board with the same protocol, replicated independent boots, and control of user-space/other Base deltas. |
 | AVControl production acceptance | Scoped ELF sizes above. | Qualified image census and baseline/default/package pilot for open gates. |
 | LTO non-PIC fallback | Source1005 in both Official and Custom SRPMs is byte-equal to the independent review copy (SHA-256 7d89083453e1d75707a4a6b3a6d9510a4c31e09d8e99865de2a18e07945bf76f). | Independent reviewer findings and disposition. No REVIEW-*.md is archived in the review directory. The regular-LTO IR patch leaves native consumption of fat objects as a separate consumer/link qualification. |

@@ -492,3 +492,7 @@ User-approved method: admit GCC image-derived Data, BSS and init only after the 
 ## 0012v · G1 whole-board comparison and upstream extractor
 
 User requested a single warm series and the same C1 signed workload on GCC, with the native kernel batch left independent. C1/G1 values describe complete images. For tomorrow's review, the EROFS launcher uses upstream dev 7e52cbf including b9dd73fb, with the existing exact-byte fixture and tool-hash receipt. The order after kernel completion is gcc, erofs, image, pilot with a fresh free-space gate at each step. [Inputs](../comms/claude_to_codex/0012v.md) · [Measurements and review command](../comms/codex_to_claude/0012v_reply.md)
+
+### 0012w/x/y · baseline and trial controls
+
+The user designated 37777148/37777264 for the next MLGO image comparison. Preserve 37736448/37736427 for in-flight jobs and existing board results. Kernel table transfer is conditional on per-lane artifact identity. In local K2/K3 change the perf Kconfig parent MLGO to n; disallow unrelated generated config drift and verify both advisor pairs disappear on the same TU. [0012x](../comms/codex_to_claude/0012x_reply.md) · [0012y](../comms/codex_to_claude/0012y_reply.md)
