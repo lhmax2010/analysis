@@ -183,11 +183,24 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
             if THUNK.search(fn):
                 thunk_rows.append((name,fn,hex(va),b,sec,[k for a,z,k in placement if a<=va<z<=2**32]))
     table(lane,"thunks",("lane","symbol","address","bytes","section","ranges"),thunk_rows)
+    origin_objects={o for h in helpers.values() for c in h["calls"] for o,sec in c["input_candidates"]}
+    input_sections={}
+    for obj in sorted(origin_objects):
+        file=tree/obj
+        need(file.resolve().is_relative_to(tree) and file.is_file(),"retained object origin")
+        blob=file.read_bytes();sections=SCAN(blob)
+        if sections:
+            for n,va,size,sec in AUDIT["symbols"](blob,sections):
+                if AUDIT["HELPER"].fullmatch(n):input_sections.setdefault((obj,n),set()).add(sec)
+    unresolved_helper_sections=0
     for addr,h in helpers.items():
         body=h["body"]; path=place(addr,h["section"])
         if not body or set(range(addr,addr+h["bytes"],4))!={pc for pc,_,_ in body} or any(op in ("<unknown>",".word",".short",".inst") for _,op,_ in body):body_missing+=1
         distinct[addr]=len({c["caller_addr"] for c in h["calls"]})
-        if CRITICAL.search(" ".join(path)):critical.append((addr,"helper placement",path))
+        origins={s for c in h["calls"] for obj,_ in c["input_candidates"] for s in input_sections.get((obj,h["name"]),())}
+        if len(origins)!=1:unresolved_helper_sections+=1
+        path+=sorted(origins)
+        if any(CRITICAL.search(v) for v in path):critical.append((addr,"helper placement",path))
         exclusive=[]; barriers=[]
         for pc,op,arg in body:
             op=op.split(".")[0]
@@ -258,8 +271,8 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
     table(lane,"frames",("helper","site","variant","frame_evidence"),unwind)
     missing_callers=sum(not h["calls"] for h in helpers.values())
     # Merged input sections and unresolved indirect edges preclude a clean reachability verdict.
-    effects["S1"]=("FAIL" if critical or reach else "REVIEW" if uncertain or missing_callers or not roots or reached&indirect else "PASS",
-                   dict(critical=len(critical),reachable_helpers=len(reach),unjoined=uncertain,without_direct_caller=missing_callers,critical_indirect=len(reached&indirect)))
+    effects["S1"]=("FAIL" if critical or reach else "REVIEW" if uncertain or unresolved_helper_sections or missing_callers or not roots or reached&indirect else "PASS",
+                   dict(critical=len(critical),reachable_helpers=len(reach),unjoined=uncertain,unresolved_helper_sections=unresolved_helper_sections,without_direct_caller=missing_callers,critical_indirect=len(reached&indirect)))
     stack_critical=sum(bool(cls=="LR_STACK" and (int(fn,16) in reached or re.search(r"irq|exception|entry",caller,re.I))) for _,caller,fn,_,_,_,_,cls,*_ in calls)
     # Measure nested saves along direct helper-to-helper edges; ordinary callers, recursion and indirect targets can extend the chain.
     cache={};active=set()
