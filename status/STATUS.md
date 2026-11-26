@@ -1,5 +1,9 @@
 # Status
 
+## 0013e · overnight disk headroom
+
+The native census measured 28.779 GiB across 27 allowlisted historical leaves. The operator requires published SHA-256 recovery proof before pruning either original RPM directory. Pinned historical dry-run/apply, active-lane follower, package reclaimer, post-run sweep and selective K4/K5 recovery are ready for PM review. Native recovery and remaining disk headroom await readback. [Commands and ledger](../comms/codex_to_claude/0013e_reply.md)
+
 ## 0013c · package command ready for review
 
 PM approved B/C/E and the post-kernel roster on the 0013a pin. B/C/E is running per the operator. The revised package worker retains its tty, checks sudo and P4, and waits for RAM before admitting a lane. [Command 2 and PTY fixture](../comms/codex_to_claude/0013c_reply.md)
