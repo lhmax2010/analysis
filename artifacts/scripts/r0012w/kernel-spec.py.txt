@@ -1,0 +1,88 @@
+"""Select the committed spec with the same GBS library as the native CLI."""
+import configparser
+import hashlib
+from pathlib import Path
+import re
+import subprocess
+
+SPEC = "packaging/tztv-kernel.spec"
+ORIGINAL = "5663f9c9c074f74e69a57bec9fb3dcc595512985a778814e311e0658e2b12cc5"
+TRACED = "4f93165bbf41dd7df6a8310328b3707ecd752738976aecad59738b19fc8cb1b2"
+GIT = ["git", "-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=always"]
+
+
+def git(src, *args):
+    return subprocess.check_output([*GIT, "-C", src, *args])
+
+
+def reuse(work, old, gbs):
+    src = old/"vdlinux"
+    if src.resolve(strict=True) != src or (src/".git").is_symlink():
+        raise ValueError("unexpected retained kernel checkout")
+    for file in ("git-add.log", "git-commit.log", "base-print.log", "shelf.log"):
+        f = old/file
+        print("RETAINED_LOG", file, f.stat().st_size, gbs.sha(f), flush=True)
+    log = (old/"job.log").read_text()
+    desc = (old/"shelf.log").read_text()
+    entries = re.findall(r"^\.\.\. ("+re.escape(gbs.DEPOT)+r".+?)#\d+\s+([\w/]+)$", desc, re.M)
+    if (f"GBS_SOURCE 14293732 + 14427407 overlays 24 spec_sha256 {ORIGINAL}" not in log
+            or f"GBS_TRACE_ONLY_SPEC_SHA256 {TRACED}" not in log
+            or not re.search(r"^Change 14427407\b", desc, re.M) or len(entries)!=24):
+        raise ValueError("retained source provenance mismatch")
+    for i, (_, action) in enumerate(entries):
+        if action not in ("delete","move/delete") and not (old/f"shelf-print-{i}.log").is_file():
+            raise ValueError(f"missing overlay receipt {i}")
+    if (gbs.sha(old/"tztv-kernel.spec.before-trace")!=ORIGINAL
+            or hashlib.sha256(git(src,"show","HEAD:"+SPEC)).hexdigest()!=TRACED):
+        raise ValueError("retained original or committed trace spec digest differs")
+    tracked = git(src,"ls-files","--","*.spec").decode().splitlines()
+    change = git(src,"diff","--name-only","HEAD").decode().splitlines()
+    if SPEC not in tracked or set(change)-{SPEC}:
+        raise ValueError("unexpected retained tracked source or changes "+repr(change[:10]))
+    print("RETAINED_TRACKED_SPECS",tracked)
+    for path in (old/"shared/gbs.conf", src/".gbs.conf"):
+        cfg=configparser.RawConfigParser(strict=False)
+        cfg.read(path)
+        print("RETAINED_PACKAGING_DIR",path,cfg.get("general","packaging_dir",fallback="<unset; default packaging>"))
+    selector_probe(src,"WC.UNTRACKED",required=False)
+    target=work/"vdlinux"
+    subprocess.run([*GIT,"clone","--quiet","--local","--no-hardlinks",str(src),str(target)],check=True)
+    git(target,"fsck","--full","--no-reflogs")
+    tree=git(src,"rev-parse","HEAD^{tree}").strip()
+    if tree!=git(target,"rev-parse","HEAD^{tree}").strip() or gbs.sha(target/SPEC)!=TRACED:
+        raise ValueError("copied source tree differs from retained committed tree")
+    gbs.pinned(target/"linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig",gbs.CONFIG_SHA)
+    print("GBS_SOURCE_REUSED",src,tree.decode(),"P4_FETCH_SKIPPED",flush=True)
+    return target
+
+
+def selector_probe(src, revision, required=True):
+    # GBS runs under the distro Python, independently of the launcher's pyenv.
+    program = """import sys
+from gitbuildsys.utils import guess_spec
+selected, others = guess_spec(sys.argv[1], 'packaging', 'tztv-kernel.spec', sys.argv[2])
+print(selected)
+if selected != 'packaging/tztv-kernel.spec': sys.exit(2)
+"""
+    p=subprocess.run(["/usr/bin/python3","-B","-c",program,str(src),revision],
+                     cwd=src,capture_output=True,text=True)
+    details=(p.stdout+p.stderr).strip()[-900:]
+    print("GBS_GUESS_SPEC",revision,p.returncode,details,flush=True)
+    if required and p.returncode:
+        raise ValueError("GBS_SPEC_PREFLIGHT_FAIL "+details)
+
+
+def commit_lane(src, lane):
+    # Export from a clean Git revision, as in the successful pm0005 replay.
+    try:
+        git(src,"add","--",SPEC)
+        git(src,"-c","user.name=GBS staging","-c","user.email=gbs@localhost",
+            "commit","-qm",f"Local measured kernel {lane}","--",SPEC)
+        body=git(src,"show","HEAD:"+SPEC)
+        if body!=(src/SPEC).read_bytes() or git(src,"status","--porcelain","--untracked-files=no"):
+            raise ValueError("spec or working tree differs from committed lane")
+        selector_probe(src,"HEAD")
+        print("GBS_SPEC_PREFLIGHT_PASS",lane,git(src,"rev-parse","HEAD").decode().strip(),SPEC,
+              hashlib.sha256(body).hexdigest(),flush=True)
+    except (OSError,ValueError,subprocess.SubprocessError) as exc:
+        raise ValueError("GBS_SPEC_PREFLIGHT_FAIL "+str(exc)) from exc

@@ -238,10 +238,12 @@ def stage_package(gbs, work, args, lane):
     return project, args.spec
 
 
-def run_gbs(gbs, capture, project, spec, config, buildconf, root, include_all, defaults):
+def run_gbs(gbs, capture, project, spec, config, buildconf, root, include_all, defaults, *, packaging_dir=None):
     cpu = ",".join(map(str, sorted(os.sched_getaffinity(0))[:6]))
     cmd = ["taskset", "-c", cpu, "gbs", "-c", str(config), "build", "-A", "armv7l",
            "-B", str(root), "-D", str(buildconf), "--threads", "1", "--spec", spec]
+    if packaging_dir is not None:
+        cmd += ["--packaging-dir", packaging_dir]
     if include_all:
         cmd += ["--include-all"]
     if defaults:

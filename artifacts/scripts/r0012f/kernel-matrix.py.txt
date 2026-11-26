@@ -106,7 +106,15 @@ def run(work,proof,owners):
         if any(base.get(k)!="y" for k in ("CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC","CONFIG_LTO_NONE","CONFIG_UNWINDER_FRAME_POINTER")):
             raise ValueError("pinned candidate lacks expected A32/no-LTO/advisor settings")
         qualified_k0=False
-        src=s.gbs.stage_kernel(work)
+        selection=load("kernel-spec")
+        old=os.environ.get("PM12_REUSE_KERNEL_JOB")
+        if old:
+            retained=dev["TEMP"]/"pm0012-kernel.OwlD9Q/jobs/kernel-thumb"
+            if Path(old)!=retained:
+                raise ValueError("unexpected resume directory")
+            src=selection["reuse"](work,retained,s.gbs)
+        else:
+            src=s.gbs.stage_kernel(work)
         spec=src/"packaging/tztv-kernel.spec"
         subprocess.run(["patch","--batch","--fuzz=0","-p1","-i",HERE/"perf-machine-outliner.spec.patch"],cwd=src,check=True)
         template=spec.read_text()
@@ -124,7 +132,8 @@ def run(work,proof,owners):
             spec.write_text(stage_spec(template, lane, dev))
             try:
                 if root.exists() or any((shared/"empty-repo").iterdir()): raise ValueError("GBS root/repo carried earlier lane products")
-                s.thumb["run_gbs"](s.gbs,folder,src,spec.name,cfg,s.buildconf,root,True,False)
+                selection["commit_lane"](src,lane)
+                s.thumb["run_gbs"](s.gbs,folder,src,spec.name,cfg,s.buildconf,root,False,False,packaging_dir="packaging")
                 toolchain=(folder/"thumb-probe.txt").read_text(errors="replace").splitlines()
                 guest_roots = list((root/"local/BUILD-ROOTS").glob("*.armv7l.*"))
                 record["compiler_paths"] = {}

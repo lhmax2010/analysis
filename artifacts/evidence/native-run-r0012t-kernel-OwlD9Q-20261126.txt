@@ -1,0 +1,146 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ K=$(ls -td /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.* | head -1); echo "RUN $K"
+ls "$K/jobs/kernel-thumb/" | head -n 30
+tail -n 60 "$K/jobs/kernel-thumb/job.log"
+grep -h -E 'K[0-5]|LANE|GATE|BLOCK|FAIL|MISMATCH|ERROR|rc=' "$K/jobs/kernel-thumb/job.log" | tail -n 40
+tail -n 40 "$K/combined.txt" 2>/dev/null
+df -h /home1 | tail -1
+RUN /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q
+base-print.log
+git-add.log
+git-commit.log
+git-init.log
+job.log
+K0
+kernel-lanes.tsv
+kernel-matrix.json
+official.config
+outline-interaction.json
+outliner-lanes.tsv
+p4-login.log
+shared
+shelf.log
+shelf-print-0.log
+shelf-print-10.log
+shelf-print-11.log
+shelf-print-12.log
+shelf-print-13.log
+shelf-print-14.log
+shelf-print-15.log
+shelf-print-16.log
+shelf-print-17.log
+shelf-print-18.log
+shelf-print-19.log
+shelf-print-1.log
+shelf-print-20.log
+shelf-print-21.log
+shelf-print-22.log
+shelf-print-23.log
+BOOT_IMAGE zImage 5326504 f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab outer_IKCFG_ST 0
+BOOT_IMAGE uImage 11348968 eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6 outer_IKCFG_ST 0
+BOOT_PAYLOAD_EQUAL gzip_offset 30065 bytes 11348644 sha256 6073c4278bf03cdcd7c978cea072682444081f3a8764e52cde08ffce43836e83
+MATCHED_RUNNING_BUILD_ID 419813f26f2d03bee00bde1d7173b0c2fd887530
+BOOT_BANNER Linux version 6.12.60 (abuild@A1106DJG) (clang version 22.1.8, LLD 22.1.8) # SMP PREEMPT
+BOOT_BANNER Linux version 6.12.60 (abuild@A1106DJG) (clang version 22.1.8, LLD 22.1.8) #1 SMP PREEMPT Mon Nov 23 06:24:04 UTC 2026
+DECODED_IKCFG_ST_COUNT 0
+KERNEL_SOURCE ["official","tztv-kernel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-devel","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-perf","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+KERNEL_SOURCE ["official","tztv-kernel-release","0","1","1","armv7l","tztv-kernel-1-1.src.rpm","//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux#14293732"]
+SAME_BUILD_DEVEL_CONFIG_CANDIDATE 2a31652557d89d100d3c1bc6b0116556e32a56f03b0145eba12af425c75379f3 /usr/include/kernel_header/perf/.config
+GBS_SOURCE 14293732 + 14427407 overlays 24 spec_sha256 5663f9c9c074f74e69a57bec9fb3dcc595512985a778814e311e0658e2b12cc5
+GBS_TRACE_ONLY_SPEC_SHA256 4f93165bbf41dd7df6a8310328b3707ecd752738976aecad59738b19fc8cb1b2
+patching file packaging/tztv-kernel.spec
+Hunk #1 succeeded at 147 (offset 143 lines).
+Hunk #2 succeeded at 283 (offset 143 lines).
+GBS_DEPENDENCY_PRODUCT_LIVE http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/
+CAPACITY disk_free_gib 174 ram_available_gib 73
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/published-build.conf --threads 1 --spec tztv-kernel.spec --include-all LOG /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/K0/gbs.log
+GBS_EXIT 1
+THUMB_WRAPPED_COMPILE_LINES 0
+GBS_FAILURE_LOG gbs.log    packaging/tztv-kernel.spec
+GBS_FAILURE_LOG gbs.log error: Traceback (most recent call last):
+GBS_FAILURE_LOG gbs.log   File "/usr/bin/gbs", line 808, in <module>
+GBS_FAILURE_LOG gbs.log     sys.exit(main(sys.argv))
+GBS_FAILURE_LOG gbs.log              ^^^^^^^^^^^^^^
+GBS_FAILURE_LOG gbs.log   File "/usr/bin/gbs", line 802, in main
+GBS_FAILURE_LOG gbs.log     return module.main(args)
+GBS_FAILURE_LOG gbs.log            ^^^^^^^^^^^^^^^^^
+GBS_FAILURE_LOG gbs.log   File "/usr/lib/python3/dist-packages/gitbuildsys/cmd_export.py", line 284, in main
+GBS_FAILURE_LOG gbs.log     main_spec, rest_specs = utils.guess_spec(workdir, packaging_dir,
+GBS_FAILURE_LOG gbs.log                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+GBS_FAILURE_LOG gbs.log   File "/usr/lib/python3/dist-packages/gitbuildsys/utils.py", line 110, in guess_spec
+GBS_FAILURE_LOG gbs.log     specs.remove(spec)
+GBS_FAILURE_LOG gbs.log ValueError: list.remove(x): x not in list
+GBS_FAILURE_LOG gbs.log
+GBS_FAILURE_LOG gbs.log info: retrieving repo metadata...
+GBS_FAILURE_LOG gbs.log info: parsing package data...
+GBS_FAILURE_LOG gbs.log info: building repo metadata ...
+GBS_FAILURE_LOG gbs.log info: resolving skipped packages ...
+GBS_FAILURE_LOG gbs.log info: package dependency resolving ...
+GBS_FAILURE_LOG gbs.log info: there is no circle in 0 packages
+GBS_FAILURE_LOG gbs.log warning: no available packages to build.
+GBS_FAILURE_LOG gbs.log info: *** Build Status Summary ***
+GBS_FAILURE_LOG gbs.log === Total succeeded built packages: (0) ===
+GBS_FAILURE_LOG gbs.log info: generated html format report:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/repos/qb1111/armv7l/index.html
+GBS_FAILURE_LOG gbs.log info: generated RPM packages can be found from local repo:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/repos/qb1111/armv7l/RPMS
+GBS_FAILURE_LOG gbs.log info: generated source RPM packages can be found from local repo:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/repos/qb1111/armv7l/SRPMS
+GBS_FAILURE_LOG gbs.log info: build logs can be found in:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/repos/qb1111/armv7l/logs
+GBS_FAILURE_LOG gbs.log info: build roots located in:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.*
+GBS_FAILURE_LOG gbs.log error: <gbs>some packages failed to be built
+KERNEL_THUMB_LANE K0 BLOCKED_OR_FAILED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/K0/gbs.log
+KERNEL_THUMB_EXTERNAL DEFERRED_INSTALLED_OWNERS; image membership required only for external-module validation
+KERNEL_THUMB_BLOCKED kernel matrix or K0 qualification incomplete; see kernel-matrix.json
+KERNEL_SMOKE_GATE_PASS /home1/chengkai/vd-tree/workspace/temp/pm0012-smoke.neJb0i
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/published-build.conf --threads 1 --spec tztv-kernel.spec --include-all LOG /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/K0/gbs.log
+GBS_FAILURE_LOG gbs.log    packaging/tztv-kernel.spec
+GBS_FAILURE_LOG gbs.log error: Traceback (most recent call last):
+GBS_FAILURE_LOG gbs.log   File "/usr/bin/gbs", line 808, in <module>
+GBS_FAILURE_LOG gbs.log     sys.exit(main(sys.argv))
+GBS_FAILURE_LOG gbs.log              ^^^^^^^^^^^^^^
+GBS_FAILURE_LOG gbs.log   File "/usr/bin/gbs", line 802, in main
+GBS_FAILURE_LOG gbs.log     return module.main(args)
+GBS_FAILURE_LOG gbs.log            ^^^^^^^^^^^^^^^^^
+GBS_FAILURE_LOG gbs.log   File "/usr/lib/python3/dist-packages/gitbuildsys/cmd_export.py", line 284, in main
+GBS_FAILURE_LOG gbs.log     main_spec, rest_specs = utils.guess_spec(workdir, packaging_dir,
+GBS_FAILURE_LOG gbs.log                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+GBS_FAILURE_LOG gbs.log   File "/usr/lib/python3/dist-packages/gitbuildsys/utils.py", line 110, in guess_spec
+GBS_FAILURE_LOG gbs.log     specs.remove(spec)
+GBS_FAILURE_LOG gbs.log ValueError: list.remove(x): x not in list
+GBS_FAILURE_LOG gbs.log
+GBS_FAILURE_LOG gbs.log info: retrieving repo metadata...
+GBS_FAILURE_LOG gbs.log info: parsing package data...
+GBS_FAILURE_LOG gbs.log info: building repo metadata ...
+GBS_FAILURE_LOG gbs.log info: resolving skipped packages ...
+GBS_FAILURE_LOG gbs.log info: package dependency resolving ...
+GBS_FAILURE_LOG gbs.log info: there is no circle in 0 packages
+GBS_FAILURE_LOG gbs.log warning: no available packages to build.
+GBS_FAILURE_LOG gbs.log info: *** Build Status Summary ***
+GBS_FAILURE_LOG gbs.log === Total succeeded built packages: (0) ===
+GBS_FAILURE_LOG gbs.log info: generated html format report:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/repos/qb1111/armv7l/index.html
+GBS_FAILURE_LOG gbs.log info: generated RPM packages can be found from local repo:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/repos/qb1111/armv7l/RPMS
+GBS_FAILURE_LOG gbs.log info: generated source RPM packages can be found from local repo:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/repos/qb1111/armv7l/SRPMS
+GBS_FAILURE_LOG gbs.log info: build logs can be found in:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/repos/qb1111/armv7l/logs
+GBS_FAILURE_LOG gbs.log info: build roots located in:
+GBS_FAILURE_LOG gbs.log      /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.*
+GBS_FAILURE_LOG gbs.log error: <gbs>some packages failed to be built
+KERNEL_THUMB_LANE K0 BLOCKED_OR_FAILED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/K0/gbs.log
+KERNEL_THUMB_BLOCKED kernel matrix or K0 qualification incomplete; see kernel-matrix.json
+PM12_BATCH_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q
+2026-11-25T22:08:12+08:00 START kernel
+2026-11-25T22:08:33+08:00 JOB kernel-thumb START
+2026-11-25T23:29:30+08:00 JOB kernel-thumb END rc=2
+2026-11-25T23:29:30+08:00 DONE kernel rc=1
+KERNEL_THUMB_LANE K0 BLOCKED_OR_FAILED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/K0/gbs.log
+KERNEL_THUMB_EXTERNAL DEFERRED_INSTALLED_OWNERS; image membership required only for external-module validation
+KERNEL_THUMB_BLOCKED kernel matrix or K0 qualification incomplete; see kernel-matrix.json
+/dev/nvme0n1p1  1.8T  1.6T  176G  90% /home1
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
