@@ -1,0 +1,32 @@
+"""Read the most recent retained matrix containing a requested lane; print bounded diagnostics."""
+import json
+import re
+from pathlib import Path
+
+temp=Path("/home1/chengkai/vd-tree/workspace/temp")
+lanes=("K1","K3","K4","K5")
+error=re.compile(r'(?i)(?:\bfatal(?: error)?:|\berror:|undefined (?:reference|symbol)|no space left|killed signal|permission denied|no rule to make|unsupported instruction|out of memory|no such file)')
+files=sorted(temp.glob("pm0012-kernel.*/jobs/kernel-thumb/kernel-matrix.json"),key=lambda p:p.stat().st_mtime_ns,reverse=True)
+for f in files:
+    try: rows=json.loads(f.read_bytes())
+    except (OSError,ValueError):continue
+    if all(lane in rows for lane in lanes):break
+else:raise SystemExit("No complete four-lane receipt. Send the actual run path or its job.log.")
+print("MATRIX",f)
+for lane in lanes:
+    r=rows[lane]
+    print(lane,"STATUS",r.get("status"),"DIAGNOSTIC",str(r.get("diagnostic",""))[:800])
+    print("PROOF",str(r.get("argv_proof",{}).get("reasons",[]))[:400],"REVIEWS",str(r.get("reviews",[]))[:400])
+    folder=f.parent/lane
+    logs=[folder/"gbs.log",*sorted(folder.glob("GBS-ROOT/local/repos/*/*/logs/fail/*/log.txt"))]
+    for p in logs[:3]:
+        if not p.is_file():continue
+        found=0
+        with p.open(errors="replace") as log:
+            for n,line in enumerate(log,1):
+                if error.search(line):
+                    print(p.name,n,line.strip()[-500:]);found+=1
+                    if found==4:break
+    for k,items in (r.get("file_diagnostics") or {}).items():
+        print(str(k)[-100:],str(items[:3])[:750])
+        break
