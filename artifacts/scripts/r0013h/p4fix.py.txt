@@ -1,0 +1,220 @@
+"""Census a single legacy GBS root. Only the operator's separate apply can erase it."""
+from collections import Counter
+import fcntl
+import gzip
+import base64
+import hashlib
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import shutil
+import stat
+import sys
+import time
+
+HOME=Path("/home1/chengkai")
+TARGET=HOME/"p4fix_build"
+TEMP=HOME/"vd-tree/workspace/temp"
+GIB=1024**3
+def require(ok,msg):
+    if not ok:raise ValueError(msg)
+def below(path,root):
+    return path==root or path.startswith(root.rstrip("/")+"/")
+def unescape(s):
+    return re.sub(r"\\([0-7]{3})",lambda m:chr(int(m[1],8)),s)
+def enoent(exc):
+    return isinstance(exc,(FileNotFoundError,ProcessLookupError))
+def gbs(args):
+    names=[os.path.basename(x) for x in args]
+    return (any(s in ("gbs","gbs-build") for s in names) and ("build" in args or "gbs-build" in names)
+            or any(s in ("rpmbuild","build-initvm","obs-build","init_buildsystem","kernel-matrix.py.txt","pkg.py.txt") for s in names)
+            or any(x.endswith("/build/build") or x.endswith("/bin/gbs-build") for x in args))
+
+def mount_rows(path):
+    entries=[]
+    for l in path.read_text(errors="surrogateescape").splitlines():
+        f=l.split()
+        entries.append((f[2],unescape(f[3]),unescape(f[4])))
+    return entries
+
+def process_scan():
+    hits=set();denied=set();mounts=set()
+    local=mount_rows(Path("/proc/self/mountinfo"))
+    target=str(TARGET)
+    device,fsroot,point=max((r for r in local if below(target,r[2])),key=lambda r:len(r[2]))
+    inner=os.path.normpath(os.path.join(fsroot,os.path.relpath(target,point)))
+    namespaces={}
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdecimal():continue
+        try:ns=os.readlink(proc/"ns/mnt")
+        except OSError as e:
+            if not enoent(e):denied.add((proc.name,"ns",str(e)))
+            continue
+        if ns not in namespaces:
+            try:
+                aliases={target}
+                for dev,root,mount in mount_rows(proc/"mountinfo"):
+                    if below(mount,target) or dev==device and below(root,inner):
+                        mounts.add((ns,root,mount))
+                    if dev==device and below(inner,root):
+                        aliases.add(os.path.normpath(os.path.join(mount,os.path.relpath(inner,root))))
+                namespaces[ns]=aliases
+            except OSError as e:
+                if not enoent(e):denied.add((proc.name,"mounts",str(e)))
+                continue
+        aliases=namespaces[ns]
+        try:
+            args=[os.fsdecode(x) for x in (proc/"cmdline").read_bytes().split(b"\0") if x]
+            if gbs(args):hits.add((proc.name,"GBS/build worker",""))
+            if any(below(a,t) or ("="+t+"/") in a or a.endswith("="+t) for a in args for t in aliases):
+                hits.add((proc.name,"argument",""))
+            for link in [proc/"cwd",proc/"root",proc/"exe",*(proc/"fd").iterdir()]:
+                try:p=os.readlink(link).removesuffix(" (deleted)")
+                except OSError as e:
+                    if enoent(e):continue
+                    raise
+                if any(below(p,t) for t in aliases):hits.add((proc.name,link.name,p))
+            with (proc/"maps").open(errors="surrogateescape") as f:
+                for line in f:
+                    parts=line.rstrip("\n").split(None,5)
+                    if len(parts)==6:
+                        p=unescape(parts[5]).removesuffix(" (deleted)")
+                        if any(below(p,t) for t in aliases):hits.add((proc.name,"mmap",p))
+        except OSError as e:
+            if not enoent(e):denied.add((proc.name,"process",str(e)))
+    # Also detect mounts below bind aliases that mountinfo presents in another namespace.
+    for ns,aliases in namespaces.items():
+        if aliases=={target}:continue
+        # A surviving alias makes an operator-confirmed idle maintenance window ambiguous.
+        for a in aliases-{target}:mounts.add((ns,"alias",a))
+    return sorted(hits),sorted(mounts),sorted(denied)
+
+def walk_tree(root,skip):
+    totals=[];errors=[];seen=set()
+    digest=hashlib.sha256()
+    def node(p,v,c):
+        digest.update(os.fsencode(str(p.relative_to(root)))+b"\0")
+        digest.update(str((v.st_dev,v.st_ino,v.st_mode,v.st_uid,v.st_gid,v.st_size,v.st_mtime_ns,v.st_ctime_ns,v.st_nlink,v.st_blocks)).encode()+b"\0")
+        c["newest"]=max(c["newest"],v.st_mtime_ns);c["entries"]+=1
+        key=(v.st_dev,v.st_ino)
+        if v.st_nlink<=1 or key not in seen:c["bytes"]+=v.st_blocks*512
+        if v.st_nlink>1:seen.add(key)
+    root_stat=root.lstat();node(root,root_stat,Counter())
+    for child in sorted(root.iterdir()):
+        pending=[child]; c=Counter();owner="?"
+        while pending:
+            p=pending.pop()
+            try:
+                v=p.lstat()
+                if p==child:
+                    try:owner=pwd.getpwuid(v.st_uid).pw_name
+                    except KeyError:owner=str(v.st_uid)
+                node(p,v,c)
+                if str(p) in skip or v.st_dev!=root_stat.st_dev:
+                    errors.append("mount boundary "+str(p));continue
+                if stat.S_ISDIR(v.st_mode):pending.extend(sorted(p.iterdir(),reverse=True))
+            except OSError as e:errors.append(str(e))
+        totals.append(dict(entry=child.name,owner=owner,allocated_bytes=c["bytes"],GiB=round(c["bytes"]/GIB,4),
+                           newest_ns=c["newest"],newest_utc=time.strftime("%FT%TZ",time.gmtime(c["newest"]/1e9)),entries=c["entries"]))
+    return totals,digest.hexdigest(),errors
+
+def config_scan():
+    # Include hidden config files. Treat symlinked files by their resolved paths and avoid directory cycles.
+    refs=[];unread=[];seen=set();stack=[HOME];hostdev=HOME.stat().st_dev
+    while stack:
+        p=stack.pop()
+        try:
+            dest=p.resolve(strict=True) if p.is_symlink() else p
+            if not dest.is_relative_to(HOME):continue
+            info=dest.stat()
+            if info.st_dev!=hostdev:continue
+            if stat.S_ISDIR(info.st_mode):
+                identity=(info.st_dev,info.st_ino)
+                if identity in seen:continue
+                seen.add(identity)
+                with os.scandir(dest) as entries:
+                    for entry in entries:
+                        if entry.is_dir(follow_symlinks=False) or entry.is_symlink() or cfgname(Path(entry.path)):stack.append(Path(entry.path))
+            elif stat.S_ISREG(info.st_mode) and (cfgname(dest) or cfgname(p)):
+                if info.st_size>16*1024**2:
+                    unread.append(str(p)+" size >16MiB");continue
+                with dest.open("rb") as f:
+                    for i,line in enumerate(f,1):
+                        if b"p4fix_build" in line:
+                            refs.append((str(p),i,"comment" if line.lstrip().startswith((b"#",b";")) else "reference"))
+        except FileNotFoundError:continue
+        except (RuntimeError,OSError) as e:unread.append(str(e))
+    return sorted(refs),sorted(unread)
+def cfgname(p):
+    return p.suffix.lower() in (".conf",".cfg",".ini") or p.name in (".gbs.conf","gbs.conf","config") or "config" in p.parts and "." not in p.name
+
+def compact(label,rows):
+    print(label+"_COUNT",len(rows),flush=True)
+    for r in rows[:15]:print(label,json.dumps(r,ensure_ascii=True))
+    if len(rows)>15:
+        payload=json.dumps(rows,ensure_ascii=True,separators=(",",":")).encode()
+        print(label+"_FULL_GZIP_B64",hashlib.sha256(payload).hexdigest(),base64.b64encode(gzip.compress(payload)).decode())
+def gates():
+    hits,mounts,denied=process_scan()
+    compact("PROCESS",hits);compact("MOUNT",mounts);compact("PROC_UNREADABLE",denied)
+    return hits,mounts,denied
+def main():
+    mode=sys.argv[1]
+    require(mode in ("dry","apply"),"mode")
+    apply=mode=="apply"
+    require(len(sys.argv)==(3 if apply else 2),"argument count")
+    print("TARGET",TARGET,"EUID",os.geteuid(),flush=True)
+    require(TARGET==Path("/home1/chengkai/p4fix_build") and HOME.resolve(strict=True)==HOME,"fixed scope")
+    if not os.path.lexists(TARGET):print("ABSENT");return
+    require(TARGET.resolve(strict=True)==TARGET and TARGET.is_dir() and not TARGET.is_symlink(),"noncanonical or non-directory")
+    original=TARGET.lstat()
+    require(original.st_dev==Path("/home1").stat().st_dev==HOME.stat().st_dev,"unexpected device")
+    before=shutil.disk_usage(HOME).free
+    print("FREE_BEFORE_GIB",round(before/GIB,3))
+    hits,mounts,denied=gates()
+    if any(k=="GBS/build worker" for pid,k,path in hits):
+        raise ValueError("active build worker; postpone the full census and removal")
+    if mounts:
+        raise ValueError("mounted tree; census will not descend")
+    if apply:require(not hits and not denied and os.geteuid()==0,"busy or incomplete process inspection")
+    refs,unread=config_scan()
+    compact("CONFIG",refs);compact("CONFIG_UNREADABLE",unread)
+    totals,token,errors=walk_tree(TARGET,set())
+    compact("ENTRY",totals);compact("TREE_UNREADABLE",errors)
+    if hits or denied or errors or os.geteuid()!=0:
+        print("HOLD no removal token");
+        if apply:raise ValueError("incomplete deletion preflight")
+        return
+    # Bind the review to both the tree and external config references.
+    token=hashlib.sha256(json.dumps([token,refs,unread],ensure_ascii=True).encode()).hexdigest()
+    if not apply:
+        print("DRY_RUN_TOKEN",token,"Review staging, owners, references and unreadable config scope before scheduling removal.")
+        return
+    require(sys.argv[2]==token,"inventory/config changed or missing dry-run token")
+    require(shutil.rmtree.avoids_symlink_attacks,"fd-safe rmtree unavailable")
+    # Existing cooperative locks cover pauses between package/kernel builds. Only open read-only.
+    handles=[]
+    try:
+        for name in ("pm0012-queue.lock","pm0013-pkg.lock"):
+            fd=os.open(TEMP/name,os.O_RDONLY|os.O_NOFOLLOW);handles.append(fd)
+            require(stat.S_ISREG(os.fstat(fd).st_mode),"invalid maintenance lock")
+            fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        h,m,d=process_scan()
+        require(not (h or m or d),"process/mount state changed; repeat dry-run")
+        parent=os.open(HOME,os.O_DIRECTORY|os.O_RDONLY|os.O_NOFOLLOW)
+        try:
+            os.fchdir(parent)
+            entry=os.stat("p4fix_build",dir_fd=parent,follow_symlinks=False)
+            require(os.path.samestat(original,entry) and stat.S_ISDIR(entry.st_mode),"target identity changed")
+            shutil.rmtree("p4fix_build")
+            require(not os.path.lexists("p4fix_build"),"target still present")
+        finally:os.close(parent)
+    finally:
+        for fd in handles:os.close(fd)
+        after=shutil.disk_usage(HOME).free
+        print("FREE_AFTER_GIB",round(after/GIB,3),"OBSERVED_DELTA_GIB",round((after-before)/GIB,3))
+if __name__=="__main__":
+    try:main()
+    except (OSError,ValueError,RuntimeError) as exc:raise SystemExit("HOLD "+str(exc))
