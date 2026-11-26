@@ -1,0 +1,75 @@
+"""Fallback compiler evidence for shipped ARM ET_REL members. Keep unproved ownership explicit."""
+import hashlib
+import re
+import stat
+import tempfile
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from urllib.parse import urljoin
+
+def candidate_rpms(inventory,repo,work):
+    import io
+    packages={r["sha256"]:r for r in inventory if r["arch"] in ("armv7l","noarch") and not r["name"].endswith(("-debuginfo","-debugsource"))}
+    roots={r["url"].split("/packages/")[0]+"/packages/" for r in packages.values() if "/packages/" in r["url"]}
+    for root in sorted(roots):
+        try:
+            md=ET.fromstring(repo["fetch"](root+"repodata/repomd.xml"))
+            item=md.find("{*}data[@type='filelists']")
+            loc=urljoin(root,item.find("{*}location").attrib["href"])
+            if not loc.startswith(root):raise ValueError("filelists location outside repo")
+            blob=repo["fetch"](loc,150*1024**2)
+            ck=item.find("{*}checksum")
+            if hashlib.new(ck.attrib["type"],blob).hexdigest()!=ck.text.strip():raise ValueError("filelists digest")
+            for _,pkg in ET.iterparse(io.BytesIO(repo["unpack"](blob)),events=("end",)):
+                if pkg.tag.rsplit("}",1)[-1]!="package":continue
+                key=pkg.get("pkgid")
+                if key in packages:
+                    paths={x.text for x in pkg.findall("{*}file") if x.text and x.text.endswith((".o",".a"))}
+                    if paths:yield packages[key],paths
+                pkg.clear()
+        except Exception as e:yield None,(root,str(e))
+
+def inspect(inventory,api,out):
+    repo=api["lib"]("image-repo-lib");arms=api["lib"]("arm-pic-audit")
+    rpmio=api["lib"]("mlgo-elf-sections");sections=api["lib"]("image_mode_scan")["secs_of"]
+    tracks=api["lib"]("tracks")
+    seen=set();stats={}
+    for r,paths in candidate_rpms(inventory,repo,api["HERE"]):
+        if r is None:
+            out.writerow(["?","","","","INDEX_GAP",*paths]);continue
+        if r["sha256"] in seen:continue
+        seen.add(r["sha256"])
+        src=tracks["source"](r["srpm"])
+        try:
+            with tempfile.TemporaryDirectory(dir=api["HERE"]) as scratch:
+                scratch=Path(scratch)
+                cached=next(api["OLD"].glob(r["sha256"][:16]+"-*.rpm"),None)
+                rpm=repo["cached_rpm"]((r["url"],r["sha256"]),scratch,cached)
+                with rpmio["cpio_members"](rpm) as records:
+                    for path,kind,_,size,stream in records:
+                        if kind!=stat.S_IFREG or path not in paths or not 0<size<=256*1024**2:
+                            if path in paths:out.writerow([src,r["name"],path,"","UNPROVED","special/link/oversize",size])
+                            rpmio["copy_bytes"](stream,size);continue
+                        data=stream.read(size)
+                        if len(data)!=size:raise ValueError("short object payload")
+                        for member,blob in arms["members"](data):
+                            sec=dict(sections(blob) or [])
+                            if not sec or int.from_bytes(blob[16:18],"little")!=1:continue
+                            # Use a package-qualified source file or package-specific object path.
+                            # A devel-static RPM may bundle CRT, other projects or prebuilt archives.
+                            obj=scratch/"unit.o";obj.write_bytes(blob)
+                            syms=tracks["tools"](["readelf","-Ws",obj])
+                            files=re.findall(r"(?m)^.*?\bFILE\s+LOCAL\s+\S+\s+ABS\s+(\S.*)$",syms)
+                            name=member.partition(":")[2] or path
+                            crt=bool(re.search(r"(?:^|/)(?:crt[^/]*\.o|libgcc[^/]*)",name+" "+path))
+                            own=any(api["source_ownership"](src,f) for f in files) or api["source_ownership"](src,path) or api["source_ownership"](src,name)
+                            note=sec.get(".comment");comment=blob[note[4]:note[4]+note[5]].lower() if note else b""
+                            clang=b"clang" in comment or ".llvm.lto" in sec
+                            gcc=b"gcc:" in comment or any(n.startswith(".gnu.lto_") for n in sec)
+                            state="OWN_GCC_ONLY_OBJECT" if own and not crt and gcc and not clang else "UNPROVED"
+                            nbytes=sum(s[5] for n,s in sec.items() if n==".text" or n.startswith(".text."))
+                            out.writerow([src,r["name"],path,member,state,",".join(files),nbytes])
+                            if state.startswith("OWN_"):
+                                count,text=stats.get(src,(0,0));stats[src]=count+1,text+nbytes
+        except Exception as e:out.writerow([src,r["name"],"","","RPM_GAP",str(e),""])
+    return stats

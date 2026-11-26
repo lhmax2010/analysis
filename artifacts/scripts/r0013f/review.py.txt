@@ -177,12 +177,18 @@ def producer_tables(newfiles,summary):
     db.close()
     failed={tracks["source"](r["srpm"]) for r in inventory if r["name"] in bad}
     cutoff=any(e[0]=="STOP" for e in errors)
+    with (HERE/"object-producers.tsv").open("w") as f:
+        wr=csv.writer(f,delimiter="\t")
+        wr.writerow(("source","rpm","path","member","status","file_symbols_or_reason","object_text_bytes"))
+        fallback=lib("objects")["inspect"](inventory,globals(),wr)
+    for src,(count,size) in fallback.items():
+        counters[src].update(gcc_only_own_objects=count,own_object_text=size)
     fixed={}
     for n in historical:
         c=counters.get(n,{})
-        fixed[n]="NOT_IN_QB" if n not in names and not any(r["name"]==n for r in inventory) else "STILL_GCC" if c.get("own_gcc_elfs") else "FIXED_OBSERVED_CUS" if c.get("own_clang_elfs") and not c["unproved_elfs"] and n not in failed and not cutoff else "UNPROVED"
+        fixed[n]="NOT_IN_QB" if n not in names and not any(r["name"]==n for r in inventory) else "STILL_GCC" if c.get("own_gcc_elfs") or c.get("gcc_only_own_objects") else "FIXED_OBSERVED_CUS" if c.get("own_clang_elfs") and not c["unproved_elfs"] and n not in failed and not cutoff else "UNPROVED"
     save("e1.json",counters);save("fixed27.json",{n:[fixed[n],counters.get(n,{}).get("text",0),historical[n]] for n in fixed})
-    summary.append(("E1",dict(sources_with_own_GNU_C_CXX=sum(c["own_gcc_elfs"]>0 for c in counters.values()),fixed27=Counter(fixed.values()),top10=Counter({n:c["own_gcc_elf_text"] for n,c in counters.items() if c["own_gcc_elfs"]}).most_common(10))))
+    summary.append(("E1",dict(sources_with_own_GNU_C_CXX=sum(c["own_gcc_elfs"]>0 for c in counters.values()),additional_object_only_sources=sum(bool(c["gcc_only_own_objects"]) and not c["own_gcc_elfs"] for c in counters.values()),fixed27=Counter(fixed.values()),top10=Counter({n:c["own_gcc_elf_text"] for n,c in counters.items() if c["own_gcc_elfs"]}).most_common(10))))
     bykey=defaultdict(set)
     for r in rows("elfs"):bykey[r["path"],r["sha256"]].add((r["source"],r["rpm"],r["arm_relative"],r["relr_net_rel_bytes"]))
     raw_bytes=0; totals=Counter();missing=0;covered=0
