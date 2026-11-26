@@ -1,5 +1,9 @@
 # Status
 
+## 0013d · kernel continuation ready for review
+
+RhOLRN K0 compiled. Config and uImage size matched Official. The old scheduler proof stopped the matrix. The continuation reuses K0 and builds K1–K5. [Command and fixtures](../comms/codex_to_claude/0013d_reply.md)
+
 ## 0013a/b · 26 November · commands ready for PM review
 
 K0–K5 holds the kernel GBS lock. The merged B/C/E command reads the retained AVControl lanes, vendor EROFS readers and published 37777148 RPMs. Tier 2 has a private package lock, one low-priority worker and a Friday 09:30 CST stop. The installed A32 roster needs both a passing pilot receipt and the shared locks. The received pilot passed smoke and both T3 checks; T8 was N/A. Reader validation and overnight optimization measurements await operator readback. PM accepted 37777148/37777264 for the next board run. [Commands and gates](../comms/codex_to_claude/0013a_reply.md) · [Weekly data](../reports/weekly/2026-11-27/draft-data.md)

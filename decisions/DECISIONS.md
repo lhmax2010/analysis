@@ -504,3 +504,7 @@ Run the three AVControl lanes from the qualified smoke and retain the shared loc
 ### 0013a/b · board pair and overnight capacity
 
 PM accepted 37777148/37777264 for the board comparison. Both have matching Product sources across 5,880 rows. Two submitted manifests are unavailable and two published metadata fields differ. Keep the sent kernel table on 37736448/37736427. Reassess the pilot using retained artifacts. Prefer the snapshot-matched vendor reader. Run published-RPM scans independently, and use the separate pkg lock for ranked GBS package work with a Friday 09:30 CST stop. The full installed A32 roster retains its pilot PASS and shared-lock requirements. [Decision](../comms/claude_to_codex/0013a_codex_pilot_fix_pair_gate_vendor_erofs.md) · [Capacity and scope](../comms/claude_to_codex/0013b_codex_optimization_tracks_tonight.md)
+
+### 0013d · reuse K0 for tonight's kernel matrix
+
+Use the retained RhOLRN K0 receipt and RPMs. Build K1–K5 and give each lane an independent flag-proof verdict. Keep raw measurements when argv evidence is incomplete. Cross-image attribution still requires the existing reproduction gates. [Decision and evidence](../comms/codex_to_claude/0013d_reply.md)
