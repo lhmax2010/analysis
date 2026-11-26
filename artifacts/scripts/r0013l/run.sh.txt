@@ -1,0 +1,28 @@
+#!/bin/bash
+set -eu -o pipefail
+pin=${1:?full commit}
+[[ $pin =~ ^[0-9a-f]{40}$ ]]
+mode=${2:-static}
+[[ $mode == static ]]
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013l-$mode.XXXXXX")
+cd "$d"
+export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1 DEBUGINFOD_URLS= LC_ALL=C
+printf 'WORKDIR %s\n' "$d"
+while read -r digest path; do
+    name=${path##*/}
+    curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180         "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$name" 2>>download.log
+    printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
+done <<'PINS'
+244c7ab16c6268e2a6e36b6244118b9648377172ca7a57ef4e10d26a9aa4f913 artifacts/scripts/r0013l/census.py.txt
+a33d96790ca99412f7ddaff99391fa231298b018e7a09eda8629bab048ff1329 artifacts/scripts/r0013jk/thumb.py.txt
+f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726 artifacts/scripts/r0012c/image-tree.py.txt
+cb67e6f58fbb7f6ed59370516fd652ae595adc9e2efb44ba72de26601ec59c42 artifacts/scripts/r0012z/verify-reader.py.txt
+8737d9644cc54bb633f01d1ca2eff45af283e609b82be460f53df6df55e2e3e2 artifacts/scripts/r0013f/pilot.py.txt
+625816cda8c5c78fea179d8e530dffd359f9105c4128672ffb35716d8d1914e4 artifacts/scripts/r0013f/review.py.txt
+02ee5ae9c249acf6cfdc54facd26b5c5be129b373fd0725a7734fb65f2730763 artifacts/scripts/r0013g/checks.py.txt
+4ada3c3a74557d697045e28f8fd0b92aaf0e4bb05eb8d4f627bf43d4bcd134f7 artifacts/scripts/r0013a/tracks.py.txt
+1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75 artifacts/scripts/r0004/image_mode_scan.py.txt
+8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f artifacts/scripts/r0005/image-repo-lib.py.txt
+PINS
+exec nice -n 19 ionice -c3 python3 -Bu census.py.txt 2>diagnostics.log
