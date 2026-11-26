@@ -233,11 +233,12 @@ def run(work,proof,owners):
         base=official_inputs(work,q,s)
         if any(base.get(k)!="y" for k in ("CONFIG_MLGO","CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC","CONFIG_LTO_NONE","CONFIG_UNWINDER_FRAME_POINTER")):
             raise ValueError("pinned candidate lacks expected A32/no-LTO/advisor settings")
-        previous=os.environ.get("PM13E_KERNEL_RUN")
+        outline=os.environ.get("PM13I_RECEIPT")
+        previous=outline or os.environ.get("PM13E_KERNEL_RUN")
         retry=set(LANES)
         if previous:
             resume=load("disk-resume")
-            prior,records,retry=resume["read"](dev["TEMP"],previous,work/"official.config")
+            prior,records,retry=resume["outline_retry" if outline else "read"](dev["TEMP"],previous,work/"official.config")
             if not retry:
                 print("KERNEL_NO_DISK_RETRY",prior,flush=True)
                 return
@@ -437,6 +438,10 @@ def run(work,proof,owners):
             (work/"kernel-matrix.json").write_text(json.dumps(results,indent=2)+"\n")
             qual["write_table"](work,results)
             hq["write_summary"](work,results)
+        if outline:
+            if any(results[k].get("argv_proof",{}).get("verdict")!="PASS" or not results[k].get("sizes") for k in retry):
+                raise ValueError("outliner retry requires review; see lane receipts")
+            return
         qualified=[lane for lane in ("K0","K1","K4","K5") if results.get(lane,{}).get("status")=="STATIC_MEASURED"]
         if qualified and owners is not None:
             load("kernel-modules")["build_modules"](work,s,dev,dev["input_path"](owners),qualified)

@@ -1,0 +1,101 @@
+/home1/chengkai/vd-tree/workspace/temp/pm0013d-launch.8aCjvY/run: OK
+User hao.lin ticket expires in 6 hours 43 minutes.
+PM12_BATCH_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S
+[sudo] password for chengkai:
+
+K0_REUSED /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/K0
+K0_OLD_SELECTOR {"retained_root": "/home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/K0/GBS-ROOT", "old_selector_match_count": 1, "original_failure": "missing effective compile flags for ['kernel/sched/']", "cmd": "/home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/K0/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/pm0012f-evidence/094367eaf8bb4d486de587192b01ddd093e972ec4401452e98e4215812e935ee/kernel/sched/.core.o.cmd", "exists": true, "flags": {"checks": {"expanded": true, "outline": true, "advisors": true, "isa": true}, "last_mode": "Clang default A32", "outline_options": [], "advisor_values": {"enable-ml-inliner": ["release"], "regalloc-enable-advisor": ["release"]}}, "old_required_explicit_marm": false, "old_kernel_c": true, "old_clang": true}
+ARGV_PROOF K0 PASS []
+K0_SCHED_DIAG {"cmd_path": "/home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/K0/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/pm0012f-evidence/094367eaf8bb4d486de587192b01ddd093e972ec4401452e98e4215812e935ee/kernel/sched/.core.o.cmd", "cmd_exists": true, "core_object_mapping": null, "options": {"enable-ml-inliner": "release  (default: default)", "regalloc-enable-advisor": "release  (default: default)"}} {"source": "/home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/K0/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/pm0012f-evidence/094367eaf8bb4d486de587192b01ddd093e972ec4401452e98e4215812e935ee/kernel/sched/.core.o.cmd", "checks": {"expanded": true, "outline": true, "advisors": true, "isa": true}, "last_mode": "Clang default A32", "outline_options": [], "advisor_values": {"enable-ml-inliner": ["release"], "regalloc-enable-advisor": ["release"]}}
+LANE_METRICS K0 {"images": {"uImage": 11348968, "zImage": 5326464}, "sections": {".text": 8564600, ".rodata": 1334714, ".data": 666016, ".bss": 4120840, ".init": 347708}, "surviving_helpers": 0, "mlgo_tu_delta": null, "text_isa_bytes": null, "argv": "PASS", "status": "RAW_ONLY"}
+KERNEL_THUMB_LANE K0 RAW_ONLY
+GBS_EXIT 1
+ARGV_PROOF K1 REVIEW ["GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K1/gbs.log"]
+LANE_METRICS K1 {"images": {}, "sections": null, "surviving_helpers": null, "mlgo_tu_delta": null, "text_isa_bytes": null, "argv": "REVIEW", "status": "BLOCKED_OR_FAILED"}
+KERNEL_THUMB_LANE K1 BLOCKED_OR_FAILED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K1/gbs.log
+GBS_EXIT 0
+ARGV_PROOF K2 PASS []
+LANE_METRICS K2 {"images": {"uImage": 12689580, "zImage": 5916376}, "sections": {".text": 9859176, ".rodata": 1340954, ".data": 666016, ".bss": 4119624, ".init": 379700}, "surviving_helpers": 0, "mlgo_tu_delta": {"before": ["-mllvm", "-enable-ml-inliner=release", "-mllvm", "-regalloc-enable-advisor=release"], "after": [], "verdict": "PASS"}, "text_isa_bytes": null, "argv": "PASS", "status": "RAW_ONLY"}
+KERNEL_THUMB_LANE K2 RAW_ONLY
+GBS_EXIT 1
+ARGV_PROOF K3 REVIEW ["GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K3/gbs.log"]
+LANE_METRICS K3 {"images": {}, "sections": null, "surviving_helpers": null, "mlgo_tu_delta": null, "text_isa_bytes": null, "argv": "REVIEW", "status": "BLOCKED_OR_FAILED"}
+KERNEL_THUMB_LANE K3 BLOCKED_OR_FAILED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K3/gbs.log
+GBS_EXIT 1
+ARGV_PROOF K4 REVIEW ["GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K4/gbs.log"]
+LANE_METRICS K4 {"images": {}, "sections": null, "surviving_helpers": null, "mlgo_tu_delta": null, "text_isa_bytes": null, "argv": "REVIEW", "status": "BLOCKED_OR_FAILED"}
+KERNEL_THUMB_LANE K4 BLOCKED_OR_FAILED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K4/gbs.log
+GBS_EXIT 1
+ARGV_PROOF K5 REVIEW ["GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K5/gbs.log"]
+LANE_METRICS K5 {"images": {}, "sections": null, "surviving_helpers": null, "mlgo_tu_delta": null, "text_isa_bytes": null, "argv": "REVIEW", "status": "BLOCKED_OR_FAILED"}
+KERNEL_THUMB_LANE K5 BLOCKED_OR_FAILED GBS build failed: /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K5/gbs.log
+KERNEL_THUMB_BLOCKED kernel matrix or K0 qualification incomplete; see kernel-matrix.json
+2026-11-26T19:56:19+08:00 START kernel
+2026-11-26T19:56:45+08:00 JOB kernel-thumb START
+2026-11-26T21:27:48+08:00 JOB kernel-thumb END rc=2
+2026-11-26T21:27:48+08:00 DONE kernel rc=1
+chengkai@risc-v-Alienware-Aurora-R16:temp$ pm13e_init() {
+  local tag d
+  read -r -p 'Paste PM13E_TOOLS line: ' tag d
+  [[ $tag == PM13E_TOOLS && ${d%/*} == /home1/chengkai/vd-tree/workspace/temp && ${d##*/} =~ ^pm0013e-tools\.[0-9A-Za-z]{6}$ && $(realpath -e "$d") == "$d" ]] || return 2
+  PM13E_TOOLS=$d
+}
+pm13e() {
+  printf '%s  %s\n' 4d7e641e17b087ff896009c73b845b464696f1df54a947bd22a5e0e15e150bc2 "$PM13E_TOOLS/run" | sha256sum -c - &&
+    bash "$PM13E_TOOLS/run" 4bce9028331343ca64254fe6b2227715359ae86f "$@"
+}
+pm13e_init && APPLY=1 pm13e historical
+Paste PM13E_TOOLS line: PM13E_TOOLS /home1/chengkai/vd-tree/workspace/temp/pm0013e-tools.OGg4mt
+/home1/chengkai/vd-tree/workspace/temp/pm0013e-tools.OGg4mt/run: OK
+FREE_BEFORE_GIB 112.877
+ALLOW /home1/chengkai/vd-tree/workspace/temp/gst_seek_fix_build_4i6nxptk/clang/gbs_root/local/cache exclusive_bytes 610889728 GiB 0.569 archive /home1/chengkai/vd-tree/workspace/temp/gst_seek_fix_build_4i6nxptk/clang/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/gst_seek_fix_build_4i6nxptk/clang/gbs_root/local/BUILD-ROOTS exclusive_bytes 2114293760 GiB 1.969 archive /home1/chengkai/vd-tree/workspace/temp/gst_seek_fix_build_4i6nxptk/clang/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/gst_seek_fix_build_4i6nxptk/gcc/gbs_root/local/cache exclusive_bytes 480817152 GiB 0.448 archive /home1/chengkai/vd-tree/workspace/temp/gst_seek_fix_build_4i6nxptk/gcc/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/gst_seek_fix_build_4i6nxptk/gcc/gbs_root/local/BUILD-ROOTS exclusive_bytes 1579905024 GiB 1.471 archive /home1/chengkai/vd-tree/workspace/temp/gst_seek_fix_build_4i6nxptk/gcc/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-control/gbs_root/local/cache exclusive_bytes 589725696 GiB 0.549 archive /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-control/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-control/gbs_root/local/BUILD-ROOTS exclusive_bytes 2068402176 GiB 1.926 archive /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-control/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-candidate/gbs_root/local/cache exclusive_bytes 589725696 GiB 0.549 archive /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-candidate/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-candidate/gbs_root/local/BUILD-ROOTS exclusive_bytes 2068398080 GiB 1.926 archive /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/clang-candidate/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/gcc-candidate/gbs_root/local/cache exclusive_bytes 589725696 GiB 0.549 archive /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/gcc-candidate/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/gcc-candidate/gbs_root/local/BUILD-ROOTS exclusive_bytes 2068398080 GiB 1.926 archive /home1/chengkai/vd-tree/workspace/temp/avcontrol_globalopts100_akcnet12/gcc-candidate/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/iotivity_layout_p2vc873k/gbs_clang/local/cache exclusive_bytes 536309760 GiB 0.499 archive /home1/chengkai/vd-tree/workspace/temp/iotivity_layout_p2vc873k/gbs_clang/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/iotivity_layout_p2vc873k/gbs_clang/local/BUILD-ROOTS exclusive_bytes 1766649856 GiB 1.645 archive /home1/chengkai/vd-tree/workspace/temp/iotivity_layout_p2vc873k/gbs_clang/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/iotivity_layout_p2vc873k/gbs_gcc/local/cache exclusive_bytes 536309760 GiB 0.499 archive /home1/chengkai/vd-tree/workspace/temp/iotivity_layout_p2vc873k/gbs_gcc/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/iotivity_layout_p2vc873k/gbs_gcc/local/BUILD-ROOTS exclusive_bytes 1766649856 GiB 1.645 archive /home1/chengkai/vd-tree/workspace/temp/iotivity_layout_p2vc873k/gbs_gcc/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/llvm_fixes__khag0ff/gbs_root/local/cache exclusive_bytes 628215808 GiB 0.585 archive /home1/chengkai/vd-tree/workspace/temp/llvm_fixes__khag0ff/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/llvm_fixes__khag0ff/gbs_root/local/BUILD-ROOTS exclusive_bytes 2039115776 GiB 1.899 archive /home1/chengkai/vd-tree/workspace/temp/llvm_fixes__khag0ff/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/atsc3101_gcc_build_jkgjbqjv/gbs_root/local/cache exclusive_bytes 456351744 GiB 0.425 archive /home1/chengkai/vd-tree/workspace/temp/atsc3101_gcc_build_jkgjbqjv/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/atsc3101_gcc_build_jkgjbqjv/gbs_root/local/BUILD-ROOTS exclusive_bytes 1504481280 GiB 1.401 archive /home1/chengkai/vd-tree/workspace/temp/atsc3101_gcc_build_jkgjbqjv/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/mapi101_gcc_build_t2ypwsls/gbs_root/local/cache exclusive_bytes 382484480 GiB 0.356 archive /home1/chengkai/vd-tree/workspace/temp/mapi101_gcc_build_t2ypwsls/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/mapi101_gcc_build_t2ypwsls/gbs_root/local/BUILD-ROOTS exclusive_bytes 1023315968 GiB 0.953 archive /home1/chengkai/vd-tree/workspace/temp/mapi101_gcc_build_t2ypwsls/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/base101_helper_build_1chcds0f/gbs_root/local/cache exclusive_bytes 329850880 GiB 0.307 archive /home1/chengkai/vd-tree/workspace/temp/base101_helper_build_1chcds0f/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/base101_helper_build_1chcds0f/gbs_root/local/BUILD-ROOTS exclusive_bytes 870371328 GiB 0.811 archive /home1/chengkai/vd-tree/workspace/temp/base101_helper_build_1chcds0f/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/GBS-ROOT/local/cache exclusive_bytes 451084288 GiB 0.42 archive /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/GBS-ROOT/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/GBS-ROOT/local/BUILD-ROOTS exclusive_bytes 1376677888 GiB 1.282 archive /home1/chengkai/vd-tree/workspace/temp/pm0010-gbs-board-bench.choeqoe5/GBS-ROOT/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/hq1114_build_grff6hxg/gbs_root/local/cache exclusive_bytes 789893120 GiB 0.736 archive /home1/chengkai/vd-tree/workspace/temp/hq1114_build_grff6hxg/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/gcc_validate_7crgr1ez/gbs_root/local/cache exclusive_bytes 628215808 GiB 0.585 archive /home1/chengkai/vd-tree/workspace/temp/gcc_validate_7crgr1ez/gbs_root/pm0013e-retained
+ALLOW /home1/chengkai/vd-tree/workspace/temp/hq1114_align_f1xl5m2s/gbs_root/local/cache exclusive_bytes 449687552 GiB 0.419 archive /home1/chengkai/vd-tree/workspace/temp/hq1114_align_f1xl5m2s/gbs_root/pm0013e-retained
+HISTORICAL_EXCLUSIVE_GIB 26.353 APPLY 1
+FREE_AFTER_GIB 140.018 FILESYSTEM_DELTA_GIB 27.141
+chengkai@risc-v-Alienware-Aurora-R16:temp$ pm13e_init() {
+  local tag d
+  read -r -p 'Paste PM13E_TOOLS line: ' tag d
+  [[ $tag == PM13E_TOOLS && ${d%/*} == /home1/chengkai/vd-tree/workspace/temp && ${d##*/} =~ ^pm0013e-tools\.[0-9A-Za-z]{6}$ && $(realpath -e "$d") == "$d" ]] || return 2
+  PM13E_TOOLS=$d
+}
+pm13e() {
+  printf '%s  %s\n' 4d7e641e17b087ff896009c73b845b464696f1df54a947bd22a5e0e15e150bc2 "$PM13E_TOOLS/run" | sha256sum -c - &&
+    bash "$PM13E_TOOLS/run" 4bce9028331343ca64254fe6b2227715359ae86f "$@"
+}
+pm13e_init && APPLY=1 pm13e kernel-follow auto
+Paste PM13E_TOOLS line: PM13E_TOOLS /home1/chengkai/vd-tree/workspace/temp/pm0013e-tools.OGg4mt
+/home1/chengkai/vd-tree/workspace/temp/pm0013e-tools.OGg4mt/run: OK
+FREE_BEFORE_GIB 139.117
+KERNEL_RUN /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S
+KERNEL_KEEP K1 lane measurement incomplete
+KERNEL_RECLAIM K2 7.561 proof /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K2/pm0013e-build-evidence/f6068121b8b2442a60ca3a17b1c43b40214d4934644e515567c3df6c1af19759
+
+KERNEL_KEEP K3 lane measurement incomplete
+KERNEL_KEEP K4 lane measurement incomplete
+KERNEL_KEEP K5 lane measurement incomplete
+FREE_AFTER_GIB 120.596 FILESYSTEM_DELTA_GIB -18.52

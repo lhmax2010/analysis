@@ -1,0 +1,116 @@
+"""Replay selected K4 assembler commands in a read-only view of its GBS root."""
+from collections import Counter
+import fnmatch
+from pathlib import Path
+import hashlib
+import json
+import tarfile
+import urllib.request
+import os
+import re
+import shlex
+import shutil
+import subprocess
+
+JOB=Path("/home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K4")
+
+def assembler(line):
+    line=re.sub(r"^\s*\[\s*\d+s\]\s*","",line.strip()).partition(";")[0]
+    try:a=shlex.split(line)
+    except ValueError:return
+    if (not a or not re.fullmatch(r"(?:[\w.-]*-)?clang(?:-\d+)?",Path(a[0]).name) or
+        "-c" not in a or "-o" not in a or "-D__ASSEMBLY__" not in a):return
+    inputs=[s for s in a if s.endswith(".S")]
+    if len(inputs)==1:return inputs[0],tuple(a)
+
+def owners(tree,source):
+    text=(tree/"MAINTAINERS").read_text(errors="replace")
+    matches=[]
+    for group in re.split(r"\n\s*\n",text):
+        fields=group.splitlines()
+        def applies(key):
+            pats=re.findall("^"+key+r":\s+(.+)",group,re.M)
+            return any(source.startswith(p) if p.endswith("/") else fnmatch.fnmatchcase(source,p) for p in pats)
+        if fields and applies("F") and not applies("X"):
+            matches.append(fields[0]+" "+", ".join(re.findall(r"^M:\s+(.+)",group,re.M)))
+    return matches
+
+def provenance(tree,names):
+    # One public URL. Keep private source names and their contents on the native host.
+    rev="318a47068f7b88de838518897500d7509e3fe205"
+    want={str(Path(s)):None for s in names if not Path(s).is_absolute() and ".." not in Path(s).parts}
+    if not want:return {}
+    url="https://codeload.github.com/gregkh/linux/tar.gz/"+rev
+    try:
+        with urllib.request.urlopen(url,timeout=90) as f, tarfile.open(fileobj=f,mode="r|gz") as tar:
+            for entry in tar:
+                _,sep,path=entry.name.partition("/")
+                if sep and path in want and entry.isfile():
+                    want[path]=hashlib.sha256(tar.extractfile(entry).read()).hexdigest()
+        return {p:("VDLinux addition relative to v6.12.60" if remote is None else
+                 "upstream v6.12.60 identical" if hashlib.sha256((tree/p).read_bytes()).hexdigest()==remote else
+                 "VDLinux-modified file; individual instruction origin unproved") for p,remote in want.items()}
+    except (OSError,tarfile.TarError) as exc:
+        return {p:"upstream comparison unavailable: "+str(exc) for p in want}
+
+def main():
+    roots=list((JOB/"GBS-ROOT/local/BUILD-ROOTS").glob("*.armv7l.*"))
+    root,=roots
+    build=root/"home/abuild/rpmbuild/BUILD"
+    trees=[p.parent for p in build.glob("**/.config") if (p.parent/"arch/arm/lib/backtrace-clang.S").is_file() and
+           "CONFIG_THUMB2_KERNEL=y" in p.read_text().splitlines()]
+    tree,=trees
+    cwd="/"+tree.relative_to(root).as_posix()
+    candidates=set()
+    def add(s):
+        row=assembler(s)
+        if row:candidates.add(row)
+    log=(JOB/"gbs.log").read_text(errors="replace")
+    for l in log.splitlines():add(l)
+    for cmd in tree.rglob(".*.o.cmd"):
+        with cmd.open(errors="replace") as f:add(f.readline().partition(":=")[2])
+    prefix=["bwrap","--ro-bind",str(root),"/","--dev","/dev","--proc","/proc","--tmpfs","/tmp",
+            "--chdir",cwd,"--clearenv","--setenv","LC_ALL","C","--setenv","PATH","/emul/usr/bin:/usr/bin:/bin"]
+    # Where supported, Kbuild may refresh generated headers in a disposable tmpfs overlay.
+    if "--tmp-overlay" in subprocess.check_output(["bwrap","--help"],text=True):
+        prefix+=["--overlay-src",str(tree),"--tmp-overlay",cwd]
+    run=subprocess.run(prefix+["make","-kn","-j1","V=1","ARCH=arm","LLVM=1","LLVM_IAS=1","zImage","modules"],
+                       stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,errors="replace")
+    Path("asm-plan.log").write_text(run.stdout)
+    for line in run.stdout.splitlines():add(line)
+    original=[(i,l) for i,l in enumerate(log.splitlines()) if re.search(r"(?:\.S|<instantiation>):\d+:\d+: (?:error|note):",l)]
+    lines=log.splitlines()
+    Path("asm-original.log").write_text("\n".join("\n".join(lines[max(0,i-1):i+4]) for i,l in original))
+    reports=[]
+    for src,args in sorted(candidates):
+        # Keep the actual source and preprocessor/ISA flags. Redirect depfile and object.
+        a=list(args)
+        a[a.index("-o")+1]="/tmp/check.o"
+        for i,x in enumerate(a):
+            if x.startswith(("-Wp,-MMD,","-Wp,-MD,")):a[i]=x.rsplit(",",1)[0]+",/tmp/check.d"
+            if x=="-MF" and i+1<len(a):a[i+1]="/tmp/check.d"
+        proc=subprocess.run(prefix+a,capture_output=True,text=True,errors="replace")
+        text=proc.stderr+proc.stdout
+        diagnostics=[]
+        ds=text.splitlines()
+        for i,line in enumerate(ds):
+            if re.search(r":\d+:\d+: (?:error|note):",line):
+                diagnostics.append({"location":line,"source":ds[i+1:i+3]})
+        reports.append(dict(source=src,argv=a,rc=proc.returncode,diagnostics=diagnostics,output=text,
+                        maintainers=owners(tree,src) if diagnostics else [],
+                        provenance="vendor path" if src.startswith("drivers/samsung/") else "VDLinux tree; upstream identity unverified"))
+        if proc.returncode and not diagnostics and ("bwrap:" in text or "Exec format error" in text):break
+    priorfiles={m[1] for m in re.finditer(r"(?:^|\s)([\w./-]+\.S):\d+:\d+: error:",log)}
+    origin=provenance(tree,priorfiles|{r["source"] for r in reports if r["diagnostics"]})
+    for r in reports:
+        if r["source"] in origin:r["provenance"]=origin[r["source"]]
+    counts=Counter(d["location"] for r in reports for d in r["diagnostics"] if ": error:" in d["location"])
+    result={"make_plan_rc":run.returncode,"commands":len(candidates),"attempted":len(reports),
+            "failed_files":sorted({r["source"] for r in reports if r["rc"]}),"distinct_error_labels":len(counts),"original_file_provenance":origin,"original_owners":{s:owners(tree,s) for s in priorfiles},"reports":reports}
+    Path("asm.json").write_text(json.dumps(result,indent=2))
+    print("ASM_SCOPE",run.returncode,len(candidates),len(reports),"failed_files",len(result["failed_files"]),"error_labels",len(counts))
+    print("ASM_ORIGIN",json.dumps(origin)[:1400])
+    print("ASM_FILES",json.dumps(result["failed_files"][:12]),"details: asm.json, asm-plan.log, asm-original.log")
+if __name__=="__main__":
+    try:main()
+    except (OSError,ValueError,subprocess.SubprocessError) as exc:print("ASM_REVIEW",exc)

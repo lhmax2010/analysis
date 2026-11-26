@@ -67,6 +67,7 @@ def official():
     ledger=folder/"rpm-identities.tsv"
     if repo["file_sha"](ledger)!=identity["files"][ledger.name]:raise ValueError("Official ledger checksum")
     with ledger.open() as f: rows=[r for r in csv.DictReader(f,delimiter="\t") if r["name"] in (AV,AV+"-debuginfo") and r["arch"]=="armv7l"]
+    print("OFFICIAL_LEDGER_ROWS",[(r["name"],r["url"]) for r in rows])
     debugs=[]
     for r in sorted(rows,key=lambda r:r["name"]):
         if r["name"]==AV and candidate.exists() and repo["file_sha"](candidate)==OFF_SHA:continue
@@ -77,7 +78,9 @@ def official():
             with subprocess.Popen(["rpm2cpio",path],stdout=subprocess.PIPE) as proc:
                 for entry,data in scan["cpio_entries"](proc.stdout):
                     for name,blob in scan["elf_items"](entry,data):
-                        if r["name"]==AV and name.replace("!","/").endswith("/bin/AVControl") and hashlib.sha256(blob).hexdigest()==OFF_SHA:
+                        if r["name"]==AV and ("/bin/" in name or "avcontrol" in name.lower()):
+                            print("OFFICIAL_MEMBER",name,hashlib.sha256(blob).hexdigest())
+                        if r["name"]==AV and hashlib.sha256(blob).hexdigest()==OFF_SHA:
                             candidate.write_bytes(blob)
                         elif r["name"].endswith("-debuginfo") and blob[:4]==b"\x7fELF":
                             d=HERE/(hashlib.sha256(blob).hexdigest()+".debug")
@@ -93,8 +96,11 @@ def official():
     for p in debugs:
         try:
             if buildid(p)==bid:ds.append(p)
-        except ValueError:continue
-    return candidate,units(ds[0] if len(ds)==1 else candidate)
+        except (ValueError,OSError):continue
+    try:return candidate,units(ds[0] if len(ds)==1 else candidate)
+    except (ValueError,OSError) as exc:
+        print("OFFICIAL_DEBUG_REVIEW",exc)
+        return candidate,[]
 
 
 def root_file(root,guest):
@@ -168,24 +174,32 @@ class Tools:
         if not (self.qemu or self.dynamic_qemu):raise ValueError("ARM QEMU unavailable")
         interp=unique(re.findall(r"Requesting program interpreter: (/[^\]]+)",command(["readelf","-lW",elf])))
         if not re.fullmatch(r"/(?:usr/)?lib/ld-linux[^/]*\.so\.\d+",interp):raise ValueError("unexpected ELF interpreter "+interp)
-        variants=[]
-        if self.qemu and shutil.which("bwrap"):
-            variants.append((self.prefix+["/pm-qemu"],[interp],self.arg(elf)))
-        guest=root_file(self.root,interp)
-        paths=[str(root_file(self.root,x)) for x in ("/lib","/usr/lib")]
-        variants.append(([self.dynamic_qemu or self.qemu,"-L",str(self.root)],
-                         [str(guest),"--inhibit-cache","--library-path",":".join(paths)],str(elf)))
-        errors=[]
-        for base,loader,app in variants:
-            try:
-                listing=command(base+loader+["--list",app],diagnostics=True)
-                trace=command(base+["-E","LD_TRACE_LOADED_OBJECTS=1","-E","LD_WARN=1","-E","LD_BIND_NOW=1"]+loader+[app],diagnostics=True)
-                break
-            except (OSError,ValueError) as exc:errors.append(str(exc))
-        else:raise ValueError(" | ".join(errors))
+        parts=json.loads((HERE/"partitions.json").read_bytes())
+        root=Path(parts["37777148/platform"]["root"])
+        prd=Path(parts["37777148/prd"]["root"])
+        guest=root_file(root,interp)
+        dirs=[root_file(root,d) for d in ("/lib","/usr/lib")]
+        for base in (root/"etc/ld.so.conf.d",):
+            if base.is_dir():
+                for conf in base.glob("*.conf"):
+                    for raw in conf.read_text(errors="replace").splitlines():
+                        d=raw.split("#")[0].strip()
+                        if d.startswith("/") and not d.startswith("/prd/"):dirs.append(root_file(root,d))
+        for d in (prd/"lib",prd/"usr/lib"):
+            if d.is_dir():dirs.append(d)
+        qemu=shutil.which("qemu-arm-static")
+        if not qemu:raise ValueError("qemu-arm-static missing")
+        args=[qemu,"-L",str(root)]
+        ld=[str(guest),"--inhibit-cache","--library-path",":".join(str(d) for d in dirs if d.is_dir())]
+        listing=command(args+ld+["--list",str(elf)],diagnostics=True)
+        trace=command(args+["-E","LD_TRACE_LOADED_OBJECTS=1","-E","LD_WARN=1","-E","LD_BIND_NOW=1"]+ld+[str(elf)],diagnostics=True)
         if not "=>" in listing or not "=>" in trace or re.search(r"not found|undefined symbol|relocation error",listing+trace,re.I):
-            raise ValueError("loader resolution: "+(listing+trace)[-700:])
-        return {"interpreter":interp,"list":listing,"relocations":trace}
+            raise ValueError((listing+trace)[-700:])
+        for path in re.findall(r"=>\s+(/[^\s]+)",listing):
+            resolved=Path(path).resolve()
+            if not any(resolved.is_relative_to(d) for d in (root,prd)):
+                raise ValueError("unverified dependency location "+path)
+        return {"interpreter":interp,"root":str(root),"list":listing,"relocations":trace}
 
 
 def abi(tools,elf):
@@ -447,6 +461,35 @@ def evaluate(label, previous, shipped, shipped_cus):
                 r["a32_spans"].append(dict(start=hex(lo),end=hex(hi),
                     symbols=sorted({n for a,nbytes,n in symbols if a<hi and lo<a+nbytes}),
                     objects=sorted({o for a,n,o,_ in maps if a<=lo and hi<=a+n})))
+        applied_maps=set()
+        if plan:
+            cwd,args,_,ld=plan
+            link_calls=[args]+[call for call in ld if Path(old_lto["option"](call,"-o")).name=="AVControl"]
+            for call in link_calls:
+                tokens=[v for token in call for v in (token[4:].split(",") if token.startswith("-Wl,") else [token])]
+                for i,token in enumerate(tokens):
+                    dest=token[5:] if token.startswith("-Map=") else tokens[i+1] if token=="-Map" and i+1<len(tokens) else ""
+                    if dest:applied_maps.add(str((cwd/dest).resolve()))
+        # Runtime attribution needs a covering map AND a byte-identical section from that CRT.
+        crts={}
+        for name in ("crt1.o","Scrt1.o","crti.o","crtbegin.o","crtbeginS.o","crtend.o","crtn.o"):
+            for directory in ("usr/lib","usr/lib/gcc"):
+                for f in (root/directory).glob(("**/" if directory.endswith("gcc") else "")+name):
+                    if not f.is_file():continue
+                    data=f.read_bytes()
+                    for sect,h in sections(data) or []:
+                        if h[1]==1 and h[2]&4:crts.setdefault(name,[]).append((str(f),data[h[4]:h[4]+h[5]]))
+        plt=[(h[3],h[3]+h[5]) for n,h in ds if n in (".plt",".iplt")]
+        for span in r["a32_spans"]:
+            lo,hi=int(span["start"],16),int(span["end"],16)
+            va=text[4]+lo-text[3]
+            seq=blob[va:va+hi-lo]
+            names={Path(o).name for a,n,o,f in maps if a<=lo and hi<=a+n and str(Path(f).resolve()) in applied_maps}
+            hits={name:[path for path,data in entries if seq in data] for name,entries in crts.items()}
+            span["crt_byte_candidates"]={name:ps for name,ps in hits.items() if ps}
+            span["in_plt"]=any(a<=lo and hi<=b for a,b in plt)
+            span["runtime_proved"]=span["in_plt"] or len(names)==1 and bool(hits.get(next(iter(names))))
+        if not m["unknown"] and m["t"] and r["a32_spans"] and all(x["runtime_proved"] for x in r["a32_spans"]):gates["T2"]="PASS"
     cus=check("dwarf",lambda:units(debug) if buildid(debug)==item["build_id"] else [])
     def input_checks():
         if not plan:raise ValueError("no unique executed link")
@@ -536,7 +579,9 @@ def main():
     try:shipped,cus=official()
     except Exception as exc:
         print("SHIPPED_OFFICIAL_REVIEW",str(exc))
-        shipped,cus=None,[]
+        fallback=HERE/"official.elf"
+        shipped=fallback if fallback.is_file() and hashlib.sha256(fallback.read_bytes()).hexdigest()==OFF_SHA else None
+        cus=[]
     rows={}
     for label in ("baseline","default","package"):
         try:rows[label]=evaluate(label,previous,shipped,cus)

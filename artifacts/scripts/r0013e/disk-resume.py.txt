@@ -73,3 +73,27 @@ def reuse(job,work,lane,row):
         if source.is_file():shutil.copyfile(source,folder/name)
     print("KERNEL_LANE_REUSED",lane,row.get("status"),job/lane,flush=True)
     return dict(row,reused_from=str(job/lane))
+
+def outline_retry(temp, filename, effective):
+    receipt=Path(filename)
+    need(receipt.name=="lanes.json" and receipt.parent.parent==temp
+         and re.fullmatch(r"pm0013i-read\.[A-Za-z0-9]{6}",receipt.parent.name)
+         and receipt.resolve(strict=True)==receipt,"unexpected retained measurement")
+    saved=json.loads(receipt.read_bytes())
+    prior,records,_=read(temp,str(temp/"pm0012-kernel.dkyJ0S"),effective)
+    need(saved["job"]==str(prior) and saved["matrix_sha256"]==sha(prior/"kernel-matrix.json"),"measurement receipt mismatch")
+    lanes=saved["lanes"]
+    need(set(lanes)=={"K1","K3"},"missing retained verdict")
+    retry=set()
+    for lane,r in lanes.items():
+        need(r["status"] in {"FINISHED","NO_MATCHING_PERF_ELF"},"ambiguous perf tree: "+lane)
+        if r["status"]=="FINISHED":
+            m=r["measurement"]
+            tree=Path(m["tree"])
+            need(tree.resolve(strict=True).is_relative_to(prior/lane) and sha(tree/"vmlinux")==m["sha256"],"retained result changed")
+            records[lane]=dict(records[lane],retained_perf=m,samples=m["argv"].get("samples",{}))
+        if r["status"]=="NO_MATCHING_PERF_ELF":
+            need(r.get("stage",{}).get("error") and "-moutline" in r["stage"]["error"] and not r["candidates"],"unsupported retry "+lane)
+            retry.add(lane)
+    print("OUTLINER_RETRY",sorted(retry),flush=True)
+    return prior,records,retry

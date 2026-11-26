@@ -46,6 +46,27 @@ def normalize(tree):
             if stat.S_ISDIR(mode):p.chmod(mode|0o700)
             elif stat.S_ISREG(mode):p.chmod(mode|0o400)
 
+
+def rootless_extract(args, files, dump, part, skipped):
+    run=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,errors="replace",
+                       env={**os.environ,"LC_ALL":"C"},timeout=3600)
+    (part.parent/"fsck-output.txt").write_text(run.stdout)
+    check(run.returncode==0,"fsck extraction rc="+str(run.returncode)+" "+run.stdout[-300:])
+    for line in run.stdout.splitlines():
+        warning=re.fullmatch(r"<W> erofs: failed to create special file: (.+), skipped",line)
+        if not warning:
+            check(not re.search(r"<[EW]>|\b(?:error|failed|corrupt(?:ed)?|checksum mismatch)\b",line,re.I),line)
+            continue
+        path=Path(warning[1])
+        rel=path.relative_to(files)
+        check(".." not in rel.parts and path.parent.resolve()==path.parent and not os.path.lexists(path),"invalid skipped path "+str(path))
+        name="/"+str(rel)
+        detail=subprocess.check_output([dump,"--path="+name,part],text=True,stderr=subprocess.STDOUT)
+        kind=re.search(r"(?im)^.*(?:Size:|Type:).*?\b(character device|block device|character special file|block special file|char dev|block dev|SOCK file|char device|FIFO(?: file)?|socket(?: file)?)\s*$",detail)
+        check(kind is not None and name not in skipped,"unverified skipped inode "+name+" "+detail[:400])
+        skipped[name]={"type":kind[1],"dump":detail}
+    return run.stdout
+
 def extract(qb,labels,results):
     img,tree,verify,scan,repo=map(lib,("images","image-tree","verify-reader","image_mode_scan","image-repo-lib"))
     raw=WS/"usb"/qb/"updateSU2E/platform.img"
@@ -74,17 +95,20 @@ def extract(qb,labels,results):
             stage=Path(tempfile.mkdtemp(prefix=qb+"-"+label+".",dir=HERE))
             files=stage/"extracted"
             keep=False
+            skipped={}
             def cmd(*args):
                 print("PHASE",qb,label,str(args[0]),[str(a)[:120] for a in args[1:3]],flush=True)
                 if "--preserve-perms" in args:
                     args=tuple("--no-preserve-perms" if a=="--preserve-perms" else a for a in args)
-                out=tree["command"](*args)
-                if any(str(a).startswith("--extract=") for a in args):normalize(files)
-                return out
+                if any(str(a).startswith("--extract=") for a in args):
+                    out=rootless_extract(args,files,tools["dump.erofs"],stage/"partition",skipped)
+                    normalize(files)
+                    return out
+                return tree["command"](*args)
             try:
                 start,length=layout[label]
                 # Validate symlinked board sample names inside the guest root after extraction.
-                row=verify["check_partition"](dict(tree,command=cmd),tools,raw,start,length,stage,{})
+                row=verify["check_partition"](dict(tree,command=cmd,verified_specials=skipped),tools,raw,start,length,stage,{})
                 refs=verify["SAMPLES"].get((qb,label),{})
                 samples={}
                 for name,digest in refs.items():
@@ -98,6 +122,13 @@ def extract(qb,labels,results):
                     writer=csv.writer(f,delimiter="\t",lineterminator="\n")
                     writer.writerow(("qb","path","sha256","mode","basis","exec_bytes","a32_est_bytes"))
                     row["census"]=img["census"](files,qb,label,scan,writer)
+                if qb=="37736448" and label=="platform":
+                    official=files/"usr/apps/org.tizen.AVControl/bin/AVControl"
+                    check(sha(official)==lib("pilot")["OFF_SHA"],"Official target digest")
+                    shutil.copyfile(official,HERE/"official.elf")
+                if qb=="37777148" and label=="prd":
+                    keep=True
+                    row["root"]=str(files)
                 if qb=="37777148" and label=="platform":
                     keep=True
                     row["root"]=str(files)
@@ -148,6 +179,7 @@ def producer_tables(newfiles,summary):
     db=sqlite3.connect((OLD/"details.sqlite").as_uri()+"?mode=ro&immutable=1",uri=True)
     counters=defaultdict(Counter)
     seen=set()
+    coverage=defaultdict(Counter)
     with (HERE/"cu-evidence.tsv").open("w") as f:
         wr=csv.writer(f,delimiter="\t")
         wr.writerow(("source","rpm","elf","id","CU","producer","ownership"))
@@ -159,7 +191,15 @@ def producer_tables(newfiles,summary):
             seen.add(identity)
             c=counters[src];c["elfs"]+=1;c["text"]+=r["text"] or 0
             own=set();ambiguous=False
-            for cu in (json.loads(debug)["cus"] if debug else r["cus"]):
+            dbg=json.loads(debug)["cus"] if debug else []
+            all_cus=dbg or r["cus"]
+            scope=coverage[r["rpm"]]
+            scope["elfs"]+=1
+            scope["build_ids"]+=bool(r["build_id"])
+            scope["debug_matches"]+=debug is not None
+            scope["debug_producers"]+=any(x.get("producer") for x in dbg)
+            scope["any_producers"]+=any(x.get("producer") for x in all_cus)
+            for cu in all_cus:
                 n,producer=cu["name"],cu["producer"]
                 gcc=bool(re.search(r"\bGNU C(?:\+\+)?(?:\d+)?(?:\s|$)",producer))
                 clang="clang" in producer.lower()
@@ -169,12 +209,20 @@ def producer_tables(newfiles,summary):
                 if owner=="package":own.add("gcc" if gcc else "clang")
                 if owner=="unproved":ambiguous=True
                 wr.writerow((src,r["rpm"],r["path"],r["build_id"],n,producer,owner))
+            scope["own_producers"]+=bool(own)
             c["own_gcc_elfs"]+="gcc" in own
             c["own_gcc_elf_text"]+=(r["text"] or 0) if "gcc" in own else 0
             c["unproved_elfs"]+=not own or ambiguous
             c["own_clang_elfs"]+="clang" in own
             if not own and "GCC" in r["markers"] and "Clang" not in r["markers"]:c["gcc_only_marker_unproved"]+=1
     db.close()
+    metrics=("elfs","build_ids","debug_matches","debug_producers","any_producers","own_producers")
+    with (HERE/"e1-rpm-coverage.tsv").open("w") as out:
+        wr=csv.writer(out,delimiter="\t");wr.writerow(("rpm",*metrics))
+        for name,count in sorted(coverage.items()):wr.writerow((name,*(count[k] for k in metrics)))
+    total=sum(coverage.values(),Counter())
+    summary.append(("E1_COVERAGE",{**dict(total),"share_elf_with_producer_pct":round(100*total["any_producers"]/total["elfs"],2) if total["elfs"] else None,
+        "rpm_with_debug_producers":sum(v["debug_producers"]>0 for v in coverage.values()),"rpm_in_payload_cache":len(coverage)}))
     failed={tracks["source"](r["srpm"]) for r in inventory if r["name"] in bad}
     cutoff=any(e[0]=="STOP" for e in errors)
     with (HERE/"object-producers.tsv").open("w") as f:
@@ -188,7 +236,7 @@ def producer_tables(newfiles,summary):
         c=counters.get(n,{})
         fixed[n]="NOT_IN_QB" if n not in names and not any(r["name"]==n for r in inventory) else "STILL_GCC" if c.get("own_gcc_elfs") or c.get("gcc_only_own_objects") else "FIXED_OBSERVED_CUS" if c.get("own_clang_elfs") and not c["unproved_elfs"] and n not in failed and not cutoff else "UNPROVED"
     save("e1.json",counters);save("fixed27.json",{n:[fixed[n],counters.get(n,{}).get("text",0),historical[n]] for n in fixed})
-    summary.append(("E1",dict(sources_with_own_GNU_C_CXX=sum(c["own_gcc_elfs"]>0 for c in counters.values()),additional_object_only_sources=sum(bool(c["gcc_only_own_objects"]) and not c["own_gcc_elfs"] for c in counters.values()),fixed27=Counter(fixed.values()),top10=Counter({n:c["own_gcc_elf_text"] for n,c in counters.items() if c["own_gcc_elfs"]}).most_common(10))))
+    summary.append(("E1",dict(observed_GNU_C_CXX_source_lower_bound=sum(c["own_gcc_elfs"]>0 for c in counters.values()),additional_object_only_sources=sum(bool(c["gcc_only_own_objects"]) and not c["own_gcc_elfs"] for c in counters.values()),fixed27=Counter(fixed.values()),top10=Counter({n:c["own_gcc_elf_text"] for n,c in counters.items() if c["own_gcc_elfs"]}).most_common(10))))
     bykey=defaultdict(set)
     for r in rows("elfs"):bykey[r["path"],r["sha256"]].add((r["source"],r["rpm"],r["arm_relative"],r["relr_net_rel_bytes"]))
     raw_bytes=0; totals=Counter();missing=0;covered=0

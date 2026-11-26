@@ -119,7 +119,7 @@ def main():
     indexes=[]
     for p in ("platform","prd"):
         r=parts["37777148/"+p]
-        if r["fsck"]!="passed" or r["entries"]!=r["dump_entries"] or "census" not in r:raise ValueError("missing validated "+p)
+        if r["fsck"]!="passed" or r["entries"]+len(r.get("verified_specials",{}))!=r["dump_entries"] or "census" not in r:raise ValueError("missing validated "+p)
         with (f/f"files-37777148-{p}.tsv").open() as stream:indexes.extend(csv.DictReader(stream,delimiter="\t"))
     root=Path(parts["37777148/platform"]["root"]).resolve(strict=True)
     if not root.is_relative_to(f):raise ValueError("unexpected extracted root")

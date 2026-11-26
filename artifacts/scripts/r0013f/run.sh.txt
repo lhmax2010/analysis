@@ -18,12 +18,12 @@ while read -r digest path; do
   fi
   printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
 done <<'INPUTS'
-1abbedf49594fe6c44568327a3e32e9c52718062e32f2a1690ce8f94c0cd0c81  artifacts/scripts/r0013f/review.py.txt
-6544238d08d63d816e736c090e9223cd73192d0af190db0e5f27afcb35b46f9e  artifacts/scripts/r0013f/pilot.py.txt
+625816cda8c5c78fea179d8e530dffd359f9105c4128672ffb35716d8d1914e4  artifacts/scripts/r0013f/review.py.txt
+8737d9644cc54bb633f01d1ca2eff45af283e609b82be460f53df6df55e2e3e2  artifacts/scripts/r0013f/pilot.py.txt
 d9620fad6f97d27014a2bde2f0e9c1d13500ff2239f253b69464ef2d0ac1e601  artifacts/scripts/r0013a/images.py.txt
 4ada3c3a74557d697045e28f8fd0b92aaf0e4bb05eb8d4f627bf43d4bcd134f7  artifacts/scripts/r0013a/tracks.py.txt
 f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726  artifacts/scripts/r0012c/image-tree.py.txt
-bd185578c36dcf420e2992e6abb381070609f4bdfeb6eb82cf0ff383fa2e1855  artifacts/scripts/r0012z/verify-reader.py.txt
+cb67e6f58fbb7f6ed59370516fd652ae595adc9e2efb44ba72de26601ec59c42  artifacts/scripts/r0012z/verify-reader.py.txt
 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75  artifacts/scripts/r0004/image_mode_scan.py.txt
 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f  artifacts/scripts/r0005/image-repo-lib.py.txt
 0eff2b451db99fb6f55998b8e74f0e3d5bde6cfa086dbc998859e4ef5261c928  artifacts/scripts/r0012r/lto-delivery.py.txt

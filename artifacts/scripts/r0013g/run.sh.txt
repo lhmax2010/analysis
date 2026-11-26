@@ -21,7 +21,7 @@ while read -r digest path; do
   else curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 150 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$name" 2>>download.log; fi
   printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
 done <<'INPUTS'
-0f29c5452b72356f4a08707f4e72aecfc9ca2f68e276028bf6f9016fd5803649  artifacts/scripts/r0013g/checks.py.txt
+02ee5ae9c249acf6cfdc54facd26b5c5be129b373fd0725a7734fb65f2730763  artifacts/scripts/r0013g/checks.py.txt
 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75  artifacts/scripts/r0004/image_mode_scan.py.txt
 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f  artifacts/scripts/r0005/image-repo-lib.py.txt
 4f0a76b186e906be4042a1eb9860b33292e30eb6f75dd31ba383342f5cdcf43a  artifacts/thumb-repro/a32-full-609.csv

@@ -1,0 +1,118 @@
+"""Read the failed lanes from the original run. Write receipts only in cwd."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import subprocess
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+BATCH = TEMP / "pm0012-kernel.dkyJ0S"
+JOB = BATCH / "jobs/kernel-thumb"
+
+def sha(path):
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+def output(*args):
+    return subprocess.check_output(args, text=True, errors="replace")
+
+def gcc_context(log):
+    stage = []
+    argv = ""
+    with log.open(errors="replace") as f:
+        for line in f:
+            line = re.sub(r"^\[\s*\d+s\]\s*", "", line.rstrip())
+            if line.startswith("+ ") or "Entering directory" in line:
+                stage = (stage + [line])[-22:]
+            if "gcc" in line and "scripts/mod/empty.o" in line and " -c " in line:
+                argv = line
+            if "gcc: error:" in line and "-moutline" in line:
+                return {"shell_context":stage, "gcc_argv":argv, "error":line}
+    return {}
+
+def assess(lane, records, proof):
+    folder = JOB / lane
+    log = folder / "gbs.log"
+    ref = "K0" if lane == "K1" else "K2"
+    cfg = JOB / ref / "generated.config"
+    result = {"status":"REVIEW", "config_sha256":sha(cfg), "stage":gcc_context(log), "candidates":[]}
+    roots = list((folder/"GBS-ROOT/local/BUILD-ROOTS").glob("*.armv7l.*"))
+    if len(roots) != 1 or not result["stage"]:
+        return result
+    def fail(exc):
+        raise exc
+    valid = {}
+    build = roots[0]/"home/abuild/rpmbuild/BUILD"
+    snapshot = roots[0]/"var/tmp/pm0013d-evidence"
+    if not build.is_dir():return result
+    import itertools
+    search=[build]+([snapshot] if snapshot.exists() else [])
+    for directory, _, files in itertools.chain.from_iterable(os.walk(d,onerror=fail) for d in search):
+        if "vmlinux" not in files:
+            continue
+        p = Path(directory)
+        if not (p/".config").is_file() or not (p/"vmlinux").is_file():
+            continue
+        if sha(p/".config") != result["config_sha256"]:
+            continue
+        row = {"tree":str(p)}
+        result["candidates"].append(row)
+        elf = p/"vmlinux"
+        if elf.stat().st_size == 0:
+            continue
+        with elf.open("rb") as f:
+            if f.read(4) != b"\x7fELF": continue
+        if not (p/"System.map").is_file():continue
+        symbols = output("nm","-n",elf)
+        def anchors(data):
+            return dict((name,int(address,16)) for address,name in re.findall(r"^(\w+)\s+\w\s+(_stext|_etext|linux_banner)$",data,re.M))
+        joined = anchors(symbols)
+        if len(joined)!=3 or joined!=anchors((p/"System.map").read_text()):
+            continue
+        sections = dict(runpy.run_path(str(BATCH/"image_mode_scan.py.txt"))["secs_of"](elf.read_bytes()))
+        sizes = {name:s[5] for name,s in sections.items() if s[2]&2}
+        helpers = {(int(a,16),int(b,16)) for a,b in re.findall(r"^(\w+)\s+(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",output("nm","-S",elf),re.M)}
+        boot = p/"arch/arm/boot"
+        images = {n:(boot/n).stat().st_size for n in ("Image","zImage","uImage") if (boot/n).is_file()}
+        if "Image" in images and "uImage" not in images:
+            images["uImage_estimate_Image_plus_64"] = images["Image"]+64
+        current = {"sha256":sha(elf),"build_id":re.findall(r"Build ID: (\w+)",output("readelf","-nW",elf)),
+                   "images":images,"sections":sizes,"helpers":len(helpers),"helper_bytes":sum(b for a,b in helpers),
+                   "argv":proof(p,lane,log),"text_delta":sizes[".text"]-records[ref]["sizes"][".text"]}
+        for n in images.keys() & records[ref]["images"].keys():
+            current[n+"_delta"]=images[n]-records[ref]["images"][n][0]
+        row.update(current)
+        valid.setdefault(current["sha256"],[]).append(row)
+    if len(valid)==1:
+        same=next(iter(valid.values()))
+        result["measurement"]=max(same,key=lambda r:(r["argv"]["verdict"]=="PASS",len(r["images"])))
+        result["status"]="FINISHED"
+    elif not result["candidates"]:
+        result["status"]="NO_MATCHING_PERF_ELF"
+    return result
+
+def main():
+    if sha(BATCH/"kernel-matrix.py.txt")!="dc19d95013eafd3f8316bbccaf9c2c7f49c34621a3f2e808e8041a060f62b946":
+        raise ValueError("unexpected retained matrix")
+    records=json.loads((JOB/"kernel-matrix.json").read_bytes())
+    result={"job":str(JOB),"matrix_sha256":sha(JOB/"kernel-matrix.json"),"lanes":{}}
+    proof=runpy.run_path(str(BATCH/"kernel-matrix.py.txt"))["review_argv"]
+    for lane in ("K1","K3"):
+        try:r=assess(lane,records,proof)
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:r={"status":"REVIEW","error":str(exc)}
+        result["lanes"][lane]=r
+        m=r.get("measurement",{})
+        print(lane,r["status"],json.dumps({k:m[k] for k in ("text_delta","images","helpers","helper_bytes","build_id") if k in m}),
+              "ARGV",m.get("argv",{}).get("verdict","UNAVAILABLE"),r.get("error",""),flush=True)
+        if r.get("stage"):
+            stage=r["stage"]
+            print("GCC_CONTEXT",lane,json.dumps(stage["shell_context"][-8:])[:1800],stage["gcc_argv"][:160])
+    p=Path.cwd()/"lanes.json"
+    p.write_text(json.dumps(result,indent=2)+"\n")
+    print("LANE_RECEIPT",p,sha(p),flush=True)
+if __name__=="__main__":main()

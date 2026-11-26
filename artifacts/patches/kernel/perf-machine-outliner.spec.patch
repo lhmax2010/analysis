@@ -88,7 +88,7 @@
 +    prev=$arg
 +done
 +if [ -f "$directory/arch/arm/Makefile" ] && [ -f "$directory/scripts/Kbuild.include" ]; then
-+    case "$PM_KERNEL_LANE" in K1|K3|K5) set -- "$@" "KCFLAGS=${kc:+$kc }-moutline";; esac
++    case "$PM_KERNEL_LANE" in K1|K3|K5) set -- "$@" "KCFLAGS=${kc:+$kc }"'$(if $(filter clang clang-%% %%-clang,$(notdir $(lastword $(CC)))),-moutline)';; esac
 +fi
 +"$PM_REAL_MAKE" "$@" || exit $?
 +# Some packaging steps clean the perf build tree before rpm exits.

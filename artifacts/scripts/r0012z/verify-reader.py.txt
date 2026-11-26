@@ -46,8 +46,9 @@ def check_partition(api, tools, image, offset, length, out, refs):
     def fail(err):
         raise err
     actual = 1 + sum(len(dirs)+len(names) for _,dirs,names in os.walk(files,onerror=fail))
-    if actual!=int(m[1]):
-        raise ValueError(f"dump={m[1]} extraction={actual}")
+    skipped=api.get("verified_specials",{})
+    if actual+len(skipped)!=int(m[1]):
+        raise ValueError(f"dump={m[1]} extraction={actual} verified_specials={len(skipped)}")
     samples = {}
     for name,expected in refs.items():
         p=files/name
@@ -57,7 +58,7 @@ def check_partition(api, tools, image, offset, length, out, refs):
         samples[name]=digest
         if expected and digest!=expected:
             raise ValueError(f"board mismatch: {name} extraction={digest} board={expected}")
-    return dict(fsck="passed",entries=actual,dump_entries=int(m[1]),compressed=int(compressed[1]),
+    return dict(fsck="passed",entries=actual,verified_specials=skipped,dump_entries=int(m[1]),compressed=int(compressed[1]),
                 board="matched" if all(refs.values()) else "awaiting Official prd hashes",sha256=samples)
 
 
