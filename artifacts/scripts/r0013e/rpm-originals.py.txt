@@ -1,0 +1,156 @@
+"""Inventory the two original RPM directories. Prune only a reviewed, restorable file."""
+import csv
+import fcntl
+import hashlib
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import stat
+import sys
+import xml.etree.ElementTree as ET
+from contextlib import ExitStack
+from urllib.parse import urljoin
+from urllib.request import build_opener, ProxyHandler
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+HERE = Path(__file__).resolve().parent
+ROOTS = ("o997/gcc_rpms", "o984d/rpms")
+HOST = "http://repos.vd.sec.samsung.net"
+REPOS = (
+    HOST+"/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/armv7l/packages/",
+    HOST+"/base/tizen-10.1-base/standard/tizen-10.1-base-standard_20260919.1/repos/base/armv7l/packages/",
+    *(HOST+"/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_"+stamp+
+      "/repos/base/armv7l/packages/" for stamp in ("20261113.1","20261118.1")),
+    *(HOST+"/priv/"+job+"/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_"+stamp+"/repos/product/armv7l/packages/"
+      for job,stamp in (("168.219.236.43:81/PRV/builds/b567/19437567","20261125.1"),
+                        ("168.219.236.55:81/PRV/builds/b655/19437655","20261125.2"))),
+)
+FIELDS = ("relative_path","bytes","sha256","rpm_url","primary_url","primary_sha256")
+
+def require(ok, why):
+    if not ok:raise ValueError(why)
+
+def digest(stream, limit=None):
+    h=hashlib.sha256()
+    size=0
+    for b in iter(lambda:stream.read(1024*1024),b""):
+        size+=len(b)
+        require(limit is None or size<=limit,"payload exceeds declared length")
+        h.update(b)
+    return h.hexdigest(),size
+
+def published(lib):
+    rows={}
+    for repo in REPOS:
+        try:
+            repomd=ET.fromstring(lib["fetch"](repo+"repodata/repomd.xml",2<<20))
+            primary=repomd.find(lib["REP"]+"data[@type='primary']")
+            require(primary is not None,"missing primary")
+            url=urljoin(repo,primary.find(lib["REP"]+"location").attrib["href"])
+            require(url.startswith(repo+"repodata/"),"primary location outside snapshot")
+            packed=lib["fetch"](url)
+            check=primary.find(lib["REP"]+"checksum")
+            require(check is not None and check.get("type") in ("sha256","sha512","sha","sha1"),"unsupported primary checksum")
+            alg=check.get("type")
+            require(hashlib.new("sha1" if alg=="sha" else alg,packed).hexdigest()==check.text.strip(),"primary checksum mismatch")
+            h=hashlib.sha256(packed).hexdigest()
+            c=lib["COM"]
+            items=[]
+            for pkg in ET.fromstring(lib["unpack"](packed)).findall(c+"package"):
+                ck=pkg.find(c+"checksum")
+                if ck is None or ck.get("type")!="sha256":continue
+                rpm=urljoin(repo,pkg.find(c+"location").attrib["href"])
+                if rpm.startswith(repo) and rpm.endswith(".rpm"):
+                    items.append((ck.text.strip(),(rpm,url,h)))
+            for key,value in items:rows.setdefault(key,[]).append(value)
+            print("PRIMARY",len(items),url,h)
+        except (ValueError,OSError,ET.ParseError,KeyError,AttributeError) as exc:
+            print("REPO_UNAVAILABLE",repo,str(exc)[:160])
+    return rows
+
+def checked_path(rel):
+    p=TEMP/rel
+    require(any(p.is_relative_to(TEMP/r) for r in ROOTS) and p.suffix==".rpm" and
+            p.resolve()==p and p.is_file(),"unexpected local RPM "+str(p))
+    return p
+
+def scan(rows, manifest):
+    counts=[0,0]
+    sizes=[0,0]
+    with manifest.open("x", newline="") as f:
+        w=csv.writer(f,delimiter="\t",lineterminator="\n")
+        w.writerow(FIELDS)
+        for directory in ROOTS:
+            top=TEMP/directory
+            require(top.resolve()==top and top.is_dir(),"missing or redirected original directory")
+            def failed(e):raise e
+            for parent,_,files in os.walk(top,onerror=failed):
+                for name in sorted(files):
+                    p=Path(parent)/name
+                    if p.suffix!=".rpm" or p.is_symlink() or not p.is_file():continue
+                    rel=str(p.relative_to(TEMP))
+                    with checked_path(rel).open("rb") as src:h,n=digest(src)
+                    match=rows.get(h,[])
+                    idx=int(bool(match))
+                    counts[idx]+=1
+                    sizes[idx]+=n
+                    w.writerow((rel,n,h,*(match[0] if match else ("","",""))))
+        f.flush()
+        os.fsync(f.fileno())
+    print("UNMATCHED",counts[0],sizes[0],"PUBLISHED_CANDIDATES",counts[1],sizes[1])
+
+def remove(rows, manifest, expected, opener):
+    with manifest.open("rb") as f:require(digest(f)[0]==expected,"reviewed manifest SHA mismatch")
+    removed=kept=0
+    log=HERE/"apply-results.tsv"
+    with log.open("a",newline="") as audit, manifest.open(newline="") as inp:
+        reader=csv.DictReader(inp,delimiter="\t")
+        require(tuple(reader.fieldnames)==FIELDS,"unexpected manifest schema")
+        for row in reader:
+            rel=row["relative_path"]
+            h=row["sha256"]
+            proof=tuple(row[k] for k in FIELDS[3:])
+            try:
+                require(proof in rows.get(h,()),"no current matching primary entry")
+                p=checked_path(rel)
+                n=int(row["bytes"])
+                st=p.lstat()
+                require(stat.S_ISREG(st.st_mode) and st.st_nlink==1 and st.st_size==n,"local file changed or shared")
+                with opener.open(proof[0],timeout=45) as remote:
+                    require(remote.geturl()==proof[0] and digest(remote,n)==(h,n),"remote RPM checksum/length mismatch")
+                with p.open("rb") as f:
+                    require(digest(f,n)==(h,n) and os.path.samestat(os.fstat(f.fileno()),st),"local RPM mismatch")
+                fresh=checked_path(rel).lstat()
+                require(os.path.samestat(fresh,st) and st.st_ctime_ns==fresh.st_ctime_ns,"local file replaced")
+                p.unlink()
+                removed+=n
+                status="REMOVED"
+            except (ValueError,OSError) as exc:
+                kept+=1
+                status="KEPT "+str(exc)[:120]
+            csv.writer(audit,delimiter="\t",lineterminator="\n").writerow((rel,h,status))
+            audit.flush()
+    print("REMOVED_VERIFIED_BYTES",removed,"KEPT_ROWS",kept,"AUDIT",log)
+
+def main():
+    require(HERE.parent==TEMP and re.fullmatch(r"pm0013e-rpms\.[A-Za-z0-9]{6}",HERE.name),"workspace required")
+    lib=runpy.run_path(str(HERE/"image-repo-lib.py.txt"))
+    dest=HERE/"rpm-restore.tsv"
+    with ExitStack() as stack:
+        for root in ROOTS:
+            require((TEMP/root).resolve()==TEMP/root,"redirected RPM directory")
+            fd=os.open(TEMP/root,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+            stack.callback(os.close,fd)
+            fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        print("FREE_BEFORE_GIB",round(shutil.disk_usage(TEMP).free/1024**3,3),flush=True)
+        rows=published(lib)
+        if os.environ.get("APPLY","0")=="0" and len(sys.argv)==1:
+            scan(rows,dest)
+            with dest.open("rb") as f:print("RPM_MANIFEST",HERE,digest(f)[0])
+        elif os.environ.get("APPLY")=="1" and len(sys.argv)==2:
+            remove(rows,dest,sys.argv[1],build_opener(ProxyHandler({}),lib["NoRedirect"]()))
+        else:raise ValueError("use dry-run, then APPLY=1 and its manifest SHA")
+        print("FREE_AFTER_GIB",round(shutil.disk_usage(TEMP).free/1024**3,3))
+if __name__=="__main__":main()

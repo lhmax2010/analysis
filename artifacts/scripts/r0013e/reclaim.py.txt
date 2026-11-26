@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import re
 import shutil
-import stat
+import time
 import sys
 
 TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
@@ -52,16 +52,24 @@ def require(v, msg):
 def under(text, path):
     return text == path or text.startswith(path+"/")
 
-def idle(paths):
-    targets = list(map(str, paths))
-    for line in Path("/proc/self/mountinfo").read_text().splitlines():
+def mount_guard(proc, targets):
+    for line in (proc/"mountinfo").read_text().splitlines():
         for field in line.split()[3:5]:
             mount = re.sub(r"\\([0-7]{3})",lambda m:chr(int(m[1],8)),field)
             if any(under(mount,t) for t in targets):
                 raise ValueError("mounted "+mount)
+
+def idle(paths):
+    targets=list(map(str,paths))
+    namespaces=set()
+    mount_guard(Path("/proc/self"),targets)
     for proc in Path("/proc").iterdir():
         if not proc.name.isdigit() or int(proc.name)==os.getpid():continue
         try:
+            namespace=os.readlink(proc/"ns/mnt")
+            if namespace not in namespaces:
+                mount_guard(proc,targets)
+                namespaces.add(namespace)
             cmd=(proc/"cmdline").read_bytes()
             if any(os.fsencode(t)+b"/" in cmd or os.fsencode(t)+b"\0" in cmd for t in targets):
                 raise ValueError("process argument PID "+proc.name)
@@ -137,6 +145,123 @@ def historical(apply):
                 print("KEPT_OR_PARTIAL",p,str(exc)[:280],flush=True)
     print("HISTORICAL_EXCLUSIVE_GIB",round(total/GIB,3),"APPLY",int(apply),flush=True)
 
+def kernel_run(run):
+    safe(run)
+    require(run.parent==TEMP and re.fullmatch(r"pm0012-kernel\.[A-Za-z0-9]{6}",run.name),"invalid batch path")
+    require(file_hash(safe(run/"downloads.tsv")) in KERNEL_INDEXES,"kernel manifest mismatch")
+    return safe(run/"jobs/kernel-thumb")
+
+# Recovery runs use the same measured spec. Verify its pin as well as the
+# manifest via its parent's embedded entry rather than trust a directory name.
+KERNEL_INDEXES = {OLD_INDEX, "19ab7b5bd30bd5fad7f2bf40cec903648736846578f674cd4601c5dd8b88b82e"}
+
+def verify_symbols(job, lane, row):
+    syms=row["symbols"]
+    folder=safe(job/"symbols"/syms["build_id"]/lane)
+    require(Path(syms["directory"])==folder and set(syms["sha256"])=={".config","System.map","vmlinux"},"symbol scope")
+    for name,digest in syms["sha256"].items():
+        require(file_hash(safe(folder/name))==digest,"retained symbol mismatch "+name)
+    require(file_hash(safe(job/lane/"generated.config"))==syms["sha256"][".config"],"effective config")
+
+def stash_kernel(job,lane,row,apply):
+    require(lane in ("K1","K2","K3","K4","K5"),"invalid lane")
+    folder=safe(job/lane)
+    root=safe(folder/"GBS-ROOT/local/BUILD-ROOTS")
+    if not root.exists():return 0
+    require(row.get("intended_config") and row.get("sizes") and row.get("argv_proof") and row.get("static"),"lane measurement incomplete")
+    verify_symbols(job,lane,row)
+    for name in ("uImage","zImage"):
+        length,digest=row["images"][name]
+        require((folder/name).stat().st_size==length and file_hash(safe(folder/name))==digest,name+" evidence")
+    rpm=list((root.parent/"repos").rglob("tztv-kernel-perf-*.armv7l.rpm"))
+    require(any(re.match(r"tztv-kernel-perf-[0-9]",p.name) and safe(p).is_file() for p in rpm),"missing kernel RPM")
+    require(safe(folder/"gbs.log").stat().st_size>0,"GBS log missing")
+    zsha=row["images"]["zImage"][1]
+    saved=safe(folder/"pm0013e-build-evidence"/zsha)
+    matches=list(root.glob("scratch.armv7l.*/var/tmp/pm0013d-evidence/"+zsha))
+    if saved.exists():
+        require(not matches,"ambiguous evidence")
+        source=saved
+    else:
+        require(len(matches)==1,"missing or ambiguous evidence directory")
+        source=safe(matches[0])
+    require(safe(source/"complete").is_file(),"no complete marker")
+    require(file_hash(safe(source/"arch/arm/boot/zImage"))==zsha,"wrong evidence image")
+    for name,digest in row["symbols"]["sha256"].items():
+        require(file_hash(safe(source/name))==digest,"evidence/symbol mismatch "+name)
+    require(safe(source/"kernel/sched/core.o").stat().st_size>0 and safe(source/"kernel/sched/.core.o.cmd").stat().st_size>0,"scheduler evidence")
+    for group in ("mm","arch/arm","net/core"):
+        require(any(p.stat().st_size for p in (source/group).rglob(".*.o.cmd")),"missing argv "+group)
+    idle([root])
+    count=footprint(root,{source})
+    print("KERNEL_RECLAIM",lane,round(count/GIB,3),"proof",saved,flush=True)
+    if apply:
+        if source!=saved:move_once(source,saved)
+        erase(root)
+    return count
+
+def package_lane(run, package, label, apply):
+    require(run.parent==TEMP and re.fullmatch(r"pm0013-pkg\.[A-Za-z0-9]{6}",run.name),"pkg run path")
+    require(re.fullmatch(r"[0-9]{3}-(?:N4|N5|R4-50|R5)-[A-Za-z0-9_.+-]+",package),"package path")
+    require(label in ("baseline","treatment"),"package lane")
+    folder=safe(run/package/label)
+    root=safe(folder/"GBS-ROOT/local/BUILD-ROOTS")
+    receipt=json.loads(safe(folder/"lane.json").read_bytes())
+    require(receipt["label"]==label and not receipt["error"] and receipt["metrics"]["files"],"incomplete lane")
+    for name in ("gbs.log","driver-argv.txt","link-argv.txt","lane.json"):
+        require(safe(folder/name).is_file(),"missing "+name)
+    for row in receipt["metrics"]["files"]:
+        h=row["sha256"]
+        require(re.fullmatch("[0-9a-f]{64}",h) and file_hash(safe(folder/"elf-proof"/(h+".elf")))==h,"ELF receipt")
+    repos=safe(root.parent/"repos")
+    # RPM filenames end in NAME-VERSION-RELEASE.ARCH.rpm; RPM forbids '-'
+    # inside VERSION and RELEASE. These are the same local outputs collect_rpms read.
+    names={p.name.rsplit("-",2)[0] for p in repos.rglob("*.rpm")
+           if not p.name.endswith(".src.rpm") and safe(p).stat().st_size>0}
+    require({row["rpm"] for row in receipt["metrics"]["files"]}<=names,"RPM outputs incomplete")
+    if not root.exists():return
+    idle([root])
+    count=footprint(root)
+    if apply:erase(root)
+    print("PKG_RECLAIMED" if apply else "PKG_RECLAIM_PLAN",re.sub(r"^[0-9]{3}-(?:N4|N5|R4-50|R5)-","",package),round(count/GIB,3),"GiB",label,flush=True)
+
+def kernel_sweep(selector, apply, follow):
+    if selector=="auto":
+        candidates=[r for r in TEMP.glob("pm0012-kernel.*")
+                    if (r/"downloads.tsv").is_file() and file_hash(r/"downloads.tsv")==OLD_INDEX]
+        require(len(candidates)==1,"specify the exact 4d30cbc run: "+str(candidates))
+        run=candidates[0]
+    else:
+        run=Path(selector)
+    job=kernel_run(run)
+    print("KERNEL_RUN",run,flush=True)
+    fd=os.open(run,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+    done=set()
+    try:
+        fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        while True:
+            finished=bool(re.search(r" DONE kernel rc=\d+$",safe(run/"status.txt").read_text().rstrip()))
+            log_path=safe(job/"job.log")
+            table=safe(job/"kernel-matrix.json")
+            rows={}
+            if log_path.is_file() and table.is_file():
+                try:
+                    rows=json.loads(table.read_bytes())
+                except json.JSONDecodeError:
+                    if finished or not follow:raise
+                log=log_path.read_text(errors="replace")
+                for lane in ("K1","K2","K3","K4","K5"):
+                    if lane in done or lane not in rows or not re.search(r"^KERNEL_THUMB_LANE "+lane+r" ",log,re.M):continue
+                    try:
+                        stash_kernel(job,lane,rows[lane],apply)
+                    except (KeyError,ValueError,OSError) as exc:
+                        print("KERNEL_KEEP",lane,str(exc)[:280],flush=True)
+                    done.add(lane)
+            if finished or not follow:break
+            time.sleep(30)
+    finally:
+        os.close(fd)
+
 def main():
     require(os.geteuid()==0,"use sudo for mount, process and permission coverage")
     require(TEMP.resolve(strict=True)==TEMP,"workspace redirected")
@@ -146,6 +271,10 @@ def main():
     print("FREE_BEFORE_GIB",round(before/GIB,3),flush=True)
     try:
         if sys.argv[1:]==["historical"]:historical(apply=="1")
+        elif len(sys.argv)==5 and sys.argv[1]=="pkg":
+            package_lane(safe(Path(sys.argv[2])),sys.argv[3],sys.argv[4],apply=="1")
+        elif len(sys.argv)==3 and sys.argv[1] in ("kernel","kernel-follow"):
+            kernel_sweep(sys.argv[2],apply=="1",sys.argv[1]=="kernel-follow")
         else:raise ValueError("unknown action")
     finally:
         after=shutil.disk_usage(TEMP).free

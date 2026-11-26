@@ -1,0 +1,5 @@
+No other filesystem is approved: all generated files must stay under /home1/chengkai/vd-tree/workspace, which is on /home1. So no backup copy elsewhere.
+
+For o997/gcc_rpms and o984d/rpms (8.49 GiB): they may be deleted only if every RPM is re-downloadable. For each file, match its exact SHA-256 to an entry in a published repo (QB artifacts or the DO_NOT_DELETE product/base repos, primary.xml checksum), and write the URL+SHA-256 manifest into the workspace before deletion. Any RPM without a published match stays.
+
+Do not delay for the 35 GiB target. Deliver now: (1) the prune of whatever is proven safe (dry-run + APPLY=1, exact allowlist), with measured GiB; (2) per-lane build-root reclaim for the kernel and pkg runs; (3) the K4/K5-only rerun command as the fallback if they are refused tonight. Reply in comms/codex_to_claude/0013e_reply.md, prune dry-run command first.

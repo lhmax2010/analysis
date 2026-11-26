@@ -149,6 +149,15 @@ def n4_proof(folder,label,receipt):
                   and proof["dwarf_option_proof"] and not proof["missing_dwarf_elfs"] and not proof["response_unresolved"])
     return {"pass":eligible,"phases":dict(phases),"inconsistent_calls":gaps,"plugin_link_count":len(plugin)}
 
+def release_measured(work, label):
+    # Run only after lane.json and the external ELF/RPM receipts are closed.
+    cmd=["sudo","-n","/usr/bin/env","APPLY=1","/usr/bin/python3","-IB",
+         str(HERE/"reclaim.py.txt"),"pkg",str(HERE),work.name,label]
+    result=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    print(result.stdout[-1500:],end="",flush=True)
+    if result.returncode:
+        raise Stop("pkg reclaim needs review "+str(work/label))
+
 def worker():
     tracks=lib("tracks"); ole=lib("olevel"); dev=lib("development"); repo=lib("image-repo-lib");scan=lib("image_mode_scan")
     inv=tracks["inventories"](HERE)
@@ -226,6 +235,9 @@ def worker():
         except (OSError,ValueError,KeyError,subprocess.SubprocessError) as exc:result["error"]=str(exc)
         with (HERE/"pkg-results.jsonl").open("a") as f:f.write(json.dumps(result)+"\n")
         print("PKG_RESULT",key,n,result.get("delivery","REVIEW"),str(result.get("error",""))[:180],flush=True)
+        if "error" not in result:
+            for label in ("baseline", "treatment"):
+                release_measured(work, label)
 if __name__=="__main__":
     with (WS/"temp/pm0013-pkg.lock").open("a") as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)

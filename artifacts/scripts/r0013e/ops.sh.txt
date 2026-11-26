@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+temp=/home1/chengkai/vd-tree/workspace/temp
+pin=${1:?commit required}
+mode=${2:?action required}
+shift 2
+[[ $pin =~ ^[0-9a-f]{40}$ ]]
+here=$(dirname "$(realpath -e "$0")")
+[[ ${here%/*} == "$temp" && ${here##*/} =~ ^pm0013e-tools\.[0-9A-Za-z]{6}$ ]]
+export TMPDIR="$here" PYTHONDONTWRITEBYTECODE=1
+get() {
+    local file=$1 hash=$2 dst=$3
+    if [[ ! -f "$dst" ]]; then
+        local staged
+        staged=$(mktemp "$here/get.XXXXXX")
+        curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$file" -o "$staged"
+        printf '%s  %s\n' "$hash" "$staged" | sha256sum -c - >/dev/null
+        mv -T -- "$staged" "$dst"
+    fi
+    printf '%s  %s\n' "$hash" "$dst" | sha256sum -c - >/dev/null
+}
+case "$mode" in
+historical|kernel|kernel-follow)
+    apply=${APPLY:-0}
+    [[ $apply == 0 || $apply == 1 ]]
+    get artifacts/scripts/r0013e/reclaim.py.txt cad81647871520ac7bbd4a6cf0914c05aa7dc020bc94450e30c0219724ce583e "$here/reclaim"
+    if [[ $mode == historical && $apply == 1 ]]; then
+        grep -q '^HISTORICAL_EXCLUSIVE_GIB .* APPLY 0$' "$here/historical.0.log"
+    fi
+    args=("$mode")
+    if [[ $mode != historical ]]; then args+=("${1:-auto}"); fi
+    sudo /usr/bin/env APPLY="$apply" nice -n 15 ionice -c3 /usr/bin/python3 -IB "$here/reclaim" "${args[@]}" | tee "$here/$mode.$apply.log"
+    ;;
+pkg)
+    get artifacts/scripts/r0013a/run.sh.txt 61039100608c06fcb7bcf61b205983937f48bc43c8f8d8bdad98674d348869c4 "$here/pkg-run"
+    exec bash "$here/pkg-run" "$pin" e354e8e9c9b44e26727d044c8f1048a0f8063330fa3758b536d4b1d498d92541 pkg
+    ;;
+disk-retry)
+    get artifacts/scripts/r0012r/reviewed-run.sh.txt 2afd47e386fa3d4f95f0271bb5136c6eb874c84963570acba1dae95af63e1d38 "$here/kernel-run"
+    export PM13E_KERNEL_RUN=${1:-auto}
+    export PM12_REUSE_KERNEL_JOB="$temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb"
+    rc=0
+    bash "$here/kernel-run" "$pin" 19ab7b5bd30bd5fad7f2bf40cec903648736846578f674cd4601c5dd8b88b82e a984c67ad51ee218c32a0e138ee45d1dfc09ad31e1996a510bf89ebb16aca2a7 kernel | tee "$here/recovery.log" || rc=$?
+    batch=$(awk '$1=="PM12_BATCH_DIR"{print $2;exit}' "$here/recovery.log")
+    if [[ $batch == "$temp"/pm0012-kernel.* && -s "$batch/status.txt" ]]; then
+        tail -5 "$batch/status.txt"
+        if [[ -s "$batch/jobs/kernel-thumb/job.log" ]]; then
+            awk '/^(DISK_RETRY|KERNEL_NO_DISK_RETRY|KERNEL_LANE_REUSED|KERNEL_THUMB_LANE|KERNEL_THUMB_BLOCKED|GBS_EXIT)/{if(++n<=45)print substr($0,1,1200)}' "$batch/jobs/kernel-thumb/job.log"
+        fi
+    fi
+    exit "$rc"
+    ;;
+rpm-plan|rpm-apply)
+    if [[ $mode == rpm-plan ]]; then
+        dest=$(mktemp -d "$temp/pm0013e-rpms.XXXXXX")
+        apply=0
+        set --
+    else
+        dest=${1:?RPM_MANIFEST directory required}
+        [[ ${dest%/*} == "$temp" && ${dest##*/} =~ ^pm0013e-rpms\.[0-9A-Za-z]{6}$ && $(realpath -e "$dest") == "$dest" ]]
+        [[ ${2:-} =~ ^[0-9a-f]{64}$ && ${APPLY:-0} == 1 ]]
+        shift
+        apply=1
+    fi
+    get artifacts/scripts/r0013e/rpm-originals.py.txt 0359f512190c28c721eb91a6294fd024a8a1f60c0ff4c1496051f13b3c09fb99 "$dest/rpms"
+    get artifacts/scripts/r0005/image-repo-lib.py.txt 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f "$dest/image-repo-lib.py.txt"
+    exec env APPLY="$apply" nice -n 19 ionice -c3 python3 -IB "$dest/rpms" "$@"
+    ;;
+*) exit 2;;
+esac

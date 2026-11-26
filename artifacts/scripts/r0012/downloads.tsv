@@ -32,7 +32,7 @@ SELF	artifacts/patches/thumb2/libpisa-ipc.patch	dafdd9405cf2c39e60a027cde1fcd083
 SELF	artifacts/ledger/official-37736448-thumb-reviewed.tsv	69ee47e738a29843359fab944c1f63334aa675d8d857dd67eec597da8d2bfb58	thumb-causes.tsv
 SELF	artifacts/patches/kernel/perf-machine-outliner.spec.patch	dbfedd71f799bc0306d5c539e8f6963041adbff1832b0fe7f0209ab01726ae39	perf-machine-outliner.spec.patch
 SELF	artifacts/scripts/r0012f/kernel-audit.py.txt	f17849367d2f8f094d8789b70a45ac10a6f7ab7c28612f6b87bd5ccc3a8bf2df	kernel-audit.py.txt
-SELF	artifacts/scripts/r0012f/kernel-matrix.py.txt	dc19d95013eafd3f8316bbccaf9c2c7f49c34621a3f2e808e8041a060f62b946	kernel-matrix.py.txt
+SELF	artifacts/scripts/r0012f/kernel-matrix.py.txt	d7cbfc4638502e0551ee2d691378a5334e4a58331d2a16b422db31db920ed841	kernel-matrix.py.txt
 SELF	artifacts/scripts/r0012g/driver-config.sh.txt	c63b9791e4c6fbdf5c4225d9f9422a14a3e5d9144e95182af5910d69254a0d30	driver-config.sh.txt
 SELF	artifacts/scripts/r0012g/thumb-options.py.txt	965055030bb1ffd9b8913e1f8cef457e3379bf29674f685528f4331a7be1ca9c	thumb-options.py.txt
 SELF	artifacts/scripts/r0012k/official-config.py.txt	4d5ea74ef97454f87085dc5869be39478a283138a4d256cdce1b69a5e4a5d200	official-config.py.txt
@@ -51,3 +51,4 @@ SELF	artifacts/scripts/r0012t/inspect-compression.py.txt	a55b216ca09fb21737af97b
 SELF	artifacts/scripts/r0012t/erofs-build.sh.txt	c95dc3d6437ba3e0daca49e917e0c5161ea7869de51b18f56f228eb8d4bf0019	erofs-build.sh.txt
 SELF	artifacts/scripts/r0012t/kernel-inventory.py.txt	b6cde1e538270de536c8c1b84df72a52d953d07617cabd3704c4a2c793264917	kernel-inventory.py.txt
 SELF	artifacts/scripts/r0012w/kernel-spec.py.txt	5f16be2b29c41f7b3bd9fec55e876a48554459727096f9270ed455fc58b10330	kernel-spec.py.txt
+SELF	artifacts/scripts/r0013e/disk-resume.py.txt	1d15dda8d9a17ff7cd1412fd210d86cd1c7a3e1462b8ea3802b7698fa0682475	disk-resume.py.txt

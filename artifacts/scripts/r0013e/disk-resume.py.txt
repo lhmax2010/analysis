@@ -1,0 +1,75 @@
+"""Validate the completed 4d30cbc run and identify its disk-only admission refusals."""
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+
+INDEX="fd22f9fc3f4af34a2af48c5c03529fbae504b57ce7fda20d596b1414a866c6fd"
+MATRIX="dc19d95013eafd3f8316bbccaf9c2c7f49c34621a3f2e808e8041a060f62b946"
+LANES=("K0","K1","K2","K3","K4","K5")
+
+def sha(p):
+    h=hashlib.sha256()
+    with p.open("rb") as src:
+        for b in iter(lambda:src.read(1<<20),b""):h.update(b)
+    return h.hexdigest()
+
+def need(ok,why):
+    if not ok:raise ValueError(why)
+
+def disk_only(row, window, folder):
+    capacity=re.findall(r"^CAPACITY disk_free_gib (\d+) ram_available_gib (\d+)$",window,re.M)
+    return (row.get("status")=="BLOCKED_OR_FAILED"
+            and row.get("diagnostic")=="D-018 headroom needs 50+55 GiB disk and 16+16 GiB RAM"
+            and len(capacity)==1 and int(capacity[0][0])<105 and int(capacity[0][1])>=32
+            and not (folder/"gbs.log").exists() and not (folder/"GBS-ROOT").exists())
+
+def read(temp, requested, effective):
+    if requested=="auto":
+        candidates=[p for p in temp.glob("pm0012-kernel.*") if p.resolve()==p and
+                    (p/"downloads.tsv").is_file() and sha(p/"downloads.tsv")==INDEX]
+        need(len(candidates)==1,"set PM13E_KERNEL_RUN to the exact 4d30cbc batch: "+repr([str(p) for p in candidates]))
+        batch=candidates[0]
+    else:batch=Path(requested)
+    need(batch.parent==temp and re.fullmatch(r"pm0012-kernel\.[A-Za-z0-9]{6}",batch.name)
+         and batch.resolve(strict=True)==batch,"unexpected prior batch")
+    need(sha(batch/"downloads.tsv")==INDEX and sha(batch/"kernel-matrix.py.txt")==MATRIX,"old kernel pin")
+    need(re.search(r" DONE kernel rc=\d+$",(batch/"status.txt").read_text().rstrip()),"kernel batch still running")
+    job=batch/"jobs/kernel-thumb"
+    need(sha(job/"official.config")==sha(effective),"Official perf config mismatch")
+    records=json.loads((job/"kernel-matrix.json").read_bytes())
+    need(set(records)==set(LANES),"prior matrix incomplete")
+    log=(job/"job.log").read_text(errors="replace")
+    retry=set()
+    offset=0
+    for lane in LANES:
+        end=re.search(r"^KERNEL_THUMB_LANE "+lane+r" [^\n]*",log[offset:],re.M)
+        need(end,"missing lane close "+lane)
+        window=log[offset:offset+end.start()]
+        offset+=end.end()
+        row=records[lane]
+        if lane in ("K4","K5") and disk_only(row,window,job/lane):
+            retry.add(lane)
+            continue
+        # A mixed-cause refusal or a failed compile is never converted to a retry.
+        if "symbols" in row:
+            sym=row["symbols"]
+            folder=job/"symbols"/sym["build_id"]/lane
+            need(folder.resolve(strict=True)==folder and Path(sym["directory"])==folder,"symbol scope "+lane)
+            for file in ("vmlinux","System.map",".config"):
+                need(sha(folder/file)==sym["sha256"][file],"retained symbol digest "+lane)
+            need(sha(job/lane/"generated.config")==sym["sha256"][".config"],"effective config "+lane)
+    need(records["K0"].get("qualification",{}).get("config_bytes_equal") and
+         records["K0"].get("images",{}).get("uImage",[None])[0]==11348968,"baseline receipt missing")
+    print("DISK_RETRY",batch,"lanes",",".join(sorted(retry)) or "none",flush=True)
+    return job,records,retry
+
+def reuse(job,work,lane,row):
+    folder=work/lane
+    folder.mkdir()
+    for name in ("generated.config","config.diff","outline-hot.tsv"):
+        source=job/lane/name
+        if source.is_file():shutil.copyfile(source,folder/name)
+    print("KERNEL_LANE_REUSED",lane,row.get("status"),job/lane,flush=True)
+    return dict(row,reused_from=str(job/lane))

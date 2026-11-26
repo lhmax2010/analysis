@@ -228,12 +228,20 @@ def run(work,proof,owners):
     hq=load("outline-metrics")
     results={}
     with s.perf["locks"]():
-        s.gbs.available(work,55,16)
         qual=load("kernel-qualification")
         baseline=load("official-config")
         base=official_inputs(work,q,s)
         if any(base.get(k)!="y" for k in ("CONFIG_MLGO","CONFIG_MLGO_INLINER","CONFIG_MLGO_REGALLOC","CONFIG_LTO_NONE","CONFIG_UNWINDER_FRAME_POINTER")):
             raise ValueError("pinned candidate lacks expected A32/no-LTO/advisor settings")
+        previous=os.environ.get("PM13E_KERNEL_RUN")
+        retry=set(LANES)
+        if previous:
+            resume=load("disk-resume")
+            prior,records,retry=resume["read"](dev["TEMP"],previous,work/"official.config")
+            if not retry:
+                print("KERNEL_NO_DISK_RETRY",prior,flush=True)
+                return
+        s.gbs.available(work,55,16)
         qualified_k0=False
         selection=load("kernel-spec")
         old=os.environ.get("PM12_REUSE_KERNEL_JOB")
@@ -251,7 +259,16 @@ def run(work,proof,owners):
         retained=dev["TEMP"]/"pm0012-kernel.RhOLRN/jobs/kernel-thumb"
         s.gbs.live_product(s.product)
         thumb_config=None
+        if previous and "K4" in retry and "K5" not in retry and records["K5"].get("intended_config"):
+            thumb_config=baseline["config_map"]((prior/"K5/generated.config").read_bytes())
         for lane in LANES:
+            if lane not in retry:
+                results[lane]=resume["reuse"](prior,work,lane,records[lane])
+                if lane=="K0":
+                    qualified_k0=records[lane]["qualification"]["status"]=="OFFICIAL_PERF_BUILD_CONFIG"
+                if lane=="K4" and records[lane].get("intended_config"):
+                    thumb_config=baseline["config_map"]((work/lane/"generated.config").read_bytes())
+                continue
             folder=work/lane
             folder.mkdir()
             record=results[lane]={}
@@ -416,6 +433,10 @@ def run(work,proof,owners):
                 qual["write_table"](work,results)
                 hq["write_summary"](work,results)
                 print("KERNEL_THUMB_LANE",lane,record["status"],record.get("diagnostic",""),flush=True)
+        if previous:
+            (work/"kernel-matrix.json").write_text(json.dumps(results,indent=2)+"\n")
+            qual["write_table"](work,results)
+            hq["write_summary"](work,results)
         qualified=[lane for lane in ("K0","K1","K4","K5") if results.get(lane,{}).get("status")=="STATIC_MEASURED"]
         if qualified and owners is not None:
             load("kernel-modules")["build_modules"](work,s,dev,dev["input_path"](owners),qualified)
