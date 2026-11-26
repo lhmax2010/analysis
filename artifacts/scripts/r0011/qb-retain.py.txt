@@ -194,7 +194,7 @@ def save_payload(lib, url, dest, pin=None, limit=8*1024**3, gzip=False, verbose=
             "digest_status": "MATCHED_PIN" if pin else "COMPUTED_ON_DOWNLOAD"}
 
 
-def capture(lib, args):
+def capture(lib, args, *, staging_parent=None):
     reference = args.action == "reference"
     label = product_url(args.product_url, reference)
     if reference and args.qb != REFERENCE_QB:
@@ -203,7 +203,12 @@ def capture(lib, args):
         raise ValueError("expected the eight-digit QB job ID")
     if args.image_sha256 and not re.fullmatch("[0-9a-f]{64}", args.image_sha256):
         raise ValueError("invalid published PERF checksum")
-    target = ROOT/"workspace/qb-evidence"/f"{args.qb}-{label}"
+    parent = ROOT/"workspace/qb-evidence"
+    if staging_parent is not None:
+        if staging_parent.parent != parent or staging_parent.resolve(strict=True) != staging_parent:
+            raise ValueError("expected a private staging directory under qb-evidence")
+        parent = staging_parent
+    target = parent/f"{args.qb}-{label}"
     if target.parent.resolve() != target.parent or target.is_symlink():
         raise ValueError("invalid capture destination")
     target.mkdir(parents=True, exist_ok=False)

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+pin=$1
+[[ $pin =~ ^[a-f0-9]{40}$ ]]
+cd /home1/chengkai/vd-tree
+work=$(mktemp -d "$PWD/workspace/temp/pm0012x-pair.XXXXXX")
+export TMPDIR=$work PYTHONDONTWRITEBYTECODE=1
+echo "PAIR_WORKDIR $work"
+get() {
+    local path=$1 hash=$2
+    curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 120 \
+        "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/$path" -o "$work/${path##*/}"
+    printf '%s  %s\n' "$hash" "$work/${path##*/}" | sha256sum -c - >/dev/null
+}
+get r0005/image-repo-lib.py.txt 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f
+get r0009/perf-bundle.py.txt 5955fef6db3eb883dcdb4e50f0332b7a8f417f304ce4539358977d13ff21ba38
+get r0011/qb-retain.py.txt 68289e17e7152ff17f4e8bb3d2530c9239928f517dbe472fd8135715b2fd9f21
+get r0011/qb-pair-gate.py.txt e7813282ec962391d5cb36b4a42251753b154dbaeee7ff062625f974c85335c0
+get r0011e/matched-qb.py.txt de0fa6dd029b3f65b4912ca6381fcfb0de1a81dfbbc41b41bc24c131486dd54b
+get r0012p/kernel-size.py.txt 1b0b6b883d0aa78dd2bd9698b2d6c417ee8620d3b1addcf9ef88d4b103d4a925
+get r0012x/new-pair.py.txt c6b181b817384492dcd1379186523296b8e9056d94e92982b1db494365f1e45c
+rc=0
+nice -n 10 python3 -Bu "$work/new-pair.py.txt" >"$work/details.log" 2>&1 || rc=$?
+awk '/^(CAPTURE_ERROR|LANE_ERROR|INPUT_ERROR|SUBMITTED_INPUT|SOURCE_VERIFIED|PUBLISHED|KERNEL_BYTES|KERNEL_BUILD_ID|PRODUCT_SOURCE|QB_PAIR_|KERNEL_TABLE_BYTES|PAIR_REVIEW_COUNT|REVIEW_ZLIB_BASE64)/ {print}' "$work/details.log"
+if ((rc)) && ! grep -q '^QB_PAIR_GATE ' "$work/details.log"; then tail -12 "$work/details.log"; fi
+exit "$rc"

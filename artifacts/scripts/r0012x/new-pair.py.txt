@@ -1,0 +1,329 @@
+"""Retain and compare the November 25 pair without taking the GBS execution lock."""
+import base64
+from collections import Counter, defaultdict
+import configparser
+import csv
+import fcntl
+import hashlib
+from html.parser import HTMLParser
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import sys
+import tarfile
+import tempfile
+from types import SimpleNamespace
+import xml.etree.ElementTree as ET
+import zlib
+
+ROOT = Path("/home1/chengkai/vd-tree")
+WS = ROOT/"workspace"
+CAP = WS/"qb-evidence"
+LABEL = "TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_"
+LANES = {
+    "official": ("37777148", "168.219.236.43:81/PRV/builds/b567/19437567", "20261125.1", "20261113.1"),
+    "custom": ("37777264", "168.219.236.55:81/PRV/builds/b655/19437655", "20261125.2", "20261118.1"),
+}
+HELPERS = ("qb-retain", "image-repo-lib", "perf-bundle", "qb-pair-gate", "matched-qb", "kernel-size")
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def get_capture(qb, url, retain, repo):
+    folder = CAP/(qb+"-"+retain["product_url"](url))
+    if not folder.exists():
+        with tempfile.TemporaryDirectory(prefix=".pm0012x-", dir=CAP) as tmp:
+            args = SimpleNamespace(action="capture", qb=qb, product_url=url, image_sha256=None)
+            retain["capture"](repo, args, staging_parent=Path(tmp))
+            staged = Path(tmp)/folder.name
+            if not all((staged/name).is_file() for name in ("identity.json","build.xml","published-build.conf","perf-manifest.json")):
+                raise ValueError("incomplete retention "+qb)
+            staged.rename(folder)
+    if folder.resolve(strict=True) != folder:
+        raise ValueError("unexpected capture location")
+    identity = json.loads((folder/"identity.json").read_bytes())
+    if identity["product"] != url or identity["qb_id_operator_supplied"] != qb:
+        raise ValueError("capture identity mismatch "+qb)
+    for name, digest in identity["files"].items():
+        path = folder/name
+        if Path(name).name != name or path.resolve(strict=True) != path or repo["file_sha"](path) != digest:
+            raise ValueError("capture file mismatch "+str(path))
+    return folder, identity
+
+
+class Links(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.names = set()
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            self.names.add(dict(attrs).get("href", ""))
+
+
+def submitted(work, folder, qb, xml, url, repo):
+    directory = url+"builddata/"
+    links = Links()
+    try:
+        links.feed(repo["fetch"](directory, 2<<20).decode(errors="replace"))
+    except (OSError, ValueError) as exc:
+        print("BUILDDATA_INDEX", qb, str(exc)[:160])
+    for node in xml.iter():
+        links.names.update([node.text or "", *node.attrib.values()])
+    names = {n.removeprefix(directory).removeprefix("builddata/").removeprefix("./") for n in links.names}
+    names = {n for n in names if re.fullmatch(r"[\w.+-]{1,200}\.(?:txt|list|lst|manifest)", n, re.I)}
+    results = {}
+    for key, pattern in (("SHELVES",r"shel(?:f|v)|manifest"), ("BASE_LIST", r"base.*(?:url|list)|(?:url|list).*base")):
+        found = sorted(n for n in names if re.search(pattern,n,re.I)
+                       and (key!="SHELVES" or not re.search(r"base|image|package",n,re.I)))
+        env = os.environ.get(f"QB_{qb}_{key}")
+        data = origin = None
+        if len(found) == 1:
+            candidate = directory+found[0]
+            try:
+                data = repo["fetch"](candidate, 16<<20)
+                origin = candidate
+            except OSError as err:
+                print("INPUT_DOWNLOAD_REVIEW",qb,key,str(err)[:200])
+        if env:
+            path = Path(env).resolve(strict=True)
+            if not path.is_relative_to(ROOT) or not path.is_file() or path.stat().st_size > 16<<20:
+                raise ValueError("invalid submitted list "+str(path))
+            local=path.read_bytes()
+            if data is not None and local!=data:
+                raise ValueError(f"published {origin} differs from operator-supplied {path}")
+            origin, data = (origin or ("operator:"+str(path))), local
+        if data is None and not found:
+            cached=sorted((folder/"submitted-inputs").glob(key+"-*.source.txt"))
+            if len(cached)==1 and cached[0].resolve()==cached[0]:
+                file=cached[0].with_name(cached[0].name.replace(".source.txt",".txt"))
+                if file.resolve()==file and file.is_file() and file.stat().st_size<=16<<20:
+                    previous=file.read_bytes()
+                    if file.name==key+"-"+sha(previous)+".txt":
+                        origin,data=cached[0].read_text().strip(),previous
+        if data is not None:
+            if not data.strip() or b"\x00" in data or data.lstrip().lower().startswith((b"<html", b"<!doctype")):
+                raise ValueError("invalid submitted input "+str(origin))
+            target=folder/"submitted-inputs"
+            target.mkdir(exist_ok=True)
+            if target.resolve()!=target:
+                raise ValueError("unexpected submitted-input directory")
+            digest=sha(data)
+            for suf, content in ((".txt",data),(".source.txt",(origin+"\n").encode())):
+                file=target/(key+"-"+digest+suf)
+                if not file.exists():
+                    with file.open("xb") as f:
+                        f.write(content)
+                elif suf==".txt" and sha(file.read_bytes())!=digest:
+                    raise ValueError("retained submitted input changed")
+            (work/(qb+"-"+key+".txt")).write_bytes(data)
+            results[key] = digest
+        print("SUBMITTED_INPUT",qb,key,results.get(key,"UNPROVED"),origin or found)
+    return results
+
+
+def normalized_config(src, url, base):
+    conf = configparser.ConfigParser(interpolation=None)
+    conf.read_string(src.decode())
+    profile = conf.get("general","profile")
+    repos = [s.strip() for s in conf.get(profile,"repos").split(",")]
+    if len(repos)!=2 or [conf.get(s,"url").rstrip("/") for s in repos] != [url.rstrip("/"),base.rstrip("/")]:
+        raise ValueError("active Product/Base URLs differ from requested pair")
+    fields = {(s,k):v for s in conf.sections() for k,v in conf.items(s)}
+    for section, marker in zip(repos, ("<Product>", "<Base>")):
+        fields[section,"url"] = marker
+    if (profile,"buildroot") in fields:
+        fields[profile,"buildroot"] = "<unused local buildroot>"
+    return fields
+
+
+def xml_fields(xml):
+    fields = defaultdict(list)
+    for name,value in xml.attrib.items():
+        fields["@"+name].append(value)
+    for elem in xml:
+        fields[elem.tag].append(ET.canonicalize(ET.tostring(elem, encoding="unicode").strip(), strip_text=True))
+    return fields
+
+
+def package_rows(folder):
+    with (folder/"rpm-identities.tsv").open(newline="") as stream:
+        result = {}
+        for r in csv.DictReader(stream, delimiter="\t"):
+            key = (r["name"],r["arch"])
+            if key in result:
+                raise ValueError("ambiguous Product identity "+str(key))
+            result[key] = r
+    if not result:
+        raise ValueError("empty Product ledger")
+    return result
+
+
+def sources(a,b,gate,work):
+    counts, exceptions, rebuilds = Counter(), [], Counter()
+    with (work/"product-pair.tsv").open("w") as f:
+        writer=csv.writer(f,delimiter="\t",lineterminator="\n")
+        writer.writerow(["name","arch","source","rpm_sha_equal","old_identity","new_identity"])
+        for key in sorted(a.keys() | b.keys()):
+            rows=[m.get(key) for m in (a,b)]
+            variants=[tuple(r[k] for k in ("epoch","version","release","srpm","vcs")) if r else None for r in rows]
+            state=gate["source_state"](*variants)
+            if all(variants) and variants[0][:2] != variants[1][:2]:
+                state="SOURCE_DIFFERS"
+            counts[state]+=1
+            same=all(rows) and rows[0]["sha256"] == rows[1]["sha256"]
+            rebuilds["same_rpm" if same else "different_or_absent_rpm"]+=1
+            values=[*key,state,same,*[" | ".join(v or ()) for v in variants]]
+            writer.writerow(values)
+            if state!="SOURCE_VCS_MATCH":
+                exceptions.append(values)
+    print("PRODUCT_SOURCE",dict(counts),"RPM_BYTES",dict(rebuilds))
+    print("QB_PAIR_PRODUCT_VCS_MATCH" if not exceptions else "QB_PAIR_PRODUCT_VCS_REVIEW")
+    return exceptions
+
+
+def verified_usb(qb,folder,perf):
+    _, _, archive, pin = perf["captured"](folder)
+    dest=WS/"usb"/qb
+    if not dest.exists():
+        perf["stage"](qb,archive,pin)
+    usb=dest/"updateSU2E"
+    if usb.resolve(strict=True)!=usb:
+        raise ValueError("unexpected USB directory")
+    expected={}
+    with tarfile.open(archive,"r|gz") as bundle:
+        for name, member in perf["flat_members"](bundle):
+            if name=="dtb.bin":
+                continue
+            name={"dtb_RW.bin":"dtb.bin","do_not_use.img":"data.img"}.get(name,name)
+            if name in expected:
+                raise ValueError("USB mapping collision")
+            h=hashlib.sha256()
+            with bundle.extractfile(member) as stream:
+                for block in iter(lambda:stream.read(1<<20),b""):
+                    h.update(block)
+            expected[name]=h.hexdigest()
+    actual={p.name:perf["sha"](p) for p in usb.iterdir() if p.is_file() and not p.is_symlink()}
+    manifest="".join(f"{h}  {n}\n" for n,h in sorted(expected.items()))
+    if (actual!=expected or len(actual)!=len(list(usb.iterdir()))
+            or (dest/"manifest.sha256").read_bytes()!=manifest.encode()):
+        raise ValueError("USB/source mismatch "+qb)
+    print("SOURCE_VERIFIED",qb,len(actual),sha(manifest.encode()),usb)
+    return usb
+
+
+def kernel(qb,usb,rpm,matched,size):
+    members=matched["member_checksums"](rpm)
+    data={}
+    raw=[]
+    for name in ("uImage","zImage"):
+        payload=(usb/name).read_bytes()
+        data[name]=(len(payload),sha(payload))
+        if data[name]!=members["/perf/"+name]:
+            raise ValueError(f"{qb} {name} differs from verified kernel RPM")
+        raw.append(payload)
+    _,bid=size["raw_kernel"](*raw)
+    data["tztv-kernel-perf.rpm"]=(rpm.stat().st_size,size["digest"](rpm))
+    return data,bid
+
+
+def inspect(lane,folder,ident,work,helpers):
+    retain,repo,perf,gate,matched,size=helpers
+    qb,_,stamp,base=LANES[lane]
+    url=ident["product"]
+    xml=ET.fromstring((folder/"build.xml").read_bytes())
+    published=retain["BASE"]+base+"/"
+    if (xml.findtext("id")!=LABEL+stamp or xml.findtext("base_repo")!=published
+            or "published-build.conf" not in ident["files"]):
+        raise ValueError("published Product/Base/build.conf identity incomplete "+qb)
+    cfgbytes=(ROOT/"config"/f"gbs_vd_llvm_11.16_qb{qb}.conf").read_bytes()
+    (work/(qb+"-gbs.conf")).write_bytes(cfgbytes)
+    cfg=normalized_config(cfgbytes,url,published)
+    lists=submitted(work,folder,qb,xml,url,repo)
+    rows=package_rows(folder)
+    print("PUBLISHED",lane,qb,url,published,"BUILD_CONF_SHA256",ident["files"]["published-build.conf"])
+    return dict(cfg=cfg,lists=lists,rows=rows,xml=xml_fields(xml),build=ident["files"]["published-build.conf"])
+
+
+def compare_kernel(lane,folder,ident,usb,helpers):
+    _,repo,_,_,matched,size=helpers
+    qb=LANES[lane][0]
+    rows=package_rows(folder)
+    newrpm=matched["matched_payload"](folder,ident,rows["tztv-kernel-perf","armv7l"],repo)
+    new,bid=kernel(qb,usb,newrpm,matched,size)
+    oldfolder, oldid, oldrows=matched["retained"](lane,repo)
+    oldrpm=matched["matched_payload"](oldfolder,oldid,oldrows["tztv-kernel-perf"],repo)
+    oldqb,_,_,rp,up,zp=size["PINS"][lane]
+    old,oldbid=kernel(oldqb,WS/"usb"/oldqb/"updateSU2E",oldrpm,matched,size)
+    if [old[n][1] for n in ("tztv-kernel-perf.rpm","uImage","zImage")]!=[rp,up,zp]:
+        raise ValueError("old reference diverges from pinned receipts "+oldqb)
+    for name in new:
+        print("KERNEL_BYTES",lane,name,oldqb,*old[name],qb,*new[name],"IDENTICAL" if old[name]==new[name] else "DIFFERS")
+    print("KERNEL_BUILD_ID",lane,oldqb,oldbid,qb,bid)
+    return old==new and oldbid==bid
+
+
+def main():
+    work=Path(__file__).resolve().parent
+    if work.parent!=WS/"temp" or not work.name.startswith("pm0012x-"):
+        raise ValueError("expected a private pm0012x runner directory")
+    helpers=[runpy.run_path(str(work/(n+".py.txt"))) for n in HELPERS]
+    retain,repo,perf,gate,_,_=helpers
+    if CAP.resolve()!=CAP: raise ValueError("unexpected retention root")
+    CAP.mkdir(exist_ok=True)
+    with (WS/"temp/pm0012x-new-pair.lock").open("a") as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        captures,lanes,issues={}, {}, []
+        for lane,(qb,build,stamp,_) in LANES.items():
+            url="http://"+repo["HOST"]+"/priv/"+build+"/artifacts/"+LABEL+stamp+"/"
+            try:
+                captures[lane]=get_capture(qb,url,retain,repo)
+            except Exception as exc:
+                print("CAPTURE_ERROR",qb,str(exc)[:400])
+                issues.append(["capture",qb,str(exc)])
+        kernel_equal=[]
+        for lane,(folder,ident) in captures.items():
+            try:
+                qb=LANES[lane][0]
+                lanes[lane]=inspect(lane,folder,ident,work,helpers)
+            except Exception as exc:
+                print("INPUT_ERROR",lane,str(exc)[:400])
+                issues.append(["inputs",lane,str(exc)])
+            try:
+                usb=verified_usb(qb,folder,perf)
+                kernel_equal.append(compare_kernel(lane,folder,ident,usb,helpers))
+            except Exception as exc:
+                print("LANE_ERROR",lane,str(exc)[:400])
+                issues.append(["lane",lane,str(exc)])
+        if len(lanes)==2:
+            a,b=lanes["official"],lanes["custom"]
+            for key in sorted(a["cfg"].keys()|b["cfg"].keys()):
+                if a["cfg"].get(key)!=b["cfg"].get(key):
+                    issues.append(["config",key,a["cfg"].get(key),b["cfg"].get(key)])
+            for k in ("SHELVES","BASE_LIST"):
+                if not a["lists"].get(k) or a["lists"].get(k)!=b["lists"].get(k):
+                    issues.append(["submitted_input",k,a["lists"].get(k),b["lists"].get(k)])
+            if a["build"]!=b["build"]:
+                issues.append(["build.conf",a["build"],b["build"]])
+            for k in sorted(a["xml"].keys()|b["xml"].keys()):
+                if a["xml"].get(k)!=b["xml"].get(k):
+                    print("PUBLICATION_FIELD_DIFF",k)
+                    if k not in {"id","base_repo"}:
+                        issues.append(["publication_review",k,a["xml"].get(k),b["xml"].get(k)])
+            issues.extend(sources(a["rows"],b["rows"],gate,work))
+        print("KERNEL_TABLE_BYTES_CARRY_OVER",all(kernel_equal) if len(kernel_equal)==2 else "UNPROVED")
+        payload=json.dumps(issues,ensure_ascii=True,separators=(",",":")).encode()
+        (work/"gate-review.json").write_bytes(payload)
+        print("PAIR_REVIEW_COUNT",len(issues))
+        if issues:
+            print("REVIEW_ZLIB_BASE64",sha(payload),base64.b64encode(zlib.compress(payload)).decode())
+        print("QB_PAIR_GATE", "REVIEW" if issues else "PASS",work)
+        return 2 if issues else 0
+
+
+if __name__=="__main__":
+    sys.exit(main())
