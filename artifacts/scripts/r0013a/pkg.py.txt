@@ -186,6 +186,8 @@ def worker():
                 lanes[label]=dev["lane_build"](settings,src,spec,original,work,names,recipe,label,HERE)
                 if lanes[label]["error"]:raise ValueError(str(lanes[label]["error"]))
             result["lanes"]={k:{"bytes":i["metrics"]["total"],"proof":i["delivery"],"link":i["link_argv_path"]} for k,i in lanes.items()}
+            if key in ("R4-50","R5"):
+                result["executed_linker_argv"]={label:Path(r["link_argv_path"]).read_text().splitlines() for label,r in lanes.items()}
             scope=dev["matching_binary_scopes"](*(lanes[k]["metrics"] for k in ("baseline","treatment")))
             result["delivery"]=all(i["delivery"]["observed"] for i in lanes.values()) and scope!="ELF_SCOPE_CHANGED"
             if key=="N4":

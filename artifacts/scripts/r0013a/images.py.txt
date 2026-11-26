@@ -282,6 +282,10 @@ def read_images(mode):
             (HERE/("unresolved-"+qb+".json")).write_text(json.dumps(unresolved))
             print("ROSTER",qb,"mapped A32",len(hits),"unresolved coverage",len(unresolved),"top40",[(r["path"],r["mapping"]["bytes"]["$a"]) for r in hits[:40]])
     print("BOARD_SAMPLE_COVERAGE",{k:v.get("board","OPEN") for k,v in result.items()})
+    if mode=="bc":
+        board_complete=coverage and all(row.get("board")=="matched" for row in result.values())
+        print("FOUR_PARTITION_BOARD_VALIDATION","COMPLETE" if board_complete else "OPEN")
+        return board_complete
     return coverage
 
 
