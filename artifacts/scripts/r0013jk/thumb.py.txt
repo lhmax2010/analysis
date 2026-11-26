@@ -65,6 +65,12 @@ def run():
     own=defaultdict(set)
     for line in (OLD/"elfs.jsonl").open():
         r=json.loads(line);own[r["path"],r["sha256"]].add(r["source"])
+    rpmrows=runpy.run_path(str(HERE/"image-tree.py.txt"))["rpm_rows"]
+    fmt="[%{=NAME}\t%{FILENAMES}\\n]"
+    packages=defaultdict(set)
+    for line in rpmrows(root("platform"),HERE,fmt).splitlines():
+        n,sep,p=line.partition("\t")
+        if sep:packages[p].add(n)
     totals=Counter();by_package=defaultdict(Counter)
     dis=next((shutil.which(t) for t in ("llvm-objdump","llvm-objdump-22","arm-linux-gnueabi-objdump","arm-linux-gnueabihf-objdump") if shutil.which(t)),None)
     with (HERE/"thumb-sites.tsv").open("w") as out:
@@ -72,7 +78,8 @@ def run():
         for label in ("platform","prd"):
             base=root(label)
             for r in rows(label):
-                pkg="|".join(sorted(own[r["path"],r["sha256"]])) or "?"
+                pkg="|".join(sorted(packages[r["path"].split("!",1)[0]])) or ("source:"+",".join(sorted(own[r["path"],r["sha256"]])))
+                if pkg=="source:":pkg="?"
                 path=r["path"]
                 p,b=binary(base,label,r);ss=scan["secs_of"](b)
                 per=by_package[pkg]

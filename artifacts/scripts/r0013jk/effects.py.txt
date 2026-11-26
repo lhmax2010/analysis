@@ -330,24 +330,27 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
     effects["S10"]=("REVIEW" if body_missing or any(r[-1]!="within helper" for r in literals) else "PASS",dict(sites=len(literals),undecoded=body_missing))
     state=sum(r[-1]=="system state" for r in hazards)
     effects["S11"]=("REVIEW" if state or body_missing else "PASS",dict(system_state_instructions=state,undecoded_helpers=body_missing))
-    new,complete=modules(trees);old,complete_old=modules(peer_trees)
-    if not complete_old:
-        old,complete_old=rpm_modules("K0" if lane=="K1" else "K2",peer_trees)
+    try:
+        new,complete=modules(trees);old,complete_old=modules(peer_trees)
+        if not complete_old:
+            old,complete_old=rpm_modules("K0" if lane=="K1" else "K2",peer_trees)
 
-    module_source=(SOURCE/"arch/arm/kernel/module.c").read_text()
-    cases=set(re.findall(r"\bcase\s+(R_ARM_\w+)\s*:",module_source))
-    table(lane,"modules",("module","peer_bytes_helpers_relocations_plt","outlined_bytes_helpers_relocations_plt","types_without_case"),[(k,old.get(k),new.get(k),sorted(set(new.get(k,[0,0,{},0])[2])-cases)) for k in sorted(set(new)|set(old))])
-    unsupported=set().union(*(set(v[2])-cases for v in new.values()))
-    conditional=set()
-    depth_if=0
-    for line in module_source.splitlines():
-        if re.match(r"^\s*#\s*if",line):depth_if+=1
-        if depth_if:conditional.update(re.findall(r"\bcase\s+(R_ARM_\w+)\s*:",line))
-        if re.match(r"^\s*#\s*endif",line):depth_if-=1
-    observed=set().union(*(set(v[2]) for v in new.values()))
-    conditional_cases=sorted(observed&conditional)
-    changed=set().union(*(set(v[2])-set(old.get(k,[0,0,{},0])[2]) for k,v in new.items()))
-    effects["S12"]=("FAIL" if unsupported else "PASS" if complete and complete_old and set(new)==set(old) and len(new)==expected_modules and bool(new) and not changed and not conditional_cases else "REVIEW",dict(conditional_cases=conditional_cases,covered=len(new),baseline=len(old),expected=expected_modules,unknown=sorted(unsupported),new_types=sorted(changed)))
+        module_source=(SOURCE/"arch/arm/kernel/module.c").read_text()
+        cases=set(re.findall(r"\bcase\s+(R_ARM_\w+)\s*:",module_source))
+        table(lane,"modules",("module","peer_bytes_helpers_relocations_plt","outlined_bytes_helpers_relocations_plt","types_without_case"),[(k,old.get(k),new.get(k),sorted(set(new.get(k,[0,0,{},0])[2])-cases)) for k in sorted(set(new)|set(old))])
+        unsupported=set().union(*(set(v[2])-cases for v in new.values()))
+        conditional=set()
+        depth_if=0
+        for line in module_source.splitlines():
+            if re.match(r"^\s*#\s*if",line):depth_if+=1
+            if depth_if:conditional.update(re.findall(r"\bcase\s+(R_ARM_\w+)\s*:",line))
+            if re.match(r"^\s*#\s*endif",line):depth_if-=1
+        observed=set().union(*(set(v[2]) for v in new.values()))
+        conditional_cases=sorted(observed&conditional)
+        changed=set().union(*(set(v[2])-set(old.get(k,[0,0,{},0])[2]) for k,v in new.items()))
+        effects["S12"]=("FAIL" if unsupported else "PASS" if complete and complete_old and set(new)==set(old) and len(new)==expected_modules and bool(new) and not changed and not conditional_cases else "REVIEW",dict(conditional_cases=conditional_cases,covered=len(new),baseline=len(old),expected=expected_modules,unknown=sorted(unsupported),new_types=sorted(changed)))
+    except (ValueError,OSError,subprocess.SubprocessError) as exc:
+        effects["S12"]=("REVIEW",str(exc))
     lines=[(hex(a),helpers[a]["name"],stack.get(a,[])) for a in starts]
     table(lane,"dwarf",("helper","name","inline_stack_at_entry"),lines)
     good=sum(any(name!="??" and re.search(r":[1-9]\d*",loc) for name,loc in frames) for _,_,frames in lines)

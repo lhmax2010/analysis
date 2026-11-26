@@ -14,8 +14,9 @@ while read -r digest path; do
     curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180         "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$name" 2>>download.log
     printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
 done <<'PINS'
-18fb846cae822790aa80dd9dbb686257d9bb13ca4aa953185ed4b9e16cfc7000 artifacts/scripts/r0013jk/effects.py.txt
-a33d96790ca99412f7ddaff99391fa231298b018e7a09eda8629bab048ff1329 artifacts/scripts/r0013jk/thumb.py.txt
+f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726 artifacts/scripts/r0012c/image-tree.py.txt
+90537c039be86f0d33f08cb063b2da8b56bbc2abbaaceac6bdf5c26e8a3f515c artifacts/scripts/r0013jk/effects.py.txt
+58a960c64e6b4cc940439b9d0235da14632805e1ae6dfab5f4be878808f42851 artifacts/scripts/r0013jk/thumb.py.txt
 4625e32065e3fdf9a202ad266d38407fb128b1b4cc7d5cfb2e8a0ad1932545a0 artifacts/scripts/r0013jk/kernel.py.txt
 f17849367d2f8f094d8789b70a45ac10a6f7ab7c28612f6b87bd5ccc3a8bf2df artifacts/scripts/r0012f/kernel-audit.py.txt
 ca1eb96a3a3eb638455ebcc608aa640b25bf81163be4d9b88a1a30843459ea55 artifacts/scripts/r0012n/outline-metrics.py.txt
