@@ -516,3 +516,5 @@ Keep commands 1 and 3 at 9047570. Run the revised package worker in a separate a
 ### 0013e · 26 November · reclaim measured scratch on /home1
 
 The operator released the 35 GiB target as a prerequisite. Keep evidence and all generated files within the workspace. Gate RPM-original deletion on a retained URL/SHA manifest, a matching published primary entry and an exact redownload. Reclaim measured kernel and package roots independently. Resume only disk-refused K4/K5 lanes. [Operator decision](../artifacts/evidence/native-input-r0013e-scope-20261126.txt) · [Commands](../comms/codex_to_claude/0013e_reply.md)
+
+26 Nov · User/PM, rounds 0013f–g. Use matched CU provenance for own-code producer counts and path/SHA joins for installed relocation estimates. Gate a Thumb rollout on C1–C6 and P1–P5 against Official 37777148. Review hot-path regressions for package-specific ARM exceptions. [Acceptance table](../reports/weekly/2026-11-27/draft-data.md)
