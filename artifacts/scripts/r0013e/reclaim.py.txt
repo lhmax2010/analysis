@@ -1,0 +1,154 @@
+"""Native scratch reclamation. Run the pinned file with system Python -IB."""
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import stat
+import sys
+
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+GIB = 1024**3
+# Each root has a retained local/repos tree. The entire abuild home and var/log
+# of each historical scratch survive at the sibling archive until owner review.
+HIST = (
+    "gst_seek_fix_build_4i6nxptk/clang/gbs_root", "gst_seek_fix_build_4i6nxptk/gcc/gbs_root",
+    "avcontrol_globalopts100_akcnet12/clang-control/gbs_root",
+    "avcontrol_globalopts100_akcnet12/clang-candidate/gbs_root",
+    "avcontrol_globalopts100_akcnet12/gcc-candidate/gbs_root",
+    "iotivity_layout_p2vc873k/gbs_clang", "iotivity_layout_p2vc873k/gbs_gcc",
+    "llvm_fixes__khag0ff/gbs_root", "atsc3101_gcc_build_jkgjbqjv/gbs_root",
+    "mapi101_gcc_build_t2ypwsls/gbs_root", "base101_helper_build_1chcds0f/gbs_root",
+    "pm0010-gbs-board-bench.choeqoe5/GBS-ROOT",
+)
+CACHE_ONLY = ("hq1114_build_grff6hxg/gbs_root", "gcc_validate_7crgr1ez/gbs_root",
+              "hq1114_align_f1xl5m2s/gbs_root")
+FORBIDDEN = {"z901","manifest_state","s895c","pm0012-kernel.OwlD9Q","pm0012-kernel.RhOLRN",
+             "pm0012-pilot.FejM73","pm0012-pilot.WRwYTx","pm0012-wed-a.M5knpj",
+             "pm0012-smoke.neJb0i","pm0005-gbs-kernel.mtob625f","qb-evidence","usb"}
+OLD_INDEX = "fd22f9fc3f4af34a2af48c5c03529fbae504b57ce7fda20d596b1414a866c6fd"
+
+def safe(p):
+    parts = p.relative_to(TEMP).parts
+    if not parts or parts[0] in FORBIDDEN or parts[0].startswith("llvm22_bootstrap101_"):
+        raise ValueError("protected path "+str(p))
+    if p.resolve()!=p or TEMP.resolve(strict=True)!=TEMP:
+        raise ValueError("noncanonical path "+str(p))
+    return p
+
+def file_hash(p):
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda:f.read(1<<20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+def require(v, msg):
+    if not v:
+        raise ValueError(str(msg))
+
+def under(text, path):
+    return text == path or text.startswith(path+"/")
+
+def idle(paths):
+    targets = list(map(str, paths))
+    for line in Path("/proc/self/mountinfo").read_text().splitlines():
+        for field in line.split()[3:5]:
+            mount = re.sub(r"\\([0-7]{3})",lambda m:chr(int(m[1],8)),field)
+            if any(under(mount,t) for t in targets):
+                raise ValueError("mounted "+mount)
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdigit() or int(proc.name)==os.getpid():continue
+        try:
+            cmd=(proc/"cmdline").read_bytes()
+            if any(os.fsencode(t)+b"/" in cmd or os.fsencode(t)+b"\0" in cmd for t in targets):
+                raise ValueError("process argument PID "+proc.name)
+            links=[proc/"cwd",proc/"root",proc/"exe",*(proc/"fd").iterdir()]
+            for link in links:
+                try: value=os.readlink(link)
+                except (FileNotFoundError,ProcessLookupError):continue
+                if any(under(value.removesuffix(" (deleted)"),t) for t in targets):
+                    raise ValueError("open path PID "+proc.name+" "+value)
+            with (proc/"maps").open(errors="replace") as f:
+                if any(any(t+"/" in line for t in targets) for line in f):
+                    raise ValueError("mapped file PID "+proc.name)
+        except (FileNotFoundError,ProcessLookupError):
+            continue
+
+def footprint(root, kept=()):
+    # Count only exclusively linked files on the workspace filesystem.
+    total=0
+    dev=TEMP.stat().st_dev
+    def failed(e): raise e
+    for d,dirs,files in os.walk(root,followlinks=False,onerror=failed):
+        folder=Path(d)
+        require(folder.stat().st_dev==dev,"cross-device "+d)
+        dirs[:]=[n for n in dirs if folder/n not in kept]
+        for name in files:
+            if folder/name in kept:continue
+            st=(folder/name).lstat()
+            if st.st_dev==dev and st.st_nlink==1:total+=512*st.st_blocks
+    return total
+
+def move_once(src,dst):
+    safe(src);safe(dst)
+    require(not os.path.lexists(dst),"overlapping archive "+str(dst))
+    dst.parent.mkdir(parents=True,exist_ok=True)
+    src.rename(dst)
+
+def erase(path):
+    safe(path)
+    require(shutil.rmtree.avoids_symlink_attacks,"fd-safe rmtree required")
+    idle([path])
+    shutil.rmtree(path)
+
+def historical(apply):
+    total=0
+    for name in HIST+CACHE_ONLY:
+        root=safe(TEMP/name)
+        for leaf in (("cache",) if name in CACHE_ONLY else ("cache","BUILD-ROOTS")):
+            p=safe(root/"local"/leaf)
+            if not p.exists():continue
+            try:
+                require(safe(root/"local/repos").is_dir(),"no retained local/repos")
+                idle([p])
+                moves={}
+                if leaf=="BUILD-ROOTS":
+                    for guest in p.iterdir():
+                        require(re.fullmatch(r"scratch\.[\w.-]+",guest.name) and safe(guest).is_dir(),"unexpected root "+str(guest))
+                        for rel in ("home","var/log","var/tmp"):
+                            src=guest/rel
+                            if src.exists():
+                                safe(src)
+                                moves[src]=root/"pm0013e-retained"/guest.name/rel
+                    if any(p.iterdir()):
+                        require(any((root/"local/repos").rglob("*.rpm")), "no published lane RPM retained")
+                        require(any((root/"local/repos").rglob("log.txt")), "no package build log retained")
+                count=footprint(p,moves)
+                print("ALLOW",p,"exclusive_bytes",count,"GiB",round(count/GIB,3),"archive",root/"pm0013e-retained",flush=True)
+                if apply:
+                    idle([p])
+                    for src,dst in moves.items():move_once(src,dst)
+                    erase(p)
+                total+=count
+            except (ValueError,OSError) as exc:
+                print("KEPT_OR_PARTIAL",p,str(exc)[:280],flush=True)
+    print("HISTORICAL_EXCLUSIVE_GIB",round(total/GIB,3),"APPLY",int(apply),flush=True)
+
+def main():
+    require(os.geteuid()==0,"use sudo for mount, process and permission coverage")
+    require(TEMP.resolve(strict=True)==TEMP,"workspace redirected")
+    apply=os.environ.get("APPLY","0")
+    require(apply in ("0","1"),"APPLY must be 0 or 1")
+    before=shutil.disk_usage(TEMP).free
+    print("FREE_BEFORE_GIB",round(before/GIB,3),flush=True)
+    try:
+        if sys.argv[1:]==["historical"]:historical(apply=="1")
+        else:raise ValueError("unknown action")
+    finally:
+        after=shutil.disk_usage(TEMP).free
+        print("FREE_AFTER_GIB",round(after/GIB,3),"FILESYSTEM_DELTA_GIB",round((after-before)/GIB,3),flush=True)
+if __name__=="__main__":
+    main()
