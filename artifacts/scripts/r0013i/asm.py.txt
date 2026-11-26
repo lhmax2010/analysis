@@ -15,13 +15,23 @@ import subprocess
 JOB=Path("/home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K4")
 
 def assembler(line):
-    line=re.sub(r"^\s*\[\s*\d+s\]\s*","",line.strip()).partition(";")[0]
-    try:a=shlex.split(line)
-    except ValueError:return
-    if (not a or not re.fullmatch(r"(?:[\w.-]*-)?clang(?:-\d+)?",Path(a[0]).name) or
-        "-c" not in a or "-o" not in a or "-D__ASSEMBLY__" not in a):return
-    inputs=[s for s in a if s.endswith(".S")]
-    if len(inputs)==1:return inputs[0],tuple(a)
+    line=re.sub(r"^\s*\[\s*\d+s\]\s*","",line.strip())
+    lex=shlex.shlex(line,posix=True,punctuation_chars=";&|")
+    lex.whitespace_split=True
+    lex.commenters=""
+    try:tokens=list(lex)
+    except ValueError:return []
+    commands=[]
+    group=[]
+    for token in tokens+[";"]:
+        if token and all(c in ";&|" for c in token):
+            if group and re.fullmatch(r"(?:[\w.-]*-)?clang(?:-\d+)?",Path(group[0]).name):
+                inputs=[s for s in group if s.endswith(".S")]
+                if len(inputs)==1 and all(t in group for t in ("-c","-o","-D__ASSEMBLY__")):
+                    commands.append((inputs[0],tuple(group)))
+            group=[]
+        else:group.append(token)
+    return commands
 
 def owners(tree,source):
     text=(tree/"MAINTAINERS").read_text(errors="replace")
@@ -63,12 +73,15 @@ def main():
     cwd="/"+tree.relative_to(root).as_posix()
     candidates=set()
     def add(s):
-        row=assembler(s)
-        if row:candidates.add(row)
+        if "clang" in s and ".S" in s:candidates.update(assembler(s))
     log=(JOB/"gbs.log").read_text(errors="replace")
     for l in log.splitlines():add(l)
     for cmd in tree.rglob(".*.o.cmd"):
         with cmd.open(errors="replace") as f:add(f.readline().partition(":=")[2])
+    lines=log.splitlines()
+    original=[i for i,l in enumerate(lines) if re.search(r"(?:\.S|<instantiation>):\d+:\d+: (?:error|note):",l)]
+    Path("asm-original.log").write_text("\n".join("\n".join(lines[max(0,i-1):i+4]) for i in original))
+    for i in original[:12]:print("K4_LOG",lines[i].strip(),lines[i+1].strip()[:240] if i+1<len(lines) else "")
     prefix=["bwrap","--ro-bind",str(root),"/","--dev","/dev","--proc","/proc","--tmpfs","/tmp",
             "--chdir",cwd,"--clearenv","--setenv","LC_ALL","C","--setenv","PATH","/emul/usr/bin:/usr/bin:/bin"]
     # Where supported, Kbuild may refresh generated headers in a disposable tmpfs overlay.
@@ -78,9 +91,6 @@ def main():
                        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,errors="replace")
     Path("asm-plan.log").write_text(run.stdout)
     for line in run.stdout.splitlines():add(line)
-    original=[(i,l) for i,l in enumerate(log.splitlines()) if re.search(r"(?:\.S|<instantiation>):\d+:\d+: (?:error|note):",l)]
-    lines=log.splitlines()
-    Path("asm-original.log").write_text("\n".join("\n".join(lines[max(0,i-1):i+4]) for i,l in original))
     reports=[]
     for src,args in sorted(candidates):
         # Keep the actual source and preprocessor/ISA flags. Redirect depfile and object.
@@ -109,6 +119,10 @@ def main():
             "failed_files":sorted({r["source"] for r in reports if r["rc"]}),"distinct_error_labels":len(counts),"original_file_provenance":origin,"original_owners":{s:owners(tree,s) for s in priorfiles},"reports":reports}
     Path("asm.json").write_text(json.dumps(result,indent=2))
     print("ASM_SCOPE",run.returncode,len(candidates),len(reports),"failed_files",len(result["failed_files"]),"error_labels",len(counts))
+    for r in reports:
+        if r["diagnostics"]:
+            print("ASM_SITE",r["source"],json.dumps(r["diagnostics"][:1])[:480])
+            break
     print("ASM_ORIGIN",json.dumps(origin)[:1400])
     print("ASM_FILES",json.dumps(result["failed_files"][:12]),"details: asm.json, asm-plan.log, asm-original.log")
 if __name__=="__main__":

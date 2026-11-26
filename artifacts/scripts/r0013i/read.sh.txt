@@ -11,7 +11,7 @@ while read -r digest path local; do
     printf '%s  %s\n' "$digest" "$local" | sha256sum --check --status
 done <<'PINS'
 6afb394e1bca13f68ea55f79255a343fce39588c84852c013421d394d67ebd0a artifacts/scripts/r0013i/kernel-read.py.txt kernel-read
-787ea7bc71a6e05eef404321a21b4d8e348c99994f5c63541e161f790e87d57f artifacts/scripts/r0013i/asm.py.txt asm
+ed5934834fa1b431491f7f5e56a48b84b57ccbaf5f19f5a98f7537ebc2274386 artifacts/scripts/r0013i/asm.py.txt asm
 8c6979cb24f57f7b0941e12d42060b78058f68c54024411d5843098237c382f0 artifacts/scripts/r0013f/run.sh.txt f
 5a8d888af162065a5b14ede2f3bfba270d2a622a1c1b0e4160df5ef3e6d49da2 artifacts/scripts/r0013g/run.sh.txt g
 PINS
