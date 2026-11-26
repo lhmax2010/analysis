@@ -14,11 +14,11 @@ Native host after PM review. One low-priority scan at a time, no sudo, GBS or bu
 ```bash
 (
 set -eu -o pipefail
-p=52688091b40d1f4ade857d51b90ac970c994bc5c
+p=30eb2a3fc30450a6eb1eefe4973bc1c46182e484
 t=/home1/chengkai/vd-tree/workspace/temp
 d=$(mktemp -d "$t/pm0013i-launch.XXXXXX")
 curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 150 "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0013i/read.sh.txt" -o "$d/read"
-printf '%s  %s\n' ac80940b23a3c260c294c6edca0d625cbd5fd3d6ec1690a4e1c8fd43da7a010f "$d/read" | sha256sum -c -
+printf '%s  %s\n' 90c6fbf8a3400de575fa08686326e9a76fcf50478ca895ac85e280a052a870a1 "$d/read" | sha256sum -c -
 bash "$d/read" "$p" | tee "$d/combined.txt"
 )
 ```
