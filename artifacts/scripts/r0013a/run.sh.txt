@@ -43,7 +43,18 @@ bce)
     cat E.status
     if [[ -e E.log ]]; then tail -16 E.log | cut -c1-1800; fi ;;
 pkg)
+    [[ -t 0 ]] || { echo "PKG_STOP terminal"; exit 2; }
+    if ! ticket=$(p4 login -s 2>&1); then
+        printf 'PKG_STOP p4-ticket %.350s\n' "${ticket//$'\n'/ }"
+        exit 2
+    fi
+    printf 'P4_TICKET %.350s\n' "${ticket//$'\n'/ }"
+    sudo -v || { echo "PKG_STOP sudo"; exit 2; }
+    (while sleep 45; do sudo -n -v || exit 1; done) &
+    keeper=$!
+    trap 'kill "$keeper" 2>/dev/null || :; wait "$keeper" 2>/dev/null || :' EXIT
     stage pkg
+    sudo -n true || { echo "PKG_STOP sudo"; exit 2; }
     job pkg python3 -Bu pkg.py.txt
     cat pkg.status; tail -35 pkg.log | cut -c1-1800 ;;
 roster)

@@ -26,10 +26,33 @@ class Stop(Exception):pass
 def capacity():
     if time.time()>=CUTOFF:raise Stop("Friday 09:30 CST cutoff")
     if shutil.disk_usage(HERE).free<60*1024**3:raise Stop("60 GiB free-space floor")
+def check_credential(command, reason):
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, errors="replace")
+    except OSError as exc:
+        raise Stop(reason) from exc
+    if result.returncode:
+        raise Stop(reason)
+
+def admit_lane(work, reserve_disk, reserve_ram):
+    while True:
+        free = shutil.disk_usage(work).free // 1024**3
+        info = Path("/proc/meminfo").read_text()
+        ram = int(re.search(r"(?m)^MemAvailable:\s+(\d+)", info)[1]) // 1024**2
+        print(f"PKG_ADMISSION free={free}GiB mem_available={ram}GiB lane={work.name}", flush=True)
+        capacity()
+        if free < 50 + reserve_disk:
+            raise Stop(f"disk admission requires {50 + reserve_disk} GiB")
+        if ram >= 16 + reserve_ram:
+            check_credential(["sudo", "-n", "true"], "sudo")
+            return
+        print("PKG_WAIT ram", flush=True)
+        time.sleep(max(0, min(300, CUTOFF - time.time())))
+
 def run_owned(cmd,cwd,log,timeout,check=True):
     capacity()
     with log.open("wb") as out:
-        with subprocess.Popen(cmd,cwd=cwd,stdout=out,stderr=subprocess.STDOUT,start_new_session=True) as p:
+        with subprocess.Popen(cmd,cwd=cwd,stdout=out,stderr=subprocess.STDOUT,preexec_fn=os.setpgrp) as p:
             end=time.time()+timeout
             try:
                 while p.poll() is None:
@@ -141,7 +164,7 @@ def worker():
         if not root.resolve().is_relative_to(HERE) or root.exists():raise ValueError("root must be new and private")
         return re.sub(rb"(?m)^(\s*buildroot\s*=)[^\r\n]+",lambda m:m[1]+b" "+os.fsencode(root),data,count=1)
     if len(re.findall(rb"(?m)^\s*buildroot\s*=",template))!=1:raise ValueError("ambiguous GBS root in template")
-    gbs=SimpleNamespace(**lib("gbs-mlgo-t7"));gbs.execute=run_owned
+    gbs=SimpleNamespace(**lib("gbs-mlgo-t7"));gbs.execute=run_owned;gbs.available=admit_lane
     ole["configure_gbs"]=configure
     settings=SimpleNamespace(gbs=gbs,lib=repo,scan=scan,ole=ole,stager=lib("thumb-qb-sample"),thumb=lib("gbs-thumb"),
        inventories={k:[r for r in inv if r["repo"]==k] for k in ("Product","Base")},config=template,product=product,buildconf=buildconf)
@@ -159,6 +182,7 @@ def worker():
     print("PKG_PLAN",len(plan),"unranked",sorted(targets-set(sizes)),flush=True)
     for idx,(key,n) in enumerate(plan):
         capacity()
+        check_credential(["sudo", "-n", "true"], "sudo")
         work=HERE/(f"{idx:03d}-"+key+"-"+n);work.mkdir()
         result={"step":key,"package":n,"source_assumption":"Product P4 pin plus retained Nov16 shelf list; new submission list unproved"}
         try:
@@ -170,8 +194,13 @@ def worker():
                 archive=lib("matched-qb")["find_srpm"](repo,"official",work,sr)
                 src,spec=ole["stage_srpm"](sr,dict(path=str(archive),sha256=gbs.sha(archive)),work)
             else:
+                check_credential(["p4", "login", "-s"], "p4-ticket")
                 shelves=gbs.pinned(WS.parent/"manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt",ole["SHELVES"])
-                src,spec=ole["source_for"](gbs,repo,settings.stager,row,candidates,shelves,{},work)
+                try:
+                    src,spec=ole["source_for"](gbs,repo,settings.stager,row,candidates,shelves,{},work)
+                except (OSError, ValueError, subprocess.SubprocessError):
+                    check_credential(["p4", "login", "-s"], "p4-ticket")
+                    raise
             original=spec.read_text();spec.chmod(spec.stat().st_mode|0o200)
             gbs.local_git(src,work)
             recipe=rs[key] if key in rs else dev["base_recipe"](key)
@@ -201,4 +230,7 @@ if __name__=="__main__":
     with (WS/"temp/pm0013-pkg.lock").open("a") as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         try:capacity();worker()
-        except Stop as reason:print("PKG_STOP",reason,flush=True)
+        except Stop as reason:
+            print("PKG_STOP", reason, flush=True)
+            if str(reason) != "Friday 09:30 CST cutoff":
+                sys.exit(2)
