@@ -25,8 +25,14 @@ case "$mode" in
         export PM12_WEDA_RUN="$tmp/pm0012-wed-a.M5knpj"
         exec bash "$dir/batch.sh.txt" launch "$pin" "$index_sha" image
     fi
-    [[ ${PM12_IMAGE_RUN:?set exact completed image directory} == "$tmp"/pm0012-image.* ]]
-    grep -q ' DONE image rc=0$' "$PM12_IMAGE_RUN/status.txt"
+    get "$pin" artifacts/scripts/r0012f/kernel-matrix.py.txt 25a7fb1ac66552e497e84ce077192d8b34075e3a38fbc8dfb5f26f9da104f997 kernel-matrix.py.txt
+    export PM12_SMOKE_RUN="$tmp/pm0012-smoke.neJb0i"
+    python3 -B - "$dir/kernel-matrix.py.txt" "$tmp" "$PM12_SMOKE_RUN" <<'PYSMOKE'
+import runpy, sys
+from pathlib import Path
+runpy.run_path(sys.argv[1])["smoke_gate"](Path(sys.argv[2]), sys.argv[3])
+PYSMOKE
+    echo "PILOT_DEFERRED image membership, image ELF hash/ISA and image-wide A32 totals"
     p4 login -s
     rc=0
     bash "$dir/batch.sh.txt" attended "$pin" "$index_sha" pilot | tee "$dir/launch.log" || rc=$?
@@ -38,12 +44,14 @@ from pathlib import Path
 job=Path(sys.argv[1])/"jobs/thumb-org.tizen.AVControl"
 p=job/"thumb-acceptance.json"
 if not p.is_file():
-    print("PILOT_GATES_UNAVAILABLE", (job/"job.log").read_text(errors="replace")[-1400:])
+    log = job/"job.log"
+    print("PILOT_GATES_UNAVAILABLE", " ".join(log.read_text(errors="replace")[-1400:].splitlines()) if log.is_file() else job)
     sys.exit(2)
 for lane,r in json.loads(p.read_text())["lanes"].items():
     for i in range(1,9):
         k="T"+str(i)
-        print(lane,k,r["gates"].get(k,"UNMEASURED"),r.get("reasons",{}).get(k) or r.get("build_error") or "")
+        reason = r.get("reasons",{}).get(k) or r.get("build_error") or ""
+        print(lane,k,r["gates"].get(k,"UNMEASURED"), " ".join(str(reason).splitlines())[:600])
 PYREAD
     exit "$rc" ;;
   gcc|debug|retained|erofs) ;;
