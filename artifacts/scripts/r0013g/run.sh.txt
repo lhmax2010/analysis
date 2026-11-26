@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+pin=${1:?full commit}
+[[ $pin =~ ^[0-9a-f]{40}$ ]]
+t=/home1/chengkai/vd-tree/workspace/temp
+f=${PM13F_RUN:-}
+if [[ -z $f ]]; then
+  shopt -s nullglob
+  eligible=()
+  for p in "$t"/pm0013f-review.*; do
+    [[ -s "$p/tables.tar.gz" && -s "$p/partitions.json" && -s "$p/files-37777148-prd.tsv" && -s "$p/files-37777148-platform.tsv" ]] && eligible+=("$p")
+  done
+  if (( ${#eligible[@]} != 1 )); then printf 'Select the exact completed run with export PM13F_RUN=/.../pm0013f-review.<id> (found %d)\n' "${#eligible[@]}"; exit 2; fi
+  f=${eligible[0]}
+fi
+d=$(mktemp -d "$t/pm0013g-static.XXXXXX")
+cd "$d"; export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1
+while read -r digest path; do
+  name=${path##*/}
+  if [[ -f "$f/$name" ]] && printf '%s  %s\n' "$digest" "$f/$name" | sha256sum --check --status; then cp -- "$f/$name" "$name"
+  else curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 150 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$name" 2>>download.log; fi
+  printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
+done <<'INPUTS'
+0f29c5452b72356f4a08707f4e72aecfc9ca2f68e276028bf6f9016fd5803649  artifacts/scripts/r0013g/checks.py.txt
+1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75  artifacts/scripts/r0004/image_mode_scan.py.txt
+8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f  artifacts/scripts/r0005/image-repo-lib.py.txt
+4f0a76b186e906be4042a1eb9860b33292e30eb6f75dd31ba383342f5cdcf43a  artifacts/thumb-repro/a32-full-609.csv
+INPUTS
+mv a32-full-609.csv cohort.csv
+printf 'WORKDIR %s\n' "$d"
+exec nice -n 19 ionice -c 3 python3 -Bu checks.py.txt "$f" 2>"$d/errors.log"

@@ -1,0 +1,239 @@
+"""Static Thumb acceptance evidence from the matched Official image and published RPMs."""
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import sqlite3
+import struct
+import stat
+import subprocess
+import sys
+import tarfile
+import tempfile
+from collections import Counter, defaultdict
+from contextlib import ExitStack
+
+HERE=Path(__file__).resolve().parent
+TEMP=Path("/home1/chengkai/vd-tree/workspace/temp")
+OLD=TEMP/"pm0013-bce.qp4O4m"
+JIT=re.compile(r"chromium|cobalt|webengine|v8\b|nodejs|dotnet|coreclr|mono-runtime|luajit|libffi|javascriptcore|quickjs|dalvik",re.I)
+WALK=re.compile(r"unwind|crash|backtrace|sanitizer|profil|perf[-_]|libasan|libtsan",re.I)
+FRAME=re.compile(r'\b(?:r11|__builtin_frame_address|unw_(?:step|get_reg)|_Unwind_Backtrace|backtrace(?:_symbols)?)\b',re.I)
+SETTING=re.compile(r'\b(?:v8_target_arch|target_cpu|arm_version|thumb2?|thumb_mode|TARGET_ARM|FFI_TRAMPOLINE\w*|LJ_TARGET_ARM|FEATURE_EMIT)\b|-marm',re.I)
+MODE=re.compile(r'(?<!\w)(?:\.arm\b|\.code\s+32\b)',re.I)
+INSN=re.compile(r'\b(?:mov\w*\s+pc\s*,\s*lr|(?:add|sub|ldr)\w*\s+[^;"\n]*\bpc\b|\btbb?\s*\[|\btbh\s*\[|\.inst(?:\.w)?\s+0x[\da-f]{8}|(?:ldm\w*|pop)\s+[^;"\n]*\bpc\b)',re.I)
+SUFFIX={".s",".asm",".inc",".c",".cc",".cpp",".cxx",".h",".hpp",".rs",".inl",".gn",".gni",".mk",".cmake",".toml",".cs",".m4",".build",".spec",".py",".in"}
+SOURCE_NAMES={"makefile","cmakelists.txt","configure","meson.build","kconfig"}
+NOCU=re.compile(r"clang|GNU C(?:\+\+)?",re.I)
+def sha(data):return hashlib.sha256(data).hexdigest()
+def load(name):return runpy.run_path(str(HERE/(name+".py.txt")))
+def source(s):return s.removesuffix(".src.rpm").rsplit("-",2)[0]
+def source_entries(stream):
+    def read(n):
+        b=stream.read(n)
+        if len(b)!=n:raise ValueError("short newc record")
+        return b
+    while True:
+        h=read(110)
+        if h[:6] not in (b"070701",b"070702"):raise ValueError("unsupported CPIO")
+        mode,size,ns=(int(h[i:i+8],16) for i in (14,54,94))
+        if not 0<ns<=65536:raise ValueError("invalid name length")
+        name=read(ns)[:-1].decode(errors="replace")
+        read(-(110+ns)%4)
+        if name=="TRAILER!!!":return
+        path=Path(name)
+        keep=stat.S_ISREG(mode) and (path.suffix.lower() in SUFFIX or path.name.lower() in SOURCE_NAMES)
+        if keep and size<=32*1024**2:yield name,read(size)
+        else:
+            if keep:yield name,None
+            left=size
+            while left:
+                count=min(left,1<<20);read(count);left-=count
+        read(-size%4)
+
+def source_hits(path,data):
+    asm=Path(path).suffix.lower() in (".s",".asm",".inc")
+    mode="unknown"
+    for n,line in enumerate(data.decode(errors="replace").splitlines(),1):
+        if asm and re.match(r'^\s*\.(?:thumb\b|code\s+16\b)',line,re.I):mode="Thumb"
+        if asm and MODE.match(line.lstrip()):mode="explicit ARM directive"
+        if MODE.search(line) or INSN.search(line):
+            yield "C1",n,mode+"; owner review",line.strip()[:360]
+        if FRAME.search(line):yield "C4",n,"frame/unwind consumer candidate",line.strip()[:360]
+        if SETTING.search(line):yield "C5",n,"ISA/emitter setting",line.strip()[:360]
+
+def source_scan(inventory,sources,jits,consumers,write):
+    repo=load("image-repo-lib")
+    visited=set()
+    wanted=sources|jits|consumers
+    found=Counter()
+    for row in inventory:
+        src=source(row["srpm"])
+        if src not in wanted or row["arch"] not in ("armv7l","noarch") or not row["name"].endswith(("-debuginfo","-debugsource")):continue
+        digest=row["sha256"]
+        if digest in visited:continue
+        visited.add(digest)
+        write("SOURCE_RPM",src,row["name"],0,digest,row["url"])
+        try:
+            with tempfile.TemporaryDirectory(dir=HERE) as tmp:
+                tmp=Path(tmp)
+                cached=next(OLD.glob(digest[:16]+"-*.rpm"),None)
+                rpm=repo["cached_rpm"]((row["url"],digest),tmp,cached)
+                with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as proc:
+                    for path,data in source_entries(proc.stdout):
+                        if data is None:write("GAP",src,path,0,"source exceeds 32 MiB",digest);continue
+                        found[src]+=1
+                        for gate,n,reason,line in source_hits(path,data):
+                            if gate=="C5" and src not in jits or gate=="C1" and src not in sources:continue
+                            write(gate,src,path,n,reason,line)
+                    proc.stdout.read()
+                    if proc.wait():raise ValueError("rpm2cpio failed")
+        except Exception as e:write("GAP",src,row["name"],0,"source RPM read",str(e))
+    for s in sorted(wanted):
+        write("SOURCE",s,"",found[s],"debug package source members" if found[s] else "no published source members","full source tree coverage unproved")
+
+def disasm(path,exports,write,src,logical,tool):
+    if not tool:raise ValueError("ARM-capable objdump missing")
+    function="unknown";counts=Counter()
+    with subprocess.Popen([tool,"-d","--no-show-raw-insn",path],stdout=subprocess.PIPE,text=True,errors="replace",stderr=subprocess.DEVNULL) as proc:
+        for line in proc.stdout:
+            head=re.match(r'^\s*[0-9a-f]+ <([^>]+)>:',line,re.I)
+            if head:function=head[1].split("+0x")[0];continue
+            ins=re.match(r'^\s*[0-9a-f]+:\s+(mov(?:[a-z]{0,2})\s+pc,\s*lr\b|ldm\w*\s+[^;]*\bpc\b|pop\s+[^;]*\bpc\b)',line,re.I)
+            if ins:
+                kind="MOV pc,lr" if ins[1].lower().startswith("mov") else "load multiple to PC"
+                counts[function,kind]+=1
+        if proc.wait():raise ValueError("target disassembly rejected")
+    for (fn,kind),n in counts.items():
+        write("C2",src,logical,n,kind,fn+"; "+("dynamic export" if fn.split("@")[0] in exports else "internal/unknown")+"; caller reachability requires review")
+    write("C2_SCAN",src,logical,sum(counts.values()),"disassembled","stripped functions and indirect callers can lack names")
+
+def main():
+    f=Path(sys.argv[1]).resolve(strict=True)
+    if f.parent!=TEMP or not f.name.startswith("pm0013f-review."):raise ValueError("select a completed 0013f run")
+    parts=json.loads((f/"partitions.json").read_bytes())
+    indexes=[]
+    for p in ("platform","prd"):
+        r=parts["37777148/"+p]
+        if r["fsck"]!="passed" or r["entries"]!=r["dump_entries"] or "census" not in r:raise ValueError("missing validated "+p)
+        with (f/f"files-37777148-{p}.tsv").open() as stream:indexes.extend(csv.DictReader(stream,delimiter="\t"))
+    root=Path(parts["37777148/platform"]["root"]).resolve(strict=True)
+    if not root.is_relative_to(f):raise ValueError("unexpected extracted root")
+    cohort=list(csv.DictReader((HERE/"cohort.csv").open()))
+    if len(cohort)!=609:raise ValueError("roster size")
+    cohort_sources={source(r["source_rpm"]) for r in cohort}
+    vendor={r["path"] for r in cohort if re.search("prebuilt|vendor|bundled|preload",r["cause_class"]+" "+r["family"],re.I)}
+    inventory=json.loads((OLD/"inventory.json").read_bytes())
+    published={r["sha256"]:r for r in inventory}
+    exact=defaultdict(list)
+    for line in (OLD/"elfs.jsonl").open():
+        r=json.loads(line);exact[r["path"],r["sha256"]].append(r)
+    db=sqlite3.connect((OLD/"details.sqlite").as_uri()+"?mode=ro&immutable=1",uri=True)
+    repo,scan=load("image-repo-lib"),load("image_mode_scan")
+    totals=Counter();ranks=defaultdict(Counter)
+    tool=next((str(p) for n in ("arm-linux-gnueabi-objdump","arm-linux-gnueabihf-objdump","llvm-objdump","llvm-objdump-18","llvm-objdump-14") if (p:=shutil.which(n))),None)
+    candidates=defaultdict(list);jits=set();consumers=set()
+    with (HERE/"static.tsv").open("w") as stream:
+        writer=csv.writer(stream,delimiter="\t");writer.writerow(("gate","source","path","line_or_count","observation","detail"))
+        def write(g,s,p,n,obs,detail):
+            totals[g]+=1;ranks[g][s]+=1
+            writer.writerow((g,s,p,n,obs,detail))
+        installed_paths={r["path"] for r in indexes}
+        for r in cohort:
+            if r["path"] not in installed_paths:write("GAP",source(r["source_rpm"]),r["path"],0,"historical path absent","establish replacement or exclusion")
+        for item in indexes:
+            logical,h=item["path"],item["sha256"]; matches=exact.get((logical,h),[])
+            if not matches or len({m["srpm"] for m in matches})>1:
+                write("GAP","?",logical,0,"published path/SHA ownership ambiguous or missing",h);continue
+            r=matches[0];src=r["source"]
+            if JIT.search(src+" "+logical):jits.add(src);write("C5_INVENTORY",src,logical,0,"runtime/emitter candidate",h)
+            if WALK.search(src+" "+logical):consumers.add(src)
+            dbg=db.execute("select data from debug where id=?",(r["build_id"],)).fetchone()
+            producers=[c["producer"] for c in json.loads(dbg[0])["cus"]] if dbg else []
+            # Symbols and on-ELF CUs are in the payload table; load on a single streaming pass below.
+            candidates[r["rpm_sha"]].append((logical,h,src,any(NOCU.search(p) for p in producers),r["build_id"]))
+        wanted_keys={(p,h) for group in candidates.values() for p,h,*_ in group}
+        isa={(r["path"],r["sha256"]):r["mode"] for r in indexes}
+        # A NEEDED + imported symbol is a possible direct caller, not proof of execution state.
+        flagged_exports=defaultdict(set)
+        pairs={}
+        for raw, in db.execute("select data from payload"):
+            r=json.loads(raw)
+            key=r["path"],r["sha256"]
+            if key not in wanted_keys or key in pairs:continue
+            exports={x[0].split("@")[0] for x in r["symbols"] if x[4]!="UND" and x[1]=="FUNC"}
+            imports={x[0].split("@")[0] for x in r["symbols"] if x[4]=="UND" and (FRAME.search(x[0]) or WALK.search(x[0]))}
+            pairs[key]=(bool(any(NOCU.search(c["producer"]) for c in r["cus"])),exports,imports,set(r["soname"] or [Path(r["path"]).name]))
+        def check_binary(path,logical,h,src,cu,bid):
+            data=path.read_bytes()
+            if sha(data)!=h:raise ValueError("ELF hash mismatch")
+            secs=scan["secs_of"](data)
+            if secs is None:raise ValueError("unsupported ELF")
+            sec={n:s[5] for n,s in secs};own,exp,imports,sonames=pairs[logical,h]
+            if imports:
+                consumers.add(src);write("C4_IMPORT",src,logical,len(imports),"unwind/debug imports",",".join(sorted(imports)))
+            write("C4_ELF",src,logical,sec.get(".ARM.exidx",0),"exidx bytes",json.dumps({k:sec.get(k,0) for k in (".ARM.extab",".eh_frame",".debug_frame")}))
+            for n,s in secs:
+                if n==".ARM.exidx" and s[5]%8==0 and s[4]+s[5]<=len(data):
+                    count=sum(word==1 for _,word in struct.iter_unpack("<II",data[s[4]:s[4]+s[5]]))
+                    write("C4_EHABI",src,logical,count,"EXIDX_CANTUNWIND entries",str(s[5]//8)+" total entries")
+            if logical in vendor or not (cu or own):
+                def interwork(g,s,p,n,obs,detail):
+                    if g=="C2":
+                        fn=detail.split(";")[0].split("@")[0]
+                        if fn in exp:
+                            for name in sonames:flagged_exports[fn,name].add((src,logical))
+                    write(g,s,p,n,obs,detail)
+
+                disasm(path,exp,interwork,src,logical,tool)
+        for digest,group in candidates.items():
+            missing={}
+            for logical,h,src,cu,bid in group:
+                p=root/logical.lstrip("/")
+                if not logical.startswith("/prd/") and "!" not in logical and p.resolve().is_relative_to(root) and p.is_file():
+                    try:check_binary(p,logical,h,src,cu,bid)
+                    except Exception as e:write("GAP",src,logical,0,"binary analysis",str(e))
+                else:missing[logical]=(h,src,cu,bid)
+            if not missing:continue
+            try:
+                with tempfile.TemporaryDirectory(dir=HERE) as tmp:
+                    tmp=Path(tmp); pack=published[digest];cached=next(OLD.glob(digest[:16]+"-*.rpm"),None)
+                    rpm=repo["cached_rpm"]((pack["url"],digest),tmp,cached)
+                    with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as proc:
+                        for name,blob in scan["cpio_entries"](proc.stdout):
+                            for logical,elf in scan["elf_items"](name,blob):
+                                if logical in missing:
+                                    item=missing.pop(logical);p=tmp/"candidate.elf";p.write_bytes(elf)
+                                    try:check_binary(p,logical,*item)
+                                    except Exception as e:write("GAP",item[1],logical,0,"binary analysis",str(e))
+                        proc.stdout.read()
+                        if proc.wait():raise ValueError("rpm2cpio")
+            except Exception as e:write("GAP",group[0][2],digest,0,"pinned binary RPM",str(e))
+            for p,v in missing.items():write("GAP",v[1],p,0,"installed ELF unavailable",v[0])
+        flagged_names={fn for fn,name in flagged_exports}
+        for raw, in db.execute("select data from payload"):
+            r=json.loads(raw)
+            key=r["path"],r["sha256"]
+            if key not in wanted_keys:continue
+            refs={x[0].split("@")[0] for x in r["symbols"] if x[4]=="UND"} & flagged_names
+            for fn in refs:
+                for name in r["needed"]:
+                    for src,logical in flagged_exports.get((fn,name),()):
+                        write("C2_CALLER",src,logical,0,fn,json.dumps([r["rpm"],r["path"],isa[key],name]))
+        db.close()
+        source_scan(inventory,cohort_sources,jits,consumers|{v[2] for group in candidates.values() for v in group},write)
+    out=HERE/"static-tables.tar.gz"
+    with tarfile.open(out,"w:gz",compresslevel=1) as archive:
+        archive.add(HERE/"static.tsv","static.tsv");archive.add(HERE/"cohort.csv","input-cohort.csv")
+    print("QB",37777148,"COHORT",len(cohort),"SOURCE_PACKAGES",len(cohort_sources),"IMAGE_ELFS",len(indexes))
+    for g,n in sorted(totals.items()):print(g,n,"rows",json.dumps(ranks[g].most_common(10)))
+    print("STATIC_VERDICT","OWNER_REVIEW","source coverage, reachability, unwinding and JIT settings require owner adjudication")
+    with out.open("rb") as s:
+        h=hashlib.sha256()
+        for chunk in iter(lambda:s.read(1<<20),b""):h.update(chunk)
+    print("TABLES",h.hexdigest(),out)
+if __name__=="__main__":main()
