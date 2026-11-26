@@ -1,8 +1,8 @@
-B,C,E,pkg,roster	artifacts/scripts/r0013a/dispatch.py.txt	417b2719806ba835d1c0dc6766edf18a5a6f8d74557abe3277e7efcda90aea27	dispatch.py.txt
-C,roster	artifacts/scripts/r0013a/images.py.txt	6b911b459c7d50bc5feea70b527c4918294ba1d5dda9567135b4f2148e15595f	images.py.txt
+B,C,E,pkg,roster	artifacts/scripts/r0013a/dispatch.py.txt	854d999480ee8a772a680bbbed82e7aff4bb932d5b3067039e7640f0883e9772	dispatch.py.txt
+C,roster	artifacts/scripts/r0013a/images.py.txt	025cd9449e3f36fac968d8608b9c21f7d4475beb46616551a151b032b0361618	images.py.txt
 B,pkg	artifacts/scripts/r0013a/pilot.py.txt	69bfa549c1b3a161b30953d306cdd311f40764877d7832480fc1d06c26a018ec	pilot.py.txt
-pkg	artifacts/scripts/r0013a/pkg.py.txt	059aa99d6f66b56d719b43ec3e4885d9fec790a531c942d074d3e1a46b4950c0	pkg.py.txt
-E,pkg	artifacts/scripts/r0013a/tracks.py.txt	e2367f7d5b204ff99c694d4239d19e494eb657137572036a277805228e227577	tracks.py.txt
+pkg	artifacts/scripts/r0013a/pkg.py.txt	bd41ea247223d17d259f130465ee75cb1b13e5fa1d780452875c6cc29359d844	pkg.py.txt
+E,pkg	artifacts/scripts/r0013a/tracks.py.txt	4ada3c3a74557d697045e28f8fd0b92aaf0e4bb05eb8d4f627bf43d4bcd134f7	tracks.py.txt
 E	artifacts/scripts/r0013a/linkers.py.txt	16ee406c37f1a6b254e16219dc97898f1bb5ae9c6d97f92c3e9bf61301b3e31d	linkers.py.txt
 B,C,E,pkg,roster	artifacts/scripts/r0004/image_mode_scan.py.txt	1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75	image_mode_scan.py.txt
 B,C,E,pkg,roster	artifacts/scripts/r0005/image-repo-lib.py.txt	8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f	image-repo-lib.py.txt
@@ -22,3 +22,4 @@ pkg	artifacts/ledger/r0012-experiment-recipes.json	349e0e89955fe268ae8bf60497bf3
 E,pkg	artifacts/ledger/olevel-sources-20261120.tsv	788481656fce951e1434ee44df0acb40c83c44551d2fb590b381664e14151346	olevel.tsv
 E,pkg	reports/weekly/2026-11-20/05_HQ_Table_LTO_Enablement_rev2.md	1114ab88e6138bc527e9cc3fe5b45258ef6875649e0919df6370858a2a4ee86d	doc05.md
 E	reports/weekly/2026-11-20/06_HQ_Table_GCC_Gpp.md	b13fdbd3ab3be696143d2adc8b9fa1192852fe613399c6de9d7b48a1076e6dce	doc06.md
+roster	artifacts/scripts/r0012e/thumb-map.py.txt	d945885592c82702703a70136807894e69a1380d452c5de706d588631db4b544	thumb-map.py.txt

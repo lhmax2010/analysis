@@ -173,6 +173,7 @@ def process():
         pathkey=(r["source"],r["path"])
         versions[pathkey].update(r["soname"] or [Path(r["path"]).name])
         needed[pathkey].update(r["needed"])
+        if r["kind"]==3:candidates.add(r["source"])
         for sym,typ,bind,vis,ndx,size in r["symbols"]:
             if ndx=="UND" and sym.startswith("_Z"):imports[sym].add((r["source"],r["path"]))
             if ndx!="UND" and sym.startswith("_Z") and vis in ("DEFAULT","PROTECTED") and bind=="WEAK" and r["kind"]==3:

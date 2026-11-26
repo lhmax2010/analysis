@@ -77,8 +77,17 @@ def gcc_compare(settings,treatment,folder):
     by={}
     for row in treatment["metrics"]["files"]:by[row["rpm"],row["path"]]=folder/"treatment/elf-proof"/(row["sha256"]+".elf")
     compared={}
+    references={}
+    base_rows=None
     for name in {k[0] for k in by}:
-        rr,=[r for r in published if r["name"]==name and r["arch"]=="armv7l"]
+        matches=[r for r in published if r["name"]==name and r["arch"]=="armv7l"]
+        if not matches:
+            if base_rows is None:
+                base="http://repos.vd.sec.samsung.net/base/tizen-10.1-base/standard/tizen-10.1-base-standard_20260919.1/"
+                base_rows=settings.lib["inventory"](base,"armv7l",folder)
+            matches=[dict(name=n,srpm=srpm,url=url,sha256=sha,vcs="") for (n,_,_,_,arch),(sha,srpm,url) in base_rows.items() if n==name and arch=="armv7l"]
+        rr,=matches
+        references[name]={k:rr.get(k,"") for k in ("srpm","url","sha256","vcs")}
         with tempfile.TemporaryDirectory(dir=folder) as stage:
             p=Path(stage)
             rpm=settings.lib["cached_rpm"]((rr["url"],rr["sha256"]),p)
@@ -95,7 +104,7 @@ def gcc_compare(settings,treatment,folder):
                         compared[str(k)]=("ABI_FALLBACK_PASS" if left==right else {"removed":list((Counter(left[0])-Counter(right[0])).elements()),"added":list((Counter(right[0])-Counter(left[0])).elements()),"tags":[left[1],right[1]]})
                 if proc.wait():raise ValueError("GCC RPM read failure")
     missing=[str(k) for k in by if str(k) not in compared]
-    return {"rows":compared,"missing":missing,"pass":bool(by) and not missing and all(v=="ABI_FALLBACK_PASS" for v in compared.values())}
+    return {"rows":compared,"references":references,"missing":missing,"pass":bool(by) and not missing and all(v=="ABI_FALLBACK_PASS" for v in compared.values())}
 def n4_proof(folder,label,receipt):
     on=label=="treatment"
     rows=(folder/label/"driver-argv.txt").read_text().splitlines()

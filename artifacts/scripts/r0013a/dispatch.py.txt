@@ -43,7 +43,7 @@ def installed_edges(previous):
 
 
 def pack():
-    outputs=list(HERE.glob("*.jsonl"))+list(HERE.glob("image-*.tsv"))+list(HERE.glob("a32-*.json"))
+    outputs=list(HERE.glob("*.jsonl"))+list(HERE.glob("image-*.tsv"))+list(HERE.glob("a32-*.json"))+list(HERE.glob("unresolved-*.json"))+list(HERE.glob("*.status"))
     outputs += [p for p in (HERE/"pilot.json",HERE/"images.json",HERE/"pkg-plan.json",HERE/"sizes.json",HERE/"linkers.json") if p.exists()]
     with tarfile.open(HERE/"tables.tar","w") as tar:
         for p in sorted(outputs):tar.add(p,arcname=p.name,recursive=False)

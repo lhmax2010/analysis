@@ -87,7 +87,8 @@ def toolset(repo, scan, work, qb, url, sha):
     return tools
 
 
-def census(files,qb,label,scan,stream):
+def census(files,qb,label,scan,stream,roster=False):
+    measure=lib("thumb-map")["text_map"] if roster else None
     counts=collections.Counter()
     def fail(err):
         raise err
@@ -102,9 +103,18 @@ def census(files,qb,label,scan,stream):
             path=("/prd/" if label=="prd" else "/")+str(p.relative_to(files))
             for logical,data in scan["elf_items"](path,blob):
                 row=scan["classify"](data)
-                if not row or row["kind"] not in ("EXEC","DYN"):continue
+                if not row or "/usr/lib/debug/" in logical:continue
+                module=roster and row["kind"]=="REL" and logical.endswith(".ko")
+                if not module and row["kind"] not in ("EXEC","DYN"):continue
                 digest=hashlib.sha256(data).hexdigest()
-                stream.writerow((qb,logical,digest,row["mode"],row["basis"],row["exec_bytes"],row["arm_bytes_est"]))
+                fields=[qb,logical,digest,row["mode"],row["basis"],row["exec_bytes"],row["arm_bytes_est"]]
+                if measure:
+                    m=measure(data,scan["secs_of"](data))
+                    fields.extend([row["kind"],json.dumps(m and {k:v for k,v in m.items() if k!="a_functions"},separators=(",",":"))])
+                stream.writerow(fields)
+                if module:
+                    counts["kernel_modules"]+=1
+                    continue
                 counts["elfs"]+=1
                 counts["exec_bytes"]+=row["exec_bytes"]
                 counts["a32_est_bytes"]+=row["arm_bytes_est"]
@@ -115,6 +125,43 @@ def census(files,qb,label,scan,stream):
                         target=HERE/"official.elf"
                         target.write_bytes(data)
     return counts
+
+
+def recover_debug(qb,records,repo,scan):
+    wanted=collections.defaultdict(list)
+    sources=set()
+    for r in records:
+        m=r["mapping"]
+        if m and m["id"] and m["bytes"].get("unknown"):
+            wanted[m["id"],m["addr"],m["size"]].append(r)
+            sources.update(src for name,src in r["owners"])
+    if not wanted:return
+    capture=WS/"qb-evidence"/(qb+"-"+PRODUCT+NEW[qb])
+    ledger=capture/"rpm-identities.tsv"
+    if repo["file_sha"](ledger)!=json.loads((capture/"identity.json").read_text())["files"][ledger.name]:
+        raise ValueError("Product ledger mismatch")
+    with ledger.open() as f:inventory=list(csv.DictReader(f,delimiter="\t"))
+    stamp="20261113.1" if qb=="37777148" else "20261118.1"
+    for (name,_,_,_,arch),(sha,srpm,url) in repo["inventory"](repo["PREFIX"]+stamp+"/","armv7l",HERE).items():
+        inventory.append(dict(name=name,arch=arch,srpm=srpm,url=url,sha256=sha))
+    measure=lib("thumb-map")["text_map"]
+    for rpm in inventory:
+        if rpm["arch"]!="armv7l" or not rpm["name"].endswith("-debuginfo") or rpm["srpm"] not in sources:continue
+        with tempfile.TemporaryDirectory(dir=HERE) as temp:
+            artifact=repo["cached_rpm"]((rpm["url"],rpm["sha256"]),Path(temp))
+            with subprocess.Popen(["rpm2cpio",artifact],stdout=subprocess.PIPE) as proc:
+                for _,data in scan["cpio_entries"](proc.stdout):
+                    m=measure(data,scan["secs_of"](data))
+                    if not m or not m["id"]:continue
+                    for r in wanted.get((m["id"],m["addr"],m["size"]),[]):
+                        prior=r["mapping"]
+                        if m["bytes"].get("unknown",0)>=prior["bytes"].get("unknown",0):continue
+                        if any(m["bytes"].get(t,0)<prior["bytes"].get(t,0) for t in ("$a","$t","$d")):continue
+                        if any(not any(lo<=a and b<=hi for lo,hi in m["a_ranges"]) for a,b in prior["a_ranges"]):continue
+                        r["mapping"]={k:v for k,v in m.items() if k!="a_functions"}
+                        r["debug_rpm_sha256"]=rpm["sha256"]
+                proc.stdout.read()
+                if proc.wait():raise ValueError("debug RPM extraction failed")
 
 
 def read_images(mode):
@@ -173,7 +220,7 @@ def read_images(mode):
         tally=collections.Counter()
         with (HERE/("image-"+qb+".tsv")).open("w") as out:
             writer=csv.writer(out,delimiter="\t",lineterminator="\n")
-            writer.writerow(("qb","path","sha256","mode","basis","exec_bytes","a32_est_bytes"))
+            writer.writerow(["qb","path","sha256","mode","basis","exec_bytes","a32_est_bytes"]+(["kind","mapping"] if mode=="roster" else []))
             for label,(offset,length) in parts.items():
                 key=qb+"/"+label
                 try:
@@ -192,7 +239,7 @@ def read_images(mode):
                                 hashes=[l.split()[0] for l in lines if re.fullmatch("[0-9a-f]{64}  "+re.escape("/.org_rootfs/prd/"+name),l)]
                                 refs[name],=hashes
                         row=old["check_partition"](tree,tools,raw,offset,length,stage,refs)
-                        row["census"]=census(stage/"extracted",qb,label,scan,writer)
+                        row["census"]=census(stage/"extracted",qb,label,scan,writer,mode=="roster")
                         tally.update(row["census"])
                         if mode=="roster" and label=="platform":
                             owners=tree["rpm_rows"](stage/"extracted",stage,r"P\t%{NAME}\t%{SOURCERPM}\n[F\t%{FILENAMES}\n]")
@@ -219,11 +266,21 @@ def read_images(mode):
                     elif cols[0]=="F":owners.setdefault(cols[1],set()).add((name,src))
             with (HERE/("image-"+qb+".tsv")).open() as f:
                 records=list(csv.DictReader(f,delimiter="\t"))
-            hits=[r for r in records if r["mode"] in ("ARM","MIXED_ARM")]
-            for r in hits:r["owners"]=sorted(owners.get(r["path"].split("!")[0],set()))
-            hits.sort(key=lambda r:-int(r["a32_est_bytes"]))
+            for r in records:
+                r["owners"]=sorted(owners.get(r["path"].split("!")[0],set()))
+                r["mapping"]=json.loads(r["mapping"])
+            recover_debug(qb,records,repo,scan)
+            hits=[]
+            unresolved=[]
+            for r in records:
+                m=r["mapping"]
+                r["cause"]="kernel module" if r["kind"]=="REL" else "unclassified; compile/source proof required"
+                if m and m["bytes"].get("$a",0):hits.append(r)
+                if not m or m["bytes"].get("unknown",0) or not r["owners"]:unresolved.append(r)
+            hits.sort(key=lambda r:-r["mapping"]["bytes"]["$a"])
             (HERE/("a32-"+qb+".json")).write_text(json.dumps(hits))
-            print("ROSTER",qb,len(hits),"unowned",sum(not r["owners"] for r in hits),"top",[(r["path"],r["a32_est_bytes"]) for r in hits[:5]])
+            (HERE/("unresolved-"+qb+".json")).write_text(json.dumps(unresolved))
+            print("ROSTER",qb,"mapped A32",len(hits),"unresolved coverage",len(unresolved),"top40",[(r["path"],r["mapping"]["bytes"]["$a"]) for r in hits[:40]])
     print("BOARD_SAMPLE_COVERAGE",{k:v.get("board","OPEN") for k,v in result.items()})
     return coverage
 
