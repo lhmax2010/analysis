@@ -56,35 +56,144 @@ def off_config(base,effective):
             and all(effective.get(k) in (None,"n") for k in allowed))
 
 
-def argv_proof(tree,lane):
-    samples={}
-    off=lane in ("K2","K3")
-    outline=lane in ("K1","K3","K5")
+def commands(lines):
+    """Strip GBS elapsed-time prefixes and join wrapped argv before tokenizing."""
+    parts = []
+    for raw in lines:
+        line = re.sub(r"^\s*\[\s*\d+s\]\s*", "", raw.rstrip()).strip()
+        if parts and not parts[-1].endswith("\\") and not line.startswith("-"):
+            yield " ".join(x.removesuffix("\\") for x in parts)
+            parts = []
+        if parts or re.match(r"(?:\S*/)?(?:[\w.-]*-)?clang(?:-\d+)?\s", line):
+            parts.append(line)
+    if parts:
+        yield " ".join(x.removesuffix("\\") for x in parts)
+
+
+def compile_unit(cmd):
+    try:
+        args = shlex.split(cmd.split(";", 1)[0])
+    except ValueError:
+        return None
+    if not args or not re.fullmatch(r"(?:[\w.-]*-)?clang(?:-\d+)?",Path(args[0]).name):
+        return None
+    if "-c" not in args or "-D__KERNEL__" not in args:
+        return None
+    sources = [a for a in args if a.endswith(".c")]
+    if len(sources)!=1 or "-o" not in args or args.index("-o")+1==len(args):
+        return None
+    obj = args[args.index("-o")+1]
     for group in GROUPS:
+        suffix = re.search(r"(?:^|/)("+re.escape(group)+r"[^\s]+)\.o$",obj)
+        if not suffix or not ("/"+sources[0]).endswith("/"+suffix[1]+".c"):
+            continue
+        if group=="kernel/sched/" and suffix[1]!="kernel/sched/core":
+            continue
+        return group, args
+    return None
+
+
+def flags(args,lane):
+    modes=[x for x in args if x in ("-mthumb","-marm")]
+    outlines=[x for x in args if x in ("-moutline","-mno-outline")]
+    thumb=lane in ("K4","K5")
+    off=lane in ("K2","K3")
+    isa=modes[-1] if modes else "Clang default A32"
+    # A Thumb target triple, response file or a different architecture invalidates
+    # inference from this armv7l build root's configured default.
+    targets=[a.split("=",1)[1] for a in args if a.startswith(("--target=","-target="))]
+    targets += [b for a,b in zip(args,args[1:]) if a in ("--target","-target")]
+    valid_default=not targets or targets[-1].startswith(("arm-","armv"))
+    isa_ok=(isa=="-mthumb" if thumb else isa=="-marm" or (not modes and valid_default))
+    vals={n:[x.split("=",1)[1] for x in args if x.startswith("-"+n+"=")] for n in ADVISORS}
+    paired=all(i>0 and args[i-1]=="-mllvm" for i,x in enumerate(args) if any(x.startswith("-"+n+"=") for n in ADVISORS))
+    checks={"expanded":not any(x.startswith("@") for x in args),
+            "outline":(outlines[-1:] == ["-moutline"])==(lane in ("K1","K3","K5")),
+            "advisors":paired and all(not v if off else v[-1:]==["release"] for v in vals.values()),
+            "isa":isa_ok}
+    return dict(checks=checks,last_mode=isa,outline_options=outlines,advisor_values=vals)
+
+
+def argv_proof(tree,lane,log):
+    samples,details,problems={},{},[]
+    core=tree/"kernel/sched/.core.o.cmd"
+    logged={}
+    printed={n:set() for n in ADVISORS}
+    def log_lines(stream):
+        for line in stream:
+            m=re.match(r"^(?:\s*\[\s*\d+s\])?\s*--?(enable-ml-inliner|regalloc-enable-advisor)\s*=\s*(\S+)",line)
+            if m:printed[m[1]].add(m[2])
+            yield line
+    with log.open(errors="replace") as stream:
+        for cmd in commands(log_lines(stream)):
+            item=compile_unit(cmd)
+            if item:
+                group,args=item
+                # Keep the first example for each distinct relevant policy on a TU.
+                obj=args[args.index("-o")+1]
+                f=flags(args,lane)
+                logged.setdefault(group,{}).setdefault(obj,{}).setdefault(json.dumps(f),cmd)
+    for group in GROUPS:
+        candidates=[]
         for p in sorted((tree/group).rglob(".*.o.cmd")):
-            if group=="kernel/sched/" and p.name!=".core.o.cmd": continue
-            cmd=p.read_text(errors="replace").splitlines()[0].partition(":=")[2].strip().split(";",1)[0]
-            args=shlex.split(cmd)
-            if "-c" not in args or "-D__KERNEL__" not in args or not any(x.endswith(".c") for x in args): continue
-            if not any("clang" in Path(x).name for x in args[:3]): continue
-            if ("-moutline" in args)!=outline: continue
-            selected={name:[arg.split("=",1)[1] for arg in args if arg.startswith("-"+name+"=")] for name in ADVISORS}
-            if any(bool(vals) if off else (not vals or vals[-1]!="release") for vals in selected.values()): continue
-            modes=[x for x in args if x in ("-mthumb","-marm")]
-            if group=="kernel/sched/" and (not modes or modes[-1]!=("-mthumb" if lane in ("K4","K5") else "-marm")): continue
-            samples[group]=cmd
-            break
-    if len(samples)!=4: raise ValueError("missing effective compile flags for "+str(sorted(set(GROUPS)-samples.keys())))
+            if group==GROUPS[0] and p!=core:continue
+            with p.open(errors="replace") as stream:
+                first=stream.readline().partition(":=")[2].strip()
+                if first.endswith("\\"):
+                    first=next(commands([first,*stream]),first)
+            item=compile_unit(first)
+            if item and item[0]==group:candidates.append((str(p),first))
+        if not candidates:
+            for obj,variants in logged.get(group,{}).items():
+                if len(variants)==1:candidates.append(("gbs.log "+obj,next(iter(variants.values()))))
+                elif group==GROUPS[0]:problems.append("ambiguous scheduler policies in gbs.log")
+        for source,cmd in candidates:
+            args=compile_unit(cmd)[1]
+            f=flags(args,lane)
+            if group!=GROUPS[0]:f["checks"].pop("isa")
+            details[group]=dict(source=source,**f)
+            if all(f["checks"].values()):
+                samples[group]=shlex.join(args)
+                break
+        if group not in samples:problems.append(group+" "+str(details.get(group,"no complete Clang C argv")))
     dump=tree/"kernel/sched/core.o.pm0012f-options"
-    output=dump.read_text(errors="replace") if dump.is_file() else ""
-    wanted="default" if off else "release"
-    options={}
-    for name in ADVISORS:
-        m=re.search(r"^\s*--?"+name+r"\s*=\s*([^\n]+)",output,re.M)
-        if not m or not re.match(re.escape(wanted)+r"\b",m[1],re.I):
-            raise ValueError(f"{lane}: scheduler TU diagnostic did not prove {name}={wanted}")
-        options[name]=m[1].strip()
-    return samples,options
+    opts={}
+    if dump.is_file():
+        for name in ADVISORS:
+            m=re.search(r"^\s*--?"+name+r"\s*=\s*([^\n]+)",dump.read_text(errors="replace"),re.M)
+            if m:opts[name]=m[1].strip()
+    option_source=str(dump) if dump.is_file() else None
+    if not dump.is_file() and GROUPS[0] in samples and all(len(v)==1 for v in printed.values()):
+        # The measured wrapper prints these two option diagnostics only for core.c.
+        opts={n:next(iter(values)) for n,values in printed.items()}
+        option_source="gbs.log scheduler wrapper (consistent values across occurrences)"
+    wanted="default" if lane in ("K2","K3") else "release"
+    if not all(re.match(wanted+r"\b",opts.get(n,""),re.I) for n in ADVISORS):
+        problems.append("scheduler effective-option dump incomplete or mismatched")
+    obj=core.with_name("core.o")
+    mapping=None
+    if obj.is_file():
+        counts=isa_bytes(obj)
+        mapping=counts
+        key="$t" if lane in ("K4","K5") else "$a"
+        if not counts or not counts.get(key) or counts.get("$a" if key=="$t" else "$t") or counts.get("unknown"):
+            problems.append("scheduler core.o mapping symbols disagree or are mixed")
+    return dict(verdict="REVIEW" if problems else "PASS",reasons=problems,samples=samples,
+                groups=details,cmd_exists=core.is_file(),cmd_path=str(core),core_object_mapping=mapping,options=opts,option_source=option_source)
+
+
+def review_argv(tree,lane,log):
+    try:
+        return argv_proof(tree,lane,log)
+    except (ValueError,OSError,IndexError,subprocess.SubprocessError) as exc:
+        return {"verdict":"REVIEW","reasons":[str(exc)],"samples":{},"options":{}}
+
+
+def isa_bytes(path):
+    data=path.read_bytes()
+    secs=load("image_mode_scan")["secs_of"](data)
+    result=load("thumb-map")["text_map"](data,secs)
+    return result["bytes"] if result else None
 
 
 def smoke_gate(temp, path):
@@ -139,26 +248,38 @@ def run(work,proof,owners):
         subprocess.run(["patch","--batch","--fuzz=0","-p1","-i",HERE/"perf-machine-outliner.spec.patch"],cwd=src,check=True)
         template=spec.read_text()
         if template.count("@LANE@")!=1: raise ValueError("invalid trial patch")
-        shared=work/"shared"
-        shared.mkdir()
-        cfg,root=dev["fresh_lane"](s,shared)
+        retained=dev["TEMP"]/"pm0012-kernel.RhOLRN/jobs/kernel-thumb"
         s.gbs.live_product(s.product)
         thumb_config=None
         for lane in LANES:
-            s.gbs.available(work,55,16)
             folder=work/lane
             folder.mkdir()
             record=results[lane]={}
-            spec.write_text(stage_spec(template, lane, dev))
+            reuse=lane=="K0"
+            source_folder=retained/lane if reuse else folder
+            root=source_folder/"GBS-ROOT"
+            log=source_folder/"gbs.log"
             try:
-                if root.exists() or any((shared/"empty-repo").iterdir()): raise ValueError("GBS root/repo carried earlier lane products")
-                selection["commit_lane"](src,lane)
-                s.thumb["run_gbs"](s.gbs,folder,src,spec.name,cfg,s.buildconf,root,False,False,packaging_dir="packaging")
-                toolchain=(folder/"thumb-probe.txt").read_text(errors="replace").splitlines()
+                if reuse:
+                    original=json.loads((retained/"kernel-matrix.json").read_text())["K0"]
+                    receipt=original["qualification"]
+                    if (not receipt["config_bytes_equal"] or receipt["image_size_pairs"]!={"uImage":[11348968,11348968],"zImage":[5326504,5326464]}
+                        or receipt["k0_build_id"]!="c947e4e12296014344d32c50e9ff70a511fe5538"
+                        or not re.search(r"^GBS_EXIT 0$", (retained/"job.log").read_text(),re.M)):
+                        raise ValueError("retained RhOLRN gate failed")
+                    record.update(qualification=receipt,reused=str(source_folder))
+                    print("K0_REUSED",source_folder,flush=True)
+                else:
+                    s.gbs.available(work,55,16)
+                    cfg,root=dev["fresh_lane"](s,folder)
+                    spec.write_text(stage_spec(template,lane,dev))
+                    selection["commit_lane"](src,lane)
+                    s.thumb["run_gbs"](s.gbs,folder,src,spec.name,cfg,s.buildconf,root,False,False,packaging_dir="packaging")
+                toolchain=(source_folder/"thumb-probe.txt").read_text(errors="replace").splitlines()
                 guest_roots = list((root/"local/BUILD-ROOTS").glob("*.armv7l.*"))
                 record["compiler_paths"] = {}
                 resolver = load("thumb-options")["guest_target"]
-                with (folder/"gbs.log").open(errors="replace") as stream:
+                with log.open(errors="replace") as stream:
                     for raw in stream:
                         match = re.search(r"(?:^|\]\s*)GBS_TOOL (/\S+) invoked ",raw)
                         if match and len(guest_roots)==1:
@@ -166,37 +287,61 @@ def run(work,proof,owners):
                             record["compiler_paths"][name] = resolver(guest_roots[0],name)
                 record["rpm_identity"]=[line for line in toolchain if line.startswith("GBS_RPM ")]
                 if not any(re.search(r"^GBS_RPM clang (?:0|\(none\)) 22\.1\.8 9\.1 armv7l$",line) for line in record["rpm_identity"]):
-                    raise ValueError("missing pinned 22.1.8-9.1 armv7l clang in GBS root")
+                    record.setdefault("reviews",[]).append("missing pinned 22.1.8-9.1 armv7l clang in GBS root")
                 rpm,=[p for p in s.gbs.kernel_rpms(root) if q["query"](p,"%{NAME}")=="tztv-kernel-perf"]
                 members=q["member_checksums"](rpm)
                 record["images"]={n:members["/perf/"+n] for n in ("uImage","zImage")}
                 record["modules"]={k:v for k,v in members.items() if re.search(r"\.ko(?:\.(?:gz|xz|zst))?$",k)}
                 record["module_bytes"]=sum(z for n,(z,_) in members.items() if re.search(r"\.ko(?:\.(?:gz|xz|zst))?$",n))
                 # Join the real output tree to its RPM; multiple other kernel flavours can be present.
-                matches=[p.parents[3] for p in root.glob("**/rpmbuild/BUILD/**/arch/arm/boot/zImage")
-                         if s.gbs.sha(p)==record["images"]["zImage"][1] and (p.parents[3]/".config").is_file()]
-                if not matches: raise ValueError("no retained effective build tree with a byte-identical perf zImage")
-                matches=[t for t in matches if (t/"vmlinux").is_file()]
+                zsha=record["images"]["zImage"][1]
+                matches=[p.parents[3] for p in root.glob("local/BUILD-ROOTS/*/var/tmp/pm0013d-evidence/"+zsha+"/arch/arm/boot/zImage") if s.gbs.sha(p)==zsha]
+                matches += [p.parents[3] for p in root.glob("**/rpmbuild/BUILD/**/arch/arm/boot/zImage") if s.gbs.sha(p)==zsha]
+                if reuse:
+                    if any(list(record["images"][n])!=original["images"][n] for n in record["images"]):
+                        raise ValueError("RhOLRN retained RPM differs from original receipt")
+                    symdir=Path(original["symbols"]["directory"])
+                    if not symdir.resolve().is_relative_to(retained/"symbols"):raise ValueError("unexpected K0 symbols path")
+                    for name,digest in original["symbols"]["sha256"].items():
+                        if name not in ("vmlinux","System.map",".config") or s.gbs.sha(symdir/name)!=digest:
+                            raise ValueError("retained K0 symbol checksum")
+                    matches.append(symdir)
+                matches=[t for t in matches if (t/"vmlinux").is_file() and (t/"System.map").is_file() and (t/".config").is_file()]
+                if reuse:
+                    # Repeat the original selector on the root as relocated by its finally block.
+                    old=[t for t in matches if (t/"kernel/sched/core.o.pm0012f-options").is_file()]
+                    d={"retained_root":str(root),"old_selector_match_count":len(old),"original_failure":original.get("diagnostic")}
+                    if old:
+                        marker=old[0]/"kernel/sched/.core.o.cmd"
+                        d.update(cmd=str(marker),exists=marker.is_file())
+                        if marker.is_file():
+                            with marker.open(errors="replace") as f:first=f.readline().partition(":=")[2].split(";",1)[0].strip()
+                            args=shlex.split(first)
+                            modes=[a for a in args if a in ("-marm","-mthumb")]
+                            d.update(flags=flags(args,lane),old_required_explicit_marm=modes[-1:]==["-marm"],
+                                     old_kernel_c=("-D__KERNEL__" in args and "-c" in args and any(x.endswith(".c") for x in args)),
+                                     old_clang=any("clang" in Path(x).name for x in args[:3]))
+                    record["old_selector"]=d
+                    print("K0_OLD_SELECTOR",json.dumps(d),flush=True)
                 ids={(s.gbs.sha(t/"vmlinux"),s.gbs.sha(t/".config")) for t in matches}
-                if len(ids)!=1: raise ValueError("ambiguous effective build trees")
-                matches=[t for t in matches if (t/"kernel/sched/core.o.pm0012f-options").is_file()]
-                if lane in ("K1","K3","K5"):
-                    matches=[t for t in matches if (t/"vmlinux.pm0012k-link/argv").is_file()]
-                if not matches: raise ValueError("missing perf TU diagnostics or final LLD receipt")
-                tree=next((t for t in matches if (t/"System.map").is_file()),matches[0])
+                if len(ids)!=1:raise ValueError("missing or ambiguous effective perf tree")
+                tree=max(matches,key=lambda t:((t/"kernel/sched/.core.o.cmd").is_file(),(t/"kernel/sched/core.o.pm0012f-options").is_file(),(t/"vmlinux.pm0012k-link/argv").is_file()))
                 config_file=tree/".config"
                 (folder/"generated.config").write_bytes(config_file.read_bytes())
                 paired={"K0":work/"official.config","K4":work/"K0/generated.config","K5":work/"K1/generated.config"}.get(lane)
-                config_equal=None
                 if paired and paired.is_file():
-                    config_equal=qual["config_diff"](paired,config_file,folder/"config.diff")
-                    if lane=="K0" and not config_equal: print("K0_CONFIG_MISMATCH",flush=True)
-                if lane in ("K4","K5") and config_equal is None:
-                    raise ValueError("missing paired generated config for full diff")
+                    equal=qual["config_diff"](paired,config_file,folder/"config.diff")
+                    if reuse and not equal:raise ValueError("K0 differs from pinned Official config")
+                elif paired:
+                    record.setdefault("reviews",[]).append("missing paired config for full diff")
                 record["symbols"]=qual["keep_symbols"](work,tree,lane,s.gbs.sha)
-                if lane=="K0":
-                    record["qualification"]=qual["qualify"](work,tree,record,baseline,q,s.scan["secs_of"],config_equal)
-                    print("K0_REPRODUCTION",json.dumps(record["qualification"]),flush=True)
+                if reuse and record["symbols"]["build_id"]!=receipt["k0_build_id"]:raise ValueError("retained K0 build ID mismatch")
+                raw=tree/"vmlinux"
+                ss=s.scan["secs_of"](raw.read_bytes())
+                record["sizes"]={n:h[5] for n,h in ss if n in (".text",".data",".rodata",".bss",".ARM.exidx",".ARM.extab")}
+                record["sizes"][".init"]=sum(h[5] for n,h in ss if n.startswith(".init.") and h[2]&2)
+                if lane in ("K4","K5"):
+                    record["isa_text"]=isa_bytes(raw)
                 effective=load("official-config")["config_map"]((tree/".config").read_bytes())
                 record["config_delta"]={k:[base.get(k),effective.get(k)] for k in sorted(base.keys()|effective.keys()) if base.get(k)!=effective.get(k)}
                 if lane in ("K4","K5"):
@@ -212,23 +357,24 @@ def run(work,proof,owners):
                     raise ValueError("generated config does not confirm no kernel LTO")
                 if lane not in ("K4","K5") and effective.get("CONFIG_UNWINDER_FRAME_POINTER")!="y":
                     raise ValueError("frame-pointer unwinder not confirmed")
-                record["samples"],record["advisor_options"]=argv_proof(tree,lane)
+                record["intended_config"]=True
+                check=record["argv_proof"]=review_argv(tree,lane,log)
+                record["samples"]=check.get("samples",{})
+                record["advisor_options"]=check.get("options",{})
                 if lane in ("K2","K3"):
                     peer=results[{"K2":"K0","K3":"K1"}[lane]]
-                    if not peer.get("samples"): raise ValueError("paired on-lane scheduler argv unavailable")
-                    before=advisor_argv(peer["samples"]["kernel/sched/"])
-                    after=advisor_argv(record["samples"]["kernel/sched/"])
-                    if sorted(before)!=sorted(["-mllvm","-enable-ml-inliner=release","-mllvm","-regalloc-enable-advisor=release"]) or after:
-                        raise ValueError("paired scheduler TU advisor delta differs from expected")
-                    print("MLGO_TU_DELTA",lane,"kernel/sched/core.c",json.dumps({"before":before,"after":after}),flush=True)
+                    before=advisor_argv(peer.get("samples",{}).get(GROUPS[0],""))
+                    after=advisor_argv(record["samples"].get(GROUPS[0],""))
+                    ok=(GROUPS[0] in record["samples"] and sorted(before)==sorted(["-mllvm","-enable-ml-inliner=release","-mllvm","-regalloc-enable-advisor=release"]) and not after)
+                    record["mlgo_tu_delta"]={"before":before,"after":after,"verdict":"PASS" if ok else "REVIEW"}
+                    if not ok:
+                        check["verdict"]="REVIEW"
+                        check["reasons"].append("paired scheduler advisor delta unproved")
                 if lane in ("K1","K3","K5"):
-                    phase=load("outliner-phase")["verify"]
-                    record["outliner_phase"]=phase(tree,effective,s.scan["secs_of"],s.gbs.sha)
-                    print("KERNEL_THUMB_COMPILE_TIME",lane,record["outliner_phase"]["object"],
-                          record["outliner_phase"]["helper"],flush=True)
-                    link=record["outliner_phase"]["lld"]
-                    print("KERNEL_THUMB_FINAL_LLD",lane,link["version"],"argc",len(link["argv"]),
-                          "full argv in",work/"kernel-matrix.json",flush=True)
+                    try:
+                        record["outliner_phase"]=load("outliner-phase")["verify"](tree,effective,s.scan["secs_of"],s.gbs.sha)
+                    except (ValueError,OSError,IndexError,subprocess.SubprocessError) as exc:
+                        record.setdefault("reviews",[]).append("outliner phase: "+str(exc))
                 record["static"]=audit["audit"](tree,tree/"vmlinux",s.scan["secs_of"],effective)
                 static=record["static"]
                 static["resident_linked_bytes"]=qual["resident"](tree/"System.map")
@@ -246,23 +392,30 @@ def run(work,proof,owners):
                             "resident_linked":None if None in (static["resident_linked_bytes"],prev["resident_linked_bytes"])
                             else static["resident_linked_bytes"]-prev["resident_linked_bytes"]}
                 if lane in ("K1","K3","K5") and not record["static"]["helper_count"]:
-                    raise ValueError("flag delivered but zero surviving linked helpers")
+                    record.setdefault("reviews",[]).append("zero surviving linked helpers")
                 record["outliner_hq"]=hq["collect"](folder,tree,rpm,q,s.lib,record,lane,results,audit)
-                record["status"]="STATIC_MEASURED" if qualified_k0 else "RAW_ONLY"
-            except (ValueError,OSError,IndexError,subprocess.SubprocessError) as exc:
-                record["status"]="BLOCKED_OR_FAILED"
+                record["status"]="STATIC_MEASURED" if qualified_k0 and check["verdict"]=="PASS" and not record.get("reviews") else "RAW_ONLY"
+            except (ValueError,OSError,IndexError,KeyError,RuntimeError,subprocess.SubprocessError) as exc:
+                record["status"]="MEASUREMENT_REVIEW" if "sizes" in record and record.get("intended_config") else "BLOCKED_OR_FAILED"
                 record["diagnostic"]=str(exc)
                 record["file_diagnostics"]=qual["build_errors"](folder,root)
             finally:
                 if lane in ("K4","K5") and (folder/"gbs.log").exists():
                     record["asm_review"]=qual["asm_review"](folder,src)
                 record["interpretation"]="QUALIFIED_BASELINE" if qualified_k0 else "RAW_ONLY"
-                if root.exists(): root.rename(folder/"GBS-ROOT")
+                check=record.get("argv_proof",{"verdict":"REVIEW","reasons":[record.get("diagnostic","no proof")]})
+                print("ARGV_PROOF",lane,check["verdict"],json.dumps(check.get("reasons",[]))[:1200],flush=True)
+                if lane=="K0":
+                    print("K0_SCHED_DIAG",json.dumps({k:check.get(k) for k in ("cmd_path","cmd_exists","core_object_mapping","options")}),
+                          json.dumps(check.get("groups",{}).get(GROUPS[0])),flush=True)
+                print("LANE_METRICS",lane,json.dumps({"images":{n:v[0] for n,v in record.get("images",{}).items()},
+                      "sections":record.get("sizes"),"surviving_helpers":record.get("static",{}).get("helper_count"),
+                      "mlgo_tu_delta":record.get("mlgo_tu_delta"),"text_isa_bytes":record.get("isa_text"),
+                      "argv":check["verdict"],"status":record.get("status")}),flush=True)
                 (work/"kernel-matrix.json").write_text(json.dumps(results,indent=2)+"\n")
                 qual["write_table"](work,results)
                 hq["write_summary"](work,results)
                 print("KERNEL_THUMB_LANE",lane,record["status"],record.get("diagnostic",""),flush=True)
-            if lane=="K0" and record["status"]=="BLOCKED_OR_FAILED": break
         qualified=[lane for lane in ("K0","K1","K4","K5") if results.get(lane,{}).get("status")=="STATIC_MEASURED"]
         if qualified and owners is not None:
             load("kernel-modules")["build_modules"](work,s,dev,dev["input_path"](owners),qualified)

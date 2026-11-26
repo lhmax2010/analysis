@@ -1,6 +1,6 @@
 --- a/packaging/tztv-kernel.spec
 +++ b/packaging/tztv-kernel.spec
-@@ -4,8 +4,140 @@
+@@ -4,8 +4,143 @@
  export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }V=1"
 +# PM12_KERNEL_TOOLS_BEGIN
 +for pm_tool in mkdir cat clang ld.lld armv7l-tizen-linux-gnueabi-clang make grep sha256sum cut cp find xargs touch chmod sed rpm readelf; do
@@ -9,7 +9,7 @@
 +# Local 0012f trial, instantiated once per GBS export.
 +pm_lane=@LANE@
 +export PM_KERNEL_LANE="$pm_lane"
-+export PM_KERNEL_EVIDENCE="%{_builddir}/pm0012f-evidence"
++export PM_KERNEL_EVIDENCE="/var/tmp/pm0013d-evidence"
 +pm_tools="%{_builddir}/.pm0012f-tools"
 +mkdir -p "$pm_tools" || exit 2
 +export PM_REAL_CLANG="$(command -v clang)" PM_REAL_MAKE="$(command -v make)"
@@ -95,7 +95,7 @@
 +out=${KBUILD_OUTPUT:-.}
 +for arg do case "$arg" in O=*) out=${arg#O=};; esac; done
 +case "$out" in /*) tree=$out;; *) tree=$directory/$out;; esac
-+if [ -s "$tree/kernel/sched/core.o.pm0012f-options" ] && [ -s "$tree/arch/arm/boot/zImage" ] &&
++if [ -s "$tree/arch/arm/boot/zImage" ] &&
 +   [ -s "$tree/.config" ] && [ -s "$tree/vmlinux" ]; then
 +    (
 +        set -eu
@@ -104,7 +104,10 @@
 +        dest=$PM_KERNEL_EVIDENCE/$hash
 +        test ! -e "$dest/complete" || exit 0
 +        mkdir -p "$dest"
-+        cp --parents -t "$dest" -- .config vmlinux System.map arch/arm/boot/zImage kernel/sched/core.o.pm0012f-options
++        cp --parents -t "$dest" -- .config vmlinux System.map arch/arm/boot/zImage
++        for f in kernel/sched/core.o kernel/sched/core.o.pm0012f-options arch/arm/boot/Image; do
++            if [ -f "$f" ]; then cp --parents -t "$dest" -- "$f"; fi
++        done
 +        if [ -d vmlinux.pm0012k-link ]; then cp -R vmlinux.pm0012k-link "$dest/"; fi
 +        find . -type f -name '.*.o.cmd' -exec cp --parents -t "$dest" -- {} +
 +        # Keep the individual ELF objects needed for caller attribution. Preserve NUL-delimited names.
@@ -144,7 +147,7 @@
 +    pm_elf=$pm_tool
 +    printf 'GBS_TOOL %%s invoked %%s\n' "$pm_tool" "$pm_elf"
      if command -v readelf >/dev/null; then
-@@ -14,3 +146,3 @@
+@@ -14,3 +149,3 @@
      sha256sum "$pm_elf" | sed 's/^/GBS_TOOL_SHA256 /'
 -    rpm -qf "$pm_elf" --qf 'GBS_TOOL_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :
 +    rpm -qf "$pm_elf" --qf 'GBS_TOOL_PATH_OWNER %%{NAME} %%{VERSION}-%%{RELEASE}.%%{ARCH}\n' || :

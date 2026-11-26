@@ -1,0 +1,102 @@
+### PART 1: kernel relaunch (pin 5a692bc) operator transcript
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (
+set -eu -o pipefail
+cd /home1/chengkai/vd-tree
+p=5a692bca11e88830955df5c174bd0675bc2da5cb
+d=$(mktemp -d "$PWD/workspace/temp/pm0012w-launch.XXXXXX")
+export PM12_REUSE_KERNEL_JOB="$PWD/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb"
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0012r/reviewed-run.sh.txt" -o "$d/run"
+printf '%s  %s\n' 2afd47e386fa3d4f95f0271bb5136c6eb874c84963570acba1dae95af63e1d38 "$d/run" | sha256sum -c -
+rc=0
+bash "$d/run" "$p" 34007ce035d5d89b9f21ab7baed085f6e68a6949fc97286ca6f48906abd66707 a984c67ad51ee218c32a0e138ee45d1dfc09ad31e1996a510bf89ebb16aca2a7 kernel | tee "$d/launch.log" || rc=$?
+job=$(awk '$1=="PM12_BATCH_DIR"{print $2;exit}' "$d/launch.log")
+if [[ "$job" == "$PWD/workspace/temp"/pm0012-kernel.* ]]; then
+  tail -n 6 "$job/status.txt" || :
+  grep -E '^(RETAINED_|GBS_GUESS_SPEC|GBS_SOURCE_REUSED|GBS_SPEC_PREFLIGHT|GBS_START|GBS_EXIT|MLGO_TU_DELTA|KERNEL_THUMB_LANE|KERNEL_THUMB_BLOCKED)' "$job/jobs/kernel-thumb/job.log" | cut -c1-800 | head -80 || :
+fi
+exit "$rc"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0012w-launch.MfOPBK/run: OK
+User hao.lin ticket expires in 8 hours 43 minutes.
+PM12_BATCH_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN
+[sudo] password for chengkai:
+2026-11-26T17:56:19+08:00 START kernel
+2026-11-26T17:56:40+08:00 JOB kernel-thumb START
+2026-11-26T18:25:40+08:00 JOB kernel-thumb END rc=2
+2026-11-26T18:25:40+08:00 DONE kernel rc=1
+RETAINED_LOG git-add.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG git-commit.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG base-print.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG shelf.log 4958 e3ebefa63f3e9f8b926e45ba42d101d7b9c7d8f2978dbdc86914ed489dc3d53a
+RETAINED_TRACKED_SPECS ['linux-6.12/scripts/package/kernel.spec', 'packaging/tztv-kernel.spec']
+RETAINED_PACKAGING_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/gbs.conf <unset; default packaging>
+RETAINED_PACKAGING_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux/.gbs.conf <unset; default packaging>
+GBS_GUESS_SPEC WC.UNTRACKED 0 packaging/tztv-kernel.spec
+GBS_SOURCE_REUSED /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux 962eb82dc2246ea3a05e5565836d0e81ce8cd955 P4_FETCH_SKIPPED
+GBS_GUESS_SPEC HEAD 0 packaging/tztv-kernel.spec
+GBS_SPEC_PREFLIGHT_PASS K0 adb19a70f00fa43f6b9bd2fff349223a1acfe0a3 packaging/tztv-kernel.spec ab1ceffed3babf05a3c74e61f934e04e4a589287006e68c6b9e1abdef689f621
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/shared/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/shared/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/published-build.conf --threads 1 --spec tztv-kernel.spec --packaging-dir packaging LOG /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/K0/gbs.log
+GBS_EXIT 0
+KERNEL_THUMB_LANE K0 BLOCKED_OR_FAILED missing effective compile flags for ['kernel/sched/']
+KERNEL_THUMB_BLOCKED kernel matrix or K0 qualification incomplete; see kernel-matrix.json
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$
+
+### PART 2: read-only K0 diagnostic
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (
+j=/home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb
+cd "$j" || exit 1
+echo "== DIR"; ls -1 | head -30
+echo "== JOBLOG"; tail -n 25 job.log | cut -c1-400
+f=$(find . -maxdepth 2 -name 'kernel-matrix.json' | head -1); echo "== MATRIX $f"
+[ -n "$f" ] && python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print("KEYS",list(d)[:20]);s=json.dumps(d,sort_keys=True);i=s.find("kernel/sched");print(s[max(0,i-1500):i+1500] if i>=0 else s[:3000])' "$f"
+b=$(find shared/GBS-ROOT/local/BUILD-ROOTS -maxdepth 6 -type d -path '*rpmbuild/BUILD' 2>/dev/null | head -1); echo "== BUILD $b"
+if [ -n "$b" ]; then s=$(find "$b" -maxdepth 6 -type d -path '*kernel/sched' 2>/dev/null | head -1); echo "SCHED $s"; [ -n "$s" ] && ls -la "$s" | grep -E '\.o$|\.cmd$' | head -20; fi
+echo "== K0 sched lines $(grep -c 'kernel/sched/' K0/gbs.log)"; grep 'kernel/sched/' K0/gbs.log | head -5 | cut -c1-300
+)
+== DIR
+job.log
+K0
+kernel-lanes.tsv
+kernel-matrix.json
+official.config
+outline-interaction.json
+outliner-lanes.tsv
+shared
+symbols
+vdlinux
+== JOBLOG
+RETAINED_LOG git-commit.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG base-print.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG shelf.log 4958 e3ebefa63f3e9f8b926e45ba42d101d7b9c7d8f2978dbdc86914ed489dc3d53a
+RETAINED_TRACKED_SPECS ['linux-6.12/scripts/package/kernel.spec', 'packaging/tztv-kernel.spec']
+RETAINED_PACKAGING_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/gbs.conf <unset; default packaging>
+RETAINED_PACKAGING_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux/.gbs.conf <unset; default packaging>
+GBS_GUESS_SPEC WC.UNTRACKED 0 packaging/tztv-kernel.spec
+GBS_SOURCE_REUSED /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux 962eb82dc2246ea3a05e5565836d0e81ce8cd955 P4_FETCH_SKIPPED
+patching file packaging/tztv-kernel.spec
+Hunk #1 succeeded at 147 (offset 143 lines).
+Hunk #2 succeeded at 289 (offset 143 lines).
+GBS_DEPENDENCY_PRODUCT_LIVE http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/
+CAPACITY disk_free_gib 152 ram_available_gib 74
+GBS_GUESS_SPEC HEAD 0 packaging/tztv-kernel.spec
+GBS_SPEC_PREFLIGHT_PASS K0 adb19a70f00fa43f6b9bd2fff349223a1acfe0a3 packaging/tztv-kernel.spec ab1ceffed3babf05a3c74e61f934e04e4a589287006e68c6b9e1abdef689f621
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/shared/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.RhOLRN/jobs/kernel-thumb/shared/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/published-build.conf --threads 1 --spec tztv-kern
+GBS_EXIT 0
+GBS_RPM clang 0 22.1.8 9.1 armv7l
+GBS_RPM clang-accel-x86_64-armv7l 0 0.4 2.4 armv7l
+GBS_RPM llvm 0 22.1.8 9.1 armv7l
+THUMB_WRAPPED_COMPILE_LINES 0
+K0_REPRODUCTION {"config_bytes_equal": true, "image_size_pairs": {"uImage": [11348968, 11348968], "zImage": [5326504, 5326464]}, "k0_build_id": "c947e4e12296014344d32c50e9ff70a511fe5538", "official_build_id": "419813f26f2d03bee00bde1d7173b0c2fd887530", "official_payload_sha256": "6073c4278bf03cdcd7c978cea072682444081f3a8764e52cde08ffce43836e83", "section_comparison": "NO_MATCHED_ELF", "sections":
+KERNEL_THUMB_LANE K0 BLOCKED_OR_FAILED missing effective compile flags for ['kernel/sched/']
+KERNEL_THUMB_EXTERNAL DEFERRED_INSTALLED_OWNERS; image membership required only for external-module validation
+KERNEL_THUMB_BLOCKED kernel matrix or K0 qualification incomplete; see kernel-matrix.json
+== MATRIX ./kernel-matrix.json
+KEYS ['K0']
+{"K0": {"compiler_paths": {"/bin/armv7l-tizen-linux-gnueabi-clang": "/usr/bin/clang-22", "/bin/clang": "/usr/bin/clang-22", "/emul/usr/bin/clang": "/emul/usr/bin/clang-22"}, "config_delta": {}, "diagnostic": "missing effective compile flags for ['kernel/sched/']", "file_diagnostics": {"gbs.log": ["[   91s]   if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-arch-fallback.h)\" != \"$(sed '$d' include/linux/atomic/atomic-arch-fallback.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-arch-fallback.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-arch-fallback.h", "[   91s]   if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-instrumented.h)\" != \"$(sed '$d' include/linux/atomic/atomic-instrumented.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-instrumented.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-instrumented.h", "[   91s]   if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-long.h)\" != \"$(sed '$d' include/linux/atomic/atomic-long.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-long.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-long.h", "[  423s]   if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux
+== BUILD
+== K0 sched lines 70
+[  102s]   clang -Wp,-MMD,drivers/samsung/hld/.hld.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/l
+[  105s]   clang -Wp,-MMD,drivers/samsung/hld/.lockup_info.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./i
+[  106s]   clang -Wp,-MMD,drivers/samsung/hld/.lockup_debug.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./
+[  187s] # CC      kernel/sched/core.o
+[  187s]   clang -Wp,-MMD,kernel/sched/.core.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/k

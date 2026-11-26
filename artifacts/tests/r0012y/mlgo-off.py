@@ -29,10 +29,13 @@ for lane,off in (("K0",False),("K1",False),("K2",True),("K3",True)):
         flags="" if off else "-mllvm -enable-ml-inliner=release -mllvm -regalloc-enable-advisor=release"
         for g in matrix["GROUPS"]:
             p=t/g;p.mkdir(parents=True)
-            cmd=f'clang -D__KERNEL__ -c {g}core.c -marm {flags}'
+            cmd=f'clang -D__KERNEL__ -c -o {g}core.o {g}core.c -marm {flags}'
             (p/'.core.o.cmd').write_text('cmd := '+cmd+(' -moutline' if lane in ("K1","K3") else ''))
         mode='default' if off else 'release'
         (t/'kernel/sched/core.o.pm0012f-options').write_text(''.join(f'--{name} = {mode}\n' for name in matrix["ADVISORS"]))
-        argv,_=matrix["argv_proof"](t,lane)
+        log=t/"gbs.log";log.touch()
+        proof=matrix["argv_proof"](t,lane,log)
+        assert proof["verdict"]=="PASS",proof
+        argv=proof["samples"]
         assert matrix["advisor_argv"](argv["kernel/sched/"])==flags.split()
 print("PASS K0-K3 parent edit, effective config drift gate and scheduler argv comparison")
