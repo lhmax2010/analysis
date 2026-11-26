@@ -508,3 +508,7 @@ PM accepted 37777148/37777264 for the board comparison. Both have matching Produ
 ### 0013d · reuse K0 for tonight's kernel matrix
 
 Use the retained RhOLRN K0 receipt and RPMs. Build K1–K5 and give each lane an independent flag-proof verdict. Keep raw measurements when argv evidence is incomplete. Cross-image attribution still requires the existing reproduction gates. [Decision and evidence](../comms/codex_to_claude/0013d_reply.md)
+
+### 0013c · package work alongside the kernel
+
+Keep commands 1 and 3 at 9047570. Run the revised package worker in a separate attended terminal under the pkg lock. Give the kernel scheduling priority, wait on RAM-only shortfall, and end the package run on expired credentials or a disk-floor breach. [PM review](../comms/claude_to_codex/0013c_codex_pkg_sudo_p4_fix.md) · [Implementation](../comms/codex_to_claude/0013c_reply.md)
