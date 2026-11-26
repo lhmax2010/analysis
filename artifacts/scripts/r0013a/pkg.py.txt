@@ -1,0 +1,193 @@
+"""Single low-priority package worker. Never imports or acquires the kernel lock."""
+from collections import Counter
+from datetime import datetime,timezone,timedelta
+from pathlib import Path
+from types import SimpleNamespace
+import configparser
+import fcntl
+import hashlib
+import json
+import os
+import re
+import runpy
+import shutil
+import shlex
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+HERE=Path(__file__).resolve().parent
+WS=Path("/home1/chengkai/vd-tree/workspace")
+CUTOFF=datetime(2026,11,27,9,30,tzinfo=timezone(timedelta(hours=8))).timestamp()
+def lib(n):return runpy.run_path(str(HERE/(n+".py.txt")))
+class Stop(Exception):pass
+def capacity():
+    if time.time()>=CUTOFF:raise Stop("Friday 09:30 CST cutoff")
+    if shutil.disk_usage(HERE).free<60*1024**3:raise Stop("60 GiB free-space floor")
+def run_owned(cmd,cwd,log,timeout,check=True):
+    capacity()
+    with log.open("wb") as out:
+        with subprocess.Popen(cmd,cwd=cwd,stdout=out,stderr=subprocess.STDOUT,start_new_session=True) as p:
+            end=time.time()+timeout
+            try:
+                while p.poll() is None:
+                    capacity()
+                    if time.time()>end:raise Stop("command time budget")
+                    try:p.wait(timeout=min(10,max(.1,CUTOFF-time.time())))
+                    except subprocess.TimeoutExpired:pass
+            finally:
+                if p.poll() is None:
+                    os.killpg(p.pid,signal.SIGTERM)
+                    try:p.wait(timeout=30)
+                    except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait()
+    if check and p.returncode:raise ValueError(f"{cmd[0]} exit {p.returncode}: {log}")
+    return p.returncode
+def rank(inv,targets,scan,repo):
+    sizes=Counter()
+    gaps=set()
+    for r in inv:
+        src=source(r["srpm"])
+        names=targets & {src,r["name"]}
+        if not names or r["arch"] not in ("armv7l","noarch") or r["name"].endswith(("-debuginfo","-debugsource")):continue
+        capacity()
+        try:
+            with tempfile.TemporaryDirectory(dir=HERE) as tmp:
+                rpm=repo["cached_rpm"]((r["url"],r["sha256"]),Path(tmp))
+                with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as p:
+                    for path,data in scan["cpio_entries"](p.stdout):
+                        for _,blob in scan["elf_items"](path,data):
+                            if blob[4:6]!=b"\x01\x01" or int.from_bytes(blob[16:18],"little") not in (2,3):continue
+                            ss=scan["secs_of"](blob)
+                            for name in names:sizes[name]+=sum(s[5] for n,s in ss or [] if n==".text")
+                    if p.wait():raise ValueError("rpm2cpio")
+        except Exception as e:gaps.update(names);print("RANK_GAP",r["name"],str(e)[:250])
+    return {k:v for k,v in sizes.items() if k not in gaps}
+def source(s):return s.removesuffix(".src.rpm").rsplit("-",2)[0]
+def gcc_compare(settings,treatment,folder):
+    gcc=WS/"qb-evidence/37564293-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1"
+    led=gcc/"rpm-identities.tsv"
+    ident=json.loads((gcc/"identity.json").read_text())
+    if settings.lib["file_sha"](led)!=ident["files"][led.name]:raise ValueError("GCC ledger digest")
+    published=settings.ole["rows_from"](led)
+    pilot=lib("pilot")
+    root,=(folder/"treatment/GBS-ROOT/local/BUILD-ROOTS").glob("scratch.armv7l.*")
+    tool=pilot["Tools"](root)
+    by={}
+    for row in treatment["metrics"]["files"]:by[row["rpm"],row["path"]]=folder/"treatment/elf-proof"/(row["sha256"]+".elf")
+    compared={}
+    for name in {k[0] for k in by}:
+        rr,=[r for r in published if r["name"]==name and r["arch"]=="armv7l"]
+        with tempfile.TemporaryDirectory(dir=folder) as stage:
+            p=Path(stage)
+            rpm=settings.lib["cached_rpm"]((rr["url"],rr["sha256"]),p)
+            with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as proc:
+                for path,data in settings.scan["cpio_entries"](proc.stdout):
+                    for logical,blob in settings.scan["elf_items"](path,data):
+                        k=(name,logical)
+                        if k not in by:
+                            if settings.scan["classify"](blob):compared[str(k)]={"scope":"GCC_ONLY_OR_NONLOADABLE_REVIEW"}
+                            continue
+                        elf=p/"gcc.elf";elf.write_bytes(blob)
+                        left=pilot["abi"](tool,elf)
+                        right=pilot["abi"](tool,by[k])
+                        compared[str(k)]=("ABI_FALLBACK_PASS" if left==right else {"removed":list((Counter(left[0])-Counter(right[0])).elements()),"added":list((Counter(right[0])-Counter(left[0])).elements()),"tags":[left[1],right[1]]})
+                if proc.wait():raise ValueError("GCC RPM read failure")
+    missing=[str(k) for k in by if str(k) not in compared]
+    return {"rows":compared,"missing":missing,"pass":bool(by) and not missing and all(v=="ABI_FALLBACK_PASS" for v in compared.values())}
+def n4_proof(folder,label,receipt):
+    on=label=="treatment"
+    rows=(folder/label/"driver-argv.txt").read_text().splitlines()
+    phases=Counter()
+    gaps=[]
+    for row in rows:
+        if not row.startswith("PM12_DRIVER "):continue
+        words=shlex.split(row)
+        if words[1] not in ("compile","link","compile-link"):continue
+        hook=next((s[5:] for s in words if s.startswith("HOOK=")),"")
+        options=[x.removeprefix("+") for x in words+shlex.split(hook)]
+        lto=[x for x in options if x in ("-flto","-fno-lto") or x.startswith("-flto=")]
+        if not lto or (lto[-1]!="-fno-lto")!=on:gaps.append(row)
+        phases[words[1]]+=1
+    linklines=(folder/label/"link-argv.txt").read_text().splitlines()
+    plugin=[l for l in linklines if "LLVMgold.so" in l or "ld.lld" in l]
+    proof=receipt["delivery"]
+    eligible=bool(not receipt["error"] and phases["compile"] and phases["link"] and linklines and (plugin or not on) and not gaps
+                  and proof["dwarf_option_proof"] and not proof["missing_dwarf_elfs"] and not proof["response_unresolved"])
+    return {"pass":eligible,"phases":dict(phases),"inconsistent_calls":gaps,"plugin_link_count":len(plugin)}
+
+def worker():
+    tracks=lib("tracks"); ole=lib("olevel"); dev=lib("development"); repo=lib("image-repo-lib");scan=lib("image_mode_scan")
+    inv=tracks["inventories"](HERE)
+    cap=tracks["CAP"]
+    product,buildconf,_=ole["capture_identity"](cap)
+    conf=WS.parent/"config/gbs_vd_llvm_11.16_qb37777148.conf"
+    template=conf.read_bytes()
+    cfg=configparser.ConfigParser(interpolation=None);cfg.read_string(template.decode())
+    profile=cfg["general"]["profile"]
+    urls=[cfg[n.strip()]["url"].rstrip("/")+"/" for n in cfg[profile]["repos"].split(",")]
+    if urls!=[product,repo["PREFIX"]+"20261113.1/"]:raise ValueError("GBS repo/order disagrees with capture")
+    def configure(gbs,data,root,url):
+        if not root.resolve().is_relative_to(HERE) or root.exists():raise ValueError("root must be new and private")
+        return re.sub(rb"(?m)^(\s*buildroot\s*=)[^\r\n]+",lambda m:m[1]+b" "+os.fsencode(root),data,count=1)
+    if len(re.findall(rb"(?m)^\s*buildroot\s*=",template))!=1:raise ValueError("ambiguous GBS root in template")
+    gbs=SimpleNamespace(**lib("gbs-mlgo-t7"));gbs.execute=run_owned
+    ole["configure_gbs"]=configure
+    settings=SimpleNamespace(gbs=gbs,lib=repo,scan=scan,ole=ole,stager=lib("thumb-qb-sample"),thumb=lib("gbs-thumb"),
+       inventories={k:[r for r in inv if r["repo"]==k] for k in ("Product","Base")},config=template,product=product,buildconf=buildconf)
+    rows=tracks["loadrows"](HERE/"olevel.tsv")
+    n5=[r["doc_source"] for r in rows if int(r["rank"])>4]
+    n4=[r[1] for r in tracks["markdown_rows"](HERE/"doc05.md")[4:80]]
+    rs=json.loads((HERE/"recipes.json").read_text())["experiments"]
+    targets=set(n4+n5+rs["R4-50"]["packages"]+rs["R5"]["packages"])
+    sizes=rank(inv,targets|{"libtvs-core"},scan,repo)
+    if "libtvs-core" in sizes:sizes["tvs-core"]=sizes["libtvs-core"]
+    def order(names):return sorted((n for n in names if n in sizes),key=lambda n:(-sizes[n],n))
+    plan=[("N5",n) for n in order(n5)]+[("N4",n) for n in order(n4)[:10]]
+    for key in ("R4-50","R5"):plan.extend((key,n) for n in order(rs[key]["packages"]))
+    (HERE/"pkg-plan.json").write_text(json.dumps(dict(plan=plan,unranked=sorted(targets-set(sizes)),bytes=sizes)))
+    print("PKG_PLAN",len(plan),"unranked",sorted(targets-set(sizes)),flush=True)
+    for idx,(key,n) in enumerate(plan):
+        capacity()
+        work=HERE/(f"{idx:03d}-"+key+"-"+n);work.mkdir()
+        result={"step":key,"package":n,"source_assumption":"Product P4 pin plus retained Nov16 shelf list; new submission list unproved"}
+        try:
+            if n=="libgcrypt":raise ValueError("intentional low-level CU exceptions require a reviewed per-file allowlist; no blanket -Os")
+            row,candidates,names=dev["resolve"](settings,"libtvs-core" if n=="tvs-core" else n)
+            names={v for v in names if not v.endswith(("-debugsource","-debuginfo"))}
+            if row["repository"]=="Base":
+                sr,={r["srpm"] for r in candidates}
+                archive=lib("matched-qb")["find_srpm"](repo,"official",work,sr)
+                src,spec=ole["stage_srpm"](sr,dict(path=str(archive),sha256=gbs.sha(archive)),work)
+            else:
+                shelves=gbs.pinned(WS.parent/"manifest/tizen10.0_shelves_1116_ffmpeg_seek_ltoexp2.txt",ole["SHELVES"])
+                src,spec=ole["source_for"](gbs,repo,settings.stager,row,candidates,shelves,{},work)
+            original=spec.read_text();spec.chmod(spec.stat().st_mode|0o200)
+            gbs.local_git(src,work)
+            recipe=rs[key] if key in rs else dev["base_recipe"](key)
+            if key=="N5":recipe["treatment"]["compile"]=["-Os"]
+            if key=="N4":
+                for label,opt in (("baseline","-fno-lto"),("treatment","-flto")):
+                    recipe[label]=dict(compile=[opt],link=[opt],plugin=[])
+            recipe["workspace_policy_macros"]=True
+            lanes={}
+            for label in ("baseline","treatment"):
+                capacity()
+                lanes[label]=dev["lane_build"](settings,src,spec,original,work,names,recipe,label,HERE)
+                if lanes[label]["error"]:raise ValueError(str(lanes[label]["error"]))
+            result["lanes"]={k:{"bytes":i["metrics"]["total"],"proof":i["delivery"],"link":i["link_argv_path"]} for k,i in lanes.items()}
+            scope=dev["matching_binary_scopes"](*(lanes[k]["metrics"] for k in ("baseline","treatment")))
+            result["delivery"]=all(i["delivery"]["observed"] for i in lanes.values()) and scope!="ELF_SCOPE_CHANGED"
+            if key=="N4":
+                result["driver_cu_link"]={k:n4_proof(work,k,v) for k,v in lanes.items()}
+                result["delivery"]=scope!="ELF_SCOPE_CHANGED" and all(v["pass"] for v in result["driver_cu_link"].values())
+                result["gcc_abi"]=gcc_compare(settings,lanes["treatment"],work)
+        except (OSError,ValueError,KeyError,subprocess.SubprocessError) as exc:result["error"]=str(exc)
+        with (HERE/"pkg-results.jsonl").open("a") as f:f.write(json.dumps(result)+"\n")
+        print("PKG_RESULT",key,n,result.get("delivery","REVIEW"),str(result.get("error",""))[:180],flush=True)
+if __name__=="__main__":
+    with (WS/"temp/pm0013-pkg.lock").open("a") as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        try:capacity();worker()
+        except Stop as reason:print("PKG_STOP",reason,flush=True)

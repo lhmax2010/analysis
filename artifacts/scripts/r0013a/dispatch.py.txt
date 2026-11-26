@@ -1,0 +1,81 @@
+"""Native orchestration, receipt gates and compact evidence export."""
+import base64
+import csv
+import hashlib
+import io
+import json
+from pathlib import Path
+import re
+import runpy
+import sys
+import tarfile
+import zlib
+
+HERE=Path(__file__).resolve().parent
+WS=Path("/home1/chengkai/vd-tree/workspace")
+def sha(data):return hashlib.sha256(data).hexdigest()
+def roster_gate(receipt,pin):
+    p=Path(receipt).resolve(strict=True)
+    if p.name!="pilot.json" or p.parent.parent!=WS/"temp" or not p.parent.name.startswith("pm0013-bce."):raise ValueError("invalid pilot receipt location")
+    b=p.read_bytes()
+    if sha(b)!=pin:raise ValueError("pilot receipt SHA-256 mismatch")
+    r=json.loads(b)
+    if r["job"]!=str(WS/"temp/pm0012-pilot.WRwYTx/jobs/thumb-org.tizen.AVControl") or r["passed"] is not True:raise ValueError("pilot host pass required")
+    for label in ("default","package"):
+        lane=r["rows"][label]
+        if lane["driver_config_and_IT"]!="PASS" or lane["gates"]["T8"]!="N/A":raise ValueError("pilot scope or config")
+        for i in range(1,8):
+            if lane["gates"]["T"+str(i)] not in (("N/A","PASS") if i==5 else ("PASS",)):raise ValueError("pilot gate "+str(i))
+def installed_edges(previous):
+    """Restrict the published import screen to exact paths and bytes on new Official."""
+    index=HERE/"image-37777148.tsv"
+    with index.open() as f:image={(r["path"],r["sha256"]) for r in csv.DictReader(f,delimiter="\t")}
+    matched=set()
+    for line in (previous/"elfs.jsonl").open():
+        row=json.loads(line)
+        if (row["path"],row["sha256"]) in image:matched.add((row["source"],row["path"]))
+    n=0
+    with (HERE/"r2-installed.jsonl").open("w") as out:
+        for line in (previous/"r2-provider-consumer.jsonl").open():
+            sym,s,p,t,q,kind=json.loads(line)
+            if (s,p) in matched and (t,q) in matched:out.write(line);n+=1
+    print("E5_INSTALLED_EDGE_CANDIDATES",n,"matched ELF identities",len(matched))
+
+
+def pack():
+    outputs=list(HERE.glob("*.jsonl"))+list(HERE.glob("image-*.tsv"))+list(HERE.glob("a32-*.json"))
+    outputs += [p for p in (HERE/"pilot.json",HERE/"images.json",HERE/"pkg-plan.json",HERE/"sizes.json",HERE/"linkers.json") if p.exists()]
+    with tarfile.open(HERE/"tables.tar","w") as tar:
+        for p in sorted(outputs):tar.add(p,arcname=p.name,recursive=False)
+    encoded=HERE/"tables.zlib"
+    h=hashlib.sha256()
+    stream=zlib.compressobj(6)
+    with (HERE/"tables.tar").open("rb") as src,encoded.open("wb") as dest:
+        for chunk in iter(lambda:src.read(1<<20),b""):
+            h.update(chunk);dest.write(stream.compress(chunk))
+        dest.write(stream.flush())
+    count=(encoded.stat().st_size+23999)//24000
+    print("TABLES_TAR_SHA256",h.hexdigest(),"PACKET_PARTS",count,"NATIVE_RUN",HERE)
+    if count:page(1)
+    if count>1:print("NEXT_PAGE",f"python3 -B {HERE}/dispatch.py.txt page 2","through",count)
+def page(num):
+    f=HERE/"tables.zlib"
+    with f.open("rb") as r:
+        if num<1:raise ValueError("page starts at 1")
+        r.seek((num-1)*24000);data=r.read(24000)
+    if not data:raise ValueError("page out of range")
+    print("TABLES_ZLIB_PART",num,sha(data),base64.b64encode(data).decode())
+if __name__=="__main__":
+    if sys.argv[1]=="pack":pack()
+    elif sys.argv[1]=="page":page(int(sys.argv[2]))
+    elif sys.argv[1]=="roster":
+        import fcntl
+        roster_gate(*sys.argv[2:])
+        perf=runpy.run_path(str(HERE/"perf-bundle.py.txt"))
+        with (WS/"temp/pm0012-queue.lock").open("a") as queue:
+            fcntl.flock(queue,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            with perf["locks"]():
+                passed=runpy.run_path(str(HERE/"images.py.txt"))["read_images"]("roster")
+        if passed and (Path(sys.argv[2]).parent/"elfs.jsonl").is_file():
+            installed_edges(Path(sys.argv[2]).parent)
+        sys.exit(0 if passed else 2)

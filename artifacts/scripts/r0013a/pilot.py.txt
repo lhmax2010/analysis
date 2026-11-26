@@ -1,0 +1,537 @@
+"""Offline review of the retained three GBS lanes. Never invoke a build."""
+from bisect import bisect_right
+from collections import Counter, defaultdict
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import posixpath
+import re
+import runpy
+import shlex
+import shutil
+import struct
+import subprocess
+import sys
+
+HERE=Path(__file__).resolve().parent
+WS=Path("/home1/chengkai/vd-tree/workspace")
+JOB=WS/"temp/pm0012-pilot.WRwYTx/jobs/thumb-org.tizen.AVControl"
+AV="org.tizen.AVControl"
+OFF_SHA="fa474d0ea3a18677dceec81deeecc50123e9a31f9c113bb45e0050122626c209"
+VERSION="22.1.8"
+
+
+def lib(name):
+    return runpy.run_path(str(HERE/(name+".py.txt")))
+
+
+def command(args, *, diagnostics=False, **kw):
+    p=subprocess.run(args, capture_output=True, timeout=240, **kw)
+    if p.returncode:
+        raise ValueError(f"{args[0]} rc={p.returncode}: "+(p.stderr or p.stdout)[-500:].decode(errors="replace"))
+    return (p.stdout+(p.stderr if diagnostics else b"")).decode(errors="replace")
+
+
+def unique(paths):
+    items=sorted(set(paths))
+    if len(items)!=1: raise ValueError(f"expected one match, found {len(items)}: {items[:3]}")
+    return items[0]
+
+
+def units(debug):
+    text=command(["readelf","-wi",debug])
+    rows=[]
+    current=None
+    for line in text.splitlines():
+        tag=re.match(r"\s*<\d+><[0-9a-f]+>:.*?(?:\((DW_TAG_\w+)\)|Abbrev Number: 0)",line)
+        if tag:
+            current={} if tag[1]=="DW_TAG_compile_unit" else None
+            if current is not None: rows.append(current)
+        elif current is not None:
+            att=re.search(r"DW_AT_(name|comp_dir|producer)\s*:\s*(.*)",line)
+            if att:current[att[1]]=att[2].rsplit("): ",1)[-1].strip()
+    return rows
+
+
+def buildid(path):
+    return unique(re.findall(r"Build ID: ([0-9a-f]+)",command(["readelf","-nW",path])))
+
+
+def official():
+    candidate=HERE/"official.elf"
+    folder=WS/"qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2"
+    repo,scan=lib("image-repo-lib"),lib("image_mode_scan")
+    identity=json.loads((folder/"identity.json").read_text())
+    ledger=folder/"rpm-identities.tsv"
+    if repo["file_sha"](ledger)!=identity["files"][ledger.name]:raise ValueError("Official ledger checksum")
+    with ledger.open() as f: rows=[r for r in csv.DictReader(f,delimiter="\t") if r["name"] in (AV,AV+"-debuginfo") and r["arch"]=="armv7l"]
+    debugs=[]
+    for r in sorted(rows,key=lambda r:r["name"]):
+        if r["name"]==AV and candidate.exists() and repo["file_sha"](candidate)==OFF_SHA:continue
+        try:
+            path=repo["cached_rpm"]((r["url"],r["sha256"]),HERE)
+            with subprocess.Popen(["rpm2cpio",path],stdout=subprocess.PIPE) as proc:
+                for name,blob in scan["cpio_entries"](proc.stdout):
+                    if r["name"]==AV and name.endswith("/bin/AVControl") and hashlib.sha256(blob).hexdigest()==OFF_SHA:
+                        candidate.write_bytes(blob)
+                    elif r["name"].endswith("-debuginfo") and blob[:4]==b"\x7fELF":
+                        d=HERE/(hashlib.sha256(blob).hexdigest()+".debug")
+                        d.write_bytes(blob)
+                        debugs.append(d)
+                proc.stdout.read()
+                if proc.wait(): raise ValueError("rpm2cpio")
+        except (ValueError,OSError) as exc: print("OFFICIAL_RPM_REVIEW",r["name"],str(exc))
+    if not candidate.exists() or repo["file_sha"](candidate)!=OFF_SHA:
+        raise ValueError("missing matched O1 Official AVControl ELF")
+    bid=buildid(candidate)
+    ds=[]
+    for p in debugs:
+        try:
+            if buildid(p)==bid:ds.append(p)
+        except ValueError:continue
+    return candidate,units(ds[0] if len(ds)==1 else candidate)
+
+
+def root_file(root,guest):
+    parts=list(Path(guest).parts[1:])
+    path=root
+    follows=0
+    while parts:
+        name=parts.pop(0)
+        if name=="..":
+            if path!=root:path=path.parent
+        else:path=path/name
+        if path.is_symlink():
+            target=Path(os.readlink(path))
+            path=root if target.is_absolute() else path.parent
+            parts=list(target.parts[1:] if target.is_absolute() else target.parts)+parts
+            follows+=1
+            if follows>40:raise ValueError("symlink loop in lane root")
+    return path
+
+
+class Tools:
+    """Run lane programs in a read-only view of their own root. QEMU only for ARM."""
+    def __init__(self,root):
+        self.root=root
+        self.qemu=shutil.which("qemu-arm-static")
+        self.dynamic_qemu=shutil.which("qemu-arm")
+        self.cache={}
+        self.prefix=["bwrap","--unshare-user","--uid","0","--gid","0","--unshare-net",
+                     "--ro-bind",str(root),"/","--dev","/dev","--proc","/proc",
+                     "--ro-bind",str(HERE),"/pm13","--ro-bind",str(JOB),"/pilot",
+                     "--chdir","/","--clearenv","--setenv","LC_ALL","C","--setenv","PATH","/usr/bin:/bin"]
+        if self.qemu:self.prefix+=["--ro-bind",self.qemu,"/pm-qemu"]
+
+    def arg(self,path):
+        for local,remote in ((self.root,""),(JOB,"/pilot"),(HERE,"/pm13")):
+            if path.is_relative_to(local):return remote+"/"+str(path.relative_to(local))
+        raise ValueError("file outside read-only tool mounts")
+
+    def run(self,name,*args,stdin=None):
+        if name not in self.cache:
+            errs=[]
+            for path in ("/usr/bin/"+name,"/usr/lib/llvm-22/bin/"+name,"/emul/usr/bin/"+name):
+                for exe in ([],["/pm-qemu"]) if self.qemu else ([],):
+                    cmd=self.prefix+exe+[path]
+                    try:
+                        version=command(cmd+["--version"])
+                        if not re.search(r"\bLLVM version 22\.1\.8\b",version,re.I): raise ValueError(version[:150])
+                        self.cache[name]=cmd
+                        print("LANE_TOOL",self.root.name,name,path,VERSION)
+                        break
+                    except (OSError,ValueError) as e: errs.append(str(e))
+                if name in self.cache:break
+            if name not in self.cache and (self.dynamic_qemu or self.qemu):
+                for location in ("/usr/bin/"+name,"/usr/lib/llvm-22/bin/"+name):
+                    exe=root_file(self.root,location)
+                    if not exe.is_file():continue
+                    try:
+                        hdr=command(["readelf","-h",exe])
+                        if not re.search(r"Machine:\s+ARM\s*$",hdr,re.M):continue
+                        guest=unique(re.findall(r"Requesting program interpreter: (/[^\]]+)",command(["readelf","-lW",exe])))
+                        cmd=[self.dynamic_qemu or self.qemu,"-L",str(self.root),str(root_file(self.root,guest)),
+                             "--inhibit-cache","--library-path",":".join(str(root_file(self.root,x)) for x in ("/lib","/usr/lib","/usr/lib/llvm-22/lib")),str(exe)]
+                        if not re.search(r"LLVM version 22\.1\.8\b",command(cmd+["--version"]),re.I):continue
+                        self.cache[name]=cmd
+                        break
+                    except (OSError,ValueError) as e:errs.append(str(e))
+            if name not in self.cache:raise ValueError("lane "+name+" unavailable or mismatched: "+" | ".join(errs)[:750])
+        return command(self.cache[name]+[(self.arg(a) if self.cache[name][0]=="bwrap" else str(a)) if isinstance(a,Path) else a for a in args],input=stdin)
+
+    def loader(self,elf):
+        if not (self.qemu or self.dynamic_qemu):raise ValueError("ARM QEMU unavailable")
+        interp=unique(re.findall(r"Requesting program interpreter: (/[^\]]+)",command(["readelf","-lW",elf])))
+        if not re.fullmatch(r"/(?:usr/)?lib/ld-linux[^/]*\.so\.\d+",interp):raise ValueError("unexpected ELF interpreter "+interp)
+        variants=[]
+        if self.qemu and shutil.which("bwrap"):
+            variants.append((self.prefix+["/pm-qemu"],[interp],self.arg(elf)))
+        guest=root_file(self.root,interp)
+        paths=[str(root_file(self.root,x)) for x in ("/lib","/usr/lib")]
+        variants.append(([self.dynamic_qemu or self.qemu,"-L",str(self.root)],
+                         [str(guest),"--inhibit-cache","--library-path",":".join(paths)],str(elf)))
+        errors=[]
+        for base,loader,app in variants:
+            try:
+                listing=command(base+loader+["--list",app],diagnostics=True)
+                trace=command(base+["-E","LD_TRACE_LOADED_OBJECTS=1","-E","LD_WARN=1","-E","LD_BIND_NOW=1"]+loader+[app],diagnostics=True)
+                break
+            except (OSError,ValueError) as exc:errors.append(str(exc))
+        else:raise ValueError(" | ".join(errors))
+        if not "=>" in listing or not "=>" in trace or re.search(r"not found|undefined symbol|relocation error",listing+trace,re.I):
+            raise ValueError("loader resolution: "+(listing+trace)[-700:])
+        return {"interpreter":interp,"list":listing,"relocations":trace}
+
+
+def abi(tools,elf):
+    syms=tools.run("llvm-readelf","--dyn-syms","--wide",elf)
+    rows=[]
+    for line in syms.splitlines():
+        parts=line.split()
+        if len(parts)>=8 and re.fullmatch(r"\d+:",parts[0]):
+            rows.append((parts[7],parts[3],parts[4],parts[5],parts[2],"UND" if parts[6]=="UND" else "DEFINED"))
+    if not rows:raise ValueError("empty dynsym")
+    dynamic=tools.run("llvm-readelf","-dW",elf)
+    tags=[(m[1],m[2].strip()) for m in re.finditer(r"\((NEEDED|SONAME|FLAGS|FLAGS_1)\)\s+([^\n]+)",dynamic)]
+    if not any(k=="NEEDED" for k,v in tags):raise ValueError("missing DT_NEEDED")
+    return sorted(rows),tags
+
+
+def spans(blob,sections,names=None):
+    """Return nonoverlapping half-open mapping spans, including unmarked prefixes."""
+    result=[]
+    for idx,(name,sec) in enumerate(sections):
+        if names is not None and name not in names or not sec[2]&4 or not sec[5]:continue
+        base,end=sec[3],sec[3]+sec[5]
+        marks=defaultdict(set)
+        for _,sym in sections:
+            if sym[1]!=2 or sym[9]!=16:continue
+            tab=sections[sym[6]][1]
+            strs=blob[tab[4]:tab[4]+tab[5]]
+            for off in range(sym[4],sym[4]+sym[5],16):
+                key,addr,_,_,_,sh=struct.unpack_from("<IIIBBH",blob,off)
+                if sh!=idx or not base<=addr<end:continue
+                nm=strs[key:strs.find(b"\0",key)].split(b".",1)[0]
+                if nm in (b"$a",b"$t",b"$d"):marks[addr].add(nm[1:].decode())
+        points=sorted(set(marks)|{base,end})
+        for lo,hi in zip(points,points[1:]):
+            result.append((lo,hi,next(iter(marks[lo])) if len(marks[lo])==1 else "unknown",name))
+    return sorted(result)
+
+
+def summary(ranges):
+    counts=dict.fromkeys(("a","t","d","unknown"),0)
+    for lo,hi,mode,_ in ranges:counts[mode]+=hi-lo
+    return counts
+
+
+def branch_check(tools,elf,ranges):
+    if not ranges or any(k=="unknown" for _,_,k,n in ranges if n==".text"):raise ValueError("incomplete .text mapping")
+    starts=[x[0] for x in ranges]
+    def state(addr):
+        i=bisect_right(starts,addr)-1
+        return ranges[i][2] if i>=0 and addr<ranges[i][1] else "unknown"
+    seen=Counter()
+    bad=[]
+    for mode,triple in (("a","armv7"),("t","thumbv7")):
+        if not any(r[2]==mode for r in ranges):continue
+        asm=tools.run("llvm-objdump","-d","--no-show-raw-insn","--triple="+triple+"-linux-gnueabi",elf)
+        for line in asm.splitlines():
+            m=re.match(r"\s*([\da-fA-F]+):\s+([^\s]+)\s*(.*)",line)
+            if not m or state(int(m[1],16))!=mode:continue
+            mnemonic=m[2].split(".")[0]
+            if mnemonic=="<unknown>":bad.append(line);continue
+            if not re.fullmatch(r"blx?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?",mnemonic):continue
+            target=re.match(r"(?:#)?0x([0-9a-f]+)\b",m[3],re.I)
+            if not target:
+                if mnemonic.startswith("blx") and re.match(r"(?:r\d+|ip|lr)\b",m[3]):
+                    seen["indirect"]+=1;continue
+                bad.append(line);continue
+            dest=state(int(target[1],16)&~1)
+            seen["direct"]+=1
+            if dest not in ("a","t") or (dest!=mode)!=mnemonic.startswith("blx"):bad.append(line)
+    if bad or not seen["direct"]:raise ValueError(f"direct branch review {seen} issues={len(bad)} {bad[:4]}")
+    return dict(seen)
+
+
+def canonical(name,base):
+    return posixpath.normpath(posixpath.join(base,name))
+
+
+def match_cus(cus,sources,base):
+    normalized={canonical(n,base) for n in sources}
+    matched=set()
+    unused=[]
+    for cu in cus:
+        if not cu.get("name"):continue
+        name=cu.get("name","")
+        key=canonical(name,cu.get("comp_dir",base))
+        exact={key}&normalized
+        if not exact:
+            # Different debug-prefix mappings: require a unique multi-component suffix.
+            bits=Path(key).parts
+            for i in range(len(bits)-1):
+                suffix="/".join(bits[i:]).lstrip("/")
+                matches={p for p in normalized if p.endswith("/"+suffix) or p==suffix}
+                if matches:
+                    if len(matches)==1:exact=matches
+                    break
+        if exact and cu.get("producer"):matched.update(exact)
+        else:unused.append(key)
+    return sorted(normalized-matched),unused
+
+
+def plans(lane,root):
+    old=lib("lto-delivery")
+    build=root/"home/abuild/rpmbuild/BUILD"
+    plan=unique(build.rglob("CMakeFiles/AVControl.dir/link.txt"))
+    cwd=plan.parents[2]
+    calls,ld,_=old["read_trace"](lane,[build])
+    links={tuple(old["expanded"](list(row[3:]),cwd)) for row in calls if row[:2]==("PM12_DRIVER","link") and Path(old["option"](row,"-o")).name=="AVControl"}
+    if len(links)>1:
+        planned=old["expanded"](shlex.split(plan.read_text().strip())[1:],cwd)
+        exact=[a for a in links if list(a)==planned]
+        if len(exact)==1:links=set(exact)
+    args=unique(links)
+    objects=[o for o in args if o.endswith(".o")]
+    if not objects:raise ValueError("AVControl link has no retained object list")
+    pairs={}
+    for o in objects:
+        matches={r[3:] for r in calls if r[:2]==("PM12_DRIVER","compile") and old["option"](r,"-o")==o}
+        if len(matches)>1:
+            usable={tuple(a for a in c if not a.startswith("HOOK=")) for c in matches}
+            if len(usable)==1:matches=usable
+        pairs[o]=unique(matches)
+    return cwd,args,pairs,ld
+
+
+def inventory(source,root,log):
+    specpath=source/"packaging"/(AV+".spec")
+    if not specpath.is_file():specpath=unique(source.glob("packaging/*.spec"))
+    spec=command(["git","-C",source,"show","HEAD:"+str(specpath.relative_to(source))])
+    lines=spec.splitlines()
+    marker=[i for i,line in enumerate(lines) if re.match(r"^%check\b",line)]
+    body=[]
+    for i in marker:
+        for j in range(i+1,len(lines)):
+            if re.match(r"^%(files|install|changelog|clean|post|pre)\b",lines[j]):break
+            if lines[j].strip() and not lines[j].lstrip().startswith("#"):body.append([j+1,lines[j]])
+    cmake=[p for p in source.rglob("*") if p.is_file() and (p.name=="CMakeLists.txt" or p.suffix==".cmake") and ".git" not in p.parts]
+    hits=[]
+    for f in cmake:
+        data=f.read_text(errors="replace")
+        for m in re.finditer(r"(?im)^\s*(add_test|gtest_discover_tests|gtest_add_tests|catch_discover_tests|ctest)\s*\(",data):
+            hits.append([str(f.relative_to(source)),data.count("\n",0,m.start())+1,m[1]])
+    configs=list(root.rglob("CTestTestfile.cmake"))
+    configured=[str(p) for p in configs if re.search(r"(?im)^\s*(add_test|subdirs|include)\s*\(",p.read_text(errors="replace"))]
+    recorded=bool(re.search(r"(?m)^(?:\[\s*[\d.]+s\]\s*)?PM_THUMB_CTEST_PASS\s*$",log))
+    evidence=dict(spec=str(specpath),check_lines=marker,check_commands=body,cmake_files=len(cmake),test_sites=hits,
+                  configured_tests=configured,build_sections=[[i+1,l] for i,l in enumerate(lines) if re.match(r"^%(build|check|install|files)",l)][:18],
+                  spec_flags=[[i+1,l] for i,l in enumerate(lines) if re.search(r"CFLAGS|CXXFLAGS|LDFLAGS|flto|optflags",l,re.I)])
+    gate="PASS" if recorded else "N/A" if cmake and not (body or hits or configured) else "REVIEW"
+    return gate,evidence
+
+
+def linked_object_ranges(cwd, objects, final, text, sections, initial):
+    """Use exact input section/address/length from a retained linker map only after a byte match."""
+    records=[]
+    for m in cwd.glob("**/*.map"):
+        if m.stat().st_size>80*1024**2:continue
+        raw=m.read_text(errors="replace")
+        for hit in re.finditer(r"(?m)^\s*(\.text(?:\.[^\s]+)?)\s+(0x[\da-fA-F]+)\s+(0x[\da-fA-F]+)\s+(\S+\.o)\s*$",raw):
+            name,va,length,obj=hit.groups()
+            if obj not in objects:continue
+            va,length=int(va,16),int(length,16)
+            delta=va-text[3]
+            if delta<0 or length<=0 or delta+length>text[5]:continue
+            objpath=(cwd/obj).resolve()
+            if not objpath.is_relative_to(cwd):continue
+            b=objpath.read_bytes()
+            ss=sections(b) or []
+            matches=[s for n,s in ss if n==name and s[5]==length and s[1]==1]
+            if len(matches)!=1:continue
+            seg=matches[0]
+            if b[seg[4]:seg[4]+length]!=final[text[4]+delta:text[4]+delta+length]:continue
+            records.extend((va+lo-seg[3],va+hi-seg[3],k) for lo,hi,k,n in spans(b,ss,{name}) if k!="unknown")
+    if not records:return initial
+    # Preserve existing final markers. Reject overlap disagreements.
+    patched=[]
+    for lo,hi,k,name in initial:
+        if name!=".text" or k!="unknown":
+            patched.append((lo,hi,k,name))
+            continue
+        hits=[(max(a,lo),min(b,hi),v) for a,b,v in records if a<hi and b>lo]
+        endpoints=sorted({lo,hi}|{x for a,b,_ in hits for x in (a,b)})
+        for a,b in zip(endpoints,endpoints[1:]):
+            modes={v for x,y,v in hits if x<=a and b<=y}
+            patched.append((a,b,modes.pop() if len(modes)==1 else "unknown",name))
+    return sorted(patched)
+
+
+def evaluate(label, previous, shipped, shipped_cus):
+    lane=JOB/label
+    gates={f"T{i}":"REVIEW" for i in range(1,9)}
+    r={"gates":gates,"errors":{}}
+    def check(key,fn):
+        try:return fn()
+        except (OSError,ValueError,RuntimeError,KeyError,IndexError,subprocess.SubprocessError) as exc:
+            r["errors"][key]=str(exc)
+            return None
+    gates["T8"]="N/A"
+    r["T8_reason"]="AVControl is a treatment, outside the explicit-assembly controls"
+    old=previous["lanes"].get(label,{})
+    gates["T3"]=old.get("gates",{}).get("T3","REFERENCE")
+    r["driver_config_and_IT"]=old.get("gates",{}).get("driver_config_and_IT","REFERENCE")
+    record=json.loads((lane/"lane.json").read_bytes())
+    if record["error"]:raise ValueError(record["error"])
+    row=unique([f["sha256"] for f in record["metrics"]["files"] if f["path"].endswith("/bin/AVControl")])
+    item=next(f for f in record["metrics"]["files"] if row==f["sha256"])
+    elf=lane/"elf-proof"/(row+".elf")
+    blob=elf.read_bytes()
+    if hashlib.sha256(blob).hexdigest()!=row or buildid(elf)!=item["build_id"]:raise ValueError("delivered ELF identity")
+    r.update(size=len(blob),sha256=row,build_id=item["build_id"])
+    root=unique((lane/"GBS-ROOT/local/BUILD-ROOTS").glob("scratch.armv7l.*"))
+    tools=Tools(root)
+    sections=lib("image_mode_scan")["secs_of"]
+    old_lto=lib("lto-delivery")
+    plan=check("link_join",lambda:plans(lane,root))
+    ds=sections(blob)
+    text=unique(s for n,s in ds if n==".text")
+    r["text"]=text[5]
+    ranges=spans(blob,ds)
+    debug=Path(item["debug_file"]) if item.get("debug_file") else elf
+    if not debug.is_file():debug=elf
+    def text_only(rs):return [i for i in rs if i[3]==".text"]
+    paths=[debug]
+    if plan:paths.insert(0,plan[0]/old_lto["option"](plan[1],"-o"))
+    for path in paths:
+        if not path.is_file() or buildid(path)!=item["build_id"]:continue
+        raw=path.read_bytes()
+        ss=sections(raw)
+        match=unique(s for n,s in ss if n==".text")
+        if match[3]!=text[3] or match[5]!=text[5]:continue
+        if match[1]!=8 and raw[match[4]:match[4]+match[5]]!=blob[text[4]:text[4]+text[5]]:continue
+        other=spans(raw,ss)
+        if summary(text_only(other))["unknown"]<summary(text_only(ranges))["unknown"]:
+            ranges=other
+            r["map_source"]=str(path)
+    if plan and summary(text_only(ranges))["unknown"]:
+        recovered=check("object_link_map",lambda:linked_object_ranges(plan[0],plan[2],blob,text,sections,ranges))
+        if recovered is not None:ranges=recovered
+    r["map"]=summary(text_only(ranges))
+    m=r["map"]
+    if sum(m.values())==text[5] and not m["unknown"] and (m["a"]>0 if label=="baseline" else m["t"]>0 and not m["a"]):gates["T2"]="PASS"
+    cus=check("dwarf",lambda:units(debug) if buildid(debug)==item["build_id"] else [])
+    def input_checks():
+        if not plan:raise ValueError("no unique executed link")
+        cwd,args,pairs,ld=plan
+        names={}
+        counts=Counter()
+        ir_names=[]
+        modes={}
+        wanted="-thumb-mode" if label=="baseline" else "+thumb-mode"
+        linking=old_lto["lto"](args)
+        compile_modes=[]
+        problems=[]
+        for obj,call in pairs.items():
+            path=(cwd/obj).resolve(strict=True)
+            if not path.is_relative_to(root):raise ValueError("object outside retained root")
+            names[obj]=unique(s for s in call if s.endswith((".c",".cpp",".cc",".cxx",".C",".S",".s")))
+            raw=path.read_bytes()
+            ss=sections(raw) or []
+            selected={n for n,s in ss if n==".text" or n.startswith(".text.")}
+            counts.update(summary(spans(raw,ss,selected)))
+            compiling=old_lto["lto"](call)
+            compile_modes.append(compiling)
+            if linking and compiling:
+                try:
+                    sec=unique(s for n,s in ss if n==".llvm.lto")
+                    ir=tools.run("llvm-dis","-o","-","-",stdin=raw[sec[4]:sec[4]+sec[5]])
+                    ids=re.findall(r'!\{!"[^"\n]*?clang version ([\d.]+)',ir)
+                    if set(ids)!={VERSION}:raise ValueError(f"unverified producer {ids}")
+                    modes[obj]=old_lto["ir_modes"](ir)
+                    if set(modes[obj])!={wanted}:raise ValueError(str(modes[obj]))
+                    # Match a debug compile unit's DIFile to this actual compile source.
+                    for ref in re.findall(r'!DICompileUnit\([^\n]*?file: !(\d+)',ir):
+                        f=re.search(r'^!'+ref+r' = !DIFile\(filename: "([^"]+)", directory: "([^"]*)"',ir,re.M)
+                        if f:ir_names.append({"name":f[1],"comp_dir":f[2],"producer":"matched LLVM IR"})
+                except (OSError,ValueError,subprocess.SubprocessError) as exc:problems.append([obj,str(exc)])
+        r.update(link_argv=args,compile_argv=pairs,object_mapping_sum=dict(counts),function_modes=modes,
+                 lto_link=linking,lto_compile_count=sum(compile_modes),object_count=len(pairs),ir_gaps=problems)
+        complete_ld=any(Path(old_lto["option"](v,"-o")).name=="AVControl" and all(o in old_lto["expanded"](v,cwd) for o in pairs)
+                        and ("LLVMgold.so" in " ".join(v) or "ld.lld" in " ".join(v)) for v in ld)
+        r["lto_linker_delivery"]=complete_ld
+        missing,_=match_cus((cus or [])+(ir_names if complete_ld else []),names.values(),str(cwd))
+        proof=record.get("delivery",{})
+        remaining=old.get("compile_inputs_without_retained_cu",[])
+        joined={Path(n).name for n in names.values()}
+        extra=set(remaining)-joined
+        probe=re.compile(r'(?:^|/)CMakeFiles/(?:[^/]+/)?CompilerId(?:C|CXX)/CMake(?:C|CXX)CompilerId\.(?:c|cpp)$')
+        calls,_,_=old_lto["read_trace"](lane,[root/"home/abuild/rpmbuild/BUILD"])
+        probes={Path(s).name for c in calls for s in c if probe.search(s)}
+        r.update(unjoined=missing,extra_compile_names=sorted(extra-probes),excluded_configure=sorted(probes))
+        if cus and not missing and not (extra-probes) and not previous.get("asm") and not proof.get("missing_dwarf_elfs"):gates["T7"]="PASS"
+        if problems or proof.get("response_unresolved") or any(a.endswith((".a",".bc")) for a in args):return
+        if linking and all(compile_modes) and complete_ld and gates["T2"]=="PASS":gates["T1"]="PASS"
+        elif not linking and not any(compile_modes):
+            if r["official_lto"] in ("ON","COMPILE_LTO"):r["errors"]["T1"]="unrepresentative; restore the published compile AND final-link LTO flags, rerun default"
+            elif r["official_lto"]=="OFF" and gates["T2"]=="PASS" and gates["T7"]=="PASS":gates["T1"]="PASS"
+    evidence=check("T5",lambda:inventory(JOB/"source",root/"home/abuild/rpmbuild/BUILD",(lane/"gbs.log").read_text(errors="replace")))
+    if evidence:gates["T5"],r["test_inventory"]=evidence
+    producers=sorted({cu.get("producer","") for cu in shipped_cus})
+    r["official_producers"]=producers
+    policy=[re.findall(r'(?:^|\s)(-flto(?:=\w+)?|-fno-lto)(?=\s|$)',p) for p in producers if "clang" in p.lower()]
+    if shipped is not None:
+        candidate=check("official_file_symbols",lambda:command(["readelf","-sW",shipped]))
+        signature=bool(candidate and re.search(r"\bFILE\s+LOCAL.*? (?:lto\.tmp|[^\s]*\.ltrans[^\s]*)$",candidate,re.M))
+    else:signature=False
+    r["official_link_signature"]=signature
+    r["official_lto"]="ON" if signature else "COMPILE_LTO" if policy and all(x and x[-1]!="-fno-lto" for x in policy) else "OFF" if policy and all(x and x[-1]=="-fno-lto" for x in policy) else "UNPROVED"
+    check("input_checks",input_checks)
+    def compare():
+        if shipped is None:raise ValueError("Official ELF missing")
+        a,t=abi(tools,shipped)
+        b,u=abi(tools,elf)
+        r["abi_diff"]={"removed":list((Counter(a)-Counter(b)).elements()),"added":list((Counter(b)-Counter(a)).elements()),"tags":[t,u]}
+        if a==b and t==u:gates["T4"]="PASS";r["abi"]="ABI_FALLBACK_PASS"
+    check("T4",compare)
+    loader=check("loader",lambda:tools.loader(elf))
+    branches=check("branches",lambda:branch_check(tools,elf,ranges))
+    r.update(loader=loader,branches=branches,board="BOARD_DEFERRED")
+    if loader and branches and "PM_THUMB_INTERWORK_PASS" in (lane/"gbs.log").read_text(errors="replace"):
+        gates["T6"]="PASS"
+        r["host"]="HOST_LOADER_PASS"
+    return r
+
+
+def main():
+    previous=json.loads((JOB/"thumb-acceptance.json").read_text())
+    try:shipped,cus=official()
+    except Exception as exc:
+        print("SHIPPED_OFFICIAL_REVIEW",str(exc))
+        shipped,cus=None,[]
+    rows={}
+    for label in ("baseline","default","package"):
+        try:rows[label]=evaluate(label,previous,shipped,cus)
+        except Exception as exc:rows[label]={"error":str(exc),"gates":{}}
+    print("PILOT_COLUMNS reference_local_ARM default package")
+    for key in ("size","text","sha256","map","official_lto","abi","host","board"):
+        print("PILOT_METRIC",key,*[json.dumps(r.get(key)) for r in rows.values()],sep="\t")
+    if (HERE/"image-37736448.tsv").exists():
+        with (HERE/"image-37736448.tsv").open() as f:
+            shipped_rows=[v for v in csv.DictReader(f,delimiter="\t") if v["path"].endswith("/org.tizen.AVControl/bin/AVControl")]
+        print("PILOT_IMAGE_JOIN",[(l,v.get("sha256") in {i["sha256"] for i in shipped_rows}) for l,v in rows.items()] if shipped_rows else "OPEN")
+    for i in range(1,9):
+        key=f"T{i}"
+        print(key,*[r["gates"].get(key,"REVIEW") for r in rows.values()],sep="\t")
+    passed=all(r.get("driver_config_and_IT")=="PASS" and all(r["gates"].get("T"+str(i)) in (("PASS","N/A") if i==5 else ("PASS",)) for i in range(1,8)) and r["gates"].get("T8")=="N/A" for r in (rows["default"],rows["package"]))
+    receipt=HERE/"pilot.json"
+    receipt.write_text(json.dumps(dict(job=str(JOB),rows=rows,passed=passed),indent=2))
+    print("PILOT_PASS" if passed else "PILOT_REVIEW",receipt,hashlib.sha256(receipt.read_bytes()).hexdigest())
+    return 0 if passed else 2
+
+
+if __name__=="__main__":
+    sys.exit(main())

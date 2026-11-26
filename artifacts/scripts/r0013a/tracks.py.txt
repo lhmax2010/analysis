@@ -1,0 +1,233 @@
+"""Published RPM census, QB 37777148. Keep separate debug evidence joined by build ID."""
+from collections import Counter,defaultdict
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import struct
+import sqlite3
+import subprocess
+import tempfile
+import shutil
+import zipfile
+
+HERE=Path(__file__).resolve().parent
+WS=Path("/home1/chengkai/vd-tree/workspace")
+CAP=WS/"qb-evidence/37777148-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1"
+BASE="20261113.1"
+def lib(n):return runpy.run_path(str(HERE/(n+".py.txt")))
+def loadrows(p):return list(csv.DictReader(p.open(),delimiter="\t"))
+def source(s):return s.removesuffix(".src.rpm").rsplit("-",2)[0]
+def out(name,rows):
+    with (HERE/(name+".jsonl")).open("w") as f:
+        for row in rows:f.write(json.dumps(row,separators=(",",":"))+"\n")
+def markdown_rows(p):
+    return [[v.strip().replace("\\_","_") for v in line.strip("|").split("|")] for line in p.read_text().splitlines() if re.match(r'^\| \d+ \|',line)]
+def tools(args):
+    p=subprocess.run(args,capture_output=True,text=True,errors="replace",timeout=300)
+    if p.returncode:raise ValueError(str(args[0:2])+": "+p.stderr[-350:])
+    return p.stdout
+def values(text,key):
+    return re.findall(r"\("+key+r"\)\s+[^\n]*?\[([^\]]+)\]",text)
+def tags(producer):
+    r=set()
+    if re.search(r'clang|LLVM',producer,re.I):r.add("Clang")
+    if re.search(r'GCC:|GNU (?:C|Fortran|GIMPLE)|gcc version',producer,re.I):r.add("GCC")
+    if re.search(r'rustc',producer,re.I):r.add("Rust")
+    if re.search(r'Go cmd/compile|Go build ID|GNU Go',producer):r.add("Go")
+    return r
+def relr_words(addrs):
+    addresses=sorted(set(addrs))
+    words=i=0
+    while i<len(addresses):
+        base=addresses[i]+4
+        i+=1
+        words+=1
+        while i<len(addresses) and addresses[i]<base+124:
+            while i<len(addresses) and addresses[i]<base+124:i+=1
+            words+=1
+            base+=124
+    return words
+def read_dwarf(path):
+    # Depth one retains CU attributes; lower-level DIEs are unnecessary.
+    s=tools(["readelf","-wi","--dwarf-depth=1",path])
+    return [{"name":name,"producer":producer,"level":(re.findall(r'(?:^|\s)(-O(?:fast|[0-3sgz]))(?=\s|$)',producer) or ["not recorded"])[-1]}
+            for name,producer in cu_fields(s)]
+def cu_fields(s):
+    for m in re.split(r"(?m)^.*\(DW_TAG_compile_unit\).*?$",s)[1:]:
+        def field(k):
+            a=re.search(r"DW_AT_"+k+r"\s*:\s*(.*)",m)
+            return a[1].rsplit("): ",1)[-1].strip() if a else ""
+        yield field("name"),field("producer")
+def measure(data,path,hq,scan,scratch,debug=False):
+    f=scratch/"current.elf"
+    f.write_bytes(data)
+    note=tools(["readelf","-nW",f])
+    bid=(re.findall(r"Build ID: ([0-9a-f]+)",note) or [""])[0]
+    secs=tools(["readelf","-SW",f])
+    cu=read_dwarf(f) if re.search(r'\s\.(?:z?debug_info)\s',secs) else []
+    metrics=hq["elf_metrics"](data,{"classify":lambda _:None}) or {}
+    if debug:return dict(build_id=bid,cus=cu,lto=metrics.get("lto_file_status"),signature=any(n=="lto.tmp" or ".ltrans" in n for n in str(metrics.get("file_symbols","")).split(",")))
+    if not metrics:return None
+    dyn=tools(["readelf","-Wd",f])
+    sym=tools(["readelf","--dyn-syms","-W",f])
+    syms=[]
+    for line in sym.splitlines():
+        a=line.split()
+        if len(a)>=8 and a[0].endswith(":") and a[4] in ("GLOBAL","WEAK","UNIQUE"):
+            syms.append([a[7],a[3],a[4],a[5],a[6],a[2]])
+    comment=tools(["readelf","-p",".comment",f])
+    sections=re.findall(r'\[\s*\d+\]\s+(\S+)\s+\S+\s+[0-9a-f]+\s+[0-9a-f]+\s+([0-9a-f]+)\s+\S+\s+([WAXMSILOGTCxoep]+)\s+',secs,re.I)
+    unknown_text=metrics.get("text","")==""
+    loads=[]
+    for line in tools(["readelf","-lW",f]).splitlines():
+        a=line.split()
+        if a and a[0]=="LOAD":
+            loads.append((int(a[2],16),int(a[2],16)+int(a[5],16),"".join(a[6:-1])))
+    rel=tools(["readelf","-WrD",f])
+    reloc=[(int(addr,16),typ) for addr,typ in re.findall(r"(?m)^\s*([\da-fA-F]+)\s+[0-9a-fA-F]+\s+(R_\w+)",rel)]
+    relative=[addr for addr,t in reloc if t=="R_ARM_RELATIVE"]
+    ro=[a for a,_ in reloc if any(lo<=a<hi and "W" not in flags for lo,hi,flags in loads)]
+    tx=[a for a,_ in reloc if any(lo<=a<hi and "E" in flags for lo,hi,flags in loads)]
+    families=tags(comment+" "+note+" "+" ".join(c["producer"] for c in cu))
+    return dict(file_lto_signature=("lto.tmp" in str(metrics.get("file_symbols","")).split(",") or any(".ltrans" in n for n in str(metrics.get("file_symbols","")).split(","))),text=None if unknown_text else metrics["text"],allocated=sum(int(size,16) for _,size,flags in sections if "A" in flags),
+        build_id=bid,cus=cu,markers=sorted(families),kind=metrics["kind"],machine=metrics["machine"],lto=metrics["lto_file_status"],
+        needed=values(dyn,"NEEDED"),soname=values(dyn,"SONAME"),flags=[l.split(")",1)[1].strip() for l in dyn.splitlines() if re.search(r'\(FLAGS(?:_1)?\)',l)],
+        symbols=syms,textrel="TEXTREL" in dyn,dynrel_count=len(reloc),rx_relocs=len(tx),rx_pages=len({page for a in tx for page in (a>>12,(a+7)>>12)}),
+        readonly_pages=len({page for a in ro for page in (a>>12,(a+7)>>12)}),arm_relative=len(relative),relr_net_rel_bytes=8*len(relative)-4*relr_words(relative),
+        target_pages_saved=0,relative_target_pages=len({a>>12 for a in relative}),relr_tag=bool(re.search(r'\(RELR\)',dyn)),
+        loader_glibc_relr=b"GLIBC_ABI_DT_RELR" in data if re.search(r'(?:^|/)ld[-.][^/]+$',path) else None)
+def inventories(work):
+    ole,repo=lib("olevel"),lib("image-repo-lib")
+    prod,conf,rows=ole["capture_identity"](CAP)
+    if "/19437567/" not in prod:raise ValueError("QB Product identity")
+    for r in rows:r["repo"]="Product"
+    base=repo["PREFIX"]+BASE+"/"
+    for (n,e,v,r,a),(sha,srpm,url) in repo["inventory"](base,"armv7l",work).items():
+        rows.append(dict(name=n,arch=a,epoch=e,version=v,release=r,srpm=srpm,vcs="",url=url,sha256=sha,repo="Base"))
+    return rows
+def process():
+    lib("linkers")["probe"]()
+    repo,scan,hq=lib("image-repo-lib"),lib("image_mode_scan"),lib("hq-elf-rebaseline")
+    inv=inventories(HERE)
+    (HERE/"inventory.json").write_text(json.dumps(inv))
+    cohort=loadrows(HERE/"olevel.tsv")
+    doc6={r[1]:r for r in markdown_rows(HERE/"doc06.md")}
+    doc5=markdown_rows(HERE/"doc05.md")[:80]
+    errors=[]
+    runtime=[]
+    db=sqlite3.connect(HERE/"details.sqlite")
+    db.execute("create table debug (id text primary key,data text)")
+    db.execute("create table payload (data text)")
+    for i,r in enumerate(inv):
+        if r["arch"] not in ("armv7l","noarch") or r["name"].endswith("-debugsource"):continue
+        try:
+            if shutil.disk_usage(HERE).free<60*1024**3:raise OSError("60 GiB floor")
+            with tempfile.TemporaryDirectory(dir=HERE) as d:
+                d=Path(d)
+                rpm=repo["cached_rpm"]((r["url"],r["sha256"]),d)
+                with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as proc:
+                    for path,blob in scan["cpio_entries"](proc.stdout):
+                        for logical,data in scan["elf_items"](path,blob):
+                            if int.from_bytes(data[16:18],"little" if data[5]==1 else "big") not in (2,3):continue
+                            isdebug=r["name"].endswith("-debuginfo") or logical.startswith("/usr/lib/debug/")
+                            row=measure(data,logical,hq,scan,d,isdebug)
+                            if isdebug:
+                                if row["build_id"] and row["cus"]:db.execute("insert or ignore into debug values (?,?)",(row["build_id"],json.dumps(row)))
+                            elif row:
+                                row.update(path=logical,sha256=hashlib.sha256(data).hexdigest(),rpm=r["name"],srpm=r["srpm"],source=source(r["srpm"]),rpm_sha=r["sha256"],vcs=r["vcs"],repo=r["repo"])
+                                db.execute("insert into payload values (?)",(json.dumps(row),))
+                    if proc.wait():raise ValueError("rpm2cpio")
+        except Exception as exc:
+            errors.append([r["name"],r["sha256"],str(exc)])
+            if "GiB floor" in str(exc):errors.append(["STOP",i,len(inv)]);break
+        db.commit()
+        if i%100==0:print("RPM_PROGRESS",i,len(inv),len(errors),flush=True)
+    # Store CUs separately to limit duplicate disk and transfer.
+    census=defaultdict(Counter)
+    imports=defaultdict(set)
+    means=defaultdict(list)
+    versions=defaultdict(set)
+    candidates=set()
+    needed=defaultdict(set)
+    refs=defaultdict(set)
+    opt={r["doc_source"] for r in cohort}|{"libtvs-core"}
+    cu_output=(HERE/"n5-cu-baseline.jsonl").open("w")
+    for (raw,) in db.execute("select data from payload"):
+        r=json.loads(raw)
+        hit=db.execute("select data from debug where id=?",(r["build_id"],)).fetchone()
+        dbg=json.loads(hit[0]) if hit else {}
+        if dbg:
+            r["cus"]=dbg["cus"]
+            if r["lto"] in ("NO_FILE_SYMBOLS","NO_SYMTAB"):r["lto"]=dbg["lto"]
+        if r["file_lto_signature"] or dbg.get("signature"):r["lto"]="LINK_SIGNATURE_PRESENT"
+        producer=set(r["markers"])
+        for cu in r["cus"]:producer|=tags(cu["producer"])
+        r["family"]="+".join(sorted(producer)) or "none"
+        if r["source"]:
+            census[r["source"]][r["family"]]+=1
+            census[r["source"]]["gcc_text"]+=(r["text"] or 0) if "GCC" in producer else 0
+        refs[r["source"]].add(r["vcs"])
+        pathkey=(r["source"],r["path"])
+        versions[pathkey].update(r["soname"] or [Path(r["path"]).name])
+        needed[pathkey].update(r["needed"])
+        for sym,typ,bind,vis,ndx,size in r["symbols"]:
+            if ndx=="UND" and sym.startswith("_Z"):imports[sym].add((r["source"],r["path"]))
+            if ndx!="UND" and sym.startswith("_Z") and vis in ("DEFAULT","PROTECTED") and bind=="WEAK" and r["kind"]==3:
+                candidates.add(r["source"])
+                means[sym.replace("@@","@")].append((r["source"],r["path"]))
+                if "@@" in sym:means[sym.split("@")[0]].append((r["source"],r["path"]))
+        if r["source"] in opt or r["rpm"] in opt:
+            cu_output.write(json.dumps({k:r[k] for k in ("source","rpm","path","text","allocated","build_id","cus")}|{"flags_status":"recorded per CU" if r["cus"] else "not recorded"})+"\n")
+        del r["cus"],r["symbols"]
+        runtime.append(r)
+    cu_output.close()
+    db.close()
+    edges=[]
+    for sym,providers in means.items():
+        for s,p in providers:
+            for t,q in imports[sym]:
+                if p!=q:edges.append([sym,s,p,t,q,"DIRECT_NEEDED_CANDIDATE" if versions[s,p]&needed[t,q] else "DYNAMIC_SCOPE_UNPROVED"])
+    out("r2-provider-consumer",edges)
+    affected={v[1] for v in edges}
+    out("r2-screen",({"source":s,"static_result":"OPEN_INCOMPLETE" if errors else "IMPORT_MATCH" if s in affected else "NO_OBSERVED_IMPORT","runtime_lookup":"UNPROVED"} for s in sorted(candidates)))
+    opt={r["doc_source"] for r in cohort}
+    out("elfs",runtime)
+    sizes=Counter()
+    for r in runtime:sizes[r["source"]]+=r["text"] or 0
+    (HERE/"sizes.json").write_text(json.dumps(sizes))
+    rows=[]
+    for name in sorted(set(doc6)|set(census)):
+        hist=doc6.get(name,[])
+        fix=hist[3] if hist and hist[3].isdigit() else None
+        proof="EXACT_VCS" if fix and any(v.endswith("#"+fix) for v in refs[name]) else "UNPROVED" if fix else None
+        rows.append(dict(source=name,observed=census[name],fix=fix,inclusion=proof,previous=hist[-1] if hist else "",vcs=sorted(refs[name]),
+            all_clang=(set(census[name])-{"gcc_text"}=={"Clang"}) if census[name] and not errors else None))
+    for row in rows:
+        hist=doc6.get(row["source"],[])
+        decision=(hist[-1] if hist else "").lower()
+        row["reason"]="no measured loadables" if not row["observed"] else "prebuilt/vendor (Doc 06)" if "prebuilt" in decision else "intended GNU/toolchain (Doc 06)" if "keep gcc" in decision or "keep:" in decision else "hard-coded, fix in progress (Doc 06)" if "in progress" in decision else "source/compile evidence required"
+    out("gcc-census",rows)
+    lto=[]
+    for d in doc5:
+        match=[r for r in runtime if d[1] in (r["source"],r["rpm"])]
+        lto.append(dict(package=d[1],historically_enabled=int(d[0])<=4,total=len(match),
+            policy=Counter(r["lto"] for r in match),text=sum(r["text"] or 0 for r in match)))
+    out("lto-baseline",lto)
+    out("textrel",(r for r in runtime if r["textrel"]))
+    out("relr",({k:r[k] for k in ("source","rpm","path","machine","arm_relative","relr_net_rel_bytes","target_pages_saved","relative_target_pages","loader_glibc_relr","relr_tag")} for r in runtime))
+    print("RELR_LOADER",[(r["srpm"],r["path"],r["loader_glibc_relr"]) for r in runtime if r["loader_glibc_relr"] is not None][:12])
+    out("errors",errors)
+    print("E1",sum(any("GCC" in k for k in counts) for counts in census.values()),"sources_with_gcc_markers; historic 101/27")
+    print("E2",len(opt),"target rows; levels in n5-cu-baseline")
+    print("E2_MISSING",sorted(opt-{r["source"] for r in runtime}-{r["rpm"] for r in runtime}))
+    print("E3",len(lto),"candidates including four enabled",json.dumps(lto[:4]))
+    print("E4",sum(r["textrel"] for r in runtime),"TEXTREL ELFs")
+    print("E5",len(edges),"potential provider/import edges; runtime lookup and C++ inline origin require review")
+    print("E6",sum(r["arm_relative"] for r in runtime),"relative relocations; writable targets remain dirty")
+    print("SCAN_ERRORS",len(errors),"RPM count",len(inv))
+    return 2 if errors else 0
+if __name__=="__main__":
+    raise SystemExit(process())

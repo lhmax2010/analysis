@@ -428,6 +428,17 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
     if recipe["id"] != "THUMB":
         edits = {**edits, "compile": [*edits["compile"], "-grecord-command-line"]}
     meta = hook_source(driver, edits if recipe["id"] != "EXP-Z1" else {**edits, "link": ["-PM12_POLICY"]})
+    if recipe.get("workspace_policy_macros"):
+        # The staged spec consumes the same macros in A and B. Only the private
+        # build.conf defines their lane-specific values.
+        for phase in PHASES:
+            flags = edits[phase]
+            macro = "pm13_" + phase
+            text = text.rstrip() + "\n%" + macro + " " + (" ".join(flags) or "%{nil}") + "\n"
+            before = phase + "_edits=(" + " ".join(shlex.quote(f) for f in flags) + ")"
+            if meta.count(before) != 1:
+                raise ValueError("ambiguous RPM phase macro " + phase)
+            meta = meta.replace(before, phase + "_edits=(%{" + macro + "})")
     if recipe["id"] == "EXP-Z1":
         meta = meta.replace("-PM12_POLICY", "%{pm12_native_link_flags}" if label == "treatment" else "")
     if recipe["id"] in ("T1","THUMB"):

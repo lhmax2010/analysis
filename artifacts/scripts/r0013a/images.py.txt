@@ -1,0 +1,232 @@
+"""Verify the vendor RPM, read pinned USB payloads, and measure delivered ARM ELFs."""
+import collections
+import csv
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import subprocess
+import sys
+import tempfile
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+HERE = Path(__file__).resolve().parent
+WS = Path("/home1/chengkai/vd-tree/workspace")
+NAME = "org.tizen.AVControl"
+AV = "usr/apps/"+NAME+"/bin/AVControl"
+PRODUCT = "TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_"
+OLD = {"37564293":"20261113.1", "37736448":"20261123.2"}
+NEW = {"37777148":"20261125.1", "37777264":"20261125.2"}
+MANIFEST = {"37777148":"da8689530cefa4fbdc4ee51a0ef01c43e9235778bfdb959e38bc6b5357c3c057",
+            "37777264":"88b463f175c0254011a5e242755daf43d7d14ac49e3d37ab7341cbd8b31cbae8"}
+PINS = {"37564293":("http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/"+PRODUCT+"20261113.1/","cec29e5084c1dbae2016620d3124d209584b63f45ce91726e74c16e4cd1e8a0e"),
+        "37736448":("http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/"+PRODUCT+"20261123.2/","1987823742db83c099650bb81516affc18c24e629735330a3e571385839684d5")}
+BIN = "repos/product/x86_64/packages/"
+RPM = "x86_64/erofs-utils-1.8.10-0.x86_64.rpm"
+
+
+def lib(file):
+    return runpy.run_path(str(HERE/(file+".py.txt")))
+
+
+def probe(repo, base):
+    rep, com = repo["REP"], repo["COM"]
+    url = base.rstrip("/")+"/"+BIN
+    xml = ET.fromstring(repo["fetch"](url+"repodata/repomd.xml"))
+    primary = xml.find(f"{rep}data[@type='primary']")
+    raw = repo["fetch"](urljoin(url,primary.find(rep+"location").get("href")))
+    check = primary.find(rep+"checksum")
+    alg = check.get("type")
+    if hashlib.new("sha1" if alg=="sha" else alg,raw).hexdigest()!=check.text.strip():
+        raise ValueError("primary metadata checksum")
+    for row in ET.fromstring(repo["unpack"](raw)).findall(com+"package"):
+        if row.findtext(com+"name")=="erofs-utils" and row.findtext(com+"arch")=="x86_64":
+            ck=row.find(com+"checksum")
+            if ck.get("type")!="sha256":
+                raise ValueError("erofs-utils checksum type")
+            yield urljoin(url,row.find(com+"location").get("href")),ck.text.strip()
+
+
+def toolset(repo, scan, work, qb, url, sha):
+    pkg=repo["cached_rpm"]((url,sha),work)
+    fmt="%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}"
+    if subprocess.check_output(["rpm","-qp","--qf",fmt,pkg],text=True)!=RPM.split("/")[-1][:-4]:
+        raise ValueError("vendor reader RPM identity")
+    dest=work/("vendor-"+qb)
+    dest.mkdir(exist_ok=True)
+    tools={}
+    with subprocess.Popen(["rpm2cpio",pkg],stdout=subprocess.PIPE) as p:
+        for path,data in scan["cpio_entries"](p.stdout):
+            name=Path(path).name
+            if name in ("fsck.erofs","dump.erofs","mkfs.erofs"):
+                binary=dest/name
+                binary.write_bytes(data)
+                binary.chmod(0o755)
+                tools[name]=str(binary)
+        p.stdout.read()
+        if p.wait(): raise ValueError("rpm2cpio failed")
+    for name in ("fsck.erofs","dump.erofs","mkfs.erofs"):
+        if name not in tools:
+            if name=="mkfs.erofs":continue
+            raise ValueError("missing "+name)
+        path=tools[name]
+        for args in (["ldd",path],[path,"--version"],[path,"-V"],[path,"--help"]):
+            proc=subprocess.run(args,capture_output=True,text=True,errors="replace",timeout=30)
+            out=proc.stdout+proc.stderr
+            (dest/(name+"-"+Path(args[-1]).name+".txt")).write_text(out)
+            if args[0]=="ldd" or args[-1] in ("-V","--version"):
+                print("READER",qb,name,args[0] if args[0]=="ldd" else args[-1]," ".join(out.split())[:1800])
+            else:
+                print("COMPRESSOR_HELP",name,[s.strip() for s in out.splitlines() if re.search("gzip|zlib|compressors",s,re.I)][:8])
+            if args[0]=="ldd" and "not found" in out:
+                raise ValueError("vendor executable unavailable: "+name+" "+out[:300])
+    return tools
+
+
+def census(files,qb,label,scan,stream):
+    counts=collections.Counter()
+    def fail(err):
+        raise err
+    for directory,_,names in os.walk(files,onerror=fail):
+        for name in names:
+            p=Path(directory)/name
+            if p.is_symlink() or not p.is_file():continue
+            with p.open("rb") as f:
+                head=f.read(4)
+                if head!=b"\x7fELF" and p.suffix.lower() not in (".zip",".wgt",".tpk"):continue
+                blob=head+f.read()
+            path=("/prd/" if label=="prd" else "/")+str(p.relative_to(files))
+            for logical,data in scan["elf_items"](path,blob):
+                row=scan["classify"](data)
+                if not row or row["kind"] not in ("EXEC","DYN"):continue
+                digest=hashlib.sha256(data).hexdigest()
+                stream.writerow((qb,logical,digest,row["mode"],row["basis"],row["exec_bytes"],row["arm_bytes_est"]))
+                counts["elfs"]+=1
+                counts["exec_bytes"]+=row["exec_bytes"]
+                counts["a32_est_bytes"]+=row["arm_bytes_est"]
+                counts["unclassified"]+=row["arm_share"]==""
+                if logical=="/"+AV:
+                    print("IMAGE_AVCONTROL",qb,logical,digest,json.dumps(row))
+                    if qb=="37736448":
+                        target=HERE/"official.elf"
+                        target.write_bytes(data)
+    return counts
+
+
+def read_images(mode):
+    tree=lib("image-tree")
+    repo=lib("image-repo-lib")
+    old=lib("verify-reader")
+    scan=lib("image_mode_scan")
+    candidates={}
+    for qb,stamp in {**OLD,**NEW}.items():
+        try:
+            identity=WS/"qb-evidence"/(qb+"-"+PRODUCT+stamp)/"identity.json"
+            base=json.loads(identity.read_text())["product"]
+            candidates[qb]=list(probe(repo,base))
+            for url,digest in candidates[qb]:print("CANDIDATE",qb,url,digest)
+        except Exception as exc:print("REPO_REVIEW",qb,str(exc))
+    tested={}
+    for qb in {**OLD,**NEW}:
+        if qb in NEW:
+            rows=candidates.get(qb,[])
+            if len(rows)==1:
+                try:tested[qb]=toolset(repo,scan,HERE,qb,*rows[0])
+                except Exception as exc:print("READER_UNAVAILABLE",qb,str(exc))
+            continue
+        print("RETAINED_PIN",qb,PINS[qb][0]+BIN+RPM,PINS[qb][1])
+        try: tested[qb]=toolset(repo,scan,HERE,qb,PINS[qb][0]+BIN+RPM,PINS[qb][1])
+        except Exception as exc:print("READER_UNAVAILABLE",qb,str(exc))
+    fmt_source=WS/"temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux/linux-6.12/fs/erofs/decompressor_zlib.c"
+    if fmt_source.is_file():
+        lines=fmt_source.read_text(errors="replace").splitlines()
+        print("ZLIB_SOURCE",hashlib.sha256(fmt_source.read_bytes()).hexdigest(),[(i,l.strip()) for i,l in enumerate(lines,1) if re.search("inflateInit2|MAX_WBITS|next_in|avail_in|header skip",l)][:18])
+    if not tested:raise ValueError("vendor readers unavailable; use retained source for separately reviewed decoder port")
+    result={}
+    totals={}
+    for qb in (OLD if mode=="bc" else NEW):
+        raw=WS/"usb"/qb/"updateSU2E/platform.img"
+        if qb in OLD:
+            digest=old["IMAGES"][qb]
+        else:
+            manifest=raw.parent.parent/"manifest.sha256"
+            if tree["sha"](manifest)!=MANIFEST[qb]:raise ValueError("USB manifest mismatch")
+            digest,=[line.split()[0] for line in manifest.read_text().splitlines() if line.split()[1]=="platform.img"]
+        if tree["sha"](raw)!=digest:raise ValueError("USB snapshot mismatch "+qb)
+        tools=tested.get(qb) or tested.get("37736448") or next(iter(tested.values()))
+        print("IMAGE_READER",qb,tools["fsck.erofs"])
+        scratch=tempfile.TemporaryDirectory(dir=HERE)
+        with raw.open("rb") as stream:header=stream.read(28)
+        if header[:4]==bytes.fromhex("3aff26ed"):
+            import struct
+            block,count=struct.unpack_from("<II",header,12)
+            tree["room"](HERE,block*count+5*1024**3)
+            expanded=Path(scratch.name)/"expanded"
+            tree["command"]("simg2img",raw,expanded)
+            raw=expanded
+        parts=tree["partitions"](raw)
+        if set(parts)!={"platform","prd"}:raise ValueError("USB partition layout")
+        tally=collections.Counter()
+        with (HERE/("image-"+qb+".tsv")).open("w") as out:
+            writer=csv.writer(out,delimiter="\t",lineterminator="\n")
+            writer.writerow(("qb","path","sha256","mode","basis","exec_bytes","a32_est_bytes"))
+            for label,(offset,length) in parts.items():
+                key=qb+"/"+label
+                try:
+                    free=shutil.disk_usage(HERE).free
+                    print("EXTRACT_SPACE",key,free)
+                    tree["room"](HERE,5*length+5*1024**3)
+                    with tempfile.TemporaryDirectory(dir=HERE) as tmp:
+                        stage=Path(tmp)
+                        refs=old["SAMPLES"].get((qb,label),{})
+                        if qb=="37736448" and label=="prd" and os.environ.get("PM12Z_OFFICIAL_PRD_SHA256SUMS"):
+                            proof=Path(os.environ["PM12Z_OFFICIAL_PRD_SHA256SUMS"]).resolve(strict=True)
+                            if not proof.is_relative_to(WS):raise ValueError("board proof outside workspace")
+                            lines=proof.read_text().splitlines()
+                            if "Build=TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2;" not in lines:raise ValueError("Official board Product mismatch")
+                            for name in refs:
+                                hashes=[l.split()[0] for l in lines if re.fullmatch("[0-9a-f]{64}  "+re.escape("/.org_rootfs/prd/"+name),l)]
+                                refs[name],=hashes
+                        row=old["check_partition"](tree,tools,raw,offset,length,stage,refs)
+                        row["census"]=census(stage/"extracted",qb,label,scan,writer)
+                        tally.update(row["census"])
+                        if mode=="roster" and label=="platform":
+                            owners=tree["rpm_rows"](stage/"extracted",stage,r"P\t%{NAME}\t%{SOURCERPM}\n[F\t%{FILENAMES}\n]")
+                            (HERE/("owners-"+qb+".tsv")).write_text(owners)
+                        if not refs:row["board"]="awaiting matching board visit"
+                        result[key]=row
+                except Exception as exc:result[key]={"error":str(exc)}
+                print("PARTITION",key,json.dumps(result[key],sort_keys=True))
+        scratch.cleanup()
+        totals[qb]=dict(tally)
+        print("IMAGE_TOTAL",qb,totals[qb],"coverage",sum("census" in result[qb+"/"+k] for k in parts),"/2")
+    (HERE/"images.json").write_text(json.dumps(result,indent=2))
+    coverage=all("census" in row for row in result.values())
+    if mode=="roster":
+        for qb in NEW:
+            owners={}
+            name=""
+            src=""
+            file=HERE/("owners-"+qb+".tsv")
+            if file.exists():
+                for line in file.read_text().splitlines():
+                    cols=line.split("\t")
+                    if cols[0]=="P":name,src=cols[1:3]
+                    elif cols[0]=="F":owners.setdefault(cols[1],set()).add((name,src))
+            with (HERE/("image-"+qb+".tsv")).open() as f:
+                records=list(csv.DictReader(f,delimiter="\t"))
+            hits=[r for r in records if r["mode"] in ("ARM","MIXED_ARM")]
+            for r in hits:r["owners"]=sorted(owners.get(r["path"].split("!")[0],set()))
+            hits.sort(key=lambda r:-int(r["a32_est_bytes"]))
+            (HERE/("a32-"+qb+".json")).write_text(json.dumps(hits))
+            print("ROSTER",qb,len(hits),"unowned",sum(not r["owners"] for r in hits),"top",[(r["path"],r["a32_est_bytes"]) for r in hits[:5]])
+    print("BOARD_SAMPLE_COVERAGE",{k:v.get("board","OPEN") for k,v in result.items()})
+    return coverage
+
+
+if __name__=="__main__":
+    sys.exit(0 if read_images(sys.argv[1]) else 2)

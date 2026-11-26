@@ -1,0 +1,194 @@
+chengkai@risc-v-Alienware-Aurora-R16:vd-tree$ (
+  set -eu
+  cd /home1/chengkai/vd-tree
+  p=bf8ecdba7b2911aa0474aae31b8bf018e87f1589
+  d=$(mktemp -d "$PWD/workspace/temp/pm0012x-launch.XXXXXX")
+  curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0012x/capture.sh.txt" -o "$d/run"
+  printf '%s  %s\n' a01ef28bd59ccfaf6dde6360b59810e1f1d19ba45752acd2b27888295025d82a "$d/run" | sha256sum -c -
+  exec bash "$d/run" "$p"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0012x-launch.Ua0Mhn/run: OK
+PAIR_WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0012x-pair.hJo7tv
+
+SUBMITTED_INPUT 37777148 SHELVES UNPROVED []
+SUBMITTED_INPUT 37777148 BASE_LIST UNPROVED []
+PUBLISHED official 37777148 http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/ http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/ BUILD_CONF_SHA256 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03
+SOURCE_VERIFIED 37777148 26 da8689530cefa4fbdc4ee51a0ef01c43e9235778bfdb959e38bc6b5357c3c057 /home1/chengkai/vd-tree/workspace/usb/37777148/updateSU2E
+KERNEL_BYTES official uImage 37736448 11348968 eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6 37777148 11348968 f38df43d15c773b0e1ca6dbfd60dbef3079822b87b1f2ca559e72bd617275f86 DIFFERS
+KERNEL_BYTES official zImage 37736448 5326504 f8530555d4a0e30141e9c11c6c85655a0efe19866f0307c98bd9ceef5d24fcab 37777148 5326496 ba669e792f7ecab1e21acf3f922f8f3aa230a4a9afa461b0331c4c39382c41d0 DIFFERS
+KERNEL_BYTES official tztv-kernel-perf.rpm 37736448 19345448 91254010607414093524cf675f51c766a0d72a84fc631b521a303e8ea060a8a6 37777148 19345800 ad23b0dc05587a9ef6d001ef2b6ef8600592f0037ab7f215db2e66ab116250b0 DIFFERS
+KERNEL_BUILD_ID official 37736448 419813f26f2d03bee00bde1d7173b0c2fd887530 37777148 de1c600eee82b0fdebd9f2d1161d2271b2c9b4cc
+SUBMITTED_INPUT 37777264 SHELVES UNPROVED []
+SUBMITTED_INPUT 37777264 BASE_LIST UNPROVED []
+PUBLISHED custom 37777264 http://repos.vd.sec.samsung.net/priv/168.219.236.55:81/PRV/builds/b655/19437655/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.2/ http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261118.1/ BUILD_CONF_SHA256 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03
+SOURCE_VERIFIED 37777264 26 88b463f175c0254011a5e242755daf43d7d14ac49e3d37ab7341cbd8b31cbae8 /home1/chengkai/vd-tree/workspace/usb/37777264/updateSU2E
+KERNEL_BYTES custom uImage 37736427 11085240 12d21cf52647b897d008860e240e82a82377a76aa864e3d8f9726ae495bd87e7 37777264 11085240 4382e4e4aa465e7bfd14d5c6e270dc7d692eb16aeef004a7c740e59b1c984843 DIFFERS
+KERNEL_BYTES custom zImage 37736427 5222032 5481cf2ee178fd1ff30d841cc7702d89ee27d1039f8c34a41d9c30a5e439f941 37777264 5222024 3a0f382794486f4c0c325fc337c7d1712e201b23b878bae105653bd227232d8a DIFFERS
+KERNEL_BYTES custom tztv-kernel-perf.rpm 37736427 19160700 ca4d110fc85bacf358a8a6ec9e267cf312b4f7aadb1e387e52dde04f4c204b71 37777264 19160803 96d0618e377e4c9017d4177c57d285d45398e5748b66116df290b653b74ff49d DIFFERS
+KERNEL_BUILD_ID custom 37736427 4d95bb9eb9dc71983a87f90352fc8c2b7bd8a006 37777264 8f9c7262bfae0f13de8b1b13710cc4669398ba37
+PRODUCT_SOURCE {'SOURCE_VCS_MATCH': 5880} RPM_BYTES {'different_or_absent_rpm': 5742, 'same_rpm': 138}
+QB_PAIR_PRODUCT_VCS_MATCH
+KERNEL_TABLE_BYTES_CARRY_OVER False
+PAIR_REVIEW_COUNT 4
+REVIEW_ZLIB_BASE64 f8e021421761f86a62e6ddfad9081a56610548bab051f2e894faa217731c6445 eJyLjlYqLk3KzSwpSU2Jz8wrKC1R0lEK9nD1CXMNVtLJK83JAROxOtjUOTkGu8b7eAaHoKksKE3KyUxOLMnMz4svSi3LTC0HKi4oyk8pTS6JL0stKgZKKAHV2aCJ2YXoegeHGrl6OXqHOusaGBoY6mUXW2EI6hpYGJnqGRqoJeYWWGPKBrn6YNdmaGBgpGeEQ1eAa5AbXtts9NFdqxRLqR+M6OoHI6x+wBlhhaWZydlJpZk5KeC4QnDtDC1NjM1Nzcxt9JEEIaGBrsrM1BRNVWwsAI2Dv64=
+QB_PAIR_GATE REVIEW /home1/chengkai/vd-tree/workspace/temp/pm0012x-pair.hJo7tv
+chengkai@risc-v-Alienware-Aurora-R16:~$ # AVControl three-lane pilot (pin dd210fb, reviewed). Foreground, 30-90 min, asks for sudo.
+pm12t() (
+  set -eu
+  test "$1" = pilot
+  cd /home1/chengkai/vd-tree/workspace/temp
+  p=dd210fb3fef72e58e5b0fd29026f86527fc4fba9
+  d=$(mktemp -d "$PWD/pm0012z-pilot.XXXXXX")
+  curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0012t/next.sh.txt" -o "$d/run"
+  printf '%s  %s\n' b3104be667cd433352250e850d712b04c36ba45cabaac8570af310e02eaaa68e "$d/run" | sha256sum -c -
+  bash "$d/run" "$p" 34007ce035d5d89b9f21ab7baed085f6e68a6949fc97286ca6f48906abd66707 a984c67ad51ee218c32a0e138ee45d1dfc09ad31e1996a510bf89ebb16aca2a7 pilot
+)
+pm12t pilot
+/home1/chengkai/vd-tree/workspace/temp/pm0012z-pilot.skyfaO/run: OK
+KERNEL_SMOKE_GATE_PASS /home1/chengkai/vd-tree/workspace/temp/pm0012-smoke.neJb0i
+PILOT_DEFERRED image membership, image ELF hash/ISA and image-wide A32 totals
+User hao.lin ticket expires in 9 hours 14 minutes.
+PM12_BATCH_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-pilot.WRwYTx
+[sudo] password for chengkai:
+
+default T1 REVIEW ['AVControl: driver matches=1; effective -flto=0; see diagnostics']; delivery=False
+default T2 REVIEW incomplete mapping or retained ARM spans: [('/usr/apps/org.tizen.AVControl/bin/AVControl', {'unknown': 441362})]
+default T3 PASS
+default T4 REVIEW [('/usr/apps/org.tizen.AVControl/bin/AVControl', 'ABIDIFF_UNAVAILABLE', True)]
+default T5 REVIEW_TEST_INVENTORY check reached=True; registered passing package tests unproved
+default T6 REVIEW interwork=True; missing executable/DSO smoke=['/usr/apps/org.tizen.AVControl/bin/AVControl']
+default T7 REVIEW_GENERATED_SOURCES assembly sites=0; missing CU producers=0; unjoined=['AVControlApp.cpp', 'AVControlAudio.cpp', 'AVControlCommandProcessor.cpp', 'AVControlEcoModeCommandHandler.cpp', 'AVControlGetCommandProcessor.cpp', 'AVControlGetCommandProcessorEx.cpp', 'AVControlHelper.cpp', 'AVControlHotel.cpp', 'AVControlKPILogger.cpp', 'AVControlMediaPlayerCommandHandler.cpp', 'AVControlPIPCommandHandler.cpp', 'AVControlParser.cpp', 'AVControlPictureColorToneHandler.cpp', 'AVControlPictureCommandHandler.cpp', 'AVControlPictureProcessingHandler.cpp', 'AVControlPictureWhiteBalanceHandler.cpp', 'AVControlRVUCommandHandler.c
+default T8 N/A
+package T1 REVIEW ["function attributes: CMakeFiles/AVControl.dir/src/AVmain.cpp.o {} /usr/bin/llvm-dis: error: Unknown attribute kind (102) (Producer: 'LLVM22.1.8' Reader: 'LLVM 18.1.3')\n", "function attributes: CMakeFiles/AVControl.dir/src/AVControlApp.cpp.o {} /usr/bin/llvm-dis: error: Invalid attribute group entry (Producer: 'LLVM22.1.8' Reader: 'LLVM 18.1.3')\n", "function attributes: CMakeFiles/AVControl.dir/src/AVControlParser.cpp.o {} /usr/bin/llvm-dis: error: Unknown attribute kind (102) (Producer: 'LLVM22.1.8' Reader: 'LLVM 18.1.3')\n", "function attributes: CMakeFiles/AVControl.dir/src/AVControlComm
+package T2 REVIEW incomplete mapping or retained ARM spans: [('/usr/apps/org.tizen.AVControl/bin/AVControl', {'unknown': 179660})]
+package T3 PASS
+package T4 REVIEW [('/usr/apps/org.tizen.AVControl/bin/AVControl', 'ABIDIFF_UNAVAILABLE', False)]
+package T5 REVIEW_TEST_INVENTORY check reached=True; registered passing package tests unproved
+package T6 REVIEW interwork=True; missing executable/DSO smoke=['/usr/apps/org.tizen.AVControl/bin/AVControl']
+package T7 REVIEW_GENERATED_SOURCES assembly sites=0; missing CU producers=0; unjoined=['CMakeCXXCompilerId.cpp']
+package T8 N/A
+chengkai@risc-v-Alienware-Aurora-R16:z901$ # Read-only: find the vendor EROFS image-tool SRPM (pin dac63b2, reviewed). No GBS, no lock.
+pm12z_reader() (
+  set -eu
+  cd /home1/chengkai/vd-tree/workspace/temp
+  d=$(mktemp -d "$PWD/pm0012z-launch.XXXXXX")
+  p=dac63b2d2afe63d0c6fdc42dcdaa93961135492c
+  curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 120 "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0012z/reader-run.sh.txt" -o "$d/run"
+  printf '%s  %s\n' 1501ffe15159371091c73fe274aa35ec5c8ed8e59ae8f77c9fa3256ee154dcd3 "$d/run" | sha256sum -c -
+  bash "$d/run" "$p" "$1"
+)
+pm12z_reader source
+/home1/chengkai/vd-tree/workspace/temp/pm0012z-launch.EXnuIs/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0012z-erofs.7npaEF
+image-repo-lib.py.txt: OK
+vendor-source.py.txt: OK
+RETAINED_SOURCE /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux/linux-6.12/fs/erofs
+PACKAGE_CANDIDATE mic 0 0.28.19 1.1 noarch mic-0.28.19-1.1.src.rpm http://repos.vd.sec.samsung.net/base/tizen-10.1-base/standard/tizen-10.1-base-standard_20260919.1/repos/base/armv7l/packages/noarch/mic-0.28.19-1.1.noarch.rpm bfa75cf0f921e0539e575a272d47a5fca22948c523dcfec467f0db1182fd6aad
+PACKAGE_CANDIDATE mic 0 0.28.19 1.1 src None http://repos.vd.sec.samsung.net/base/tizen-10.1-base/standard/tizen-10.1-base-standard_20260919.1/repos/base/source/mic-0.28.19-1.1.src.rpm 0b7448ebfae548d158179c9b6d8da5b9d38facdb3acf991c4d0974c5236c17ad
+PACKAGE_CANDIDATE mic 0 0.28.19 1.1 noarch mic-0.28.19-1.1.src.rpm http://repos.vd.sec.samsung.net/base/tizen-10.1-base/standard/tizen-10.1-base-standard_20260919.1/repos/base/x86_64/packages/noarch/mic-0.28.19-1.1.noarch.rpm bfa75cf0f921e0539e575a272d47a5fca22948c523dcfec467f0db1182fd6aad
+PACKAGE_CANDIDATE mic 0 0.28.19 1.1 noarch mic-0.28.19-1.1.src.rpm http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/armv7l/packages/noarch/mic-0.28.19-1.1.noarch.rpm f15f95d69e8e8f8d3861fe746183dfae5aed95219589e4a95a391c834392443d
+PACKAGE_CANDIDATE mic 0 0.28.19 1.1 src None http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/source/mic-0.28.19-1.1.src.rpm 962151bb53a1f0e60c8d111088835b71e38cabe8c23fc00073e45c5c7e986bba
+PACKAGE_CANDIDATE mic 0 0.28.19 1.1 noarch mic-0.28.19-1.1.src.rpm http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/x86_64/packages/noarch/mic-0.28.19-1.1.noarch.rpm f15f95d69e8e8f8d3861fe746183dfae5aed95219589e4a95a391c834392443d
+PACKAGE_CANDIDATE image-configurations 0 10.0 002 noarch image-configurations-10.0-002.src.rpm http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/armv7l/packages/noarch/image-configurations-10.0-002.noarch.rpm 84b57ce1247c40d44bdc25c52ac0b49b521f4e7ccfc3fd2e7b7b9d6f487c9761
+PACKAGE_CANDIDATE erofs-utils 0 1.8.10 0 x86_64 erofs-utils-1.8.10-0.src.rpm http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/x86_64/packages/x86_64/erofs-utils-1.8.10-0.x86_64.rpm 1987823742db83c099650bb81516affc18c24e629735330a3e571385839684d5
+PACKAGE_CANDIDATE image-configurations 0 10.0 002 noarch image-configurations-10.0-002.src.rpm http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/armv7l/packages/noarch/image-configurations-10.0-002.noarch.rpm d4d328541fe0733a98bc658c6076b6219f0dfd6898ea60898dad1c94d5f437c0
+PACKAGE_CANDIDATE erofs-utils 0 1.8.10 0 x86_64 erofs-utils-1.8.10-0.src.rpm http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/x86_64/packages/x86_64/erofs-utils-1.8.10-0.x86_64.rpm cec29e5084c1dbae2016620d3124d209584b63f45ce91726e74c16e4cd1e8a0e
+SRPMS_INSPECTED 2 builder linkage requires matching job evidence
+KERNEL_FILE
+  120:select ZLIB_INFLATE
+  150:select ZLIB_INFLATE
+  154:on-disk format used by NVT/Samsung Tizen TV system images and is
+  187:hashes the image carries itself, which mkfs.erofs inlines behind
+KERNEL_FILE
+  10:erofs-$(CONFIG_EROFS_FS_ZIP_ZLIB) += decompressor_zlib.o
+KERNEL_FILE
+  79:extern const struct z_erofs_decompressor z_erofs_zlib_decomp;
+KERNEL_FILE
+  479:[Z_EROFS_COMPRESSION_ZLIB] = &z_erofs_zlib_decomp,
+  482:[Z_EROFS_COMPRESSION_ZLIB_HW] = &z_erofs_hw_decomp,
+KERNEL_FILE
+  78:strm->z.workspace = vmalloc(zlib_inflate_workspacesize());
+  136:zerr = zlib_inflateInit2(&strm->z, -MAX_WBITS);
+  160:zerr = zlib_inflate(&strm->z, Z_SYNC_FLUSH);
+  172:if (zlib_inflateEnd(&strm->z) != Z_OK && !err)
+KERNEL_FILE
+  124:return sbi->available_compr_algs & (1 << Z_EROFS_COMPRESSION_ZLIB);
+KERNEL_FILE
+  5:* The on-disk format produced by mkfs.erofs --gzip is a zlib-wrapped
+  16:struct z_erofs_zlib {
+  17:struct z_erofs_zlib *next;
+  22:static DEFINE_SPINLOCK(z_erofs_zlib_lock);
+  23:static unsigned int z_erofs_zlib_nstrms, z_erofs_zlib_avail_strms;
+  24:static struct z_erofs_zlib *z_erofs_zlib_head;
+  25:static DECLARE_WAIT_QUEUE_HEAD(z_erofs_zlib_wq);
+  27:module_param_named(zlib_streams, z_erofs_zlib_nstrms, uint, 0444);
+  29:void z_erofs_zlib_exit(void)
+  31:while (z_erofs_zlib_avail_strms) {
+  32:struct z_erofs_zlib *strm;
+  34:spin_lock(&z_erofs_zlib_lock);
+  35:strm = z_erofs_zlib_head;
+  37:spin_unlock(&z_erofs_zlib_lock);
+  40:z_erofs_zlib_head = NULL;
+  41:spin_unlock(&z_erofs_zlib_lock);
+  44:struct z_erofs_zlib *n = strm->next;
+  48:--z_erofs_zlib_avail_strms;
+  54:int __init z_erofs_zlib_init(void)
+  56:if (!z_erofs_zlib_nstrms)
+  57:z_erofs_zlib_nstrms = num_possible_cpus();
+  81:while (z_erofs_zlib_avail_strms < z_erofs_zlib_nstrms) {
+  82:struct z_erofs_zlib *strm;
+  87:strm->z.workspace = vmalloc(zlib_inflate_workspacesize());
+  93:spin_lock(&z_erofs_zlib_lock);
+  94:strm->next = z_erofs_zlib_head;
+  95:z_erofs_zlib_head = strm;
+  96:spin_unlock(&z_erofs_zlib_lock);
+  97:++z_erofs_zlib_avail_strms;
+  109:z_erofs_zlib_exit();
+  113:static int z_erofs_zlib_decompress(struct z_erofs_decompress_req *rq,
+  124:struct z_erofs_zlib *strm;
+  130:spin_lock(&z_erofs_zlib_lock);
+  131:strm = z_erofs_zlib_head;
+  133:spin_unlock(&z_erofs_zlib_lock);
+KERNEL_FILE
+  307:Z_EROFS_COMPRESSION_ZLIB  = 4,
+SRPM_SPEC_PATCH
+  130:* Wed Aug 10 2022 Biao Wang <biao716.wang@samsung.com> - 0.28.17
+  132:* Thu Feb 10 2022 Biao Wang <biao716.wang@samsung.com> - 0.28.16
+  134:* Mon Jul  5 2021 Biao Wang <biao716.wang@samsung.com> - 0.28.15
+  136:* Fri May 14 2021 Biao Wang <biao716.wang@samsung.com> - 0.28.14
+  139:* Tue Mar 23 2021 Biao Wang <biao716.wang@samsung.com> - 0.28.13
+  141:* Fri Feb  5 2021 Biao Wang <biao716.wang@samsung.com> - 0.28.12
+  145:* Thu Nov  5 2020 Biao Wang <biao716.wang@samsung.com> - 0.28.11
+  150:* Tue Jul 21 2020 Biao Wang <biao716.wang@samsung.com> - 0.28.10
+  153:* Wed Jun 17 2020 Yan Meng <yan11.meng@samsung.com> - 0.28.9
+  157:* Thu May  7 2020 Yan Meng <yan11.meng@samsung.com> - 0.28.8
+  159:* Mon Feb 17 2020 Yan Meng <yan11.meng@samsung.com> - 0.28.7
+  163:* Fri Feb 15 2019 Jin Xiao <jin.xiao@samsung.com> - 0.28.6
+  165:* Wed Oct 31 2018 Jin Xiao <jin.xiao@samsung.com> - 0.28.5
+  167:* Fri Sep 28 2018 Jin Xiao <jin.xiao@samsung.com> - 0.28.4
+  169:* Fri Sep 14 2018 Jin Xiao <jin.xiao@samsung.com> - 0.28.3
+SRPM_SPEC_PATCH
+  130:* Thu Sep 11 2025 vd_tizen_autosync <engr.kin@samsung.com> - vbs-mic-20250911.114450
+  131:- [COSMOS] https://vdcosmos-hub.sec.samsung.net/build/30763309
+  132:* Wed Aug 10 2022 Biao Wang <biao716.wang@samsung.com> - 0.28.17
+  134:* Thu Feb 10 2022 Biao Wang <biao716.wang@samsung.com> - 0.28.16
+  136:* Mon Jul  5 2021 Biao Wang <biao716.wang@samsung.com> - 0.28.15
+  138:* Fri May 14 2021 Biao Wang <biao716.wang@samsung.com> - 0.28.14
+  141:* Tue Mar 23 2021 Biao Wang <biao716.wang@samsung.com> - 0.28.13
+  143:* Fri Feb  5 2021 Biao Wang <biao716.wang@samsung.com> - 0.28.12
+  147:* Thu Nov  5 2020 Biao Wang <biao716.wang@samsung.com> - 0.28.11
+  152:* Tue Jul 21 2020 Biao Wang <biao716.wang@samsung.com> - 0.28.10
+  155:* Wed Jun 17 2020 Yan Meng <yan11.meng@samsung.com> - 0.28.9
+  159:* Thu May  7 2020 Yan Meng <yan11.meng@samsung.com> - 0.28.8
+  161:* Mon Feb 17 2020 Yan Meng <yan11.meng@samsung.com> - 0.28.7
+  165:* Fri Feb 15 2019 Jin Xiao <jin.xiao@samsung.com> - 0.28.6
+  167:* Wed Oct 31 2018 Jin Xiao <jin.xiao@samsung.com> - 0.28.5
+PACKAGE_CANDIDATE erofs-utils 0 1.8.10 0 x86_64 erofs-utils-1.8.10-0.src.rpm http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/x86_64/packages/x86_64/erofs-utils-1.8.10-0.x86_64.rpm 1987823742db83c099650bb81516affc18c24e629735330a3e571385839684d5
+PRIMARY_OK http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/armv7l/packages/ a7fb622546a1b75c7e390999c057d2483bb3fc4c61414c14b764a3e90612ab0a
+PACKAGE_CANDIDATE image-configurations 0 10.0 002 noarch image-configurations-10.0-002.src.rpm http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/armv7l/packages/noarch/image-configurations-10.0-002.noarch.rpm d4d328541fe0733a98bc658c6076b6219f0dfd6898ea60898dad1c94d5f437c0
+SOURCE_PROBE_REVIEW http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/source/ HTTP Error 404: Not Found
+SOURCE_PROBE_REVIEW http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/source/packages/ HTTP Error 404: Not Found
+PRIMARY_OK http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/x86_64/packages/ 7d0819306e99277cf392bd5e544a7c7fe7e84938fbb3bae506e248f1666758b3
+PACKAGE_CANDIDATE erofs-utils 0 1.8.10 0 x86_64 erofs-utils-1.8.10-0.src.rpm http://repos.vd.sec.samsung.net/products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/x86_64/packages/x86_64/erofs-utils-1.8.10-0.x86_64.rpm cec29e5084c1dbae2016620d3124d209584b63f45ce91726e74c16e4cd1e8a0e
+SRPMS_INSPECTED 2 builder linkage requires matching job evidence
+

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+pin=$1
+index=$2
+mode=$3
+shift 3
+[[ $pin =~ ^[0-9a-f]{40}$ && $index =~ ^[0-9a-f]{64}$ ]]
+case "$mode" in bce|pkg|roster) ;; *) exit 2;; esac
+cd /home1/chengkai/vd-tree/workspace/temp
+run=$(mktemp -d "$PWD/pm0013-$mode.XXXXXX")
+cd "$run"
+export TMPDIR=$run XDG_CACHE_HOME=$run/cache PYTHONDONTWRITEBYTECODE=1 LC_ALL=C
+echo "NATIVE_RUN $run"
+get() {
+    local path=$1 digest=$2 out=$3
+    curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 150 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$out" &&
+        printf '%s  %s\n' "$digest" "$out" | sha256sum -c - >/dev/null
+}
+get artifacts/scripts/r0013a/inputs.tsv "$index" inputs.tsv
+stage() {
+    local id=$1 scopes path digest name
+    while IFS=$'\t' read -r scopes path digest name; do
+        [[ ,$scopes, == *,$id,* ]] || continue
+        if [[ -f $name ]] && printf '%s  %s\n' "$digest" "$name" | sha256sum -c - >/dev/null; then continue; fi
+        get "$path" "$digest" "$name" || return 2
+    done < inputs.tsv
+}
+job() {
+    local tag=$1
+    shift
+    if nice -n 19 ionice -c3 "$@" >"$tag.log" 2>&1; then echo "$tag 0" >"$tag.status"; else echo "$tag $?" >"$tag.status"; fi
+}
+case "$mode" in
+bce)
+    # Download overlapping helpers once, serially. A failure is isolated to its section.
+    for id in B C E; do if ! stage "$id"; then echo "$id 90" >"$id.status"; fi; done
+    if [[ ! -e E.status ]]; then job E python3 -Bu tracks.py.txt & ep=$!; fi
+    if [[ ! -e C.status ]]; then job C python3 -Bu images.py.txt bc; fi
+    if [[ ! -e B.status ]]; then job B python3 -Bu pilot.py.txt; fi
+    for id in B C; do cat "$id.status"; if [[ -e $id.log ]]; then tail -35 "$id.log" | cut -c1-1700; fi; done
+    if [[ -f pilot.json ]]; then echo "PILOT_RECEIPT $run/pilot.json $(sha256sum pilot.json | cut -d' ' -f1)"; fi
+    if [[ -n ${ep:-} ]]; then wait "$ep"; fi
+    cat E.status
+    if [[ -e E.log ]]; then tail -16 E.log | cut -c1-1800; fi ;;
+pkg)
+    stage pkg
+    job pkg python3 -Bu pkg.py.txt
+    cat pkg.status; tail -35 pkg.log | cut -c1-1800 ;;
+roster)
+    stage roster
+    job roster python3 -Bu dispatch.py.txt roster "$@"
+    cat roster.status; tail -20 roster.log | cut -c1-2000 ;;
+esac
+python3 -B dispatch.py.txt pack
+awk '$2 != 0 { bad=1 } END { exit bad }' ./*.status
