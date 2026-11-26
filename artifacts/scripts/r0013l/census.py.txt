@@ -92,7 +92,6 @@ def image_evidence(owners):
                         b=inp.read(min(1<<20,remaining));need(b,"short slice");out.write(b);remaining-=len(b)
                 digest=sha(section);hashes[qb][label]=digest
                 if qb==QB:
-                    if label=="platform":owners[qb]=query(api["root"](label))
                     continue
                 if qb==old and digest==hashes[QB][label]:
                     for k,v in parts[qb+"/"+label].items():
@@ -113,7 +112,8 @@ def image_evidence(owners):
                         diff=[(p,a.get(p,""),b.get(p,"")) for p in sorted(a.keys()|b.keys()) if a.get(p)!=b.get(p)]
                         write(label+"-file-diff",("path","old","new"),diff)
                         diffs.append((label,"REGULAR_AND_SYMLINK",len(a.keys()-b.keys()),len(b.keys()-a.keys()),sum(p in a and p in b for p,_,_ in diff)))
-    report("IMAGE_IDENTITY",{"hashes":hashes,"old_vs_new":diffs})
+        if qb==old:
+            report("IMAGE_IDENTITY",{"hashes":dict(hashes),"old_vs_new":diffs})
     return owners
 def instruction_scan(path,data,ss,src,logical,tool):
     # For T32 special-data high-register MOV/ADD to PC decode T1 directly. Wide ops

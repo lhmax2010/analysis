@@ -14,8 +14,8 @@ while read -r digest path; do
     curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180         "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$name" 2>>download.log
     printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
 done <<'PINS'
-244c7ab16c6268e2a6e36b6244118b9648377172ca7a57ef4e10d26a9aa4f913 artifacts/scripts/r0013l/census.py.txt
-a33d96790ca99412f7ddaff99391fa231298b018e7a09eda8629bab048ff1329 artifacts/scripts/r0013jk/thumb.py.txt
+846a0dd9a65de7d1e6d375ea17c66be6d1e76e7f19b0eb029493f332cb5ad06d artifacts/scripts/r0013l/census.py.txt
+58a960c64e6b4cc940439b9d0235da14632805e1ae6dfab5f4be878808f42851 artifacts/scripts/r0013jk/thumb.py.txt
 f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726 artifacts/scripts/r0012c/image-tree.py.txt
 cb67e6f58fbb7f6ed59370516fd652ae595adc9e2efb44ba72de26601ec59c42 artifacts/scripts/r0012z/verify-reader.py.txt
 8737d9644cc54bb633f01d1ca2eff45af283e609b82be460f53df6df55e2e3e2 artifacts/scripts/r0013f/pilot.py.txt
