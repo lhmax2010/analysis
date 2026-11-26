@@ -1,0 +1,211 @@
+"""Attended Official verification or shelving; actions require immutable prior receipts."""
+import configparser
+from contextlib import ExitStack
+import fcntl
+import hashlib
+import json
+import marshal
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import subprocess
+import struct
+import zlib
+import sys
+from types import SimpleNamespace
+
+W=Path.cwd()
+D=Path("/home1/chengkai/vd-tree")
+T=D/"workspace/temp"
+OLD=T/"pm0012-kernel.OwlD9Q/jobs/kernel-thumb"
+ORIGINAL="5663f9c9c074f74e69a57bec9fb3dcc595512985a778814e311e0658e2b12cc5"
+SOURCE="packaging/tztv-kernel.spec"
+DEPOT="//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/"+SOURCE
+CLIENT="DEV-IPTV-VC_TOOLCHAIN"
+TITLE="[TEST ONLY - DO NOT SUBMIT] kernel: clang-only -moutline for KantSU2E perf (LLVM adaptation measurement)"
+MARK=b'    env $KERNEL_TOOLCHAIN_ENV ./BUILD.sh'
+FLAGS=b"""KCFLAGS="${KCFLAGS:+$KCFLAGS }"'$(if $(filter clang clang-%% %%-clang,$(notdir $(lastword $(CC)))),-moutline)'"""
+BUILD_CONF="98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
+K1={"text":8214312,"helpers":20324,"Image":10996388,"zImage":5449312}
+
+def need(v,msg):
+    if not v:raise ValueError(msg)
+def sha(data):return hashlib.sha256(data).hexdigest()
+def read(*args):return subprocess.check_output(args,stderr=subprocess.PIPE)
+def staged():
+    raw=(OLD/"tztv-kernel.spec.before-trace").read_bytes()
+    need(sha(raw)==ORIGINAL and raw.count(MARK)==1,"spec pin/anchor")
+    return raw.replace(MARK,MARK.replace(b"./BUILD.sh",FLAGS+b" ./BUILD.sh"))
+def receipt(name,basename,prefix):
+    p=Path(os.environ[name]).resolve(strict=True)
+    need(p.name==basename and p.parent.parent==T and p.parent.name.startswith(prefix),"receipt location "+name)
+    b=p.read_bytes()
+    need(sha(b)==os.environ[name+"_SHA"],"receipt checksum "+name)
+    return json.loads(b)
+def gate():
+    r=receipt("PM_STATIC","effects.json","pm0013jk-static.")
+    need(r.get("input")=="f7f1148e7927bc4e0b8353213932d3a5ba077cf9319a021c71a7c53588cfcf06" and r["script"]==sha((W/"effects.py.txt").read_bytes()),"static tool or lane identity")
+    need(r["gate"] and all(r["pairs"][p][g][0]=="PASS" for p in ("K1","K3") for g in ("S1","S4","S9","S11","S12")),"STATIC HOLD")
+def rpm_boot(rpm,members):
+    files={}
+    with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as proc:
+        stream=proc.stdout
+        while True:
+            h=stream.read(110);need(h[:6] in (b"070701",b"070702"),"bad kernel RPM cpio")
+            size=int(h[54:62],16);ns=int(h[94:102],16)
+            name=stream.read(ns)[:-1].decode();stream.read(-(110+ns)%4)
+            if name=="TRAILER!!!":break
+            guest="/"+name.removeprefix("./").lstrip("/")
+            if guest in ("/perf/uImage","/perf/zImage"):
+                blob=stream.read(size);need(sha(blob)==members[guest],"RPM file digest "+guest)
+                files[guest]=blob
+            else:
+                left=size
+                while left:
+                    b=stream.read(min(left,1<<20));need(b,"truncated RPM");left-=len(b)
+            stream.read(-size%4)
+        stream.read();need(proc.wait()==0,"RPM extraction")
+    u=files["/perf/uImage"];z=files["/perf/zImage"]
+    need(len(u)>64 and u[:4]==bytes.fromhex("27051956") and u[28:32]==bytes((5,2,2,0)),"uncompressed ARM kernel header")
+    length,crc=struct.unpack_from(">I",u,12)[0],struct.unpack_from(">I",u,24)[0]
+    payload=u[64:];need(length==len(payload) and crc==zlib.crc32(payload),"kernel payload CRC")
+    return payload,len(z)
+def matched_elf(root,payload):
+    for elf in root.glob("**/rpmbuild/BUILD/**/vmlinux"):
+        with elf.open("rb") as f:magic=f.read(4)
+        if magic!=b"\x7fELF":continue
+        ids=re.findall(rb"Build ID: ([0-9a-f]+)",read("readelf","-nW",elf))
+        for identity in set(ids):
+            digest=bytes.fromhex(identity.decode())
+            if struct.pack("<III",4,len(digest),3)+b"GNU\x00"+digest in payload:return elf
+    raise ValueError("retained same-build-ID perf vmlinux required")
+def build():
+    g=SimpleNamespace(**runpy.run_path(str(W/"gbs-mlgo-t7.py.txt")))
+    select=runpy.run_path(str(W/"kernel-spec.py.txt"))
+    need(sys.stdin.isatty(),"build requires attended tty")
+    with ExitStack() as stack:
+        for path in ("pm0012-queue.lock","pm0004-native-lock/heavy.lock","pm0005-native-lock/heavy.lock"):
+            f=stack.enter_context((T/path).open("a"))
+            fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        g.available(W,105,32)
+        subprocess.run(["sudo","-v"],check=True)
+        keep=subprocess.Popen(["bash","-c",'while sleep 50; do sudo -n -v || exit 1; done'])
+        def finish():
+            keep.terminate();keep.wait()
+        stack.callback(finish)
+        root=W/"GBS-ROOT"
+        config=D/"config/gbs_vd_llvm_11.16_qb37777148.conf"
+        data=config.read_text()
+        cfg=configparser.RawConfigParser();cfg.read_string(data)
+        need(cfg.get("general","profile")=="profile.qb1111" and cfg.get("profile.qb1111","repos").replace(" ","")=="repo.product_NikeM,repo.base_standard","GBS profile")
+        need(cfg.get("repo.base_standard","url").rstrip("/").endswith("tizen-10.0-base-dev-llvm-standard_20261113.1") and "/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1" in cfg.get("repo.product_NikeM","url"),"QB config lanes")
+        data,n=re.subn(r"(?m)^buildroot\s*=.*$","buildroot = "+str(root),data)
+        need(n==1,"GBS root");(W/"gbs.conf").write_text(data)
+        conf,=(D/"workspace/qb-evidence").glob("37777148-*/published-build.conf")
+        need(g.sha(conf)==BUILD_CONF,"published build.conf")
+        src=select["reuse"](W,OLD,g)
+        (src/SOURCE).write_bytes(staged());select["commit_lane"](src,"clean-outline")
+        cpus=",".join(map(str,sorted(os.sched_getaffinity(0))[:6]))
+        cmd=["taskset","-c",cpus,"gbs","-c",str(W/"gbs.conf"),"build","-A","armv7l","-B",str(root),"-D",str(conf),"--threads","1","--packaging-dir","packaging","--spec","tztv-kernel.spec"]
+        print("GBS_START",shlex.join(cmd),flush=True)
+        with (W/"gbs.log").open("wb") as log:
+            subprocess.run(cmd,cwd=src,stdout=log,stderr=subprocess.STDOUT,env=dict(os.environ,KBUILD_VERBOSE="1",MAKEFLAGS="V=1"),check=True)
+        rpms=[p for p in g.kernel_rpms(root) if read("rpm","-qp","--qf","%{NAME}",p)==b"tztv-kernel-perf"]
+        rpm,=rpms
+        members={s.split()[0]:s.split()[3] for s in read("rpm","-qp","--dump",rpm).decode().splitlines()}
+        zhash=members["/perf/zImage"]
+        trees=[p.parents[3] for p in root.glob("**/rpmbuild/BUILD/**/arch/arm/boot/zImage") if g.sha(p)==zhash]
+        payload,zbytes=rpm_boot(rpm,members)
+        elf=matched_elf(root,payload)
+        goodcfg=g.sha(T/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K0/generated.config")
+        trees.extend(p.parent for p in root.glob("**/rpmbuild/BUILD/**/.config") if g.sha(p)==goodcfg)
+        trees=[p for p in set(trees) if (p/".config").is_file() and g.sha(p/".config")==goodcfg]
+        need(trees,"matching perf config absent")
+
+        secs=dict(runpy.run_path(str(W/"image_mode_scan.py.txt"))["secs_of"](elf.read_bytes()))
+        actual={"text":secs[".text"][5],"helpers":len(set(re.findall(rb"^(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",read("nm","-n",elf),re.M)))}
+        actual.update(Image=len(payload),zImage=zbytes)
+        print("PERF",actual,flush=True)
+        need(all(abs(actual[k]-v)<=0.001*v for k,v in K1.items()),"outside proposed 0.10% K1 tolerance")
+        evidence=[]
+        def inspect(line,where):
+            try:words=shlex.split(line)
+            except ValueError:return
+            for i,w in enumerate(words):
+                driver=Path(w).name
+                if not re.fullmatch(r"(?:[\w.-]+-)?(?:gcc|clang)(?:-\d+)?",driver):continue
+                argv=words[i+1:]
+                if "-c" not in argv or not any(x.endswith((".c",".S",".s")) for x in argv):continue
+                gcc="gcc" in driver
+                if gcc and "-moutline" in argv:raise ValueError("GCC received -moutline: "+where)
+                evidence.append((where,driver,"-moutline" in argv,line.strip()));return
+        for p in root.glob("**/rpmbuild/BUILD/**/.*.cmd"):
+            with p.open(errors="replace") as f:inspect(f.readline(),str(p.relative_to(root)))
+        context=""
+        with (W/"gbs.log").open(errors="replace") as f:
+            for line in f:
+                if "Entering directory " in line:context=line.strip()
+                inspect(re.sub(r"^\[\s*\d+s\]\s*","",line),"log "+context)
+        (W/"argv.json").write_text(json.dumps(evidence))
+        need(any("SERET-UL" in w and "gcc" in d for w,d,on,_ in evidence),"SERET-UL GCC argv unavailable")
+        perfrows=[r for r in evidence if any(r[0].startswith(str(t.relative_to(root))+"/") for t in trees) and not re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",r[0])]
+        need(perfrows and all(on for w,d,on,l in perfrows if "clang" in d) and any("clang" in d and on for w,d,on,l in perfrows),"perf Clang argv")
+        families={}
+        for w,d,on,l in evidence:
+            if w.startswith("log ") or "clang" not in d or re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",w):continue
+            if "/kernel/" not in w and "/drivers/" not in w and "/mm/" not in w:continue
+            need(on,"target Clang omitted -moutline: "+w)
+            families[w.split("/drivers/")[0].split("/kernel/")[0].split("/mm/")[0]]=True
+        need(families and any("clang" in d and on and "-DMODULE" in l for w,d,on,l in evidence),"missing module argv")
+        report={"status":"PASS","static":os.environ["PM_STATIC_SHA"],"script":sha(Path(__file__).read_bytes()),"spec":sha(staged()),"rpm":g.sha(rpm),"sizes":actual,"observed_build_dirs":sorted(families),"argv":g.sha(W/"argv.json"),"command":cmd}
+        (W/"build.json").write_text(json.dumps(report,indent=2))
+        print("BUILD_RECEIPT",W/"build.json",g.sha(W/"build.json"))
+def p4(*args):
+    records=[]
+    with subprocess.Popen(["p4","-c",CLIENT,"-G",*args],stdout=subprocess.PIPE) as proc:
+        while True:
+            try:r=marshal.load(proc.stdout)
+            except EOFError:break
+            records.append({k.decode():v.decode(errors="replace") if isinstance(v,bytes) else v for k,v in r.items()})
+        rc=proc.wait()
+    need(not rc and all(r.get("code")!="error" for r in records),str(records)[:800])
+    return records
+def shelve():
+    r=receipt("PM_BUILD","build.json","pm0013jk-build.")
+    data=staged()
+    need(r["status"]=="PASS" and r["static"]==os.environ["PM_STATIC_SHA"] and r["spec"]==sha(data) and r["script"]==sha(Path(__file__).read_bytes()),"clean build receipt")
+    need(sys.stdin.isatty(),"attended terminal")
+    info,=p4("info");need(info["clientName"]==CLIENT and Path(info["clientRoot"]).resolve()==D,"client root")
+    mapping,=p4("where",DEPOT)
+    file=Path(mapping["path"])
+    need(mapping["depotFile"]==DEPOT and file.resolve(strict=True)==file and file.is_relative_to(D) and str(file).endswith("/"+SOURCE),"depot mapping")
+    stat,=p4("fstat",DEPOT);need(stat.get("depotFile")==DEPOT and not stat.get("action"),"already opened")
+    def printed(spec):
+        return read("p4","-c",CLIENT,"print","-q",spec)
+    original=file.read_bytes()
+    need(printed(DEPOT+"#"+stat["haveRev"])==original==printed(DEPOT+"@14293732"),"working spec differs from synced base")
+    need(sha(printed(DEPOT+"@=14427407"))==ORIGINAL,"shelf overlay")
+    print("DEPOT",DEPOT,"CLIENT",CLIENT,file,"SPEC",sha(data))
+    need(input("Type SHELVE to create a new test-only pending CL: ")=="SHELVE","operator stopped")
+    form=f"Change: new\nClient: {CLIENT}\nDescription:\n\t{TITLE}\n"
+    msg=subprocess.check_output(["p4","-c",CLIENT,"change","-i"],input=form.encode()).decode()
+    cl=re.search(r"Change (\d+) created",msg)[1]
+    print("PENDING_CL",cl,flush=True)
+    p4("edit","-c",cl,DEPOT)
+    need(file.read_bytes()==original,"working bytes changed before edit")
+    with file.open("r+b") as stream:
+        need(stream.read()==original,"working file changed during edit")
+        stream.seek(0);stream.write(data);stream.truncate()
+    need(sha(file.read_bytes())==r["spec"],"post-edit hash")
+    only,=p4("opened","-c",cl);need(only["depotFile"]==DEPOT,"opened file set")
+    p4("shelve","-c",cl,DEPOT)
+    desc,=p4("describe","-S","-s",cl)
+    need(desc["depotFile0"]==DEPOT and "depotFile1" not in desc and printed(DEPOT+"@="+cl)==file.read_bytes()==data,"shelf verification")
+    p4("revert","-c",cl,DEPOT)
+    need(file.read_bytes()==original,"working bytes after revert")
+    print(read("p4","-c",CLIENT,"describe","-S","-s",cl).decode())
+if __name__=="__main__":
+    gate()
+    {"build":build,"shelve":shelve}[sys.argv[1]]()

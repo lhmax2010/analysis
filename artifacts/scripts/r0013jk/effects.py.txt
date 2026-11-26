@@ -1,0 +1,392 @@
+"""Read the f7f1148e retained perf results; no target program is executed."""
+from bisect import bisect_right
+from collections import Counter, defaultdict, deque
+import csv
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import shutil
+import struct
+import subprocess
+import sys
+import tarfile
+
+TEMP=Path("/home1/chengkai/vd-tree/workspace/temp")
+BATCH=TEMP/"pm0012-kernel.dkyJ0S"
+JOB=BATCH/"jobs/kernel-thumb"
+RECEIPT=TEMP/"pm0013i-read.a0Pmc0/lanes.json"
+SOURCE=TEMP/"pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux/linux-6.12"
+OUT=Path.cwd()
+GATES=("S1","S4","S9","S11","S12")
+AUDIT={}
+SCAN=None
+CRITICAL=re.compile(r"\.head(?:\.|$)|idmap|vectors?|\.stubs|entry(?:[._]|$)|\.hyp|__hyp|exception_text|__exception|noinstr",re.I)
+SPECIAL=re.compile(r"cpuidle|kprobe|suspend|resume|flush.*(?:tlb|cache)|(?:tlb|cache).*flush|\.init\.|\.exit\.",re.I)
+STATE=re.compile(r"^(?:mrs|msr|cpsi[de]|mcrr?2?|mrr?c2?|mrc2?|wfi|wfe|svc|swi|setend)(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?$")
+THUNK=re.compile("LongThunk",re.I)
+
+def sha(p):
+    h=hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda:f.read(1<<20),b""):h.update(chunk)
+    return h.hexdigest()
+
+def need(test,why):
+    if not test:raise ValueError(why)
+
+def text(*args):
+    return subprocess.check_output(args,text=True,errors="replace",stderr=subprocess.PIPE)
+
+def table(lane,name,header,rows):
+    with (OUT/(lane+"-"+name+".tsv")).open("w") as f:
+        w=csv.writer(f,delimiter="\t",lineterminator="\n")
+        w.writerow(header)
+        for row in rows:w.writerow([json.dumps(x,ensure_ascii=True) if isinstance(x,(list,dict,tuple)) else x for x in row])
+
+def interval(addr,starts,sizes):
+    i=bisect_right(starts,addr)-1
+    return starts[i] if i>=0 and addr<starts[i]+sizes[starts[i]] else None
+
+def tables(image,ss,addresses,sizes):
+    """Select the target's DWARF struct stride. Test absolute and field-relative encoding across all rows."""
+    raw=image.read_bytes()
+    executable=[(v[3],v[3]+v[5]) for _,v in ss if v[2]&4 and v[2]&2]
+    result=[]; counts={}
+    for section,typ,fields in (("__ex_table","exception_table_entry",("insn","fixup")),("__bug_table","bug_entry",("bug_addr",))):
+        sec=dict(ss).get(section)
+        if not sec:counts[section]=None;continue
+        expressions=[f"sizeof(struct {typ})"]
+        for key in fields:
+            if key=="bug_addr":
+                layout=text("gdb","-nx","-nh","-batch","-iex","set auto-load off",image,"-ex","ptype struct bug_entry")
+                if "bug_addr_disp" in layout:key="bug_addr_disp"
+            expressions.append(f"(unsigned long)&((struct {typ}*)0)->{key}")
+        cmd=["gdb","-nx","-nh","-batch","-iex","set auto-load off",image]
+        for exp in expressions:cmd+=["-ex","p/u "+exp]
+        values=[int(x) for x in re.findall(r"^\$\d+ = (\d+)$",text(*cmd),re.M)]
+        need(len(values)==len(expressions),"missing DWARF layout "+section)
+        stride,*offsets=values
+        need(stride and all(o+4<=stride for o in offsets) and sec[5]%stride==0,"table stride "+section)
+        count=sec[5]//stride;counts[section]=count
+        for key,offset in zip(fields,offsets):
+            pairs=[(sec[3]+i+offset,struct.unpack_from("<I",raw,sec[4]+i+offset)[0]) for i in range(0,sec[5],stride)]
+            if not pairs:continue
+            candidates=[]
+            for mode in ("absolute","relative"):
+                pcs=[(v if mode=="absolute" else (base+v)&0xffffffff) for base,v in pairs]
+                if all(any(a<=pc<b for a,b in executable) for pc in pcs):candidates.append((mode,pcs))
+            need(len(candidates)==1,"ambiguous/non-code address encoding in "+section+":"+key)
+            mode,pcs=candidates[0]
+            result.extend((section,key,i,mode,hex(pc),interval(pc,addresses,sizes)) for i,pc in enumerate(pcs))
+    return counts,result
+
+def extra_trees(lane,tree,digest):
+    found=[tree]
+    for p in (JOB/lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*/home/abuild/rpmbuild/BUILD/**/arch/arm/boot/zImage"):
+        t=p.parents[3]
+        if t!=tree and (t/"vmlinux").is_file() and sha(t/"vmlinux")==digest:found.append(t)
+    return found
+
+def modules(trees):
+    """Use only module products selected by the matching output tree's modules.order."""
+    result={}
+    for t in trees:
+        order=t/"modules.order"
+        if not order.is_file():continue
+        entries={str(Path(s).with_suffix(".ko")) for s in order.read_text().splitlines() if s}
+        if not entries:continue
+        for key in sorted(entries):
+            f=t/key
+            if not f.resolve().is_relative_to(t.resolve()) or not f.is_file():continue
+            secs=SCAN(f.read_bytes()) or []
+            names={n for n,s in secs if s[2]&2}
+            rel=Counter();allocated=False
+            for line in text("readelf","-rW",f).splitlines():
+                m=re.match(r"Relocation section '([^']+)'",line)
+                if m:allocated=re.sub(r"^\.rela?","",m[1]) in names
+                elif allocated:
+                    match=re.search(r"\bR_ARM_\w+",line)
+                    if match:rel[match[0]]+=1
+            nm=text("nm","--defined-only",f)
+            result[key]=[f.stat().st_size,len(re.findall(r"\bOUTLINED_FUNCTION_\d+\b",nm)),dict(rel),sum(s[5] for n,s in secs if n in (".plt",".init.plt"))]
+        if set(result)==entries:return result,True
+    return result,False
+
+def rpm_modules(base,trees):
+    record=json.loads((JOB/"kernel-matrix.json").read_bytes())[base]
+    products=Path(record.get("reused",JOB/base))/"GBS-ROOT/local/repos"
+    rpms=list(products.glob("**/tztv-kernel-perf-[0-9]*.armv7l.rpm"))
+    if len(rpms)!=1:return {},False
+    scratch=OUT/("module-reference-"+base);scratch.mkdir()
+    known=record["modules"];names=[]
+    reader=runpy.run_path(str(OUT/"image_mode_scan.py.txt"))["cpio_entries"]
+    with subprocess.Popen(["rpm2cpio",rpms[0]],stdout=subprocess.PIPE) as proc:
+        for path,blob in reader(proc.stdout):
+            if path not in known:continue
+            need(hashlib.sha256(blob).hexdigest()==known[path][1],"module hash "+path)
+            if "/kernel/" not in path or not path.endswith(".ko"):continue
+            rel=Path(path.split("/kernel/",1)[1])
+            need(not rel.is_absolute() and ".." not in rel.parts,"module path")
+            dst=scratch/rel;dst.parent.mkdir(parents=True,exist_ok=True);dst.write_bytes(blob);names.append(str(rel))
+        proc.stdout.read()
+        need(proc.wait()==0,"rpm2cpio")
+    (scratch/"modules.order").write_text("\n".join(names)+"\n")
+    rows,ok=modules([scratch])
+    return rows,ok and len(names)==len(known)
+
+def exports(trees):
+    candidates=[p/"Module.symvers" for p in trees if (p/"Module.symvers").is_file()]
+    if not candidates:return None
+    return sorted(tuple(l.split()) for l in candidates[0].read_text().splitlines() if l.strip())
+
+def range_names(tree,ss):
+    symbols={}
+    for line in (tree/"System.map").read_text().splitlines():
+        v=line.split()
+        if len(v)>=3:symbols[v[2]]=int(v[0],16)
+    spans=[]
+    for name,start in symbols.items():
+        if not name.endswith(("_start","_begin")):continue
+        stem=name.rsplit("_",1)[0]
+        end=symbols.get(stem+"_end")
+        if end is not None and (CRITICAL.search(stem) or SPECIAL.search(stem)) and start<end:spans.append((start,end,stem))
+    return spans
+
+def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
+    image=tree/"vmlinux"; peer_image=peer/"vmlinux"
+    trees=extra_trees(lane,tree,metrics["sha256"])
+    exe=next((shutil.which(n) for n in ("llvm-objdump-22","llvm-objdump","arm-linux-gnueabi-objdump","arm-linux-gnueabihf-objdump") if shutil.which(n)),None)
+    need(exe,"ARM disassembler unavailable")
+    ss=SCAN(image.read_bytes())
+    measured=AUDIT["audit"](tree,image,SCAN,config)
+    helpers=measured["helpers"]
+    need(helpers and len(helpers)==metrics["helpers"],"linked helper coverage")
+    starts=sorted(helpers);sizes={a:h["bytes"] for a,h in helpers.items()}
+    bounds=range_names(tree,ss)
+    def place(pc,sec):return [sec]+[n for lo,hi,n in bounds if lo<=pc<hi]
+    effects={}; calls=[]; instructions=[]; hazards=[]; literals=[]; body_missing=0
+    unwind=[]; classes=Counter(); distinct=Counter(); annotated=[]; uncertain=0
+    origin_sites=0; critical=[]; prologues=set(); sample=[]; by_variant=defaultdict(set)
+    edges=defaultdict(set); roots=set(); sites_by_fn=defaultdict(list); weights={}
+    thunk_rows=[]
+    for name,t in (("peer",peer),("outlined",tree)):
+        elf=t/"vmlinux"
+        linked=SCAN(elf.read_bytes())
+        placement=range_names(t,linked)
+        for line in text("nm","-S","-n","--defined-only",elf).splitlines():
+            bits=line.split()
+            if len(bits) not in (3,4) or not THUNK.search(bits[-1]):continue
+            fn=bits[-1];va=int(bits[0],16)&~1;b=int(bits[1],16) if len(bits)==4 else 0
+            sec=next((n for n,v in linked if v[2]&4 and v[3]<=va<v[3]+v[5]),"unknown")
+            if THUNK.search(fn):
+                thunk_rows.append((name,fn,hex(va),b,sec,[k for a,z,k in placement if a<=va<z<=2**32]))
+    table(lane,"thunks",("lane","symbol","address","bytes","section","ranges"),thunk_rows)
+    for addr,h in helpers.items():
+        body=h["body"]; path=place(addr,h["section"])
+        if not body or set(range(addr,addr+h["bytes"],4))!={pc for pc,_,_ in body} or any(op in ("<unknown>",".word",".short",".inst") for _,op,_ in body):body_missing+=1
+        distinct[addr]=len({c["caller_addr"] for c in h["calls"]})
+        if CRITICAL.search(" ".join(path)):critical.append((addr,"helper placement",path))
+        exclusive=[]; barriers=[]
+        for pc,op,arg in body:
+            op=op.split(".")[0]
+            instructions.append((hex(addr),hex(pc),op,arg))
+            if STATE.fullmatch(op):hazards.append((hex(addr),hex(pc),op,arg,"system state"))
+            if op.startswith(("ldrex","strex","clrex")):exclusive.append((hex(pc),op,arg))
+            if op.startswith(("dmb","dsb","isb")):barriers.append((hex(pc),op,arg))
+            if op.startswith("adr") or re.search(r"\[(?:pc|r15)\b",arg):
+                m=re.search(r"\[(?:pc|r15)(?:,\s*#(-?(?:0x[\da-f]+|\d+)))?\]",arg)
+                target=pc+8+int(m[1] or "0",0) if m else None
+                literals.append((hex(addr),hex(pc),op,arg,target, "within helper" if target is not None and addr<=target<addr+h["bytes"] else "review ownership"))
+        if exclusive or barriers:hazards.append((hex(addr),"","","",["exclusive/barrier",exclusive,barriers]))
+        for c in h["calls"]:
+            fn=c["caller_addr"]; loc=place(c["pc"],c["section"]); origins=c["input_candidates"]
+            loc+=sorted({sec for obj,sec in origins})
+            tag=" ".join(loc+[c["caller"]]+[o for o,s in origins])
+            if any(CRITICAL.search(v) for v in loc):roots.add(fn);critical.append((c["pc"],"critical section caller",loc))
+            if c["attribution"]!="UNIQUE":uncertain+=1
+            else:origin_sites+=1
+            cls=c["call_class"];classes[cls]+=1
+            sites_by_fn[fn].append((c["pc"],addr))
+            saved=0
+            if cls=="LR_STACK":
+                saved=4
+                op=AUDIT["instruction"](c["before"][-1])
+                adjust=re.search(r"#-(0x[0-9a-f]+|[0-9]+)\]!",op)
+                if adjust:saved=int(adjust[1],0)
+            weights[(fn,addr)]=max(weights.get((fn,addr),0),saved)
+            flag=bool(SPECIAL.search(tag) or CRITICAL.search(tag))
+            sub=" ".join([o for o,s in origins])
+            calls.append((hex(c["pc"]),c["caller"],hex(fn),loc,hex(addr),h["name"],path,cls,origins,flag,set(loc)!=set(path)))
+            annotated.append((c["pc"],addr,c["caller"],sub))
+            if len(by_variant[cls])<20 and addr not in by_variant[cls]:
+                sample.append((cls,hex(addr),body,c["caller"],c["before"],c["after"]))
+                by_variant[cls].add(addr)
+            unwind.append((hex(addr),hex(c["pc"]),cls,c.get("frame_review",{})))
+    # Follow direct control transfers from critical symbols, including through linker veneers.
+    indirect=set()
+    near={}
+    timing=re.compile(r"udelay|ndelay|delay_loop|readl|writel|ioread|iowrite|__raw_(?:read|write)",re.I)
+    for section,fn,base,ins in AUDIT["functions"](exe,image):
+        if any(CRITICAL.search(v) for v in place(base,section)) or re.match(r"^(?:__idmap|idmap_|__turn_mmu_on|__enable_mmu|vector_|vectors_|__entry_|__hyp_|__vectors)",fn):roots.add(base)
+        if base in sites_by_fn:
+            pcs={pc for pc,_ in sites_by_fn[base]}
+            for j,(pc,_,_) in enumerate(ins):
+                if pc in pcs:
+                    neighborhood=ins[max(0,j-10):j+11]
+                    near[pc]=[(hex(at),op,arg) for at,op,arg in neighborhood if timing.search(arg)]
+        for pc,op,arg in ins:
+            if op.split(".")[0] in ("blx","bx") and arg.strip() not in ("lr","r14") and not AUDIT["direct"](arg):indirect.add(base)
+            if re.match(r"^(?:ldr|mov|add)\w*\s+(?:pc|r15)\s*,",op+" "+arg) and not re.match(r"^(?:mov|movs) (?:pc|r15),\s*(?:lr|r14)$",op+" "+arg):
+                indirect.add(base)
+            if not AUDIT["BRANCH"].fullmatch(op):continue
+            m=AUDIT["direct"](arg)
+            if m:
+                a=int(m[1],16)&~1
+                if a!=base and "+" not in m[2]:edges[base].add(a)
+    reached=set();todo=deque(roots)
+    while todo:
+        a=todo.popleft()
+        if a not in reached:reached.add(a);todo.extend(edges[a]-reached)
+    reach=sorted(reached&set(starts))
+    table(lane,"critical",("address","class","scope"),critical+[(a,"reachable helper",[]) for a in reach])
+    table(lane,"calls",("pc","caller","caller_va","caller_sections","helper_va","helper","linked_helper_sections","variant","object_sections","special","cross_section"),calls)
+    table(lane,"helpers",("va","name","section","bytes","sites","callers"),[(hex(a),h["name"],h["section"],h["bytes"],len(h["calls"]),distinct[a]) for a,h in helpers.items()])
+    table(lane,"instructions",("helper","pc","op","operand"),instructions)
+    table(lane,"samples",("variant","helper","body","caller","preceding","following"),sample)
+    table(lane,"frames",("helper","site","variant","frame_evidence"),unwind)
+    missing_callers=sum(not h["calls"] for h in helpers.values())
+    # Merged input sections and unresolved indirect edges preclude a clean reachability verdict.
+    effects["S1"]=("FAIL" if critical or reach else "REVIEW" if uncertain or missing_callers or not roots or reached&indirect else "PASS",
+                   dict(critical=len(critical),reachable_helpers=len(reach),unjoined=uncertain,without_direct_caller=missing_callers,critical_indirect=len(reached&indirect)))
+    stack_critical=sum(bool(cls=="LR_STACK" and (int(fn,16) in reached or re.search(r"irq|exception|entry",caller,re.I))) for _,caller,fn,_,_,_,_,cls,*_ in calls)
+    # Measure nested saves along direct helper-to-helper edges; ordinary callers, recursion and indirect targets can extend the chain.
+    cache={};active=set()
+    def depth(a):
+        if a in active:raise ValueError("recursive helper graph")
+        if a not in cache:
+            active.add(a)
+            cache[a]=max((weights.get((a,b),0)+depth(b) for b in edges[a] if b in helpers),default=0)
+            active.remove(a)
+        return cache[a]
+    try: nested=max((v+depth(b) for (a,b),v in weights.items()),default=0)
+    except (ValueError,RecursionError):nested=None
+    effects["S2"]=("FAIL" if stack_critical else "REVIEW",dict(variants=classes,critical_stack_sites=stack_critical,helper_chain_extra_save_lower_bound_bytes=nested,stack_budget=8192))
+    effects["S3"]=("REVIEW",dict(unwinder=measured["unwinder"],sampled=len(sample),fp_operand_bodies=sum(any(re.search(r"\b(?:fp|r11)\b",a) for pc,o,a in h["body"]) for h in helpers.values()),runtime_walk="required"))
+    try:
+        counts,rows=tables(image,ss,starts,sizes)
+        symbol_sizes={}
+        for fn,va,size,sec in AUDIT["symbols"](image.read_bytes(),ss):
+            if size:symbol_sizes[va]=max(size,symbol_sizes.get(va,0))
+        fn_starts=sorted(symbol_sizes)
+        outside=sum(interval(int(r[4],16),fn_starts,symbol_sizes) is None for r in rows)
+        old,other=tables(peer_image,SCAN(peer_image.read_bytes()),[],{})
+        table(lane,"fixups",("table","field","index","encoding","address","outlined_helper"),rows)
+        hits=sum(r[-1] is not None for r in rows)
+        bug_ok=counts["__bug_table"] is not None or config.get("CONFIG_BUG")!="y"
+        effects["S4"]=("FAIL" if hits else "PASS" if counts==old and counts["__ex_table"] and bug_ok and not outside else "REVIEW",dict(counts=counts,baseline=old,inside_helpers=hits,without_function=outside))
+    except (ValueError,OSError,subprocess.SubprocessError) as e:effects["S4"]=("REVIEW",str(e))
+    table(lane,"sensitive-ops",("helper","pc","op","args","class"),hazards)
+    effects["S5"]=("REVIEW" if any(isinstance(r[-1],list) for r in hazards) or body_missing else "PASS",dict(exclusive_or_barrier_groups=sum(isinstance(r[-1],list) for r in hazards),undecoded=body_missing))
+    keys=("CONFIG_FTRACE","CONFIG_FUNCTION_TRACER","CONFIG_KPROBES","CONFIG_KALLSYMS","CONFIG_STACKPROTECTOR","CONFIG_STACKPROTECTOR_STRONG","CONFIG_UNWINDER_FRAME_POINTER")
+    effects["S6"]=("RECORDED",{k:config.get(k,"unset") for k in keys})
+    ex,ex0=exports(trees),exports(peer_trees)
+    table(lane,"exports",("side","record"),[(s,l) for s,lst in (("removed",set(ex0 or [])-set(ex or [])),("added",set(ex or [])-set(ex0 or []))) for l in sorted(lst)])
+    def export_names(elf):
+        return {l.split()[-1] for l in text("nm","--defined-only",elf).splitlines() if l.split() and l.split()[-1].startswith(("__ksymtab_","__crc_"))}
+    added=export_names(image);removed=export_names(peer_image)
+    table(lane,"ksymtab",("direction","symbol"),[("added",n) for n in sorted(added-removed)]+[("removed",n) for n in sorted(removed-added)])
+    effects["S7"]=("REVIEW",dict(export_names_equal=added==removed,export_symbols=len(added),symvers_equal=ex==ex0 if ex and ex0 else None,SERET_UL="requires clean verification build",external_modules="owner ABI verification"))
+    distro=Counter(h["bytes"] for h in helpers.values())
+    table(lane,"helper-size-histogram",("bytes","count"),sorted(distro.items()))
+    stack=runpy.run_path(str(OUT/"outline-metrics.py.txt"))["frames"](image,[pc for pc,*_ in annotated]+starts)
+    locations=[]; hot=Counter();vendor=Counter()
+    for pc,a,fn,obj in annotated:
+        paths=obj+" "+" ".join(loc for _,loc in stack.get(pc,[]))
+        for category in ("kernel/sched/","mm/","net/core/","fs/","drivers/media/","irq","entry"):
+            if category in paths or category in ("irq","entry") and category in fn:hot[category]+=1
+        for cat in ("drivers/samsung","nvt","novatek","drivers/soc/","i2c","gpio","spi","cec","tuner","display","infrared"):
+            if cat in paths.lower():vendor[cat]+=1
+        locations.append((hex(pc),hex(a),fn,paths))
+    table(lane,"source-sites",("pc","helper","caller","object_and_source"),locations)
+    effects["S8"]=("RECORDED",dict(helpers=len(helpers),sites=len(calls),hot=hot,origin_joined=origin_sites))
+    danger=[r for r in thunk_rows if r[0]=="outlined" and CRITICAL.search(r[4]+" "+" ".join(r[5]))]
+    effects["S9"]=("FAIL" if danger else "PASS" if not thunk_rows or bounds and all(r[3]>0 and r[4]!="unknown" for r in thunk_rows) else "REVIEW",dict(new=[sum(r[0]=="outlined" for r in thunk_rows),sum(r[3] for r in thunk_rows if r[0]=="outlined")],old=[sum(r[0]=="peer" for r in thunk_rows),sum(r[3] for r in thunk_rows if r[0]=="peer")],critical=len(danger)))
+    table(lane,"literals",("helper","pc","op","operand","target","disposition"),literals)
+    effects["S10"]=("REVIEW" if body_missing or any(r[-1]!="within helper" for r in literals) else "PASS",dict(sites=len(literals),undecoded=body_missing))
+    state=sum(r[-1]=="system state" for r in hazards)
+    effects["S11"]=("REVIEW" if state or body_missing else "PASS",dict(system_state_instructions=state,undecoded_helpers=body_missing))
+    new,complete=modules(trees);old,complete_old=modules(peer_trees)
+    if not complete_old:
+        old,complete_old=rpm_modules("K0" if lane=="K1" else "K2",peer_trees)
+
+    module_source=(SOURCE/"arch/arm/kernel/module.c").read_text()
+    cases=set(re.findall(r"\bcase\s+(R_ARM_\w+)\s*:",module_source))
+    table(lane,"modules",("module","peer_bytes_helpers_relocations_plt","outlined_bytes_helpers_relocations_plt","types_without_case"),[(k,old.get(k),new.get(k),sorted(set(new.get(k,[0,0,{},0])[2])-cases)) for k in sorted(set(new)|set(old))])
+    unsupported=set().union(*(set(v[2])-cases for v in new.values()))
+    conditional=set()
+    depth_if=0
+    for line in module_source.splitlines():
+        if re.match(r"^\s*#\s*if",line):depth_if+=1
+        if depth_if:conditional.update(re.findall(r"\bcase\s+(R_ARM_\w+)\s*:",line))
+        if re.match(r"^\s*#\s*endif",line):depth_if-=1
+    observed=set().union(*(set(v[2]) for v in new.values()))
+    conditional_cases=sorted(observed&conditional)
+    changed=set().union(*(set(v[2])-set(old.get(k,[0,0,{},0])[2]) for k,v in new.items()))
+    effects["S12"]=("FAIL" if unsupported else "PASS" if complete and complete_old and set(new)==set(old) and len(new)==expected_modules and bool(new) and not changed and not conditional_cases else "REVIEW",dict(conditional_cases=conditional_cases,covered=len(new),baseline=len(old),expected=expected_modules,unknown=sorted(unsupported),new_types=sorted(changed)))
+    lines=[(hex(a),helpers[a]["name"],stack.get(a,[])) for a in starts]
+    table(lane,"dwarf",("helper","name","inline_stack_at_entry"),lines)
+    good=sum(any(name!="??" and re.search(r":[1-9]\d*",loc) for name,loc in frames) for _,_,frames in lines)
+    effects["S13"]=("RECORDED",dict(entry_line_and_function=good,helpers=len(lines),percent=round(100*good/len(lines),2)))
+    effects["S14"]=("BOARD",dict(static_sites=len(calls),profile_weight="unmeasured; join sampled helper PC and caller stack by build ID"))
+    table(lane,"vendor-timing",("site","helper","caller","path","delay_or_named_MMIO_within_10_instructions"),[(pc,a,f,path,near.get(int(pc,16),[])) for pc,a,f,path in locations if re.search(r"drivers/(samsung|soc|media|i2c|gpio|spi|video|gpu)|novatek|nvt|tuner|cec|infrared",path,re.I)])
+    effects["S15"]=("REVIEW",dict(driver_sites=vendor,denominator=len(calls),timing="inspect matched caller context and measure on target"))
+    return effects
+
+def main():
+    global AUDIT,SCAN
+    import os
+    os.environ["DEBUGINFOD_URLS"]=""
+    AUDIT=runpy.run_path(str(OUT/"kernel-audit.py.txt"))
+    SCAN=runpy.run_path(str(OUT/"image_mode_scan.py.txt"))["secs_of"]
+    digest=sha(RECEIPT)
+    need(digest=="f7f1148e7927bc4e0b8353213932d3a5ba077cf9319a021c71a7c53588cfcf06","0013i receipt SHA")
+    result=json.loads(RECEIPT.read_bytes())
+    matrix=JOB/"kernel-matrix.json"
+    need(sha(matrix)==result["matrix_sha256"] and result["job"]==str(JOB),"retained matrix identity")
+    records=json.loads(matrix.read_bytes())
+    receipt={"script":sha(Path(__file__)),"input":digest,"matrix":sha(matrix),"pairs":{}}
+    for name,base in (("K1","K0"),("K3","K2")):
+        try:
+            row=result["lanes"][name]
+            m=row["measurement"];t=Path(m["tree"]).resolve(strict=True)
+            need(row["status"]=="FINISHED" and m["argv"]["verdict"]=="PASS" and t.is_relative_to(JOB/name),"perf lane")
+            need(sha(t/"vmlinux")==m["sha256"] and sha(t/".config")==row["config_sha256"],"lane digest")
+            b=records[base];sym=b["symbols"];p=Path(sym["directory"]).resolve(strict=True)
+            need(p.is_relative_to(TEMP) and all(sha(p/n)==sym["sha256"][n] for n in ("vmlinux","System.map",".config")),"baseline symbols")
+            need(sha(p/".config")==row["config_sha256"],"config pair")
+            cfg=dict(re.findall(r"^(CONFIG_\w+)=(.+)$",(t/".config").read_text(),re.M))
+            receipt["pairs"][name]=lane(name,t,p,extra_trees(base,p,sym["sha256"]["vmlinux"]),len(b["modules"]),cfg,m)
+        except Exception as exc:
+            import traceback
+            (OUT/(name+"-error.txt")).write_text(traceback.format_exc())
+            receipt["pairs"][name]={f"S{i}":("REVIEW",str(exc)) for i in range(1,16)}
+    for i in range(1,16):
+        k="S"+str(i)
+        print(k,*[n+":"+v[k][0]+" "+json.dumps(v[k][1],separators=(",",":"))[:240] for n,v in receipt["pairs"].items()])
+    try:receipt["thumb"]=runpy.run_path(str(OUT/"thumb.py.txt"))["run"]()
+    except Exception as exc:receipt["thumb"]={"REVIEW":str(exc)}
+    procsetup=SOURCE/"arch/arm/mm/proc-v7.S"
+    if procsetup.is_file():
+        table("thumb","itd-setup",("source","line","text"),[(str(procsetup),i,l) for i,l in enumerate(procsetup.read_text().splitlines(),1) if re.search(r"ITD|CR_[A-Z]|v7_crval|crval|SCTLR",l,re.I)])
+    print("C7/C8",json.dumps(receipt["thumb"])[:750])
+    receipt["gate"]=all(r[g][0]=="PASS" for r in receipt["pairs"].values() for g in GATES)
+    (OUT/"effects.json").write_text(json.dumps(receipt,indent=2)+"\n")
+    archive=OUT/"side-effects.tar.gz"
+    with tarfile.open(archive,"w:gz",compresslevel=1) as tar:
+        for p in sorted([*OUT.glob("*.tsv"),*OUT.glob("*-error.txt"),OUT/"effects.json"]):tar.add(p,p.name)
+    print("STATIC_GATE", "PASS" if receipt["gate"] else "HOLD", "RECEIPT",OUT/"effects.json",sha(OUT/"effects.json"))
+    print("TABLES",sha(archive),archive)
+
+if __name__=="__main__":main()
