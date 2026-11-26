@@ -105,11 +105,15 @@ Owners below are proposed responsibilities for review. Each gate requires an evi
 | Gate | Owner | Method | Acceptance | Status |
 |---|---|---|---|---|
 | C1 ARM-only source | Package maintainers + VD toolchain | Map 609 historical paths to current source packages. Review inline asm and assembly directives, encodings, instruction width assumptions, jump tables and returns. Check actual flags for the affected TU. | Give every hit a file/line disposition and prove the authored mode, verify a fix, or register an exclusion. Account for missing source or renamed files. | Official source screen prepared; owner dispositions open |
-| C2 interworking | Toolchain + vendor library owners | Disassemble shipped prebuilts and ELFs lacking CU provenance. Match candidate returns to symbols, NEEDED providers and importing ELFs. Review callers, indirect/dynamic lookup and actual ISA at calls. | Establish that no incompatible return is reachable from Thumb callers. Resolve each uncertain path by instruction semantics, integration test, fix or exclusion. | Official screen prepared; reachability open |
+| C2 interworking | Toolchain + vendor library owners | Disassemble shipped prebuilts and ELFs lacking CU provenance. Match candidate returns to symbols, NEEDED providers and importing ELFs. Review callers, indirect/dynamic lookup and actual ISA at calls. | Identify Thumb ALU-to-PC paths reachable from ARM callers; check instruction state and control flow at each edge. Resolve each uncertain path by instruction semantics, integration test, fix or exclusion. | Prior count included interworking A32 and load-to-PC returns; 0013l reclassification pending |
 | C3 binary interface | ABI owner + package maintainers | Compare the same installed ELF path, SONAME, NEEDED and defined dynsym name/type/binding/version/size on both images. Retain complete diffs; check symbol versions and object/TLS sizes. | Required fields identical. Any difference, including an STT_FUNC size change, goes to review; record any approved change to the criterion separately. | Requires candidate RPMs |
 | C4 frame pointers and unwind | Crash reporting + profiling + runtime owners | Find frame-pointer walkers and r11 assumptions; inspect EHABI tables, coverage and CANTUNWIND entries. Validate symbolized Thumb crash and sampled stacks against known call chains on board. | Crash reporter, profiler and applicable sanitizer/backtrace users resolve expected frames across ISA boundaries. Document compact exidx entries that do not require an extab. | Official static screen prepared; board proof open |
 | C5 generated code | Web, managed-runtime and FFI owners | Inventory V8/Chromium, .NET, JS/Lua JITs, FFI trampolines. Compare emitter options and boundaries in both builds, exercise JIT→native→JIT and callback paths. | Prove ISA settings unchanged or register explicit package exclusion. New code-generation modes require independent qualification. | Official inventory prepared; candidate comparison open |
 | C6 exclusions | Kernel, boot, TEE, firmware and package owners | Retain actual argv for kernel, modules, bootloader, firmware and explicit ARM overrides. Check final cc1 triple and mapping symbols, including authored NEON/asm. | Every excluded unit retains its intended mode. Explicit package -marm wins over the distribution default. | Candidate argv and outputs required |
+| C7 ARMv8 AArch32 IT | Toolchain + kernel | On each image count mapped T32 IT blocks with >1 slot or a 32-bit instruction; retain stripped/unknown coverage. Establish active ITD at the relevant exception level from validated board evidence or CPU setup. | ITD=0 confirmed and site count reviewed. If ITD=1, every deprecated site requires repair. | Official static launcher ready; candidate and ITD open |
+| C8 alignment | Kernel + package owners | Inventory mapped T32 LDRD/STRD/LDM/STM sites. Record /proc/cpu/alignment settings, counters and SIGBUS across matched soak intervals. | Zero new alignment fixups or SIGBUS; instruction counts alone do not establish address alignment. | Static launcher ready; board open |
+| C9 mixed control transfers | C++ runtime + QA | Signed fixtures for cross-ISA throw/catch, setjmp/longjmp and a Thumb signal handler with ucontext verification. Exercise both directions where applicable. | Expected handler, register state, exception and return in each case. | Signed fixtures and candidate needed |
+| C10 core analysis | Crash reporting + QA | Symbolize a known QA core against the actual build IDs; verify CPSR.T, mapping symbols and expected mixed frames. | Correct mode and frame order. Record missing/stripped symbols separately. | Board/core evidence required |
 
 | Gate | Owner | Same-board comparison | Acceptance | Status |
 |---|---|---|---|---|
@@ -120,3 +124,49 @@ Owners below are proposed responsibilities for review. Each gate requires an evi
 | P5 stability | System QA | 24 h playback and app cycling on each image, collect crash/dump and reboot evidence. | Zero new crashes, including SIGILL/SIGBUS/SIGSEGV. | Await Thumb QB |
 
 For a measured regression, the owner reviews a per-package `-marm` opt-out and repeats the failed gate on a matched image. The affected package, measured hot function, decision and retest remain in the ledger. Hand-written NEON and assembly retain their authored mode. [Static launcher and board procedure](../../../comms/codex_to_claude/0013g_reply.md)
+
+## Retained perf kernels · 26 November
+
+| GBS lane | Release advisors | Outline | .text (B) | Δ .text within advisor setting | zImage (B) | Δ zImage | Helpers | Helper bytes |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| K0 | On | Off | 8,564,600 | baseline | 5,326,464 | baseline | 0 | 0 |
+| K1 | On | On | 8,214,312 | −350,288 (−4.09%) | 5,449,312 | +2.31% | 20,324 | 316,380 |
+| K2 | Off | Off | 9,859,176 | baseline | 5,916,376 | baseline | 0 | 0 |
+| K3 | Off | On | 9,369,924 | −489,252 (−4.96%) | 6,068,112 | +2.56% | 26,020 | 411,200 |
+
+Outlining reduced linked .text in both comparisons while increasing compressed zImage. The .text interaction (K1−K0)−(K3−K2) is +138,964 B. The K1/K3 perf ELFs and compiler argv were recovered with build IDs `63a81d71…` and `853412bc…`. Their whole RPM builds failed later in the GCC SERET-UL step. These are local perf measurements. Both signed outline QB IDs and their board measurements remain open. [K0/K2 receipt](../../../artifacts/evidence/native-run-r0013d-kernel-dkyJ0S-follower-20261126.txt) · [K1/K3 receipt](../../../artifacts/evidence/native-run-r0013i-read-a0Pmc0-0013f-HgSjf0-0013g-nkPaPY-20261126.txt)
+
+**Thumb-2 kernel blocker.** K4/K5 hit `stmia r0, {r0 - r15}` in VDLinux-modified `arch/arm/lib/backtrace-clang.S:19`. The K4 diagnostic also identifies `mov r8, sp, lsr #12` in `check_overflow` at `arch/arm/kernel/entry-armv.S:375`. Replay coverage was 1/84 assembler commands. The two confirmed sites are a partial inventory. Keep the peripheral and userspace Thumb experiments separately identified. [Assembly diagnostics](../../../artifacts/evidence/native-run-r0013i-read-a0Pmc0-0013f-HgSjf0-0013g-nkPaPY-20261126.txt)
+
+## Kernel -moutline side effects
+
+| Check | Evidence for each outlined kernel relative to its own control | Status on 26 November |
+|---|---|---|
+| S1 boot-critical sections | Input and final sections, callers, direct reachability from entry/vector/idmap/MMU-off and cross-section list | Release gate awaiting both native verdicts |
+| S2 stack/LR | Tail/thunk/register/stack/no-local-save/unknown sites; nested extra-save estimate and IRQ/entry checks against 8 KiB | Static return pending; indirect/recursive worst case open |
+| S3 unwind | FP/r11 operands, caller frame setup, helper bodies by variant and a symbolized QA backtrace | Static and board |
+| S4 fault handling | Counts and decoded fault, fixup and bug addresses versus helper intervals | Release gate awaiting both native verdicts |
+| S5 atomics/barriers | Per-helper exclusive operations and barriers; inspect loop and caller context | Static return pending |
+| S6 instrumentation | Effective FTRACE/KPROBES/KALLSYMS/stack-protector config; mcount, blacklist, symbol and canary implications for other configs | Config-specific review |
+| S7 module ABI | Export names, Module.symvers CRCs; separate SERET-UL GCC compile and external module check | Clean package and module proof open |
+| S8 code layout | Helper size distribution, distinct callers, source joins and hot-path site counts | Counts pending; board profiles required for latency |
+| S9 veneers | LLD range-extension thunk count/bytes, section and linker-boundary placement | Release gate awaiting both native verdicts |
+| S10 literals | PC-relative load targets against each helper's address extent; ADR and ambiguous ownership need review | Static return pending |
+| S11 privileged/idle instructions | Decode all helper bodies; list sensitive opcodes and join caller PCs | Release gate awaiting both native verdicts |
+| S12 modules | Compare per-module sizes, helpers, allocated relocations, PLT and ARM loader cases | Release gate awaiting both native verdicts |
+| S13 debug coverage | DWARF file/line resolution at each helper entry and gap list | Static return pending |
+| S14 profile bias | Attribute sampled helper PCs via matching build ID and recorded caller stack | Runtime time-share open |
+| S15 timed vendor paths | Samsung/NVT/I²C/GPIO/SPI/CEC/tuner/display source joins, adjacent named delay/MMIO ops; inline register accesses require owner inspection | Static and device smoke |
+| B runtime | Signed four-image rotation, boot, suspend, fast-boot, peripherals, signed scheduler/memory benchmarks, 4K, Home memory, oops symbolization, 24 h per treatment | Two signed treatment QBs required |
+
+## Installed executable census and RELR
+
+| PERF image | ARM loadable ELFs across platform + prd | Executable bytes | A32 bytes (estimate) | Unclassified ELFs | Platform entries + verified special nodes |
+|---|---:|---:|---:|---:|---:|
+| GCC 37564293 | 4,796 | 735,633,578 | 276,117,548 | 159 | 81,327 + 7 |
+| Official 37736448 | 4,793 | 701,762,092 | 300,990,787 | 162 | 81,314 + 7 |
+| Official 37777148 | 4,793 | 701,762,092 | 300,990,787 | 162 | 81,314 + 7 |
+
+Official versus GCC changes executable bytes by −33,871,486 (−4.60%) and estimated A32 bytes by +24,873,239. The GCC image has a different Product/Base. Equal totals for the two Official images do not establish file identity. The platform extraction passed on all three; 37777148 lacks an independent board hash readback in this return. [Census](../../../artifacts/evidence/native-run-r0013i-read-a0Pmc0-0013f-HgSjf0-0013g-nkPaPY-20261126.txt)
+
+**RELR estimate.** The two installed inventories cover 4,793 ELFs. The prior metadata join covered 374, leaving 4,419 unmatched. In the joined population, REL 2,201,840 B → estimated RELR 65,396 B, a saving of **2,136,444 B**. The largest RPM contribution was lightweight-web-engine-profile_tv at 1,194,020 B. Full installed-byte recount and a positive target glibc loader test remain open. This is relocation metadata size; per-page RAM and boot-time effects require measurement. [Coverage calculation](../../../artifacts/scripts/r0013f/review.py.txt)
