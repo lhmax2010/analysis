@@ -1,0 +1,46 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu
+pin=3a1362f95adc86bc5d4119e97ba8181174d987e0
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013y-launcher.XXXXXX")
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013y/read.sh.txt" -o "$d/run.sh"
+printf '%s  %s\n' 8ee2be9a3671e2880f0ea8eaf0cb0d9dfa231b56fd70cf8c6ca991421b2118d5 "$d/run.sh" | sha256sum -c -
+bash "$d/run.sh" "$pin" source
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013y-launcher.B2KnjA/run.sh: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013y-source.4y1y4P
+source.py.txt: OK
+s12.py.txt: OK
+metadata.py.txt: OK
+image-repo-lib.py.txt: OK
+image_mode_scan.py.txt: OK
+kernel-size.py.txt: OK
+qb-retain.py.txt: OK
+User hao.lin ticket expires in 8 hours 37 minutes.
+SOURCE_REVISIONS [('K1', '9066e12af58d6eaaea0dda25a0426e3fab4becb0'), ('jEMVH7', '8b0eec57103fee38dd9e75635b4ffe1cccda9033')]
+SOURCE_FILE linux-6.12/Makefile b9da89aa1a9d5a65d6215c3448dd7fc1f0d4cb84cfaeb23af5e03eea11293dd6 b9da89aa1a9d5a65d6215c3448dd7fc1f0d4cb84cfaeb23af5e03eea11293dd6 b9da89aa1a9d5a65d6215c3448dd7fc1f0d4cb84cfaeb23af5e03eea11293dd6
+SOURCE_FILE linux-6.12/arch/arm/configs/KANTSU2E_debug_defconfig 6bf8e5380ca2f215f570360d8bd6367f064d0749e2d1317b86e08209f46d0fe3 6bf8e5380ca2f215f570360d8bd6367f064d0749e2d1317b86e08209f46d0fe3 6bf8e5380ca2f215f570360d8bd6367f064d0749e2d1317b86e08209f46d0fe3
+SOURCE_FILE linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig 11c224a1247eeb20c72efc6548808a564b0766321c2b0570dc20d18d965f4caf 11c224a1247eeb20c72efc6548808a564b0766321c2b0570dc20d18d965f4caf 11c224a1247eeb20c72efc6548808a564b0766321c2b0570dc20d18d965f4caf
+SOURCE_FILE linux-6.12/arch/arm/configs/KANTSU2E_release_defconfig 2053dab86bdbcb78851d264e96eec412899ee92153e8f93f64d6b4aebb841535 2053dab86bdbcb78851d264e96eec412899ee92153e8f93f64d6b4aebb841535 2053dab86bdbcb78851d264e96eec412899ee92153e8f93f64d6b4aebb841535
+SOURCE_FILE linux-6.12/fs/minimal_core.c 8500db4e7a10863e541bd0f29c8e5181aa155f4fe5ae812117eb5349aa93a7d3 8500db4e7a10863e541bd0f29c8e5181aa155f4fe5ae812117eb5349aa93a7d3 8500db4e7a10863e541bd0f29c8e5181aa155f4fe5ae812117eb5349aa93a7d3
+SOURCE_FILE linux-6.12/init/Kconfig 325ccaa4df6421fb98602e52f602d896afbb85097be5cf932d119512ea03e2ae 325ccaa4df6421fb98602e52f602d896afbb85097be5cf932d119512ea03e2ae 325ccaa4df6421fb98602e52f602d896afbb85097be5cf932d119512ea03e2ae
+SOURCE_FILE linux-6.12/ipc/kdbus/connection.c f1d2a1bf16e6dd3946346877b0c5f23d5675eefc2a9c58daea911ddd6507981f f1d2a1bf16e6dd3946346877b0c5f23d5675eefc2a9c58daea911ddd6507981f f1d2a1bf16e6dd3946346877b0c5f23d5675eefc2a9c58daea911ddd6507981f
+SOURCE_EQUIV PASS scope=seven-files
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu
+pin=3a1362f95adc86bc5d4119e97ba8181174d987e0
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013x-launcher.XXXXXX")
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013x/enumerate.sh.txt" -o "$d/run.sh"
+printf '%s  %s\n' 178e8bc3736f8bd4f6bb72712eb4f9663f6e9c7a488771646798e94fc7442c1a "$d/run.sh" | sha256sum -c -
+bash "$d/run.sh" "$pin"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013x-launcher.x8s8o5/run.sh: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.7Za3F6
+enumerate.py.txt: OK
+metadata.py.txt: OK
+image-repo-lib.py.txt: OK
+asm.py.txt: OK
+ENUM_INPUT fae92f998a51e8493e2ed452381aad73c2ce689e /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K4/gbs.conf 51ebc338914c983efbff4f2af90ceb33a34b5bc3acc8dc3171ab1308a48083fd {"repo.product_NikeM": "http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/", "repo.base_standard": "http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/"}
+ENUM_RESULT SETUP_FAILED deps HTTP Error 404: Not Found
+chengkai@risc-v-Alienware-Aurora-R16:temp$

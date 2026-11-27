@@ -1,0 +1,65 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ python3 -I - <<'PY'
+import gzip, lzma, re, urllib.request, urllib.error
+from urllib.parse import urljoin
+op = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+H = "http://repos.vd.sec.samsung.net/"
+REPOS = {
+ "K4-product 20261123.2 (b776/19414776)": H+"priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/repos/product/armv7l/packages/",
+ "product 20261123.1 (b755/19414755)":    H+"priv/168.219.236.27:81/PRV/builds/b755/19414755/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1/repos/product/armv7l/packages/",
+ "product 20261118.2 (b993/19368993)":    H+"priv/168.219.246.226:81/PRV/builds/b993/19368993/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261118.2/repos/product/armv7l/packages/",
+ "DO_NOT_DELETE product 20261113.1":      H+"products/tv/development/DO_NOT_DELETE/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1/repos/product/armv7l/packages/",
+ "base 20261113.1":                       H+"obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/repos/base/armv7l/packages/",
+}
+NEED = (b"secureboot-signer", b"vd-kernel-dtb-devel")
+def get(u, lim=200<<20):
+    with op.open(u, timeout=25) as r: return r.read(lim)
+def unpack(b):
+    if b[:2] == b"\x1f\x8b": return gzip.decompress(b)
+    if b[:6] == b"\xfd7zXZ\x00": return lzma.decompress(b)
+    if b[:4] == b"\x28\xb5\x2f\xfd":
+        import subprocess; return subprocess.run(["zstd","-dc"],input=b,capture_output=True,check=True).stdout
+    return b
+for name, u in REPOS.items():
+    root = u.split("/repos/")[0] + "/"
+    try: get(root, 1<<16); rs = "200"
+    except urllib.error.HTTPError as e: rs = str(e.code)
+    except Exception as e: rs = type(e).__name__
+    try:
+        md = get(u+"repodata/repomd.xml", 2<<20).decode()
+        href = re.search(r'<data type="primary">.*?<location href="([^"]+)"', md, re.S)[1]
+        prim = unpack(get(urljoin(u, href)))
+        found = []
+        for n in NEED:
+            m = re.findall(rb'<name>([^<]*)</name>(?:(?!<package).)*?<rpm:entry name="' + re.escape(n) + rb'"', prim, re.S)
+            pk = re.findall(rb'<name>' + re.escape(n) + rb'</name>', prim)
+            found.append("%s:%s" % (n.decode(), "pkg" if pk else ("provided-by " + m[0].decode() if m else "MISSING")))
+        print(f"REPO {name}\n  root={rs} repodata=200 " + " ".join(found))
+    except urllib.error.HTTPError as e:
+        print(f"REPO {name}\n  root={rs} repodata={e.code}")
+    except Exception as e:
+        print(f"REPO {name}\n  root={rs} error={type(e).__name__}: {e}")
+PY
+echo "== retained QB captures on disk"
+ls -d /home1/chengkai/vd-tree/workspace/qb-evidence/377* 2>/dev/null | head; grep -h -iE '^url|product' /home1/chengkai/vd-tree/workspace/qb-evidence/377*/*.conf 2>/dev/null | sort -u | cut -c1-220 | head -12
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home1/chengkai/.pyenv/versions/3.10.12/lib/python3.10/lzma.py", line 27, in <module>
+    from _lzma import *
+ModuleNotFoundError: No module named '_lzma'
+== retained QB captures on disk
+/home1/chengkai/vd-tree/workspace/qb-evidence/37736427-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.1
+/home1/chengkai/vd-tree/workspace/qb-evidence/37736448-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2
+/home1/chengkai/vd-tree/workspace/qb-evidence/37777148-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1
+/home1/chengkai/vd-tree/workspace/qb-evidence/37777264-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.2
+%gcc_warning_opensource_pkgs ABC-test-apps ABC_AV-test-apps AT-HUB BM_HWTest Cifsd Cifsd_tools Com.Samsung.TV.Wizard.BTActivity EngineeringMode IoTkeymanager KnoxVault OpenCvSharpExtern ReporterTA SIM SPhysics SPhysics_N
+# PRODUCT CONFIGS ##############################################################
+# product types of vd biz dept.
+%sec_buildconf_ballie_product   0
+%sec_buildconf_product_carry_over_sub_otp   0
+%sec_buildconf_product_lite_tizen   n
+%sec_buildconf_product_samsung_lite_tizen   0
+%sec_buildconf_product_supported_airplay   1
+%sec_buildconf_product_supported_rootfs_type   erofs
+%sec_buildconf_woc_product   n
+# sub product type (requested by bokyun.kwon(SBOX), invlim(AI_SOUNDBAR))
+%_vd_cfg_product_type        TV

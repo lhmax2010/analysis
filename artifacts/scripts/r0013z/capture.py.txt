@@ -1,0 +1,118 @@
+"""Keep checksum-qualified S12 inputs with each immutable QuickBuild publication."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import tempfile
+from urllib.error import HTTPError
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+HERE = Path(__file__).resolve().parent
+POLICY = runpy.run_path(str(HERE / "product.py.txt"))
+LIB = runpy.run_path(str(HERE / "image-repo-lib.py.txt"))
+
+
+def checked(path, digest):
+    if path.is_symlink() or not path.is_file() or LIB["file_sha"](path) != digest:
+        raise ValueError("retained input checksum mismatch " + str(path))
+    return path
+
+
+def install(path, data):
+    # Publish complete metadata only. Concurrent readers must see exactly the same snapshot.
+    with tempfile.NamedTemporaryFile(dir=path.parent) as tmp:
+        tmp.write(data)
+        tmp.flush()
+        try:
+            os.link(tmp.name, path)
+        except FileExistsError:
+            checked(path, hashlib.sha256(data).hexdigest())
+
+
+class Capture:
+    def __init__(self, parent, qb, url, work):
+        self.url = url
+        self.work = work
+        label = POLICY["current_product"](url)
+        if not re.fullmatch(r"\d{8}", qb):
+            raise ValueError("supply the eight-digit QB number")
+        folder = parent / (qb + "-" + label)
+        self.cache = folder / "s12"
+        if self.cache.resolve() != self.cache:
+            raise ValueError("unexpected capture path")
+        self.cache.mkdir(parents=True, exist_ok=True)
+        self.folder = folder
+        self.files = {}
+        identity = folder / "identity.json"
+        if identity.exists():
+            original = json.loads(identity.read_bytes())
+            if original["product"] != url or str(original["qb_id_operator_supplied"]) != qb:
+                raise ValueError("retained QB capture identity mismatch")
+            self.files = original["files"]
+        install(self.cache/"source.json",json.dumps({"qb":qb,"product":url},sort_keys=True).encode())
+        self.local_rpms = self.fetched_rpms = 0
+
+    def data(self, name, url, limit, legacy=None):
+        if legacy and legacy in self.files and (self.folder / legacy).exists():
+            return checked(self.folder / legacy, self.files[legacy]).read_bytes()
+        path = self.cache / name
+        receipt = self.cache / (name+".sha256")
+        if receipt.is_file() and path.exists():
+            return checked(path, receipt.read_text().strip()).read_bytes()
+        data = LIB["fetch"](url, limit)
+        if legacy in self.files and hashlib.sha256(data).hexdigest()!=self.files[legacy]:
+            raise ValueError("download differs from retained QB checksum: "+legacy)
+        install(path, data)
+        install(receipt, (hashlib.sha256(data).hexdigest()+"\n").encode())
+        return data
+
+    def publication(self, base_url):
+        raw = self.data("build.xml", self.url+"builddata/build.xml", 2<<20, "build.xml")
+        POLICY["check_publication"](raw, self.url, base_url)
+
+    def metadata(self, repo, kind):
+        group = repo.removesuffix("/").rsplit("/",1)[-1]
+        if group not in ("packages","debug","debuginfo") or repo != self.url+"repos/product/armv7l/"+group+"/":
+            raise ValueError("unexpected package repository " + repo)
+        required = group == "packages"
+        absent = self.cache / (group+".absent")
+        if not required and absent.is_file():
+            raise HTTPError(repo, 404, "optional index absent at capture", None, None)
+        try:
+            raw = self.data(group+"-repomd.xml", repo+"repodata/repomd.xml", 2<<20, "repomd.xml" if required else None)
+        except HTTPError as e:
+            if e.code == 404 and not required:
+                install(absent,repo.encode())
+            raise
+        entry = ET.fromstring(raw).find("{*}data[@type='%s']" % kind)
+        if entry is None:
+            raise ValueError("missing "+kind+" in "+repo)
+        url = urljoin(repo, entry.find("{*}location").attrib["href"])
+        if not url.startswith(repo+"repodata/"):
+            raise ValueError("metadata outside expected repository")
+        packed = self.data(group+"-"+kind, url, 128<<20, "primary.download" if required and kind=="primary" else None)
+        ck = entry.find("{*}checksum")
+        algorithm = ck.get("type")
+        if hashlib.new("sha1" if algorithm=="sha" else algorithm, packed).hexdigest()!=ck.text.strip():
+            raise ValueError("RPM metadata checksum mismatch "+url)
+        return ET.fromstring(LIB["unpack"](packed))
+
+    def rpm(self, link, digest):
+        if not re.fullmatch("[0-9a-f]{64}", digest) or not link.startswith(self.url):
+            raise ValueError("invalid RPM identity")
+        filename = digest[:16]+"-"+link.rsplit("/",1)[-1]
+        cached = self.cache / filename
+        for path in (self.folder/filename, cached):
+            if path.exists():
+                self.local_rpms += 1
+                return checked(path, digest)
+        staged = LIB["cached_rpm"]((link,digest),self.work)
+        try:
+            os.link(staged, cached)
+        except FileExistsError:
+            checked(cached,digest)
+        self.fetched_rpms += 1
+        return cached

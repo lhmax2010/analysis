@@ -1,0 +1,25 @@
+"""Validate LLVM Product publications before using or retaining them."""
+from pathlib import Path
+import re
+import runpy
+from xml.etree import ElementTree as ET
+
+HERE = Path(__file__).resolve().parent
+product_label = runpy.run_path(str(HERE / "qb-retain.py.txt"))["product_url"]
+DEFAULT_PRODUCT = ("http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/"
+                   "artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/")
+
+
+def current_product(url):
+    label = product_label(url)
+    if label.rsplit("_", 1)[-1] in {"20261123.1", "20261123.2"}:
+        raise ValueError("retired LLVM Product")
+    return label
+
+
+def check_publication(raw, url, base_url):
+    label = current_product(url)
+    xml = ET.fromstring(raw)
+    if (xml.findtext("id") != label or xml.findtext("base_repo", "").rstrip("/") != base_url.rstrip("/")
+            or not re.search(r"(?:^|/)TIZEN_KantSU2E_Clang_build\.conf@\d+$", xml.findtext("buildconf_version", ""))):
+        raise ValueError("published Product ID, LLVM Base or Clang build.conf does not match " + label)

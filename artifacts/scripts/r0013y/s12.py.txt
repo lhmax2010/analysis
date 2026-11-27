@@ -42,6 +42,13 @@ def resolve(arg):
         url=f"http://{lib['HOST']}/priv/{build}/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_{stamp}/"
     elif re.fullmatch(r"[0-9]+",arg):
         caps=list((WS/"qb-evidence").glob(arg+"-*/identity.json"))
+        if not caps:
+            saved=list((WS/"qb-evidence").glob(arg+"-*/s12/inputs.json"))
+            if len(saved)==1:
+                record=json.loads(saved[0].read_bytes())
+                need(record["qb"]==arg,"S12 capture QB identity mismatch")
+                verify_url(record["product"])
+                return record["product"]
         if len(caps)==1:
             cap=json.loads(caps[0].read_bytes())
             need(cap["qb_id_operator_supplied"]==arg,"QB identity")
@@ -58,6 +65,28 @@ def resolve(arg):
     return url
 
 
+def candidate(arg):
+    if re.fullmatch(r"\d{8}",arg):
+        qb,url=arg,resolve(arg)
+    elif re.match(r"^\d{8}=",arg):
+        qb,raw=arg.split("=",1)
+        url=resolve(raw)
+    else:
+        url=resolve(arg)
+        matches=set()
+        for p in (WS/"qb-evidence").glob("????????-"+verify_url(url)):
+            matches.add(p.name[:8])
+        for p in (VD/"config").glob("*_qb????????.conf"):
+            cfg=configparser.RawConfigParser()
+            cfg.read(p)
+            if cfg.get("repo.product_NikeM","url",fallback="").rstrip("/")==url.rstrip("/"):
+                matches.add(p.stem[-8:])
+        need(len(matches)==1,"URL has no unique QB mapping; supply QB=Product-URL")
+        qb=matches.pop()
+    need(qb not in {*BASES,"37736448","37736427"} and url not in {resolve(b) for b in BASES},"candidate must be a new outline QB")
+    return qb,url
+
+
 def selected(name,path):
     if not KO.search(path) or "debuginfo" in name:
         return False
@@ -66,10 +95,10 @@ def selected(name,path):
     return not (name.startswith("tztv-kernel") and name!="tztv-kernel-perf")
 
 
-def inventory(url):
+def inventory(url, load):
     repo=url+"repos/product/armv7l/packages/"
-    primary=meta["metadata"](repo,"primary")
-    files=meta["metadata"](repo,"filelists")
+    primary=load(repo,"primary")
+    files=load(repo,"filelists")
     owners={}
     symver_packages=set()
     for p in files.findall("{*}package"):
@@ -87,7 +116,7 @@ def inventory(url):
             name=p.findtext("{*}name"); ck=p.find("{*}checksum")
             if p.findtext("{*}arch") not in ("armv7l","noarch"):
                 continue
-            if not (ck.text in owners or ck.text in symver_packages or name in {"tztv-kernel-perf","tztv-kernel-devel","tztv-kernel-perf-devel",
+            if not (ck.text in owners or ck.text in symver_packages or name in {"tztv-kernel","tztv-kernel-release","tztv-kernel-perf","tztv-kernel-devel","tztv-kernel-perf-devel",
                                                     "tztv-kernel-perf-debuginfo","tztv-kernel-debuginfo"}):
                 continue
             link=urljoin(directory,p.find("{*}location").get("href"))
@@ -99,7 +128,7 @@ def inventory(url):
     for sub in ("debug/","debuginfo/"):
         directory=url+"repos/product/armv7l/"+sub
         try:
-            idx=meta["metadata"](directory,"primary")
+            idx=load(directory,"primary")
         except HTTPError as e:
             if e.code==404:continue
             raise
@@ -183,15 +212,28 @@ def symbols(elf,bid):
     return len(set(HELPER.findall(text)))
 
 
-def read_snapshot(label,url,base_id,work):
+def retained_inputs(qb,url,base_id,work):
+    cache_module=runpy.run_path(str(HERE/"capture.py.txt"))
+    store=cache_module["Capture"](WS/"qb-evidence",qb,url,work)
+    store.publication(lib["PREFIX"]+BASES[base_id][0])
+    rows,owners=inventory(url,store.metadata)
+    core={"tztv-kernel","tztv-kernel-devel","tztv-kernel-perf","tztv-kernel-release"}
+    need(core<=rows.keys(),"missing kernel RPMs: "+", ".join(sorted(core-rows.keys())))
+    paths={name:store.rpm(link,digest) for name,(digest,link) in sorted(rows.items())}
+    manifest=json.dumps({"qb":qb,"product":url,"rpms":rows,"module_paths":{h:sorted(v) for h,v in owners.items()}},
+                        sort_keys=True,indent=2).encode()
+    cache_module["install"](store.cache/"inputs.json",manifest)
+    print("S12_RETAINED",qb,store.folder,"rpms",len(paths),"local",store.local_rpms,
+          "fetched",store.fetched_rpms,"manifest_sha256",hashlib.sha256(manifest).hexdigest(),flush=True)
+    return rows,owners,paths
+
+
+def read_snapshot(label,url,base_id,work,qb):
     work.mkdir()
-    stamp=BASES[base_id][0]
-    xml=ET.fromstring(lib["fetch"](url+"builddata/build.xml",16<<20))
-    need(xml.findtext("id")==verify_url(url) and xml.findtext("base_repo","").rstrip("/")==lib["PREFIX"]+stamp,"Product ID or published LLVM Base mismatch")
-    rows,owners=inventory(url)
+    rows,owners,paths=retained_inputs(qb,url,base_id,work)
     mod={};boot={};elfs=[];symvers={}; maps=[]
     for name,(h,link) in sorted(rows.items()):
-        path=lib["cached_rpm"]((link,h),work)
+        path=paths[name]
         def want(n):
             return (selected(name,n) or name=="tztv-kernel-perf" and n in ("/perf/uImage","/perf/zImage")
                     or bool(re.search(r"/Module\.symvers(?:\.(?:gz|xz|zst))?$",n)) and not {"debug","release"}.intersection(n.split("/"))
@@ -262,15 +304,26 @@ def compare(ref,test):
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument("official");parser.add_argument("custom");args=parser.parse_args()
+    parser.add_argument("--retain-baselines", action="store_true")
+    parser.add_argument("candidates", nargs="*")
+    args=parser.parse_args()
+    if len(args.candidates)!=(0 if args.retain_baselines else 2):
+        parser.error("use --retain-baselines alone, or supply Official and Custom candidate QBs")
     need(W.parent==WS/"temp" and W.name.startswith("pm0013y-s12."),"workspace required")
     all_reasons=[]
-    for (lane,arg),baseline in zip([("Official",args.official),("Custom",args.custom)],BASES):
+    for index,(baseline,lane) in enumerate(zip(BASES,("Official","Custom"))):
         try:
-            url=resolve(arg);ref_url=resolve(baseline)
+            ref_url=resolve(baseline)
+            if args.retain_baselines:
+                work=W/baseline
+                work.mkdir()
+                retained_inputs(baseline,ref_url,baseline,work)
+                continue
+            arg=args.candidates[index]
+            qb,url=candidate(arg)
             need(url!=ref_url,"candidate is its own baseline")
-            ref=read_snapshot(baseline,ref_url,baseline,W/(baseline+"-ref"))
-            test=read_snapshot(lane,url,baseline,W/lane)
+            test=read_snapshot(lane,url,baseline,W/lane,qb)
+            ref=read_snapshot(baseline,ref_url,baseline,W/(baseline+"-ref"),baseline)
             rows,reasons=compare(ref,test)
             (W/(lane+"-modules.json")).write_text(json.dumps(rows))
             for row in sorted(rows,key=lambda r:-abs(r["text_delta"] or 0))[:6]:
@@ -280,6 +333,9 @@ def main():
             all_reasons.extend(lane+": "+r for r in reasons)
         except (OSError,ValueError,ET.ParseError,KeyError,IndexError,struct.error,subprocess.SubprocessError) as exc:
             all_reasons.append(lane+": "+str(exc)[:250])
+    if args.retain_baselines:
+        print("S12_BASELINE_RETENTION","FAIL" if all_reasons else "COMPLETE", "; ".join(all_reasons))
+        return bool(all_reasons)
     data={p.stem:json.loads(p.read_bytes()) for p in W.glob("*-modules.json")}
     if data:
         raw=json.dumps(data,sort_keys=True,separators=(",",":")).encode()

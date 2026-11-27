@@ -11,9 +11,13 @@ while read -r sum path; do
     curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "${path##*/}"
     printf '%s  %s\n' "$sum" "${path##*/}" | sha256sum -c -
 done <<'PINS'
-47808e31a7a9191f77f48db858e841f1f04e17935202e7b0165d81e143ef4b63 artifacts/scripts/r0013x/enumerate.py.txt
+22d46ca18f9ea2be2a5e7723f2de1dfebf51b5a74a9e329527965abee19ff028 artifacts/scripts/r0013x/enumerate.py.txt
 e00cd458899ac8aec648d684c1d64ca9049ffe48e9e948bd9e4f4055917e6930 artifacts/scripts/r0013x/metadata.py.txt
 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f artifacts/scripts/r0005/image-repo-lib.py.txt
 ed5934834fa1b431491f7f5e56a48b84b57ccbaf5f19f5a98f7537ebc2274386 artifacts/scripts/r0013i/asm.py.txt
+d97b445ffcaabb93e69f2b9d0c7ff84419e84d4b2ba11b7cbec4559350ef1d2c artifacts/scripts/r0013z/product.py.txt
+e3c1fe91704e218a05a76990f37d100cf29ed4c5747164730bff59485479e550 artifacts/scripts/r0011/qb-retain.py.txt
 PINS
-exec python3 -Bu enumerate.py.txt
+shift
+[[ $# -le 1 ]]
+exec python3 -Bu enumerate.py.txt "$@"

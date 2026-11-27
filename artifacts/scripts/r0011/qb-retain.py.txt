@@ -7,6 +7,8 @@ import difflib
 import fcntl
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 import re
 import runpy
@@ -211,6 +213,25 @@ def capture(lib, args, *, staging_parent=None):
     target = parent/f"{args.qb}-{label}"
     if target.parent.resolve() != target.parent or target.is_symlink():
         raise ValueError("invalid capture destination")
+    # S12 may already have retained modules before the full PERF capture starts.
+    if staging_parent is None and (target/"s12").is_dir() and not (target/"identity.json").exists():
+        if target.resolve() != target:
+            raise ValueError("unexpected S12 capture destination")
+        s12_identity=json.loads((target/"s12/source.json").read_bytes())
+        if s12_identity != {"qb":args.qb,"product":args.product_url}:
+            raise ValueError("S12/QB publication differs")
+        with tempfile.TemporaryDirectory(prefix=".full-capture-", dir=parent) as tmp:
+            capture(lib, args, staging_parent=Path(tmp))
+            staged=Path(tmp)/target.name
+            for file in sorted(staged.iterdir(),key=lambda p:p.name=="identity.json"):
+                dest=target/file.name
+                try:
+                    os.link(file,dest)
+                except FileExistsError:
+                    if dest.resolve()!=dest or lib["file_sha"](dest)!=lib["file_sha"](file):
+                        raise ValueError("existing QB capture differs: "+str(dest))
+        print("CAPTURE_DIR",target,flush=True)
+        return
     target.mkdir(parents=True, exist_ok=False)
     print("CAPTURE_DIR", target, flush=True)
     url = args.product_url
@@ -253,7 +274,7 @@ def capture(lib, args, *, staging_parent=None):
             raise ValueError("GCC published Base or build.conf differs from retained HQ reference evidence")
         print("CAPTURE_LANE GCC-REF-NOPRELINK")
     evidence = {"lane": "GCC-REF-NOPRELINK" if reference else "LLVM", "qb_id_operator_supplied": args.qb, "product": url, "rpm_count": len(rows),
-                "payloads": artifacts, "files": {p.name: lib["file_sha"](p) for p in sorted(target.iterdir())}}
+                "payloads": artifacts, "files": {p.name: lib["file_sha"](p) for p in sorted(target.iterdir()) if p.is_file()}}
     summary = target/"identity.json"
     summary.write_text(json.dumps(evidence, indent=2) + "\n")
     print("CAPTURE_LEDGER", len(rows), "KERNEL_RPMS", len(kernels), lib["file_sha"](summary), summary)
