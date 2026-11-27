@@ -1,0 +1,3 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ for lane in K1 K3; do awk -F '\t' -v lane="$lane" 'NR>1 && !($3=="mrc" && $4 \~ /^p15, #0x0, [^,]+, c13, c0, #0x3$/) {print lane,$1,$2,$3,$4}' "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.00KP3P/$lane-system-state.tsv"; done\
+K1 0xc01315bc 0xc01315c0 mrcne p15, #0x0, r1, c13, c0, #0x3\
+K3 0xc0156778 0xc015677c mrcne p15, #0x0, r1, c13, c0, #0x3

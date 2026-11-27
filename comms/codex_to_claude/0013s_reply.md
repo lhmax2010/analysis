@@ -35,7 +35,14 @@ Paste the same override at the first prompt, then paste the verbatim `BUILD_RECE
 
 **Board decision.** The verifier independently hash-checks the 00KP3P static receipt and its TSV archive. It prints `S11_REMAINING K1` and `S11_REMAINING K3` with PC, helper, mnemonic, operands, direct callers and disposition. It emits `BOARD_FLASH PM_PASS RECEIPT … S12_REQUIRED_BEFORE_FLASH` only when both residuals are identified reads and the pinned S1/S2/S4/S9 evidence meets the PM conditions. Unknown instructions, writes or missing evidence retain HOLD. S1 has zero observed direct critical calls. S2 has an 8-byte lower bound on an 8,192-byte stack, including five K1 and eight K3 sites reviewed by PM. S4 and S9 passed both lanes. STATIC_GATE remains HOLD. Before flashing either TEST-ONLY QB, compare its shipped module set, sizes and relocation types with its own reference, 37777148 for Official or 37777264 for Custom, and review differences. The archived S12 covered 0 of 115 modules per lane.
 
-**S11 evidence.** The returned text identifies 118/119 K1 and 164/165 K3 as unconditional TPIDRURO reads. Its mnemonic filter omits the two residual rows. Their names require the retained TSVs. The previous classifier accepted decimal 3 and 4, but failed to normalize hex immediates such as `#0x0` and `#0x3`. The correction recognizes both decimal and hex encodings of TPIDRURO and TPIDRPRW, including conditional forms.
+**S11 readback.** The operator returned the two remaining rows from the 00KP3P system-state TSVs. Both instructions are `mrcne p15, #0x0, r1, c13, c0, #0x3`. When NE holds, the instruction reads TPIDRURO into r1. The pinned classifier at dad2b85 classified both rows as TPIDRURO reads. [Terminal readback](../../artifacts/evidence/native-run-r0013s-s11-residual-20261127.txt)
+
+| Lane | Helper | Instruction PC | Unconditional reads | Conditional reads | Total reads / decoded S11 sites |
+| --- | --- | --- | ---: | ---: | ---: |
+| K1 | `0xc01315bc` | `0xc01315c0` | 118 | 1 | 119 / 119 |
+| K3 | `0xc0156778` | `0xc015677c` | 164 | 1 | 165 / 165 |
+
+This satisfies the PM’s remaining S11 evidence condition. The signed-off policy still requires the native `verify` receipts and per-QB S12 review before flashing.
 
 **Build checks.** The verifier checks each boot member against its RPM digest. It validates the uImage header CRC and computes the data CRC over exactly `u[64:64+ih_size]`. It compares the remaining length with the hash-pinned Official 37777148 USB uImage and prints both lengths. One retained perf tree must match all three of zImage SHA-256, kernel config and the GNU build ID in the verified payload. Against K1, each metric must be within 0.10%: .text 8,214,312 bytes, 20,324 helper addresses, Image 10,996,388 bytes, zImage 5,449,312 bytes. The argument checks cover SERET-UL GCC, perf Clang and module compilation. The real jEMVH7 verdict awaits native execution.
 
