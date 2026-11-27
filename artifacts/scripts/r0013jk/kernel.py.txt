@@ -208,8 +208,8 @@ def shelve():
         if len(patch.splitlines())<=120:
             print(patch.decode(errors="replace"),flush=True)
         else:
-            print("FULL_DIFF",W/(label+".patch"),"STOP: review before shelving")
-            return
+            print("FULL_DIFF",W/(label+".patch"),"Inspect in another terminal and verify the diff hash before continuing.",flush=True)
+            need(input("Type reviewed "+label+" diff SHA-256: ").strip()==sha(patch),"review incomplete")
     need(input("Type the reviewed PRECEDING_SHELF diff SHA-256: ").strip()==sha(patch),"operator stopped before P4 change")
     form=f"Change: new\nClient: {CLIENT}\nDescription:\n\t{TITLE}\n"
     msg=subprocess.check_output(["p4","-c",CLIENT,"change","-i"],input=form.encode()).decode()
