@@ -1,0 +1,9 @@
+{
+  "qb": "37736448",
+  "sha256": "eb458b69e99ce1976f8fc8013fa797c9f4734b8b8643854167d04a859f60a6d6",
+  "adr_file_offset": "0x1611c",
+  "masks_file_offset": "0x15e54",
+  "clear": "0x2120c302",
+  "set": "0x10c03c7d",
+  "setup_bit7": "PRESERVE"
+}

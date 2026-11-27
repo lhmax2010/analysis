@@ -169,7 +169,7 @@ Outlining reduced linked .text in both comparisons while increasing compressed z
 
 Official versus GCC changes executable bytes by −33,871,486 (−4.60%) and estimated A32 bytes by +24,873,239. The GCC image has a different Product/Base. Equal totals for the two Official images do not establish file identity. The platform extraction passed on all three; 37777148 lacks an independent board hash readback in this return. [Census](../../../artifacts/evidence/native-run-r0013i-read-a0Pmc0-0013f-HgSjf0-0013g-nkPaPY-20261126.txt)
 
-**RELR estimate.** The two installed inventories cover 4,793 ELFs. The prior metadata join covered 374, leaving 4,419 unmatched. In the joined population, REL 2,201,840 B → estimated RELR 65,396 B, a saving of **2,136,444 B**. The largest RPM contribution was lightweight-web-engine-profile_tv at 1,194,020 B. Full installed-byte recount and a positive target glibc loader test remain open. This is relocation metadata size; per-page RAM and boot-time effects require measurement. [Coverage calculation](../../../artifacts/scripts/r0013f/review.py.txt)
+**RELR estimate.** The two installed inventories cover 4,793 ELFs. The prior metadata join covered 374, leaving 4,419 unmatched. In the joined population, REL 2,201,840 B → estimated RELR 65,396 B, a saving of **2,136,444 B**. The largest RPM contribution was lightweight-web-engine-profile_tv at 1,194,020 B. The 0013r recount below covers all 4,793 platform/prd ELFs. The target-loader execution check remains open. This is relocation metadata size; per-page RAM and boot-time effects require measurement. [Coverage calculation](../../../artifacts/scripts/r0013f/review.py.txt)
 
 ### Retained perf kernel outlining side effects, 0013m
 
@@ -196,3 +196,23 @@ Both lane columns are observations from mo1VRK. The test-build override applies 
 S13 is a known debugging cost. Preserve the build ID and caller return address to recover the call site. Frame-walk behaviour needs target verification.
 
 Official 37736448 → 37777148: rebuilt, same aggregate executable and A32 sizes. Whole platform.img and both partition digests differ. File comparison gives 447 changed platform records and 2 changed prd records; neither partition added or removed a path. AVControl T4 passed on the baseline and default lanes; the package lane remains REVIEW. The package worker was absent at capture. [Native output](../../../artifacts/evidence/native-run-r0013jk-static-mo1VRK-r0013l-gBXGor-20261126.txt)
+
+### Official 37777148 platform/prd census, 27 November
+
+| Check | PQnb3T result | Coverage or gate |
+|---|---:|---|
+| GCC replacement, fixed 27 | 23 CLANG_OBSERVED, 3 NO_ELF_OR_ABSENT, 1 COVERAGE_GAP | Published RPM payloads, 16,396 ELFs, 49 RPMs unavailable. A compiler marker establishes presence in the ELF. |
+| C1 source scan | 0 hits | Inspected source scope |
+| C2 ARMv7 interworking | 0 mapped Thumb ALU-to-PC candidates | 0 proven direct A32-to-candidate paths. Closed for this instruction class in decoded spans. 671,504,468 executable bytes have unknown mode. |
+| C4 EHABI | 4,688 / 4,793 ELFs with nonempty `.ARM.exidx` | 105 without that section. Target unwind behaviour remains a runtime check. |
+| C5 JIT/FFI | 55 candidates | Candidate count |
+| C7 deprecated IT forms | 17,236 sites in 6,983,954 mapped Thumb bytes | Static presence in the shipped files. Boot-time SCTLR.ITD is unverified. |
+| C8 alignment | 212,289 candidates | Runtime check |
+| RELR | 18,672,840 B REL → 656,012 B estimated packed RELR | **18,016,828 B** potential relocation-table saving across 4,793 ELFs |
+| R7 loader | Shipped `/usr/lib/ld-linux.so.3`, SHA-256 `aec21fb59b26192a42630bdec85b38dce32a6c5be1ee69e5cca62e1b619a76b4`. No `GLIBC_ABI_DT_RELR` node observed there. | **Blocked** on the shipped libc/loader pair and a positive ARM relocation test. Prior Official board roster lists glibc 2.40-1.111.armv7l. The exact provider join for 37777148 remains open. |
+| AVControl T4 | Baseline PASS, pure Thumb default PASS, package lane REVIEW | Package lane drops defined executable dynsyms, including TCMarshalable and TCServiceData template instantiations. Shipped consumers and dynamic lookup remain to be qualified. |
+| A32 roster and ownership | 480 ARM-predominant Official entries, 177 separate module records. Ambiguous/missing owner on 4,404 Official ELF rows and 140 GCC rows. | Image `/var/lib/rpm` resolves to `/opt/var/lib/rpm`. The `data.img` readback says only `data`; the filesystem, its offset and the DB contents await the volume probe. |
+
+The original ROSTER sorts by **Official minus GCC estimated A32 bytes**. The unowned aggregate has 36,182,416 B of GCC executable sections, 631,491,596 B of Official executable sections, 18,596,572 B of GCC A32 and 261,056,385 B of Official A32. Its +242,459,813 B delta is sensitive to the different ownership coverage. The top-30 follow-up ranks named RPMs by **Official A32 bytes**. [PQnb3T evidence](../../../artifacts/evidence/native-run-r0013m-census-PQnb3T-20261127.txt)
+
+The retained 37736448 Official uImage contains a v7 setup path that preserves SCTLR bit 7. The clear and set masks are `0x2120c302` and `0x10c03c7d`. Neither mask writes that bit. This result leaves its incoming value open. [Decoded masks and uImage hash](../../../artifacts/evidence/local-r0013r-o1-v7-setup.json)

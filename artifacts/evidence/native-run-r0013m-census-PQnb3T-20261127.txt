@@ -1,0 +1,30 @@
+chengkai@risc-v-Alienware-Aurora-R16:~$ (
+set -eu -o pipefail
+p=9e8886d877244b9a75d16f6fa1a8f3fae734c600
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013m-launch.XXXXXX")
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0013l/run.sh.txt" -o "$d/run"
+printf '%s  %s\n' 94cb68f745deb95297017fd58ae66c33e2c4ebc653aad79a683c415d7e565ff3 "$d/run" | sha256sum -c -
+bash "$d/run" "$p" static | tee "$d/combined.txt"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013m-launch.iBBEEY/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013l-static.PQnb3T
+PRIOR_IDENTITY {"hashes": {"37777148": {"platform.img": "c94f75b02ee5c7370df9ef27d64cf3a2061d4ebaf46eecf6476c0bbf7bf83cf8", "platform": "883fb5b41df4865b27ad207dea6f8cd50d7884349f7455aa706bbb68e20c9d46", "prd": "65f42839469973ea4d5ebf18961711f84fe2060d4117f8af0edd89d0a4726edb"}, "3773 6448": {"platform.img": "4dedcae9475edb6ba18c522ba34887c928d28ba910a2c178a5631ee6b1d7e823", "platform": "1211e63e7e9cc043b8d8d20c1ad3c4320fe989d55075bc8c8eee357d80b2d079", "prd": "a34c6e0d8f3ff69a9431886d2dcecfee3957e361937766e13f997a3575cefe74"}}, "old_vs_new": [["platform", "REGULAR _AND_SYMLINK", 0, 0, 447], ["prd", "REGULAR_AND_SYMLINK", 0, 0, 2]]}
+rpmdb_REVIEW "no supported RPM DB within the extracted filesystem"
+DATA_DB_PROBE {"guest": {"/var/lib/rpm": "opt/var/lib/rpm", "/usr/lib/sysimage/rpm": "usr/lib/sysimage/rpm", "/var/lib/rpmdb": "opt/var/lib/rpmdb"}, "image": "/home1/chengkai/vd-tree/workspace/usb/37777148/updateSU2E/data.img", "exists": true}
+DATA_DB_FORMAT "data"
+OWNER_SOURCE {"method": "published RPM file lists restricted to O1 names; require current payload digest for assignment", "O1_names": 2342, "rows": 84378}
+E1_PUBLISHED {"ELFs": 16396, "missing_RPMs": 49, "fixed27": {"CLANG_OBSERVED": 23, "COVERAGE_GAP": 1, "NO_ELF_OR_ABSENT": 3}}
+
+GCC_OWNER_SOURCE {"G1_identities": 2343, "files": 88202, "failed_download_queries": 0}
+SOURCE_RESCAN {"SOURCE": 219}
+ROSTER {"official": 480, "modules_separate": 177, "ownership_gaps": {"ambiguous_or_missing_37564293": 140, "ambiguous_or_missing_37777148": 4404}, "top3": [["?", 36182416, 631491596, 18596572, 261056385, 242459813], ["org.tizen.tv-viewer", 4195060, 4817952, 228084, 4693514, 4465430], ["pkgmgr-extension", 164252, 205024, 7105, 204554, 197449]]}
+C1_C2_C4_C5 {"C1_source_hits": 0, "C2_T32_ALU_PC": 0, "C2_proved_direct_A32_straight_path": 0, "C4_ELFs": 4793, "C4_EHABI": 4688, "C5_candidates": 55, "unowned_GAP": 4395, "coverage": {"unknown_mode_bytes": 671504468, "rel_bytes": 18672840, "relr_bytes": 656012, "elfs": 4793}}
+RELR {"estimated_bytes": 18016828, "rel": 18672840, "packed": 656012, "inspected": 4793}
+C7_C8 {"unknown_bytes": 671504468, "a_bytes": 21034500, "d_bytes": 2239170, "t_bytes": 6983954, "deprecated": 17236, "alignment_candidates": 212289}
+DT_RELR_PROVIDER_REVIEW {"path": "/usr/lib/ld-linux.so.3", "sha": "aec21fb59b26192a42630bdec85b38dce32a6c5be1ee69e5cca62e1b619a76b4", "version_node": false, "evidence": "loader-providers.tsv, per-section comparison"}
+PILOT_baseline {"T1": "REVIEW", "T2": "PASS", "T3": "REFERENCE", "T4": "PASS", "T5": "N/A", "T6": "REVIEW (loader REVIEW; interworking/runtime pending)", "T7": "REVIEW", "T8": "N/A"}
+PILOT_default {"T1": "REVIEW", "T2": "REVIEW", "T3": "PASS", "T4": "PASS", "T5": "N/A", "T6": "REVIEW (loader REVIEW; interworking/runtime pending)", "T7": "REVIEW", "T8": "N/A"}
+T4_DIFF_package {"added_exports": [], "removed_exports": [["_ZN13TCMarshalableC2ERKS_"], ["_ZN13TCMarshalableD2Ev"], ["_ZN13TCMarshalableaSERKS_"], ["_ZN13TCServiceData21TCServiceDataOperatorI10EBandwidthE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorI10EBandwidthE3GetEPKS_iRS1_"], ["_ZN13TCServiceData21TCServiceDataOperatorI11ELockedModeE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorI11ELockedModeE3GetEPKS_iRS1_"], ["_ZN13TCServiceData21TCServiceDataOperatorI11EModulationE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorI11EModulationE3GetEPKS_iRS1_"], ["_ZN13TCServiceData21TCServiceDataOperatorI12EChannelTypeE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorI12EChannelTypeE3GetEPKS_iRS1_"], ["_ZN13TCServiceData21TCServiceDataOperatorI12ESatelliteIdE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorI12ESatelliteIdE3GetEPKS_iRS1_"], ["_ZN13TCServiceData21TCServiceDataOperatorI15EServiceProfileE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorI15EServiceProfileE3GetEPKS_iRS1_"], ["_ZN13TCServiceData21TCServiceDataOperatorIbE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorIbE3GetEPKS_iRb"], ["_ZN13TCServiceData21TCServiceDataOperatorIiE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorIiE3GetEPKS_iRi"], ["_ZN13TCServiceData21TCServiceDataOperatorItE3GetEPKS_i"], ["_ZN13TCServiceData21TCServiceDataOperatorItE3GetEPKS_iRt"], ["_Z
+PILOT_package {"T1": "REVIEW", "T2": "REVIEW", "T3": "PASS", "T4": "REVIEW", "T5": "N/A", "T6": "REVIEW (loader REVIEW; interworking/runtime pending)", "T7": "REVIEW", "T8": "N/A"}
+TABLES 1906be8cb8647a3c18289ec2e2d46c976767ef8de7f858ad5ca9c6449f24102b /home1/chengkai/vd-tree/workspace/temp/pm0013l-static.PQnb3T/followup.tar.gz

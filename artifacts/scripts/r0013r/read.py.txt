@@ -1,0 +1,385 @@
+"""PQnb3T readback. Host readers only. Outputs live in the fresh launcher directory."""
+import ast
+import csv
+import hashlib
+import io
+import json
+import mmap
+from pathlib import Path
+import re
+import shutil
+import struct
+import subprocess
+import tarfile
+import tempfile
+import zipfile
+import zlib
+
+W = Path.cwd()
+T = Path("/home1/chengkai/vd-tree/workspace/temp")
+QB = "37777148"
+USB = T.parent / "usb" / QB
+F = T / "pm0013f-review.HgSjf0"
+A = T / "pm0013l-static.PQnb3T/followup.tar.gz"
+PIN = "1906be8cb8647a3c18289ec2e2d46c976767ef8de7f858ad5ca9c6449f24102b"
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def emit(k, *vals):
+    print(k, *(json.dumps(v, ensure_ascii=True) for v in vals), flush=True)
+
+
+def run(*args):
+    return subprocess.check_output(args, stderr=subprocess.PIPE, text=True, errors="replace")
+
+
+def setup_itd(image):
+    b = image.read_bytes()
+    end = 64 + struct.unpack_from(">I", b, 12)[0]
+    payload = b[64:end]
+    if (b[:4] != bytes.fromhex("27051956") or b[31] != 0 or
+            end > len(b) or not payload or zlib.crc32(b[:4]+bytes(4)+b[8:64]) != struct.unpack_from(">I", b, 4)[0] or
+            zlib.crc32(payload) != struct.unpack_from(">I", b, 24)[0]):
+        raise ValueError("uncompressed kernel uImage length/CRC")
+    # Match the complete reviewed A32 instruction sequence including return;
+    # only the ADR immediate is variable. Report a coverage gap for other shapes.
+    tail = struct.pack("<7I", 0xe8930048, 0xe3833b01, 0xe3c66b01,
+                       0xee110f10, 0xe1c00003, 0xe1800006, 0xe12fff1e)
+    if payload.count(tail) != 1:
+        raise ValueError("expected one ldm/mask/read-SCTLR/bic/orr/bx-lr sequence")
+    pc = 64 + payload.index(tail) - 4
+    adr = struct.unpack_from("<I", b, pc)[0]
+    if pc % 4 or adr & 0xfffff000 not in (0xe24f3000, 0xe28f3000):
+        raise ValueError("unexpected A32 ADR encoding")
+    rot = (adr >> 8 & 15) * 2
+    imm = adr & 255
+    delta = (imm >> rot | imm << (32 - rot)) & 0xffffffff
+    offset = pc + 8 + (delta if adr & 0xfffff000 == 0xe28f3000 else -delta)
+    if not 64 <= offset <= end - 8 or offset % 4:
+        raise ValueError("mask address out of payload")
+    clear, setbits = struct.unpack_from("<II", b, offset)
+    return dict(sha256=digest(image), adr_file_offset=hex(pc), masks_file_offset=hex(offset),
+                clear=hex(clear), set=hex(setbits),
+                setup_bit7="SET" if setbits & 128 else "CLEAR" if clear & 128 else "PRESERVE")
+
+
+def kernel():
+    img = USB / "updateSU2E/uImage"
+    if digest(img) != "f38df43d15c773b0e1ca6dbfd60dbef3079822b87b1f2ca559e72bd617275f86":
+        raise ValueError("37777148 uImage hash")
+    emit("SCTLR_SETUP", setup_itd(img))
+    cpu = T / "pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux/linux-6.12/arch/arm"
+    hits = []
+    for sub in ("mm", "kernel", "include/asm"):
+        for p in sorted((cpu/sub).glob("*")):
+            if p.suffix not in (".S", ".c", ".h"):
+                continue
+            for i, line in enumerate(p.read_text(errors="replace").splitlines(), 1):
+                if re.search(r'\bv7_crval\b|\bcr_alignment\b|\b(?:SCTLR|CR)_ITD\b|\bITD\b|mcr\s+p15,\s*0,\s*r\d+,\s*c1,\s*c0,\s*0\b', line, re.I):
+                    hits.append([str(p.relative_to(cpu)), i, line.strip()])
+    if not hits:
+        raise ValueError("retained ARM source unavailable")
+    (W/"sctlr-source.json").write_text(json.dumps(hits, indent=2))
+    emit("SCTLR_SOURCE", len(hits), [r for r in hits if "v7_crval" in r[-1]][:8])
+
+
+def tsv(b):
+    return list(csv.DictReader(io.StringIO(b.decode()), delimiter="\t"))
+
+
+def roster(tables):
+    src = {}
+    for r in tsv(tables["installed-file-owners.tsv"]):
+        src.setdefault(r["rpm"], set()).add(r["srpm"])
+    rows = tsv(tables["a32-packages.tsv"])
+    fields = ["rpm", "gcc_exec", "official_exec", "gcc_a32", "official_a32", "delta"]
+    if not rows or list(rows[0]) != fields:
+        raise ValueError("a32-packages header")
+    emit("ROSTER_COLUMNS", fields + ["published_srpm_candidates"])
+    ranked = sorted((r for r in rows if r["rpm"] != "?" and int(r["official_a32"]) > 0),
+                    key=lambda r: (-int(r["official_a32"]), r["rpm"]))
+    for r in ranked[:30]:
+        emit("TARGET", [r["rpm"], *(int(r[k]) for k in fields[1:]), sorted(src.get(r["rpm"], []))])
+    emit("UNKNOWN_OWNER", next(r for r in rows if r["rpm"] == "?"))
+
+
+def guest(root, path):
+    from collections import deque
+    pieces = deque(Path(path).parts)
+    p = root
+    links = 0
+    while pieces:
+        n = pieces.popleft()
+        if n == "/":
+            p = root
+        elif n == "..":
+            p = p.parent if p != root else root
+        else:
+            p = p / n
+            if p.is_symlink():
+                links += 1
+                if links > 40:
+                    raise ValueError("symlink loop")
+                target = p.readlink()
+                p = p.parent
+                pieces.extendleft(reversed(target.parts))
+    return p
+
+
+def libc_info(tables, roots):
+    loader = guest(roots["platform"], "/lib/ld-linux.so.3")
+    if digest(loader) != "aec21fb59b26192a42630bdec85b38dce32a6c5be1ee69e5cca62e1b619a76b4":
+        raise ValueError("loader digest")
+    for r in tsv(tables["loader-providers.tsv"])[:20]:
+        emit("LOADER_RPM", ast.literal_eval(r["published_nevra"]), r["file_sha"] == r["image_sha"],
+             r["path"], r["different_section_index_names"][:350])
+    for p in (loader, guest(roots["platform"], "/lib/libc.so.6")):
+        b = p.read_bytes()
+        banners = re.findall(rb"[^\x00\n]{0,35}(?:release version|GLIBC [0-9]+\.)[^\x00\n]{0,65}", b)
+        versions = run("readelf", "-VW", p)
+        defs = versions.partition("Version definition section")[2].split("Version needs section")[0]
+        emit("GLIBC", str(p.relative_to(roots["platform"])), digest(p),
+             [v.decode(errors="replace") for v in banners[:4]],
+             bool(re.search(r'Name: GLIBC_ABI_DT_RELR\b', defs)))
+
+
+def inventory(label):
+    f = F/f"files-{QB}-{label}.tsv"
+    if f.is_file():
+        return tsv(f.read_bytes())
+    if label == "prd":
+        return [r for r in tsv((T/"pm0013-bce.qp4O4m"/f"image-{QB}.tsv").read_bytes())
+                if r["path"].startswith("/prd/")]
+    raise ValueError("missing platform inventory")
+
+
+def imports(tables, roots):
+    doc = json.loads(tables["pilot-followup.json"])
+    current = doc["official"]
+    if digest(guest(roots["platform"], "/usr/apps/org.tizen.AVControl/bin/AVControl")) != current["sha"]:
+        raise ValueError("shipped AVControl digest")
+    def exports(r):
+        return {x[0] for x in r["exports"]}
+    removed = exports(current) - exports(doc["lanes"]["package"])
+    names = {s.split("@")[0] for s in removed}
+    if not names:
+        raise ValueError("removed exports absent")
+    strings = re.compile(b"(?:" + b"|".join(re.escape(s.encode()) for s in sorted(names)) + b")\x00")
+    hits, gaps = [], []
+    attempted = checked = 0
+    scratch = W/"nested.elf"
+    for label in ("platform", "prd"):
+        for r in inventory(label):
+            attempted += 1
+            path = r["path"]
+            try:
+                outer, sep, member = path.partition("!")
+                obj = guest(roots[label], outer.removeprefix("/prd/") if label == "prd" else outer)
+                if sep:
+                    with zipfile.ZipFile(obj) as z:
+                        blob = z.read(member)
+                else:
+                    blob = obj.read_bytes()
+                if hashlib.sha256(blob).hexdigest() != r["sha256"]:
+                    raise ValueError("ELF digest")
+                found = {m.group()[:-1].decode() for m in strings.finditer(blob)}
+                if found:
+                    if sep:
+                        scratch.write_bytes(blob)
+                        obj = scratch
+                    # -D uses the runtime dynamic tables, including stripped DSOs.
+                    symbols = run("readelf", "-DsW", obj)
+                    imported, defined = set(), set()
+                    for line in symbols.splitlines():
+                        fields = line.split()
+                        if len(fields) >= 8 and re.fullmatch(r"\d+:", fields[0]):
+                            key = fields[7].split("@")[0]
+                            if key in names:
+                                (imported if fields[6] == "UND" else defined).add(key)
+                                if fields[6] == "UND":
+                                    hits.append([path, "UND", fields[7], fields[4]])
+                    for key in sorted(found - imported - defined):
+                        hits.append([path, "literal_only", key, ""])
+                checked += 1
+            except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.SubprocessError) as e:
+                gaps.append([path, str(e)])
+    report = dict(removed=sorted(removed), matches=hits, gaps=gaps, checked=checked, attempted=attempted)
+    (W/"imports.json").write_text(json.dumps(report, indent=2))
+    emit("AVCONTROL", len(removed), dict(checked=checked, expected=4793, errors=len(gaps),
+         scope_complete=attempted == checked == 4793, undefined_rows=sum(r[1]=="UND" for r in hits),
+         literal_only_rows=sum(r[1]=="literal_only" for r in hits)), hits[:5], gaps[:2])
+
+
+def volume_offsets(image):
+    offsets = {0}
+    parts = subprocess.run(["sfdisk", "--json", image], text=True, capture_output=True)
+    if parts.returncode == 0:
+        tab = json.loads(parts.stdout)["partitiontable"]
+        if tab.get("unit") != "sectors":
+            raise ValueError("unknown partition table unit")
+        offsets.update(p["start"]*tab["sectorsize"] for p in tab.get("partitions", []))
+    # Include sector-aligned vendor-wrapped volumes even without a partition table.
+    # Candidates require an independent libblkid filesystem probe at their origin.
+    with image.open("rb") as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as buf:
+        for magic, displacement in ((b"\x53\xef", 1080), (bytes.fromhex("e2e1f5e0"), 1024),
+                                   (bytes.fromhex("1020f5f2"), 1024), (b"hsqs", 0), (b"XFSB", 0)):
+            for match in re.finditer(re.escape(magic), buf):
+                start = match.start()-displacement
+                if start < 0 or start % 512:
+                    continue
+                if magic == b"\x53\xef":
+                    sb = buf[start+1024:start+1152]
+                    if len(sb)<128 or not 0 < int.from_bytes(sb[:4], "little") or int.from_bytes(sb[24:28], "little")>6:
+                        continue
+                offsets.add(start)
+    return sorted(offsets)
+
+
+def db_owners(source, fs, path, entries, scratch):
+    db = scratch/"rpmdb"
+    db.mkdir()
+    for name in entries:
+        member = path+"/"+name
+        dest = db/name
+        if fs.startswith("ext"):
+            run("debugfs","-R",f"dump /{member} {dest}",source)
+        else:
+            args = ["unsquashfs", "-cat", source, member] if fs == "squashfs" else [
+                "dump.erofs", "--cat", "--path=/"+member, source]
+            with dest.open("wb") as f:
+                subprocess.run(args, stdout=f, stderr=subprocess.PIPE, check=True)
+        if not dest.is_file() or not dest.stat().st_size:
+            raise ValueError("empty DB component "+name)
+    backend = next(k for name,k in (("rpmdb.sqlite","sqlite"),("Packages","bdb_ro"),("Packages.db","ndb"))
+                   if name in entries)
+    rows = run("rpm", "--define", "_db_backend "+backend, "--dbpath", db, "-qa", "--qf",
+               r"[%{=NAME}\t%{=SOURCERPM}\t%{FILENAMES}\n]")
+    owners = {}
+    for l in rows.splitlines():
+        name, srpm, guest_path = l.split("\t",2)
+        owners.setdefault(guest_path,set()).add((name,srpm))
+    if not owners:
+        raise ValueError("RPM DB returned no files")
+    totals = {}
+    missing = 0
+    with (W/"image-owners.tsv").open("w") as f:
+        out = csv.writer(f,delimiter="\t")
+        out.writerow(("path","recorded_binary_rpm_and_srpm","official_a32_est_B"))
+        for label in ("platform","prd"):
+            for r in inventory(label):
+                candidates = owners.get(r["path"].partition("!")[0],set())
+                amount = int(r["a32_est_bytes"])
+                out.writerow((r["path"],json.dumps(sorted(candidates)),amount))
+                if len(candidates)==1:
+                    key, = candidates
+                    totals[key] = totals.get(key,0)+amount
+                else:
+                    missing += 1
+    emit("REAL_DB_OWNERS", len(owners), dict(unresolved_elf_rows=missing, basis="RPM file path or enclosing container"))
+    for (name,srpm),amount in sorted(totals.items(),key=lambda x:(-x[1],x[0]))[:30]:
+        emit("REAL_DB_TARGET", name,srpm,amount)
+
+
+def data_volume():
+    manifest = USB/"manifest.sha256"
+    if digest(manifest) != "da8689530cefa4fbdc4ee51a0ef01c43e9235778bfdb959e38bc6b5357c3c057":
+        raise ValueError("USB manifest digest")
+    expected, = [l.split()[0] for l in manifest.read_text().splitlines() if l.split()[1] == "data.img"]
+    image = USB/"updateSU2E/data.img"
+    if digest(image) != expected:
+        raise ValueError("data.img digest")
+    with image.open("rb") as f:
+        head = f.read(28)
+    sparse = head[:4] == bytes.fromhex("3aff26ed")
+    emit("DATA_CONTAINER", expected, image.stat().st_size, head.hex(), "Android sparse" if sparse else run("file","-b",image).strip())
+    if sparse:
+        block, count = struct.unpack_from("<II", head, 12)
+        required = block*count
+        if not required or shutil.disk_usage(W).free < required+(1<<30):
+            raise ValueError("sparse expansion space")
+        expanded = W/"expanded-data.img"
+        subprocess.run(["simg2img", image, expanded], check=True)
+        image = expanded
+    for txt in ("partition.txt", "partition_8G.txt"):
+        f = USB/"updateSU2E"/txt
+        if f.is_file():
+            emit("DATA_LAYOUT", txt, [l for l in f.read_text(errors="replace").splitlines() if "data.img" in l][:4])
+    volumes = []
+    for off in volume_offsets(image):
+        p = subprocess.run(["blkid","-p","-O",str(off),"-u","filesystem","-o","export",image],
+                           text=True, capture_output=True)
+        info = dict(l.split("=",1) for l in p.stdout.splitlines() if "=" in l)
+        if p.returncode == 0 and info.get("TYPE"):
+            volumes.append([off,info["TYPE"],info.get("LABEL"),info.get("UUID")])
+    emit("DATA_FS", "expanded byte offsets" if sparse else "file byte offsets", volumes[:20],
+         dict(total=len(volumes), claim="probe signatures only"))
+    # Inspect directory entries with a read-only filesystem reader. Backup ext
+    # superblocks can also probe; a directory listing binds the candidate to an RPM DB.
+    for offset, fs, _, _ in volumes:
+        if fs not in ("ext2","ext3","ext4","squashfs","erofs"):
+            continue
+        with tempfile.TemporaryDirectory(dir=W) as tmp:
+            source = image
+            if offset:
+                size = image.stat().st_size-offset
+                if shutil.disk_usage(W).free < size+(1<<30):
+                    raise ValueError("filesystem slice space")
+                source = Path(tmp)/"slice.img"
+                with image.open("rb") as inp, source.open("wb") as out:
+                    inp.seek(offset)
+                    shutil.copyfileobj(inp,out,1<<20)
+            for path in ("opt/var/lib/rpm","var/lib/rpm","lib/rpm","usr/lib/sysimage/rpm","rpm"):
+                if fs.startswith("ext"):
+                    args = ["debugfs","-R","ls -p /"+path,source]
+                elif fs=="squashfs":
+                    args = ["unsquashfs","-ll",source,path]
+                else:
+                    args = ["dump.erofs","--ls","--path=/"+path,source]
+                if not shutil.which(args[0]):
+                    break
+                p = subprocess.run(args, text=True, capture_output=True)
+                entries = sorted(set(re.findall(r"(?:/|\s)(Packages(?:\.db)?|rpmdb\.sqlite(?:-wal)?)(?=/|\s|$)",p.stdout)))
+                if p.returncode == 0 and set(entries) & {"Packages","Packages.db","rpmdb.sqlite"}:
+                    emit("DATA_RPMDB", fs, offset, "/"+path, entries)
+                    db_owners(source, fs, path, entries, Path(tmp))
+                    return
+    emit("DATA_RPMDB", "UNPROVED")
+
+
+def main():
+    if digest(A) != PIN:
+        raise ValueError("PQnb3T tables digest")
+    need = {"a32-packages.tsv","loader-providers.tsv","installed-file-owners.tsv","pilot-followup.json"}
+    tables = {}
+    with tarfile.open(A, "r|gz") as tar:
+        for item in tar:
+            if item.name in need and item.isfile():
+                tables[item.name] = tar.extractfile(item).read()
+    if tables.keys()!=need:
+        raise ValueError("missing retained tables")
+    records = json.loads((F/"partitions.json").read_bytes())
+    roots = {}
+    for label in ("platform","prd"):
+        r = records[QB+"/"+label]
+        root = Path(r["root"]).resolve(strict=True)
+        if not (root.is_relative_to(F) and r["fsck"] == "passed" and r["entries"]+len(r["verified_specials"])==r["dump_entries"]):
+            raise ValueError("partition identity "+label)
+        roots[label] = root
+    for name, fn, args in (("ROSTER",roster,(tables,)),("KERNEL",kernel,()),("LOADER",libc_info,(tables,roots)),
+                           ("DATA",data_volume,()),("IMPORTS",imports,(tables,roots))):
+        try:
+            fn(*args)
+        except Exception as exc:
+            emit(name+"_REVIEW",str(exc)[:350])
+    emit("WORKDIR",str(W))
+
+
+if __name__ == "__main__":
+    main()
