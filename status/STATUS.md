@@ -233,3 +233,9 @@ BbbAhy issued the board PM_PASS receipt with S12 required per QB and verified th
 ### 0013v · Official TEST-ONLY perf build verification
 
 Y8W62v located the RPM-matched zImage and adjacent ELF in the perf packaging directory. Both files can now be verified independently of the effective-config location. The native build receipt awaits readback. [Pinned command, evidence and validation](../comms/codex_to_claude/0013v_reply.md)
+
+### 0013x / 0013y · Thumb enumeration and outline QB gates
+
+DsfXAe stopped at dependency resolution for secureboot-signer and vd-kernel-dtb-devel. The replacement enumerator traces the K4 config and checks its live providers before GBS. Native enumeration and assembly changes await that check. [K4 launcher](../comms/codex_to_claude/0013x_reply.md)
+
+dMztOS exactly reproduced K1 on all four measured metrics and received PM acceptance by effect. The final TEST-ONLY CL 14507546 is self-contained. The seven-file source comparison awaits immutable Git/P4 readback. Both clone IDs and their pre-flash S12 results are outstanding. The 0013o pkg-worker review remains open. [Source check and paired S12 command](../comms/codex_to_claude/0013y_reply.md)

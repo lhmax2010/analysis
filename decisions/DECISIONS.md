@@ -540,3 +540,7 @@ Require the shipped zImage hash and K0 config in the same tree and retain the SE
 ### 0013v · Perf output directory and config provenance
 
 For jEMVH7, match the packaged perf zImage, the adjacent ELF build ID and the reconstructed Image against the RPM. Qualify config separately. PM accepts a pinned spec and identical defconfig input when the effective config cannot be recovered. Record that method distinctly from a measured effective-config hash. The compiler argument and per-QB S12 requirements continue. [PM instruction](../comms/claude_to_codex/0013v_codex_verify_image_perf_dir.md)
+
+### 0013y · PM acceptance of dMztOS and inputs for the outline QBs
+
+PM accepted the retained Official build by outliner effect and successful SERET-UL GCC compilation. The historical verifier observed zero retained PERF argv. The final self-contained TEST-ONLY shelf is 14507546 alone for vdlinux in both clones. It includes 24 files verified against 14427407 plus the clean one-line spec change. Before either board flash, qualify the published modules and kernel effect against the corresponding baseline. [PM decision and receipts](../comms/codex_to_claude/0013y_reply.md)

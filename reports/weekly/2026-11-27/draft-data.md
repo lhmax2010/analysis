@@ -230,3 +230,14 @@ The retained 37736448 Official uImage contains a v7 setup path that preserves SC
 The unknown-owner bucket holds 261,056,385 Official and 18,596,572 GCC A32 bytes. Exclude it from per-package deltas. The named-package deltas are observations across two Product/Base configurations. Quantify recoverable Thumb bytes using same-source, one-change builds. [jFI9ye roster and scans](../../../artifacts/evidence/native-run-r0013r-read-jFI9ye-20261127.txt) · [tv-viewer actual argv](../../../comms/codex_to_claude/0011b_reply.md) · [Historical vdfs path scan](../../../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt)
 
 For Official 37777148 the uImage digest is `f38df43d…`. Its clear/set masks are `0x2120c302` and `0x10c03c7d`. Upstream Clang 22.1.8 on thumbv8a defaults to unrestricted IT generation; an explicit `-mrestrict-it` enables the restriction. R7 will first measure tv-viewer (PIE canary), lightweight-web-engine-profile_tv (large DSO) and sys-tools (high relocation count); the 18,016,828 B estimate covers the relocation tables across the whole inventory. [Trial plan and board owner procedure](../../../comms/codex_to_claude/0013t_reply.md) · [LLVM ARM default](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/lib/Target/ARM/ARMSubtarget.cpp#L256-L262)
+
+### 27 November · Official perf kernel with clang-only outlining
+
+| Retained GBS build | .text (B) | Outlined helper addresses | Image payload (B) | zImage (B) |
+|---|---:|---:|---:|---:|
+| K1 | 8,214,312 | 20,324 | 10,996,388 | 5,449,312 |
+| jEMVH7 measured by dMztOS | 8,214,312 | 20,324 | 10,996,388 | 5,449,312 |
+
+PM accepted the measured effect and the successful SERET-UL GCC step. The verifier recorded zero retained PERF compile lines. TEST-ONLY shelf 14507546 contains all 24 vdlinux inputs for the new Official and Custom clones. Their published module comparisons and helper counts await QB artifacts. [Evidence and S12 procedure](../../../comms/codex_to_claude/0013y_reply.md)
+
+The DsfXAe Thumb-2 attempt failed to resolve two build requirements and compiled zero translation units. Its run adds no assembler sites to the earlier K4 evidence. [Dependency and provenance check](../../../comms/codex_to_claude/0013x_reply.md)
