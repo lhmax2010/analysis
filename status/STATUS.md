@@ -243,3 +243,14 @@ dMztOS exactly reproduced K1 on all four measured metrics and received PM accept
 ### 0013z · Official Product substitution and S12 retention deadline
 
 0013y §2b is closed with seven of seven source hashes equal across 14427407, K1 and jEMVH7. The K4 Product expired before enumeration started. Official 37777148 supplies the two missing dependencies. PRV QB artifacts can expire within approximately 2–4 days. Retain both current S12 baselines now, then run S12 within one day of each new outline QB finishing. Native retention counts, enumeration and both S12 verdicts are outstanding. [Pinned launch commands](../comms/codex_to_claude/0013z_reply.md)
+
+### 0013aa · Same-day kernel module comparisons and four-image board plan
+
+Historical captures 37777148 and 37777264 each retained 130 verified RPMs. The operator submitted the four board images. stooH5 was running at the last operator readback.
+
+| MLGO Base | 14427407 · no outline | 14507546 · outline |
+|---|---:|---:|
+| Official 20261113.1 | 37836579 | 37836693 |
+| Custom 20261118.1 | 37836654 | 37836727 |
+
+Retain each QB at publication. Both within-Base S12 comparisons gate board use. The board plan compares outline at fixed Base and compares Bases at fixed outline setting. Historical references provide separate reproducibility data. Native S12 and board results await readback. [0013aa review commands](../comms/codex_to_claude/0013aa_reply.md)

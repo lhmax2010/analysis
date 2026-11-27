@@ -243,3 +243,12 @@ PM accepted the measured effect and the successful SERET-UL GCC step. The verifi
 The DsfXAe Thumb-2 attempt failed to resolve two build requirements and compiled zero translation units. Its run adds no assembler sites to the earlier K4 evidence. [Dependency and provenance check](../../../comms/codex_to_claude/0013x_reply.md)
 
 The seven disputed source files now have matching SHA-256 in shelf 14427407, K1 and jEMVH7. The w5 24-file shelf check and spec hash connect TEST-ONLY CL 14507546 to that measured source. The r0013x K4 preflight stopped on an expired Product index before GBS. The next enumeration uses Official QB 37777148 with the same Base. [Source hashes and Product evidence](../../../comms/codex_to_claude/0013z_reply.md)
+
+### Nov 27 · Outline QB submission and retained inputs
+
+| MLGO Base | MLGO-only QB | MLGO + outline QB | Historical RPMs retained |
+|---|---:|---:|---:|
+| Official 20261113.1 | 37836579 | 37836693 | 130 (37777148) |
+| Custom 20261118.1 | 37836654 | 37836727 | 130 (37777264) |
+
+The two same-day within-Base S12 comparisons precede the four-image board trial. Publication measurements and board results are outstanding. [Native retention readback](../../../artifacts/evidence/native-run-r0013z-retain-and-enum-stooH5-start-20261127.txt)

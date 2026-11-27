@@ -548,3 +548,7 @@ PM accepted the retained Official build by outliner effect and successful SERET-
 ### 0013z · Current LLVM Product for kernel builds
 
 PM and the operator approved changing only the K4 Product repository to Official 37777148 on Base 20261113.1. Custom 37777264 is the corresponding Product for Custom Base 20261118.1. On Product expiry, request the next LLVM Official QB URL. Exclude GCC daily products. Before any Thumb patch byte-identity claim, repeat the unpatched A32 K1 control with the same replacement Product. Use retained 37777148/37777264 inputs for S12 and retain the outline clone inputs on first read. [Decision](../comms/claude_to_codex/0013z_codex_product_repo_expiry_fix.md)
+
+### 0013aa · Primary S12 pairs for the outline board trial
+
+PM designated same-day Official 37836579 → 37836693 and Custom 37836654 → 37836727 as the two primary comparisons. Retain each publication as soon as it finishes. This supersedes the 0013z primary-baseline assignment. 37777148 and 37777264 now provide historical reproduction checks only. Both primary pairs must pass before the four-image board trial. [PM decision](../comms/claude_to_codex/0013aa_codex_same_day_qb_baselines.md)
