@@ -3,6 +3,7 @@ from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 import configparser
+import csv
 import fcntl
 import hashlib
 import json
@@ -217,6 +218,23 @@ def failure_signature(work,error):
     return error.strip()[:300]
 
 
+def write_doc_row(result,work):
+    path=HERE/"pkg-table-rows.tsv"
+    new=not path.exists()
+    with path.open("a",newline="") as out:
+        writer=csv.writer(out,delimiter="\t",lineterminator="\n")
+        if new:
+            writer.writerow(["table","package","verdict","baseline_text_B","treatment_text_B",
+                             "baseline_file_B","treatment_file_B","delivery","ABI","runtime","workdir","error"])
+        lanes=result.get("lanes",{})
+        a=lanes.get("baseline",{}).get("bytes",{})
+        b=lanes.get("treatment",{}).get("bytes",{})
+        writer.writerow([{"N5":"04","N4":"05","R7":"R7"}[result["step"]],result["package"],
+                         result["row_status"],a.get("text"),b.get("text"),a.get("bytes"),b.get("bytes"),
+                         result.get("delivery"),result.get("abi",{}).get("pass"),
+                         "pending board",work,result.get("error","")])
+
+
 def worker():
     tracks=lib("tracks"); ole=lib("olevel"); dev=lib("development"); repo=lib("image-repo-lib");scan=lib("image_mode_scan")
     inv=tracks["inventories"](HERE)
@@ -334,6 +352,7 @@ def worker():
         except (OSError,ValueError,KeyError,subprocess.SubprocessError) as exc:result["error"]=str(exc)
         result.setdefault("runtime","pending board")
         result.setdefault("row_status","BUILD_OR_INPUT_REVIEW")
+        write_doc_row(result,work)
         with (HERE/"pkg-results.jsonl").open("a") as f:f.write(json.dumps(result)+"\n")
         print("PKG_RESULT",key,n,result.get("delivery","REVIEW"),str(result.get("error",""))[:180],flush=True)
         failed=result.get("error")
