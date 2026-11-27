@@ -1,0 +1,36 @@
+#!/bin/bash
+set -eu -o pipefail
+pin=${1:?full commit}
+mode=${2:?control, thumb or read}
+[[ $pin =~ ^[0-9a-f]{40}$ ]]
+case "$mode" in control|read) [[ $# == 2 ]];; thumb) [[ $# == 3 ]];; *) exit 2;; esac
+base=/home1/chengkai/vd-tree/workspace/temp
+work=$(mktemp -d "$base/pm0013ae-$mode.XXXXXX")
+cd "$work"
+export TMPDIR="$PWD" PYTHONDONTWRITEBYTECODE=1 LC_ALL=C DEBUGINFOD_URLS=
+printf 'WORKDIR %s\n' "$work"
+while read -r sum path; do
+    file=${path##*/}
+    curl -fsSL --retry 4 --retry-all-errors --max-time 180 --connect-timeout 15 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$file"
+    printf '%s  %s\n' "$sum" "$file" | sha256sum -c --status
+done <<'PINS'
+8a459b568b22274da25e82417f0df203eeaf56fe34c6f9e95de7a413e4b71ed2 artifacts/scripts/r0013ae/context.py.txt
+ce32afec2eb683571b391b1f8b4bcc9e721875a5d1a87d242427180e0e05d5a8 artifacts/scripts/r0013ae/build.py.txt
+60d798a33b15f5be14da85b4b2f5ac61b7a9acfb31409198092ea94ed9123568 artifacts/scripts/r0013ae/port.py.txt
+1772c90a6e83098eea07a41d3cae8f40f4239a38c50c9b2f84f0d5681cca8b07 artifacts/scripts/r0013ae/static.py.txt
+22d46ca18f9ea2be2a5e7723f2de1dfebf51b5a74a9e329527965abee19ff028 artifacts/scripts/r0013x/enumerate.py.txt
+e00cd458899ac8aec648d684c1d64ca9049ffe48e9e948bd9e4f4055917e6930 artifacts/scripts/r0013x/metadata.py.txt
+d97b445ffcaabb93e69f2b9d0c7ff84419e84d4b2ba11b7cbec4559350ef1d2c artifacts/scripts/r0013z/product.py.txt
+e3c1fe91704e218a05a76990f37d100cf29ed4c5747164730bff59485479e550 artifacts/scripts/r0011/qb-retain.py.txt
+8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f artifacts/scripts/r0005/image-repo-lib.py.txt
+de0fa6dd029b3f65b4912ca6381fcfb0de1a81dfbbc41b41bc24c131486dd54b artifacts/scripts/r0011e/matched-qb.py.txt
+1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75 artifacts/scripts/r0004/image_mode_scan.py.txt
+eb9a2857d93c8555fc22108718413c32fa68b8329d4b9bd812ac7a33fa5d289f artifacts/scripts/r0012f/kernel-matrix.py.txt
+d945885592c82702703a70136807894e69a1380d452c5de706d588631db4b544 artifacts/scripts/r0012e/thumb-map.py.txt
+966ba4f5da0880c51e7231b8ee1fffa106d40c7ab9dacf0de977ff7f8f290644 artifacts/scripts/r0013q/effects.py.txt
+PINS
+case "$mode" in
+    read) python3 -Bu context.py.txt > context.log; head -250 context.log;;
+    control) python3 -Bu context.py.txt > context.log; grep '^LOG ' context.log | head -25; exec python3 -Bu build.py.txt control;;
+    thumb) exec python3 -Bu build.py.txt thumb --receipt "$3";;
+esac

@@ -1,0 +1,2455 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu
+pin=95697996283f9cacde8d685800c8cbb37ab9cba0
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013z-launcher.XXXXXX")
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013y/read.sh.txt" -o "$d/run.sh"
+printf '%s  %s\n' 409dadca91376e4cad16581f708fdbc195250b2e6248df1da01219d007364435 "$d/run.sh" | sha256sum -c -
+bash "$d/run.sh" "$pin" s12 --retain-baselines
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013z-launcher.Q3Npdd/run.sh: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013y-s12.oWhw52
+source.py.txt: OK
+s12.py.txt: OK
+metadata.py.txt: OK
+image-repo-lib.py.txt: OK
+image_mode_scan.py.txt: OK
+kernel-size.py.txt: OK
+qb-retain.py.txt: OK
+product.py.txt: OK
+capture.py.txt: OK
+S12_RETAINED 37777148 /home1/chengkai/vd-tree/workspace/qb-evidence/37777148-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1 rpms 130 local 4 fetched 126 manifest_sha256 24efe90557f81836be57b06f052f3b5de6e13ad2c244a375eb9b3e7cdfe1b251
+S12_RETAINED 37777264 /home1/chengkai/vd-tree/workspace/qb-evidence/37777264-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.2 rpms 130 local 4 fetched 126 manifest_sha256 b6780cf0a5274e7bf51ff9ca09b130b8e23df9f9624848b093085a42af80b8d9
+S12_BASELINE_RETENTION COMPLETE
+chengkai@risc-v-Alienware-Aurora-R16:temp$ sha256sum /home1/chengkai/vd-tree/workspace/qb-evidence/37777148-*/published-build.conf 2>/dev/null | grep -q '^98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 ' && echo "BUILD_CONF OK" || { echo "BUILD_CONF MISSING in 37777148 - do not launch, send me this"; ls /home1/chengkai/vd-tree/workspace/qb-evidence/37777148-*/; }
+BUILD_CONF OK
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu
+pin=95697996283f9cacde8d685800c8cbb37ab9cba0
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013z-launcher.XXXXXX")
+PRODUCT_URL=${PRODUCT_URL:-http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/}
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013x/enumerate.sh.txt" -o "$d/run.sh"
+printf '%s  %s\n' 327c2d80ccfd9e972e1554cbde2dfec6393c402d0fb2e52813db5497f4a82ce7 "$d/run.sh" | sha256sum -c -
+bash "$d/run.sh" "$pin" "$PRODUCT_URL"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013z-launcher.tsgjra/run.sh: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5
+enumerate.py.txt: OK
+metadata.py.txt: OK
+image-repo-lib.py.txt: OK
+asm.py.txt: OK
+product.py.txt: OK
+qb-retain.py.txt: OK
+ENUM_INPUT fae92f998a51e8493e2ed452381aad73c2ce689e /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K4/gbs.conf 51ebc338914c983efbff4f2af90ceb33a34b5bc3acc8dc3171ab1308a48083fd {"repo.product_NikeM": "http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/", "repo.base_standard": "http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/"}
+ENUM_INPUT PRODUCT_SUBSTITUTED http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/ -> http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/
+ENUM_PROVIDER secureboot-signer secureboot-signer http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/
+ENUM_PROVIDER vd-kernel-dtb-devel vd-kernel-dtb-devel http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/
+ENUM_INPUT fae92f998a51e8493e2ed452381aad73c2ce689e 51ebc338914c983efbff4f2af90ceb33a34b5bc3acc8dc3171ab1308a48083fd 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/GBS-ROOT
+[sudo] password for chengkai:
+ENUM_RESULT COMPLETE 1 diagnostics 100 known_errors 10 config [('/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/.config', '9a07c28a94fc2e7bef4a5341d45c3e1e95ec7ffd899313cd9593403b97a0e7e4')]
+SITE <instantiation> 12 invalid instruction, any one of the following would fix this: 2
+SITE <instantiation> 3 invalid instruction, any one of the following would fix this: 2
+SITE arch/arm/lib/backtrace-clang.S 19 SP and PC may not be in the register list 1
+SITE <instantiation> 37 invalid instruction, any one of the following would fix this: 1
+SITE <instantiation> 47 invalid instruction, any one of the following would fix this: 1
+SITE <instantiation> 66 invalid instruction, any one of the following would fix this: 1
+SITE <instantiation> 30 invalid instruction, any one of the following would fix this: 1
+SITE <instantiation> 41 invalid instruction, any one of the following would fix this: 1
+ENUM_JSON_SHA256 6745cbb6e0e05cf607c37c6b32735804d6ce26dfcb3794b1fd4e834e2d6864fe PACKETS 1
+READ_PART sed -n '1p' /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/packet.txt
+ENUM_PART 1/1 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
+chengkai@risc-v-Alienware-Aurora-R16:temp$
+
+== decoded ENUM_PART 1/1 (sha256 6745cbb6e0e05cf607c37c6b32735804d6ce26dfcb3794b1fd4e834e2d6864fe)
+{
+  "status": "COMPLETE",
+  "gbs_exit": 1,
+  "config": [
+    [
+      "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/.config",
+      "9a07c28a94fc2e7bef4a5341d45c3e1e95ec7ffd899313cd9593403b97a0e7e4"
+    ]
+  ],
+  "make_k_seen": true,
+  "source_revision": "fae92f998a51e8493e2ed452381aad73c2ce689e",
+  "rows": [
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found",
+      "context": [
+        "running gcc-warning-build-env postinstall script",
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found",
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found",
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found",
+      "context": [
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: find: command not found",
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found",
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found",
+        "/usr/bin/gcc-force-options-only: line 17: find: command not found"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found",
+      "context": [
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found",
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found",
+        "/usr/bin/gcc-force-options-only: line 17: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 141: find: command not found"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "/usr/bin/gcc-force-options-only: line 17: find: command not found",
+      "context": [
+        ".init_b_cache/scripts/gcc-warning-build-env.post: line 5: xargs: command not found",
+        "/usr/bin/gcc-force-options-only: line 17: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 141: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 172: find: command not found"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "/usr/bin/gcc-force-options-only: line 141: find: command not found",
+      "context": [
+        "/usr/bin/gcc-force-options-only: line 17: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 141: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 172: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 197: find: command not found"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "/usr/bin/gcc-force-options-only: line 172: find: command not found",
+      "context": [
+        "/usr/bin/gcc-force-options-only: line 141: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 172: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 197: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 203: find: command not found"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "/usr/bin/gcc-force-options-only: line 197: find: command not found",
+      "context": [
+        "/usr/bin/gcc-force-options-only: line 172: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 197: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 203: find: command not found",
+        "rm: missing operand"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "/usr/bin/gcc-force-options-only: line 203: find: command not found",
+      "context": [
+        "/usr/bin/gcc-force-options-only: line 197: find: command not found",
+        "/usr/bin/gcc-force-options-only: line 203: find: command not found",
+        "rm: missing operand",
+        "Try `rm --help' for more information."
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-arch-fallback.h)\" != \"$(sed '$d' include/linux/atomic/atomic-arch-fallback.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-arch-fallback.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-arch-fallback.h",
+      "context": [
+        "# CHKSHA1 include/linux/atomic/atomic-arch-fallback.h",
+        "if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-arch-fallback.h)\" != \"$(sed '$d' include/linux/atomic/atomic-arch-fallback.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-arch-fallback.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-arch-fallback.h",
+        "# CHKSHA1 include/linux/atomic/atomic-instrumented.h",
+        "if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-instrumented.h)\" != \"$(sed '$d' include/linux/atomic/atomic-instrumented.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-instrumented.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-instrumented.h"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-instrumented.h)\" != \"$(sed '$d' include/linux/atomic/atomic-instrumented.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-instrumented.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-instrumented.h",
+      "context": [
+        "# CHKSHA1 include/linux/atomic/atomic-instrumented.h",
+        "if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-instrumented.h)\" != \"$(sed '$d' include/linux/atomic/atomic-instrumented.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-instrumented.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-instrumented.h",
+        "# CHKSHA1 include/linux/atomic/atomic-long.h",
+        "if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-long.h)\" != \"$(sed '$d' include/linux/atomic/atomic-long.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-long.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-long.h"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-long.h)\" != \"$(sed '$d' include/linux/atomic/atomic-long.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-long.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-long.h",
+      "context": [
+        "# CHKSHA1 include/linux/atomic/atomic-long.h",
+        "if ! command -v sha1sum >/dev/null; then echo \"warning: cannot check the header due to sha1sum missing\"; exit 0; fi; if [ \"$(sed -n '$s:// ::p' include/linux/atomic/atomic-long.h)\" != \"$(sed '$d' include/linux/atomic/atomic-long.h | sha1sum | sed 's/ .*//')\" ]; then echo \"error: include/linux/atomic/atomic-long.h has been modified.\" >&2; exit 1; fi; touch .checked-atomic-long.h",
+        "set -e; mkdir -p include/generated/; trap \"rm -f include/generated/.tmp_bounds.h\" EXIT; { \t echo \"#ifndef __LINUX_BOUNDS_H__\"; echo \"#define __LINUX_BOUNDS_H__\"; echo \"/*\"; echo \" * DO NOT MODIFY.\"; echo \" *\"; echo \" * This file was generated by Kbuild\"; echo \" */\"; echo \"\"; sed -ne \t's:^[[:space:]]*\\.ascii[[:space:]]*\"\\(.*\\)\".*:\\1:; /^->/{s:->#\\(.*\\):/* \\1 */:; s:^->\\([^ ]*\\) [\\$#]*\\([^ ]*\\) \\(.*\\):#define \\1 \\2 /* \\3 */:; s:->::; p;}' < kernel/bounds.s; echo \"\"; echo \"#endif\"; } > include/generated/.tmp_bounds.h; if [ ! -r include/generated/bounds.h ] || ! cmp -s include/generated/bounds.h include/generated/.tmp_bounds.h; then : '  UPD     include/generated/bounds.h'; mv -f include/generated/.tmp_bounds.h include/generated/bounds.h; fi",
+        "# CC      arch/arm/kernel/asm-offsets.s"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/lib/backtrace-clang.S",
+      "line": 19,
+      "kind": "error",
+      "detail": "SP and PC may not be in the register list",
+      "context": [
+        "clang -Wp,-MMD,net/.socket.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -mtp=cp15 -mabi=aapcs-linux -mfpu=vfp -funwind-tables -meabi gnu -Wa,-mimplicit-it=always -Wa,-W -mthumb -mcpu=cortex-a8 -msoft-float -Uarm -fno-delete-null-pointer-checks -O2 -fno-stack-protector -fomit-frame-pointer -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -fno-builtin-wcslen -Werror -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=1024 -Wno-gnu -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-default-const-init-unsafe -Wvla -Wno-pointer-sign -Wcast-function-type -Wno-unterminated-string-initialization -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-int-in-bool-context -Wno-sizeof-pointer-memaccess -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-type-limits -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -gdwarf-4 -mllvm -enable-ml-inliner=release -mllvm -regalloc-enable-advisor=release    -DKBUILD_MODFILE='\"net/socket\"' -DKBUILD_BASENAME='\"socket\"' -DKBUILD_MODNAME='\"socket\"' -D__KBUILD_MODNAME=kmod_socket -c -o net/socket.o net/socket.c  ",
+        "arch/arm/lib/backtrace-clang.S:19:13: error: SP and PC may not be in the register list",
+        "stmia r0, {r0 - r15}",
+        "^",
+        "make[3]: *** [scripts/Makefile.build:352: arch/arm/lib/backtrace-clang.o] Error 1"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[3]: *** [scripts/Makefile.build:352: arch/arm/lib/backtrace-clang.o] Error 1",
+      "context": [
+        "^",
+        "make[3]: *** [scripts/Makefile.build:352: arch/arm/lib/backtrace-clang.o] Error 1",
+        "# CC      ipc/sem.o",
+        "clang -Wp,-MMD,ipc/.sem.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -mtp=cp15 -mabi=aapcs-linux -mfpu=vfp -funwind-tables -meabi gnu -Wa,-mimplicit-it=always -Wa,-W -mthumb -mcpu=cortex-a8 -msoft-float -Uarm -fno-delete-null-pointer-checks -O2 -fno-stack-protector -fomit-frame-pointer -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -fno-builtin-wcslen -Werror -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=1024 -Wno-gnu -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-default-const-init-unsafe -Wvla -Wno-pointer-sign -Wcast-function-type -Wno-unterminated-string-initialization -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-int-in-bool-context -Wno-sizeof-pointer-memaccess -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-type-limits -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -gdwarf-4 -mllvm -enable-ml-inliner=release -mllvm -regalloc-enable-advisor=release    -DKBUILD_MODFILE='\"ipc/sem\"' -DKBUILD_BASENAME='\"sem\"' -DKBUILD_MODNAME='\"sem\"' -D__KBUILD_MODNAME=kmod_sem -c -o ipc/sem.o ipc/sem.c  "
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[2]: *** [scripts/Makefile.build:478: arch/arm/lib] Error 2",
+      "context": [
+        "make[3]: Target 'arch/arm/lib/' not remade because of errors.",
+        "make[2]: *** [scripts/Makefile.build:478: arch/arm/lib] Error 2",
+        "# CC      net/netfilter/nf_queue.o",
+        "clang -Wp,-MMD,net/netfilter/.nf_queue.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -mtp=cp15 -mabi=aapcs-linux -mfpu=vfp -funwind-tables -meabi gnu -Wa,-mimplicit-it=always -Wa,-W -mthumb -mcpu=cortex-a8 -msoft-float -Uarm -fno-delete-null-pointer-checks -O2 -fno-stack-protector -fomit-frame-pointer -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -fno-builtin-wcslen -Werror -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=1024 -Wno-gnu -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-default-const-init-unsafe -Wvla -Wno-pointer-sign -Wcast-function-type -Wno-unterminated-string-initialization -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-int-in-bool-context -Wno-sizeof-pointer-memaccess -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-type-limits -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -gdwarf-4 -mllvm -enable-ml-inliner=release -mllvm -regalloc-enable-advisor=release    -DKBUILD_MODFILE='\"net/netfilter/netfilter\"' -DKBUILD_BASENAME='\"nf_queue\"' -DKBUILD_MODNAME='\"netfilter\"' -D__KBUILD_MODNAME=kmod_netfilter -c -o net/netfilter/nf_queue.o net/netfilter/nf_queue.c  "
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 12,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "clang -Wp,-MMD,security/integrity/.integrity_audit.o.d -nostdinc -I./arch/arm/include -I./arch/arm/include/generated  -I./include -I./arch/arm/include/uapi -I./arch/arm/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ --target=arm-linux-gnueabi -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -mlittle-endian -D__LINUX_ARM_ARCH__=7 -I./arch/arm/mach-novatek/include -fmacro-prefix-map=./= -std=gnu11 -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -fno-dwarf2-cfi-asm -mtp=cp15 -mabi=aapcs-linux -mfpu=vfp -funwind-tables -meabi gnu -Wa,-mimplicit-it=always -Wa,-W -mthumb -mcpu=cortex-a8 -msoft-float -Uarm -fno-delete-null-pointer-checks -O2 -fno-stack-protector -fomit-frame-pointer -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -fno-builtin-wcslen -Werror -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=1024 -Wno-gnu -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-default-const-init-unsafe -Wvla -Wno-pointer-sign -Wcast-function-type -Wno-unterminated-string-initialization -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-int-in-bool-context -Wno-sizeof-pointer-memaccess -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-type-limits -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -gdwarf-4 -mllvm -enable-ml-inliner=release -mllvm -regalloc-enable-advisor=release    -DKBUILD_MODFILE='\"security/integrity/integrity\"' -DKBUILD_BASENAME='\"integrity_audit\"' -DKBUILD_MODNAME='\"integrity\"' -D__KBUILD_MODNAME=kmod_integrity -c -o security/integrity/integrity_audit.o security/integrity/integrity_audit.c  ",
+        "<instantiation>:12:2: error: invalid instruction, any one of the following would fix this:",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:12:2: note: instruction requires: arm-mode"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 12,
+      "kind": "note",
+      "detail": "instruction requires: arm-mode",
+      "context": [
+        "^",
+        "<instantiation>:12:2: note: instruction requires: arm-mode",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:12:14: note: invalid operand for instruction"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 12,
+      "kind": "note",
+      "detail": "invalid operand for instruction",
+      "context": [
+        "^",
+        "<instantiation>:12:14: note: invalid operand for instruction",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:12:2: note: instruction variant requires ARMv8 or later"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 12,
+      "kind": "note",
+      "detail": "instruction variant requires ARMv8 or later",
+      "context": [
+        "^",
+        "<instantiation>:12:2: note: instruction variant requires ARMv8 or later",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:12:14: note: operand must be an immediate in the range [256,65535]"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 12,
+      "kind": "note",
+      "detail": "operand must be an immediate in the range [256,65535]",
+      "context": [
+        "^",
+        "<instantiation>:12:14: note: operand must be an immediate in the range [256,65535]",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:12:14: note: operand must be a register in range [r0, r15]"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 12,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r15]",
+      "context": [
+        "^",
+        "<instantiation>:12:14: note: operand must be a register in range [r0, r15]",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:37:2: error: invalid instruction, any one of the following would fix this:"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 37,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "^",
+        "<instantiation>:37:2: error: invalid instruction, any one of the following would fix this:",
+        "eor r8, r8, sp",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:37:2: note: instruction requires: arm-mode"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 37,
+      "kind": "note",
+      "detail": "instruction requires: arm-mode",
+      "context": [
+        "^",
+        "<instantiation>:37:2: note: instruction requires: arm-mode",
+        "eor r8, r8, sp",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:37:14: note: invalid operand for instruction"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 37,
+      "kind": "note",
+      "detail": "invalid operand for instruction",
+      "context": [
+        "^",
+        "<instantiation>:37:14: note: invalid operand for instruction",
+        "eor r8, r8, sp",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:37:14: note: operand must be a register in range [r0, r12] or r14"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 37,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r12] or r14",
+      "context": [
+        "^",
+        "<instantiation>:37:14: note: operand must be a register in range [r0, r12] or r14",
+        "eor r8, r8, sp",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:47:2: error: invalid instruction, any one of the following would fix this:"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 47,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "^",
+        "<instantiation>:47:2: error: invalid instruction, any one of the following would fix this:",
+        "sub sp, r7, #(80 + 8) @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:47:14: note: invalid operand for instruction"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 47,
+      "kind": "note",
+      "detail": "invalid operand for instruction",
+      "context": [
+        "^",
+        "<instantiation>:47:14: note: invalid operand for instruction",
+        "sub sp, r7, #(80 + 8) @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:47:14: note: operand must be a register in range [r0, r12] or r14"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 47,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r12] or r14",
+      "context": [
+        "^",
+        "<instantiation>:47:14: note: operand must be a register in range [r0, r12] or r14",
+        "sub sp, r7, #(80 + 8) @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:47:6: note: operand must be a register in range [r0, r12] or r14"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 47,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r12] or r14",
+      "context": [
+        "^",
+        "<instantiation>:47:6: note: operand must be a register in range [r0, r12] or r14",
+        "sub sp, r7, #(80 + 8) @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:47:10: note: operand must be a register sp"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 47,
+      "kind": "note",
+      "detail": "operand must be a register sp",
+      "context": [
+        "^",
+        "<instantiation>:47:10: note: operand must be a register sp",
+        "sub sp, r7, #(80 + 8) @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:66:2: error: invalid instruction, any one of the following would fix this:"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 66,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "^",
+        "<instantiation>:66:2: error: invalid instruction, any one of the following would fix this:",
+        "ldmia sp, {r0 - pc}^",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:66:2: note: instruction requires: arm-mode"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 66,
+      "kind": "note",
+      "detail": "instruction requires: arm-mode",
+      "context": [
+        "^",
+        "<instantiation>:66:2: note: instruction requires: arm-mode",
+        "ldmia sp, {r0 - pc}^",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:66:21: note: too many operands for instruction"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 66,
+      "kind": "note",
+      "detail": "too many operands for instruction",
+      "context": [
+        "^",
+        "<instantiation>:66:21: note: too many operands for instruction",
+        "ldmia sp, {r0 - pc}^",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 375,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation",
+        "check_overflow",
+        "^",
+        "<instantiation>:3:2: error: invalid instruction, any one of the following would fix this:"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 3,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "^",
+        "<instantiation>:3:2: error: invalid instruction, any one of the following would fix this:",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:3:2: note: instruction requires: arm-mode"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 3,
+      "kind": "note",
+      "detail": "instruction requires: arm-mode",
+      "context": [
+        "^",
+        "<instantiation>:3:2: note: instruction requires: arm-mode",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:3:14: note: invalid operand for instruction"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 3,
+      "kind": "note",
+      "detail": "invalid operand for instruction",
+      "context": [
+        "^",
+        "<instantiation>:3:14: note: invalid operand for instruction",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:3:2: note: instruction variant requires ARMv8 or later"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 3,
+      "kind": "note",
+      "detail": "instruction variant requires ARMv8 or later",
+      "context": [
+        "^",
+        "<instantiation>:3:2: note: instruction variant requires ARMv8 or later",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:3:14: note: operand must be an immediate in the range [256,65535]"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 3,
+      "kind": "note",
+      "detail": "operand must be an immediate in the range [256,65535]",
+      "context": [
+        "^",
+        "<instantiation>:3:14: note: operand must be an immediate in the range [256,65535]",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:3:14: note: operand must be a register in range [r0, r15]"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 3,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r15]",
+      "context": [
+        "^",
+        "<instantiation>:3:14: note: operand must be a register in range [r0, r15]",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:30:2: error: invalid instruction, any one of the following would fix this:"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 30,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "^",
+        "<instantiation>:30:2: error: invalid instruction, any one of the following would fix this:",
+        "eor r8, r8, sp",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:30:2: note: instruction requires: arm-mode"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 30,
+      "kind": "note",
+      "detail": "instruction requires: arm-mode",
+      "context": [
+        "^",
+        "<instantiation>:30:2: note: instruction requires: arm-mode",
+        "eor r8, r8, sp",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:30:14: note: invalid operand for instruction"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 30,
+      "kind": "note",
+      "detail": "invalid operand for instruction",
+      "context": [
+        "^",
+        "<instantiation>:30:14: note: invalid operand for instruction",
+        "eor r8, r8, sp",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:30:14: note: operand must be a register in range [r0, r12] or r14"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 30,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r12] or r14",
+      "context": [
+        "^",
+        "<instantiation>:30:14: note: operand must be a register in range [r0, r12] or r14",
+        "eor r8, r8, sp",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:41:2: error: invalid instruction, any one of the following would fix this:"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 41,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "^",
+        "<instantiation>:41:2: error: invalid instruction, any one of the following would fix this:",
+        "sub sp, r7, #8 @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:41:14: note: invalid operand for instruction"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 41,
+      "kind": "note",
+      "detail": "invalid operand for instruction",
+      "context": [
+        "^",
+        "<instantiation>:41:14: note: invalid operand for instruction",
+        "sub sp, r7, #8 @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:41:14: note: operand must be a register in range [r0, r12] or r14"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 41,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r12] or r14",
+      "context": [
+        "^",
+        "<instantiation>:41:14: note: operand must be a register in range [r0, r12] or r14",
+        "sub sp, r7, #8 @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:41:6: note: operand must be a register in range [r0, r12] or r14"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 41,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r12] or r14",
+      "context": [
+        "^",
+        "<instantiation>:41:6: note: operand must be a register in range [r0, r12] or r14",
+        "sub sp, r7, #8 @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:41:10: note: operand must be a register sp"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 41,
+      "kind": "note",
+      "detail": "operand must be a register sp",
+      "context": [
+        "^",
+        "<instantiation>:41:10: note: operand must be a register sp",
+        "sub sp, r7, #8 @switch stack now",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "# CC      ipc/kdbus/message.o"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[4]: *** [scripts/Makefile.build:352: arch/arm/kernel/entry-armv.o] Error 1",
+      "context": [
+        "# CC      net/netfilter/nf_conntrack_expect.o",
+        "make[4]: *** [scripts/Makefile.build:352: arch/arm/kernel/entry-armv.o] Error 1",
+        "/bin/make -f ./scripts/Makefile.build obj=drivers/video/fbdev \\",
+        "need-builtin=1 \\"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[3]: *** [scripts/Makefile.build:478: arch/arm/kernel] Error 2",
+      "context": [
+        "make[4]: Target 'arch/arm/kernel/' not remade because of errors.",
+        "make[3]: *** [scripts/Makefile.build:478: arch/arm/kernel] Error 2",
+        "make[3]: Target 'arch/arm/' not remade because of errors.",
+        "make[2]: *** [scripts/Makefile.build:478: arch/arm] Error 2"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[2]: *** [scripts/Makefile.build:478: arch/arm] Error 2",
+      "context": [
+        "make[3]: Target 'arch/arm/' not remade because of errors.",
+        "make[2]: *** [scripts/Makefile.build:478: arch/arm] Error 2",
+        "/bin/make -f ./scripts/Makefile.build obj=drivers/mtd/parsers \\",
+        "need-builtin=1 \\"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[1]: *** [/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/Makefile:2005: .] Error 2",
+      "context": [
+        "make[2]: Target './' not remade because of errors.",
+        "make[1]: *** [/home/abuild/rpmbuild/BUILD/tztv-kernel-1/linux-6.12/Makefile:2005: .] Error 2",
+        "make[1]: Target 'uImage' not remade because of errors.",
+        "make: *** [Makefile:224: __sub-make] Error 2"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make: *** [Makefile:224: __sub-make] Error 2",
+      "context": [
+        "make[1]: Target 'uImage' not remade because of errors.",
+        "make: *** [Makefile:224: __sub-make] Error 2",
+        "make: Target 'uImage' not remade because of errors.",
+        "PM_ENUM_SECOND_PASS"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": ":19:13: error: SP and PC may not be in the register list",
+      "context": [
+        "",
+        ":19:13: error: SP and PC may not be in the register list",
+        "stmia r0, {r0 - r15}",
+        "^"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[3]: *** [scripts/Makefile.build:352: arch/arm/lib/backtrace-clang.o] Error 1",
+      "context": [
+        "",
+        "make[3]: *** [scripts/Makefile.build:352: arch/arm/lib/backtrace-clang.o] Error 1",
+        "make[3]: Target 'arch/arm/lib/' not remade because of errors.",
+        "make[2]: *** [scripts/Makefile.build:478: arch/arm/lib] Error 2"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[2]: *** [scripts/Makefile.build:478: arch/arm/lib] Error 2",
+      "context": [
+        "make[3]: Target 'arch/arm/lib/' not remade because of errors.",
+        "make[2]: *** [scripts/Makefile.build:478: arch/arm/lib] Error 2",
+        "/bin/make -f ./scripts/Makefile.build obj=drivers/net/pcs \\",
+        "need-builtin=1 \\"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 12,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "",
+        "<instantiation>:12:2: error: invalid instruction, any one of the following would fix this:",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 47,
+      "kind": "note",
+      "detail": "operand must be a register in range [r0, r12] or r14",
+      "context": [
+        "^",
+        "<instantiation>:47:14: note: operand must be a register in range [r0, r12] or r14",
+        "sub sp, r7, #(80 + 8) @switch stack now",
+        "/bin/make -f ./scripts/Makefile.build obj=crypto/asymmetric_keys \\",
+        "^"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 66,
+      "kind": "note",
+      "detail": "too many operands for instruction",
+      "context": [
+        "^",
+        "<instantiation>:66:21: note: too many operands for instruction",
+        "ldmia sp, {r0 - pc}^",
+        "^",
+        "arch/arm/kernel/entry-armv.S:375/bin/make -f ./scripts/Makefile.build obj=kernel/locking \\"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "<instantiation>",
+      "line": 3,
+      "kind": "error",
+      "detail": "invalid instruction, any one of the following would fix this:",
+      "context": [
+        "",
+        "<instantiation>:3:2: error: invalid instruction, any one of the following would fix this:",
+        "mov r8, sp, lsr #12",
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "<instantiation>:41:/bin/make -f ./scripts/Makefile.build obj=kernel/power \\"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "arch/arm/kernel/entry-armv.S",
+      "line": 390,
+      "kind": "note",
+      "detail": "while in macro instantiation",
+      "context": [
+        "^",
+        "arch/arm/kernel/entry-armv.S:390:2: note: while in macro instantiation",
+        "check_extension",
+        "^",
+        "/bin/make -f ./scripts/Makefile.build obj=fs/quota \\"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[4]: *** [scripts/Makefile.build:352: arch/arm/kernel/entry-armv.o] Error 1",
+      "context": [
+        "",
+        "make[4]: *** [scripts/Makefile.build:352: arch/arm/kernel/entry-armv.o] Error 1",
+        "make[4]: Target 'arch/arm/kernel/' not remade because of errors.",
+        "make[3]: *** [scripts/Makefile.build:478: arch/arm/kernel] Error 2"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make[2]: *** [scripts/Makefile.build:478: arch/arm] Error 2",
+      "context": [
+        "make[3]: Target 'arch/arm/' not remade because of errors.",
+        "make[2]: *** [scripts/Makefile.build:478: arch/arm] Error 2",
+        "/bin/make -f ./scripts/Makefile.build obj=fs/notify/dnotify \\",
+        "need-builtin=1 \\"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "make: *** [Makefile:224: __sub-make] Error 2",
+      "context": [
+        "make[1]: Target 'uImage' not remade because of errors.",
+        "make: *** [Makefile:224: __sub-make] Error 2",
+        "make: Target 'uImage' not remade because of errors.",
+        "build uImage failed. Stopped..."
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "ERROR: Failed to make kernel. Stopped...",
+      "context": [
+        "build uImage failed. Stopped...",
+        "ERROR: Failed to make kernel. Stopped...",
+        "error: Bad exit status from /var/tmp/rpm-tmp.50c2Aa (%build)",
+        ""
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "error: Bad exit status from /var/tmp/rpm-tmp.50c2Aa (%build)",
+      "context": [
+        "ERROR: Failed to make kernel. Stopped...",
+        "error: Bad exit status from /var/tmp/rpm-tmp.50c2Aa (%build)",
+        "",
+        ""
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    },
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "error: <gbs>some packages failed to be built",
+      "context": [
+        "     /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.*",
+        "error: <gbs>some packages failed to be built"
+      ],
+      "log": "/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/gbs.log"
+    }
+  ],
+  "origins": {
+    "arch/arm/lib/backtrace-clang.S": "VDLinux-modified file; individual instruction origin unproved",
+    "arch/arm/kernel/entry-armv.S": "VDLinux-modified file; individual instruction origin unproved"
+  },
+  "source_context": {
+    "arch/arm/lib/backtrace-clang.S": [
+      [
+        1,
+        "/* SPDX-License-Identifier: GPL-2.0-only */"
+      ],
+      [
+        2,
+        "/*"
+      ],
+      [
+        3,
+        " *  linux/arch/arm/lib/backtrace-clang.S"
+      ],
+      [
+        4,
+        " *"
+      ],
+      [
+        5,
+        " *  Copyright (C) 2019 Nathan Huckleberry"
+      ],
+      [
+        6,
+        " *"
+      ],
+      [
+        7,
+        " */"
+      ],
+      [
+        8,
+        "#include <linux/kern_levels.h>"
+      ],
+      [
+        9,
+        "#include <linux/linkage.h>"
+      ],
+      [
+        10,
+        "#include <asm/assembler.h>"
+      ],
+      [
+        11,
+        "\t\t.text"
+      ],
+      [
+        12,
+        "/*"
+      ],
+      [
+        13,
+        " * asm_store_regs_values:"
+      ],
+      [
+        14,
+        " * store current registers(r0 - r15) value into r0."
+      ],
+      [
+        15,
+        " *"
+      ],
+      [
+        16,
+        " * @r0: address of pt_regs to store registers."
+      ],
+      [
+        17,
+        " */"
+      ],
+      [
+        18,
+        "ENTRY(asm_store_regs_values)"
+      ],
+      [
+        19,
+        "\t\tstmia\tr0, {r0 - r15}"
+      ],
+      [
+        20,
+        "\t\tret\tlr"
+      ],
+      [
+        21,
+        "ENDPROC(asm_store_regs_values)"
+      ],
+      [
+        22,
+        ""
+      ],
+      [
+        23,
+        "/* fp is 0 or stack frame */"
+      ],
+      [
+        24,
+        ""
+      ],
+      [
+        25,
+        "#define frame\tr4"
+      ],
+      [
+        26,
+        "#define sv_fp\tr5"
+      ],
+      [
+        27,
+        "#define sv_pc\tr6"
+      ],
+      [
+        28,
+        "#define mask\tr7"
+      ],
+      [
+        29,
+        "#define sv_lr\tr8"
+      ],
+      [
+        30,
+        "#define loglvl\tr9"
+      ],
+      [
+        31,
+        ""
+      ],
+      [
+        32,
+        "ENTRY(c_backtrace)"
+      ],
+      [
+        33,
+        ""
+      ],
+      [
+        34,
+        "#if !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)"
+      ],
+      [
+        35,
+        "\t\tret\tlr"
+      ],
+      [
+        36,
+        "ENDPROC(c_backtrace)"
+      ],
+      [
+        37,
+        "#else"
+      ]
+    ],
+    "arch/arm/kernel/entry-armv.S": [
+      [
+        126,
+        ""
+      ],
+      [
+        127,
+        "__und_invalid:"
+      ],
+      [
+        128,
+        "\tinv_entry BAD_UNDEFINSTR"
+      ],
+      [
+        129,
+        ""
+      ],
+      [
+        130,
+        "\t@"
+      ],
+      [
+        131,
+        "\t@ XXX fall through to common_invalid"
+      ],
+      [
+        132,
+        "\t@"
+      ],
+      [
+        133,
+        ""
+      ],
+      [
+        134,
+        "@"
+      ],
+      [
+        135,
+        "@ common_invalid - generic code for failed exception (re-entrant version of handlers)"
+      ],
+      [
+        136,
+        "@"
+      ],
+      [
+        137,
+        "common_invalid:"
+      ],
+      [
+        138,
+        "\tzero_fp"
+      ],
+      [
+        139,
+        ""
+      ],
+      [
+        140,
+        "\tldmia\tr0, {r4 - r6}"
+      ],
+      [
+        141,
+        "\tadd\tr0, sp, #S_PC\t\t@ here for interlock avoidance"
+      ],
+      [
+        142,
+        "\tmov\tr7, #-1\t\t\t@  \"\"   \"\"    \"\"        \"\""
+      ],
+      [
+        143,
+        "\tstr\tr4, [sp]\t\t@ save preserved r0"
+      ],
+      [
+        144,
+        "\tstmia\tr0, {r5 - r7}\t\t@ lr_<exception>,"
+      ],
+      [
+        145,
+        "\t\t\t\t\t@ cpsr_<exception>, \"old_r0\""
+      ],
+      [
+        146,
+        ""
+      ],
+      [
+        147,
+        "\tmov\tr0, sp"
+      ],
+      [
+        148,
+        "\tb\tbad_mode"
+      ],
+      [
+        149,
+        "ENDPROC(__und_invalid)"
+      ],
+      [
+        150,
+        ""
+      ],
+      [
+        151,
+        "/*"
+      ],
+      [
+        152,
+        " * SVC mode handlers"
+      ],
+      [
+        153,
+        " */"
+      ],
+      [
+        154,
+        ""
+      ],
+      [
+        155,
+        "#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5)"
+      ],
+      [
+        156,
+        "#define SPFIX(code...) code"
+      ],
+      [
+        157,
+        "#else"
+      ],
+      [
+        158,
+        "#define SPFIX(code...)"
+      ],
+      [
+        159,
+        "#endif"
+      ],
+      [
+        160,
+        ""
+      ],
+      [
+        161,
+        "\t.macro\tsvc_entry, stack_hole=0, trace=1, uaccess=1, overflow_check=1"
+      ],
+      [
+        162,
+        " UNWIND(.fnstart\t\t)"
+      ],
+      [
+        207,
+        "\t@  r5 - spsr_<exception>"
+      ],
+      [
+        208,
+        "\t@  r6 - orig_r0 (see pt_regs definition in ptrace.h)"
+      ],
+      [
+        209,
+        "\t@"
+      ],
+      [
+        210,
+        "\tstmia\tr7, {r2 - r6}"
+      ],
+      [
+        211,
+        ""
+      ],
+      [
+        212,
+        "\tget_thread_info tsk"
+      ],
+      [
+        213,
+        "\tuaccess_entry tsk, r0, r1, r2, \\uaccess"
+      ],
+      [
+        214,
+        ""
+      ],
+      [
+        215,
+        "\t.if \\trace"
+      ],
+      [
+        216,
+        "#ifdef CONFIG_TRACE_IRQFLAGS"
+      ],
+      [
+        217,
+        "\tbl\ttrace_hardirqs_off"
+      ],
+      [
+        218,
+        "#endif"
+      ],
+      [
+        219,
+        "\t.endif"
+      ],
+      [
+        220,
+        "\t.endm"
+      ],
+      [
+        221,
+        ""
+      ],
+      [
+        222,
+        "\t.macro\tcheck_extension"
+      ],
+      [
+        223,
+        "\tstr\tr7, [r0, #12]\t@ save r7, r8 to detect stack overflow"
+      ],
+      [
+        224,
+        "\tstr\tr8, [r0, #16]"
+      ],
+      [
+        225,
+        "\tmov\tr8, sp, lsr #PAGE_SHIFT"
+      ],
+      [
+        226,
+        "\tlsl\tr8, #PAGE_SHIFT"
+      ],
+      [
+        227,
+        "\tsub\tr8, sp, r8"
+      ],
+      [
+        228,
+        ""
+      ],
+      [
+        229,
+        "#ifdef CONFIG_TRACE_IRQFLAGS"
+      ],
+      [
+        230,
+        "\tcmp\tr8, #400\t@ check 400 bytes available on stack or not."
+      ],
+      [
+        231,
+        "#else"
+      ],
+      [
+        232,
+        "\tcmp\tr8, #200\t@ check 200 bytes available on stack or not."
+      ],
+      [
+        233,
+        "#endif"
+      ],
+      [
+        234,
+        "\tbgt\t9999f"
+      ],
+      [
+        235,
+        "9998:\t\t\t\t@ Fault Address point to Stack pointer"
+      ],
+      [
+        236,
+        "\t\t\t\t@ and it hits Gaurd Page or going to hit"
+      ],
+      [
+        237,
+        "\t\t\t\t@ if less than 100 bytes reamin on stack."
+      ],
+      [
+        238,
+        "\t/* Switch to IRQ Stack */"
+      ],
+      [
+        239,
+        "\tstr\tr9, [r0, #20]\t@ save r9"
+      ],
+      [
+        240,
+        "\tget_thread_info\tr9"
+      ],
+      [
+        241,
+        "\tldr\tr8, [r9, #TI_FLAGS]"
+      ],
+      [
+        242,
+        "\ttst\tr8, #_TIF_VM_STACK + _TIF_VM_KTHREAD\t@ check if extra stack is already mapped."
+      ],
+      [
+        243,
+        "\t\t\t\t\t\t\t@ or if kernel thread, already 8 KB."
+      ],
+      [
+        273,
+        ""
+      ],
+      [
+        274,
+        "\tmov\tr0, r8"
+      ],
+      [
+        275,
+        "\tbl\tdo_stack_extension"
+      ],
+      [
+        276,
+        "\tpop\t{lr}"
+      ],
+      [
+        277,
+        "\tpop\t{r0 - r3}"
+      ],
+      [
+        278,
+        ""
+      ],
+      [
+        279,
+        "\tsub\tr7, #THREAD_SIZE"
+      ],
+      [
+        280,
+        "\tldr     fp, [r7, #4]"
+      ],
+      [
+        281,
+        "\tldr     sp, [r7, #8]"
+      ],
+      [
+        282,
+        "\tldr     ip, [r7, #12]"
+      ],
+      [
+        283,
+        ""
+      ],
+      [
+        284,
+        "\tldr\tr9, [r0, #20]\t\t@ Restore r9"
+      ],
+      [
+        285,
+        "9999:"
+      ],
+      [
+        286,
+        "\tldr\tr7, [r0, #12]\t\t@ Restore r7"
+      ],
+      [
+        287,
+        "\tldr\tr8, [r0, #16]\t\t@ Restore r8"
+      ],
+      [
+        288,
+        ""
+      ],
+      [
+        289,
+        "\t.endm"
+      ],
+      [
+        290,
+        ""
+      ],
+      [
+        291,
+        "\t.macro\tcheck_overflow"
+      ],
+      [
+        292,
+        "\tstr\tr7, [r0, #12]\t@ save r7, r8 to detect stack overflow"
+      ],
+      [
+        293,
+        "\tstr\tr8, [r0, #16]"
+      ],
+      [
+        294,
+        ""
+      ],
+      [
+        295,
+        "\tget_thread_info\tr7"
+      ],
+      [
+        296,
+        "\tldr\tr8, [r7, #TI_FLAGS]"
+      ],
+      [
+        297,
+        "\ttst\tr8, #_TIF_VMAP_STACK_ALLOC\t@ check if extra stack mapping requested."
+      ],
+      [
+        298,
+        "\tbne\t9998f"
+      ],
+      [
+        299,
+        ""
+      ],
+      [
+        300,
+        "\tmrc\tp15, 0, r7, c6, c0, 0   @ Read Data Fault Address Register"
+      ],
+      [
+        301,
+        "\tlsr\tr7, #PAGE_SHIFT"
+      ],
+      [
+        302,
+        "\tlsl\tr7, #PAGE_SHIFT"
+      ],
+      [
+        303,
+        "\tmov\tr8, sp, lsr #PAGE_SHIFT"
+      ],
+      [
+        304,
+        "\tlsl\tr8, #PAGE_SHIFT"
+      ],
+      [
+        305,
+        "\tcmp\tr7, r8"
+      ],
+      [
+        306,
+        "\tbeq\t9998f"
+      ],
+      [
+        307,
+        "\tsub\tr8, sp, r8"
+      ],
+      [
+        308,
+        "\tcmp\tr8, #200\t@ check 200 bytes available on stack or not."
+      ],
+      [
+        309,
+        "\tbgt\t9999f"
+      ],
+      [
+        310,
+        "9998:\t\t\t\t@ Fault Address point to Stack pointer"
+      ],
+      [
+        311,
+        "\t\t\t\t@ and it hits Guard Page or going to hit"
+      ],
+      [
+        312,
+        "\t\t\t\t@ if less than 200 bytes reamin on stack."
+      ],
+      [
+        313,
+        ""
+      ],
+      [
+        314,
+        "\t/* Switch to IRQ Stack */"
+      ],
+      [
+        315,
+        "\tstr\tr9, [r0, #20]\t@ save r9 to handle stack overflow."
+      ],
+      [
+        316,
+        "\tget_thread_info\tr9"
+      ],
+      [
+        317,
+        "\tldr\tr8, [r9, #TI_FLAGS]"
+      ],
+      [
+        318,
+        "\ttst\tr8, #_TIF_VM_STACK + _TIF_VM_KTHREAD\t@ check if extra stack is already mapped."
+      ],
+      [
+        319,
+        "\t\t\t\t\t\t\t@ or if kernel thread, already 8 KB."
+      ],
+      [
+        320,
+        "\tldrne\tr9, [r0, #20]"
+      ],
+      [
+        321,
+        "\tbne\t9999f"
+      ],
+      [
+        357,
+        "\tstmia\tsp, {r0 - r12}"
+      ],
+      [
+        358,
+        ""
+      ],
+      [
+        359,
+        "\tmov\tr0, sp"
+      ],
+      [
+        360,
+        "\tmrc\tp15, 0, r1, c6, c0, 0"
+      ],
+      [
+        361,
+        "\tmrc\tp15, 0, r2, c5, c0, 0"
+      ],
+      [
+        362,
+        "\tbl\tdo_stackoverflow"
+      ],
+      [
+        363,
+        "\tldr\tr0, [sp, #S_PSR]"
+      ],
+      [
+        364,
+        "\tmsr\tspsr_cxsf, r0"
+      ],
+      [
+        365,
+        "\tldmia\tsp, {r0 - pc}^"
+      ],
+      [
+        366,
+        "9999:"
+      ],
+      [
+        367,
+        "\tldr\tr7, [r0, #12]\t\t@ Restore r7"
+      ],
+      [
+        368,
+        "\tldr\tr8, [r0, #16]\t\t@ Restore r8"
+      ],
+      [
+        369,
+        "\t.endm"
+      ],
+      [
+        370,
+        ""
+      ],
+      [
+        371,
+        ""
+      ],
+      [
+        372,
+        "\t.align\t5"
+      ],
+      [
+        373,
+        "__dabt_svc:"
+      ],
+      [
+        374,
+        "#if CONFIG_KERNEL_STACK_SMALL"
+      ],
+      [
+        375,
+        "\tcheck_overflow"
+      ],
+      [
+        376,
+        "#endif"
+      ],
+      [
+        377,
+        "\tsvc_entry uaccess=0"
+      ],
+      [
+        378,
+        "\tmov\tr2, sp"
+      ],
+      [
+        379,
+        "\tdabt_helper"
+      ],
+      [
+        380,
+        " THUMB(\tldr\tr5, [sp, #S_PSR]\t)\t@ potentially updated CPSR"
+      ],
+      [
+        381,
+        "\tsvc_exit r5\t\t\t\t@ return from exception"
+      ],
+      [
+        382,
+        " UNWIND(.fnend\t\t)"
+      ],
+      [
+        383,
+        "ENDPROC(__dabt_svc)"
+      ],
+      [
+        384,
+        ""
+      ],
+      [
+        385,
+        "\t.align\t5"
+      ],
+      [
+        386,
+        ""
+      ],
+      [
+        387,
+        ".pushsection   .irqentry.text, \"ax\""
+      ],
+      [
+        388,
+        "__irq_svc:"
+      ],
+      [
+        389,
+        "#ifdef CONFIG_KERNEL_STACK_SMALL"
+      ],
+      [
+        390,
+        "\tcheck_extension"
+      ],
+      [
+        391,
+        "#endif"
+      ],
+      [
+        392,
+        "\tsvc_entry"
+      ],
+      [
+        393,
+        "\tirq_handler from_user=0"
+      ],
+      [
+        394,
+        ""
+      ],
+      [
+        395,
+        "#ifdef CONFIG_PREEMPTION"
+      ],
+      [
+        396,
+        "\tldr\tr8, [tsk, #TI_PREEMPT]\t\t@ get preempt count"
+      ],
+      [
+        397,
+        "\tldr\tr0, [tsk, #TI_FLAGS]\t\t@ get flags"
+      ],
+      [
+        398,
+        "\tteq\tr8, #0\t\t\t\t@ if preempt count != 0"
+      ],
+      [
+        399,
+        "\tmovne\tr0, #0\t\t\t\t@ force flags to 0"
+      ],
+      [
+        400,
+        "\ttst\tr0, #_TIF_NEED_RESCHED"
+      ],
+      [
+        401,
+        "\tblne\tsvc_preempt"
+      ],
+      [
+        402,
+        "#endif"
+      ],
+      [
+        403,
+        ""
+      ],
+      [
+        404,
+        "\tsvc_exit r5, irq = 1\t\t\t@ return from exception"
+      ],
+      [
+        405,
+        " UNWIND(.fnend\t\t)"
+      ],
+      [
+        406,
+        "ENDPROC(__irq_svc)"
+      ],
+      [
+        407,
+        ".popsection"
+      ],
+      [
+        408,
+        ""
+      ],
+      [
+        534,
+        " ATRAP(\tldr_va\tr8, cr_alignment)"
+      ],
+      [
+        535,
+        ""
+      ],
+      [
+        536,
+        "\tldmia\tr0, {r3 - r5}"
+      ],
+      [
+        537,
+        "\tadd\tr0, sp, #S_PC\t\t@ here for interlock avoidance"
+      ],
+      [
+        538,
+        "\tmov\tr6, #-1\t\t\t@  \"\"  \"\"     \"\"        \"\""
+      ],
+      [
+        539,
+        ""
+      ],
+      [
+        540,
+        "\tstr\tr3, [sp]\t\t@ save the \"real\" r0 copied"
+      ],
+      [
+        541,
+        "\t\t\t\t\t@ from the exception stack"
+      ],
+      [
+        542,
+        ""
+      ],
+      [
+        543,
+        "\t@"
+      ],
+      [
+        544,
+        "\t@ We are now ready to fill in the remaining blanks on the stack:"
+      ],
+      [
+        545,
+        "\t@"
+      ],
+      [
+        546,
+        "\t@  r4 - lr_<exception>, already fixed up for correct return/restart"
+      ],
+      [
+        547,
+        "\t@  r5 - spsr_<exception>"
+      ],
+      [
+        548,
+        "\t@  r6 - orig_r0 (see pt_regs definition in ptrace.h)"
+      ],
+      [
+        549,
+        "\t@"
+      ],
+      [
+        550,
+        "\t@ Also, separately save sp_usr and lr_usr"
+      ],
+      [
+        551,
+        "\t@"
+      ],
+      [
+        552,
+        "\tstmia\tr0, {r4 - r6}"
+      ],
+      [
+        553,
+        " ARM(\tstmdb\tr0, {sp, lr}^\t\t\t)"
+      ],
+      [
+        554,
+        " THUMB(\tstore_user_sp_lr r0, r1, S_SP - S_PC\t)"
+      ],
+      [
+        555,
+        ""
+      ],
+      [
+        556,
+        "\t.if \\uaccess"
+      ],
+      [
+        557,
+        "\tuaccess_disable ip"
+      ],
+      [
+        558,
+        "\t.endif"
+      ],
+      [
+        559,
+        ""
+      ],
+      [
+        560,
+        "\t@ Enable the alignment trap while in kernel mode"
+      ],
+      [
+        561,
+        " ATRAP(\tteq\tr8, r7)"
+      ],
+      [
+        562,
+        " ATRAP( mcrne\tp15, 0, r8, c1, c0, 0)"
+      ],
+      [
+        563,
+        ""
+      ],
+      [
+        564,
+        "\treload_current r7, r8"
+      ],
+      [
+        565,
+        ""
+      ],
+      [
+        566,
+        "\t@"
+      ],
+      [
+        567,
+        "\t@ Clear FP to mark the first stack frame"
+      ],
+      [
+        568,
+        "\t@"
+      ],
+      [
+        569,
+        "\tzero_fp"
+      ],
+      [
+        570,
+        ""
+      ]
+    ]
+  }
+}

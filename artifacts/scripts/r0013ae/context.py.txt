@@ -1,0 +1,77 @@
+"""Read the exact fault paths and compare missing-tool diagnostics in their original logs."""
+import hashlib
+from pathlib import Path
+import re
+import runpy
+import difflib
+import base64
+import zlib
+import subprocess
+
+T = Path("/home1/chengkai/vd-tree/workspace/temp")
+J = T / "pm0012-kernel.dkyJ0S/jobs/kernel-thumb"
+REV = "fae92f998a51e8493e2ed452381aad73c2ce689e"
+ENTRY = "arch/arm/kernel/entry-armv.S"
+DUMP = "arch/arm/lib/backtrace-clang.S"
+CONFIG = "arch/arm/configs/KANTSU2E_perf_defconfig"
+
+
+def source(path):
+    return subprocess.check_output(["git", "-C", J/"vdlinux", "show", REV+":linux-6.12/"+path])
+
+
+def collect():
+    for lane, folder in (("K0", T/"pm0012-kernel.RhOLRN/jobs/kernel-thumb/K0"),
+                         ("K1", J/"K1"), ("jEMVH7", T/"pm0013jk-build.jEMVH7"),
+                         ("stooH5", T/"pm0013n-enum.stooH5")):
+        root = folder / "GBS-ROOT/local"
+        for log in dict.fromkeys([folder/"gbs.log", *root.glob("repos/*/armv7l/logs/*/tztv-kernel*/log.txt"),
+                                  *root.glob("BUILD-ROOTS/*/.build.log")]):
+            counts = {}
+            if log.is_file():
+                with log.open(errors="replace") as stream:
+                    for line in stream:
+                        m = re.search(r"([^ :]*(?:gcc-warning-build-env\.post|gcc-force-options-only))[^\n]*?\b(find|xargs): (?:command )?not found", line)
+                        if m:
+                            key = Path(m[1]).name+"/"+m[2]
+                            counts[key] = counts.get(key, 0)+1
+            print("LOG", lane, log, counts if log.is_file() else "MISSING")
+    for name in (ENTRY, DUMP, CONFIG, "arch/arm/kernel/entry-header.S"):
+        data = source(name)
+        print("SOURCE", name, hashlib.sha256(data).hexdigest())
+        lines = data.decode().splitlines()
+        if name == ENTRY:
+            for i in range(222, 370):
+                print(i, lines[i-1])
+        if name.endswith("entry-header.S"):
+            start = next(i for i,s in enumerate(lines) if re.search(r"^\s*\.macro\s+svc_exit\b",s))
+            end = next(i for i in range(start,len(lines)) if ".endm" in lines[i])
+            for i in range(start,end+1):
+                print(i+1,lines[i])
+
+
+def export():
+    port=runpy.run_path(str(Path(__file__).with_name("port.py.txt")))
+    base=Path("source-input")
+    names=(*port["PINS"],port["TRAPS"],"arch/arm/kernel/entry-header.S")
+    for name in names:
+        p=base/name
+        p.parent.mkdir(parents=True,exist_ok=True)
+        p.write_bytes(source(name))
+    patch=[]
+    for name,new in port["files"](base,True).items():
+        old=(base/name).read_bytes()
+        path="linux-6.12/"+name
+        print("SHELF_CANDIDATE",path,hashlib.sha256(old).hexdigest(),hashlib.sha256(new).hexdigest())
+        patch.extend(difflib.diff_bytes(difflib.unified_diff,old.splitlines(True),new.splitlines(True),
+                                        ("a/"+path).encode(),("b/"+path).encode()))
+    raw=b"".join(patch)
+    dest=Path("thumb-small-stack.patch")
+    dest.write_bytes(raw)
+    print("PATCH_SHA256",hashlib.sha256(raw).hexdigest(),dest.resolve())
+    print("PATCH_ZLIB_BASE64",base64.b64encode(zlib.compress(raw,9)).decode())
+
+
+if __name__=="__main__":
+    export()
+    collect()

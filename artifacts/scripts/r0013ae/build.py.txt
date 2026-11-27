@@ -1,0 +1,236 @@
+"""Attended GBS measurements using the exact stooH5 source and K4 repositories."""
+import argparse
+from contextlib import ExitStack
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import subprocess
+import sys
+
+W = Path.cwd()
+load = lambda name: runpy.run_path(str(W/(name+".py.txt")))
+E = load("enumerate")
+C = load("context")
+J, T, REV = C["J"], C["T"], C["REV"]
+SPEC = E["spec"]
+BUILD_CONF = "98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
+ENUM = "6745cbb6e0e05cf607c37c6b32735804d6ce26dfcb3794b1fd4e834e2d6864fe"
+ASEC = [C["ENTRY"], C["DUMP"]]
+OBJS = [p[:-1]+"o" for p in ASEC]+["arch/arm/kernel/traps.o"]
+SECTIONS = load("image_mode_scan")["secs_of"]
+GIT = ["git","-c","core.hooksPath=/dev/null"]
+
+
+def need(value, msg):
+    if not value:
+        raise ValueError(msg)
+
+
+def sha(path):
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1<<20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def out(*args):
+    return subprocess.check_output(args, text=True)
+
+
+def write(path, obj):
+    path.write_text(json.dumps(obj, sort_keys=True, indent=2)+"\n")
+
+
+def config_text(cfg, old, new, lane):
+    data = E["staged_config"](cfg, old, new, lane/"GBS-ROOT")
+    empty = lane/"empty-repo"
+    empty.mkdir()
+    return data.replace(str(J/"K4/empty-repo"), str(empty))
+
+
+def stage_spec(data, lane):
+    need("pm_lane=K4" in data and 'dest=$PM_KERNEL_EVIDENCE/$hash' in data, "K4 spec provenance")
+    data = data.replace("pm_lane=K4", "pm_lane="+lane)
+    # The original dkyJ0S wrapper handed -moutline to the secondary GCC build.
+    old = 'KCFLAGS=${kc:+$kc }-moutline'
+    scoped = '"KCFLAGS=${kc:+$kc }"\'$(if $(filter clang clang-%% %%-clang,$(notdir $(lastword $(CC)))),-moutline)\''
+    if '"'+old+'"' in data:
+        data = data.replace('"'+old+'"', scoped)
+    need(scoped in data and old not in data, "unrecognised outline delivery")
+    anchor = "for f in kernel/sched/core.o "
+    need(anchor in data, "zImage evidence hook missing")
+    data = data.replace(anchor, "for f in "+" ".join(OBJS)+" kernel/sched/core.o ")
+    if lane in ("K4","K5"):
+        anchor = 'echo CONFIG_THUMB2_KERNEL=y >> "$pm_def"'
+        need(anchor in data, "unexpected defconfig wrapper")
+        data = data.replace(anchor, 'grep -qx CONFIG_THUMB2_KERNEL=y "$pm_def" || exit 2')
+    return data
+
+
+def measure(root, lane, log):
+    q = load("matched-qb")
+    rpms = [p for p in (root/"local/repos").glob("**/tztv-kernel-perf-*.armv7l.rpm")
+            if p.is_file() and not p.is_symlink() and q["query"](p,"%{NAME}")=="tztv-kernel-perf"]
+    need(len({sha(p) for p in rpms})==1, "missing or conflicting perf RPMs")
+    rpm = rpms[0]
+    images = q["member_checksums"](rpm)
+    z = images["/perf/zImage"][1]
+    need(z and re.fullmatch("[0-9a-f]{64}",z),"missing RPM file SHA-256")
+    tree, = root.glob("local/BUILD-ROOTS/*/var/tmp/pm0013d-evidence/"+z)
+    boot = tree/"arch/arm/boot"
+    need(sha(boot/"zImage")==z, "GBS snapshot vs RPM")
+    config = sha(tree/".config")
+    want = ("9a07c28a94fc2e7bef4a5341d45c3e1e95ec7ffd899313cd9593403b97a0e7e4"
+            if lane in ("K4","K5") else sha(J/"K0/generated.config"))
+    need(config == want,"effective perf config differs")
+    objects = {}
+    for obj in OBJS:
+        p = tree/obj
+        blob = p.read_bytes()
+        secs = SECTIONS(blob)
+        code = {}
+        for name,h in secs:
+            if h[2]&4 and h[1]==1:
+                need(name not in code,"duplicate section name "+name)
+                code[name] = [h[5],hashlib.sha256(blob[h[4]:h[4]+h[5]]).hexdigest()]
+        need(any(x[0] for x in code.values()), "no emitted instructions: "+obj)
+        objects[obj] = {"whole":sha(p),"code":code}
+    elf = tree/"vmlinux"
+    hdr = dict(SECTIONS(elf.read_bytes()))[".text"]
+    helpers = {(a,b) for a,b in re.findall(r"^(\w+)\s+(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",
+                                          out("nm","-S",elf),re.M)}
+    proof = load("kernel-matrix")["review_argv"](tree,lane,log)
+    return dict(lane=lane, tree=str(tree),config=config,rpm=sha(rpm),zImage=images["/perf/zImage"][0],
+                uImage=images["/perf/uImage"][0],Image=(boot/"Image").stat().st_size,
+                text=hdr[5],helpers=len(helpers),objects=objects,argv=proof,elf=sha(elf))
+
+
+def build(label, config, old, product, conf):
+    need(shutil.disk_usage(W).free>=105*1024**3 and
+         int(re.search(r'MemAvailable:\s*(\d+)',Path('/proc/meminfo').read_text())[1])>=32*1024**2,
+         "admission requires 105 GiB free and 32 GiB available RAM per lane")
+    lane = label.split("-")[0]
+    folder = W/label
+    folder.mkdir()
+    src = folder/"vdlinux"
+    subprocess.run([*GIT,"clone","-q","--local","--no-hardlinks",J/"vdlinux",src],check=True)
+    subprocess.run([*GIT,"-C",src,"checkout","-q","--detach",REV],check=True)
+    need(out(*GIT,"-C",src,"rev-parse","HEAD").strip()==REV,"source commit")
+    # Save every textual reference, including header prototypes and indirect uses.
+    refs = out(*GIT,"-C",src,"grep","-n","-w","-e","do_stackoverflow","-e","asm_store_regs_values","--","linux-6.12")
+    (folder/"source-xrefs.txt").write_text(refs)
+    cross=[l for l in refs.splitlines() if "do_stackoverflow" in l]
+    need(len([l for l in cross if re.search(r":\s*bl\s+do_stackoverflow\b",l)])==1 and
+         all((":asmlinkage void do_stackoverflow(" in l or re.search(r"entry-armv\.S:\d+:\s*bl\s+do_stackoverflow\b",l))
+             for l in cross),"review additional do_stackoverflow declarations/references: "+str(cross[:8]))
+    print("SOURCE_CALLERS",cross,flush=True)
+    patch = load("port")
+    paths = [SPEC]
+    if label!="K1-unpatched":
+        for path, data in patch["files"](src/"linux-6.12", thumb=lane in ("K4","K5")).items():
+            dest = src/"linux-6.12"/path
+            dest.write_bytes(data)
+            paths.append("linux-6.12/"+path)
+        manifest = {p:sha(src/p) for p in paths[1:]}
+        write(folder/"port-files.json",manifest)
+        if lane=="K4":
+            (folder/"shelf.patch").write_bytes(subprocess.check_output([*GIT,"-C",src,"diff","--",*paths[1:]]))
+            for p,s in manifest.items():
+                print("SHELF_CANDIDATE",p,s,flush=True)
+    spec = src/SPEC
+    spec.write_text(stage_spec(spec.read_text(),lane))
+    subprocess.run([*GIT,"-C",src,"-c","user.name=GBS staging","-c","user.email=gbs@localhost",
+                    "commit","-qm","Local perf "+label,"--",*paths],check=True)
+    cfg = folder/"gbs.conf"
+    cfg.write_text(config_text(config,old,product,folder))
+    args = ["taskset","-c",",".join(map(str,sorted(os.sched_getaffinity(0))[:6])),"gbs","-c",str(cfg),
+            "build","-A","armv7l","-B",str(folder/"GBS-ROOT"),"-D",str(conf),"--threads","1",
+            "--packaging-dir","packaging","--spec",spec.name]
+    log = folder/"gbs.log"
+    print("GBS_START",label,log,flush=True)
+    with log.open("wb") as f:
+        rc = subprocess.run(args,cwd=src,stdout=f,stderr=subprocess.STDOUT).returncode
+    with log.open(errors="replace") as lines, (folder/"link-diagnostics.txt").open("w") as diags:
+        for line in lines:
+            if re.search(r"\b(error|warning):|undefined reference|relocation (truncated|out of range)|Dangerous relocation",
+                         line,re.I):
+                diags.write(line)
+    print("GBS_EXIT",label,rc,"DIAGNOSTICS",folder/"link-diagnostics.txt",flush=True)
+    need(rc==0, "GBS failed; see full diagnostics")
+    row = measure(folder/"GBS-ROOT",lane,log)
+    write(folder/"measurement.json",row)
+    print("RESULT",label,{k:row[k] for k in ("text","Image","zImage","helpers","config")},row["argv"]["verdict"],flush=True)
+    need(row["argv"]["verdict"]=="PASS","effective argv proof incomplete")
+    return row
+
+
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("stage",choices=("control","thumb"))
+    parser.add_argument("--receipt",type=Path)
+    args=parser.parse_args()
+    need(W.parent==T and W.name.startswith("pm0013ae-") and sys.stdin.isatty(),"attended native workspace required")
+    need(sha(T/"pm0013n-enum.stooH5/enumeration.json")==ENUM,"enum receipt")
+    cfg, urls = E["provenance"]()
+    old = urls["repo.product_NikeM"]
+    product = urls["repo.product_NikeM"] = os.environ.get("PRODUCT_URL") or load("product")["DEFAULT_PRODUCT"]
+    E["check_inputs"](urls)
+    conf, = (T.parent/"qb-evidence").glob("37777148-*/published-build.conf")
+    need(sha(conf)==BUILD_CONF,"published build.conf pin")
+    policy = dict(revision=REV,config=sha(cfg),product=product,build_conf=BUILD_CONF,
+                  port=sha(W/"port.py.txt"),runner=sha(W/"build.py.txt"))
+    if args.stage=="thumb":
+        p=args.receipt.resolve(strict=True)
+        need(p.parent.parent==T and p.parent.name.startswith("pm0013ae-control.") and p.name=="identity.json","control receipt path")
+        r=json.loads(p.read_text())
+        need(r["inputs"]==policy and r["pass"] and r["objects"] and r["text"]==8214312 and r["helpers"]==20324,"control did not pass")
+        for label,digest in r["measurements"].items():
+            need(sha(p.parent/label/"measurement.json")==digest,"changed control measurement")
+    with ExitStack() as locks:
+        for path in ("pm0012-queue.lock","pm0004-native-lock/heavy.lock","pm0005-native-lock/heavy.lock"):
+            fd=locks.enter_context((T/path).open("a"))
+            fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        subprocess.run(["sudo","-v"],check=True)
+        keep=subprocess.Popen(["bash","-c","while sleep 50; do sudo -n -v || exit 1; done"])
+        try:
+            if args.stage=="control":
+                a,b=[build(label,cfg,old,product,conf) for label in ("K1-unpatched","K1-patched")]
+                for obj in OBJS:
+                    for key, row in (("original",a),("patched",b)):
+                        ob=row["objects"][obj]
+                        print("OBJECT",obj,key,"whole",ob["whole"],".text",ob["code"].get(".text","ABSENT"),
+                              "all_exec_sections",len(ob["code"]),flush=True)
+                need(a["objects"]==b["objects"] and a["config"]==b["config"] and
+                     a["text"]==b["text"]==8214312 and a["helpers"]==b["helpers"]==20324,"A32 controls differ")
+                ms={k:sha(W/k/"measurement.json") for k in ("K1-unpatched","K1-patched")}
+                write(W/"identity.json",dict(inputs=policy,**{"pass":True},objects=a["objects"],text=a["text"],helpers=a["helpers"],measurements=ms))
+                print("A32_RECEIPT",W/"identity.json",sha(W/"identity.json"))
+            else:
+                baseline=json.loads((J/"kernel-matrix.json").read_bytes())["K0"]
+                k0img=baseline.get("images",{})
+                for lane in ("K4","K5"):
+                    r=build(lane,cfg,old,product,conf)
+                    print("DELTAS",lane,"text_vs_K0",r["text"]-baseline["sizes"][".text"],"text_vs_K1",r["text"]-8214312,
+                          "zImage_vs_K0",r["zImage"]-k0img["zImage"][0],"zImage_vs_K1",r["zImage"]-5449312,
+                          "Image_vs_K0",r["Image"]-11348644,"Image_vs_K1",r["Image"]-10996388,"helpers_vs_K0",r["helpers"],"helpers_vs_K1",r["helpers"]-20324)
+                    peer = Path(baseline["symbols"]["directory"])
+                    if lane=="K5":
+                        peer=Path(json.loads((W/"K4/measurement.json").read_text())["tree"])
+                    try:
+                        load("static")["inspect"](Path(r["tree"]),W/lane,peer)
+                    except (OSError,ValueError,subprocess.SubprocessError) as exc:
+                        write(W/lane/"static.json",{"status":"REVIEW","error":str(exc)})
+                        print("STATIC_REVIEW",lane,str(exc)[:500],flush=True)
+        finally:
+            keep.terminate()
+            keep.wait()
+
+
+if __name__=="__main__":
+    main()

@@ -12,7 +12,7 @@ LLVM already makes the KantSU2E image smaller than GCC: executable code −33.9 
 | Kernel MLGO | Release advisors cut PERF `.text` 9,859,176 → 8,564,600 B (−13.1%); Custom model −248,768 B more than Official | Local GBS builds + shipped QB kernels | Board performance on the 4 new QBs |
 | Kernel `-moutline` (HQ) | `.text` −350,288 B (−4.09%) on top of MLGO; zImage +2.31% | Build-level + 11 static side-effect checks; source proven equal to the QB CL | S12 module check, then board test of 4 images |
 | Thumb-2 (user space) | AVControl `.text` 736,944 → 441,362 B (−40.1%) | File measurement + static compatibility gates C1/C2/C4/C7 | Thumb-2 image QB; board P1–P5 |
-| Thumb-2 (kernel) | Not built: ARM-only instructions in VDLinux assembly | Assembler errors confirmed; full inventory build running | Patch with ARM()/THUMB() variants, then QB |
+| Thumb-2 (kernel) | Not built: ARM-only instructions in VDLinux assembly | Full compile inventory done: 8 sites in 2 VDLinux files | Patch with ARM()/THUMB() variants, then QB |
 | RELR (R7) | Estimated relocation-table saving 18,016,828 B across 4,793 ELFs; glibc 2.40 supports it | Static estimate; loader support confirmed | 3-package trial after package-worker fix |
 | LTO non-PIC fallback (HQ PIC design) | IR path: patch in both LLVM toolchains, under review. Native path (GNU ld / no-LTO consumers): design and GNU ld 2.43 fixture done 20 Nov; implementation not started | Fixture: default link accepts an absolute reference in code and emits TEXTREL; -z text rejects it | Start native path: image TEXTREL scan, FatLTO-route fixture, -z text trial |
 | −O level (N5), LTO (N4), R1–R6 | No new measurement this week | — | Fix the package-build worker, then fill the HQ tables (section 5) |
@@ -110,7 +110,7 @@ In user space, Thumb-2 cuts AVControl code by 40% and the static compatibility c
 
 **Largest opportunity:** tv-viewer is 4.69 MB of ARM-mode code in the LLVM image (GCC: 0.23 MB), because its spec resets CFLAGS and loses `-mthumb`. It is the first matched-size trial.
 
-**Kernel Thumb-2: issues found, fix in progress.** Samsung VDLinux additions use instruction forms that exist only in ARM mode: a full-register store in `backtrace-clang.S`, an SP shift and an exception-return load in the stack-overflow handlers of `entry-armv.S`. The build that lists every such error is running now. The fix adds Thumb variants, as mainline Linux does, and must keep the ARM kernel byte-identical. Results will be reported with the Thumb-2 kernel image.
+**Kernel Thumb-2: issues found, fix in progress.** Samsung VDLinux additions use instruction forms that exist only in ARM mode: a full-register store in `backtrace-clang.S`, an SP shift and an exception-return load in the stack-overflow handlers of `entry-armv.S`. The complete compile inventory finished today: 8 instruction sites in 2 files, all in Samsung's small-kernel-stack code (stack-overflow detection, stack extension and a register-dump helper); every other kernel directory compiles as Thumb-2. The fix adds Thumb variants, as mainline Linux does, and must keep the ARM kernel byte-identical. Results will be reported with the Thumb-2 kernel image.
 
 ## 4. Other optimisation methods
 

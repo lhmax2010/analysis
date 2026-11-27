@@ -1,0 +1,180 @@
+"""Mapping-symbol-aware review of the linked perf ELF. Preserve undecidable edges."""
+from bisect import bisect_right
+from collections import Counter, defaultdict
+import csv
+from collections import deque
+import json
+from pathlib import Path
+import re
+import runpy
+import shutil
+import subprocess
+
+HERE=Path(__file__).resolve().parent
+review=runpy.run_path(str(HERE/"effects.py.txt"))
+sections=runpy.run_path(str(HERE/"image_mode_scan.py.txt"))["secs_of"]
+
+
+def inspect(tree, folder, peer):
+    elf=tree/"vmlinux"
+    ss=sections(elf.read_bytes())
+    mappings=defaultdict(list)
+    symbols=[]
+    raw=subprocess.check_output(["readelf","-sW",elf],text=True)
+    for line in raw.splitlines():
+        m=re.match(r"\s*\d+:\s+([0-9a-fA-F]+)\s+(\d+)\s+(\w+)\s+\w+\s+\w+\s+(\d+)\s+(\S+)",line)
+        if not m:
+            continue
+        address,size,typ,idx,name=int(m[1],16),int(m[2]),m[3],int(m[4]),m[5]
+        if not ss[idx][1][2]&4:
+            continue
+        if re.fullmatch(r"\$[atd](?:\..*)?",name):
+            mappings[idx].append((address,name[1]))
+        elif name:
+            symbols.append((address & ~1,name,typ,address&1,idx,size))
+    for vals in mappings.values():
+        vals.sort()
+
+    def state(idx,pc):
+        vals=mappings[idx]
+        i=bisect_right(vals,(pc,"z"))-1
+        if i<0:return "?"
+        if i and vals[i-1][0]==vals[i][0] and vals[i-1][1]!=vals[i][1]:return "?"
+        return vals[i][1]
+
+    spans=review["range_names"](tree)
+    def critical(idx,pc,name):
+        return (review["CRITICAL"].search(name) or review["CRITICAL"].search(ss[idx][0])
+                or any(lo<=pc<hi and review["CRITICAL"].search(n) for lo,hi,n in spans))
+
+    helper_sizes={a:size for a,n,typ,bit,idx,size in symbols if n.startswith("OUTLINED_FUNCTION_") and size}
+    dests={a for a,n,*_ in symbols if n=="asm_store_regs_values"}
+    entries={n for _,n,_,_,_,_ in symbols if re.search(r"^(?:vector|__.*_(?:svc|usr)$|__vectors|stext$|__idmap|.*_return$|asm_store_regs_values$)",n)}
+    syms_by_name={n:(a,idx) for a,n,_,_,idx,_ in symbols}
+    counts=Counter()
+    rows=[]
+    for a,n,typ,thumb,idx,size in symbols:
+        if n in entries or review["THUNK"].search(n) or (typ=="FUNC" and critical(idx,a,n)):
+            mode=state(idx,a)
+            rows.append((ss[idx][0],hex(a),n,size,mode,thumb if typ=="FUNC" else "-"))
+            if mode not in ("a","t") or (typ=="FUNC" and thumb!=(mode=="t")):
+                counts["entry_or_thunk_state_review"]+=1
+    exe=next((shutil.which(cmd) for cmd in ("llvm-objdump-22","llvm-objdump","arm-linux-gnueabi-objdump") if shutil.which(cmd)),None)
+    if not exe:raise ValueError("no ARM disassembler")
+    secnum={n:i for i,(n,_) in enumerate(ss)}
+    returns=[]; dump_edges=[]; privileged=[]; thunk_edges=[]; helper_critical=[]
+    special=defaultdict(list); overflow_calls=[]
+    dump_body=[]; ind=[]; sec=None; fn=""
+    edges=defaultdict(set); roots=set(); hidden=set()
+    with (folder/"disassembly.txt").open("w") as f:
+        subprocess.run([exe,*(["--mcpu=cortex-a53"] if "llvm" in exe else []),"-d","--no-show-raw-insn",elf],stdout=f,check=True)
+    with (folder/"disassembly.txt").open() as stream:
+        for line in stream:
+            if line.startswith("Disassembly of section "):
+                sec=secnum.get(line.rstrip().removeprefix("Disassembly of section ").rstrip(":"))
+                fn=""
+                continue
+            m=re.match(r"^\s*[0-9a-f]+ <(.+)>:",line)
+            if m:
+                fn=m[1]
+                continue
+            m=re.match(r"^\s*([0-9a-f]+):\s+(\S+)(?:\s+(.*?))?\s*$",line)
+            if not m or sec is None:continue
+            pc,op,args=int(m[1],16),m[2],m[3] or ""
+            mode=state(sec,pc)
+            detail=(hex(pc),fn,mode,op,args)
+            if fn in ("pm_stack_thumb_restore","pm_stack_boundary_switch","pm_small_stack_arm_return"):
+                special[fn].append(detail)
+            if "<do_stackoverflow>" in args:overflow_calls.append(detail)
+            if fn=="asm_store_regs_values":dump_body.append(detail)
+            iscrit=critical(sec,pc,fn)
+            if iscrit:roots.add(fn)
+            target=re.search(r"<([^>]+)>",args)
+            if re.fullmatch(r"b(?:l|lx|x)?(?:eq|ne|ge|gt|le|lt|cs|cc|hi|ls|mi|pl|vs|vc)?(?:\.[nw])?",op):
+                if target: edges[fn].add(target[1].split("+")[0])
+                elif op.startswith(("bx","blx")) and args not in ("lr","r14"): hidden.add(fn)
+            istarget="asm_store_regs_values" in args
+            if istarget and fn!="asm_store_regs_values" and not op.startswith("."):
+                dump_edges.append(detail)
+            if review["THUNK"].search(args) or review["THUNK"].search(fn):
+                thunk_edges.append(detail)
+            if iscrit:
+                if re.search(r"^rfe|^eret|^subs.*\bpc|^movs.*\bpc|ldm.*\^|^bx\s|^ldr.*\bpc",op+" "+args):
+                    returns.append(detail)
+                if op.startswith(("bx","blx")) and "<" not in args:ind.append(detail)
+                if "OUTLINED_FUNCTION_" in fn or "OUTLINED_FUNCTION_" in args:helper_critical.append(detail)
+            if fn.startswith("OUTLINED_FUNCTION_"):
+                counts["outlined_instructions"]+=1
+                if mode not in ("a","t") or op in ("<unknown>",".inst",".word",".short"):
+                    counts["undecoded_helper_instructions"]+=1
+                if review["STATE"].match(op):
+                    cp=args.replace("#0x","#").replace(" ","")
+                    tp=(op.startswith("mrc") and re.fullmatch(r"p15,#0,[^,]+,c13,c0,#3",cp) is not None)
+                    privileged.append((*detail,"TPIDRURO-read" if tp else "owner review"))
+    reached=set(roots); queue=deque(roots)
+    while queue:
+        for target in edges.get(queue.popleft(),()):
+            if target not in reached:
+                reached.add(target); queue.append(target)
+    reached_helpers=sorted(fn for fn in reached if fn.startswith("OUTLINED_FUNCTION_"))
+    for name,data in (("reachable-helpers",[(fn,) for fn in reached_helpers]),("entries",rows),("overflow-callers",overflow_calls),("restore-paths",[r for a in special.values() for r in a]),("returns",returns),("critical-indirect",ind),
+                      ("critical-helper-edges",helper_critical),("dump-callers",dump_edges),("dump-body",dump_body),
+                      ("thunks",thunk_edges),("outlined-state",privileged)):
+        with (folder/(name+".tsv")).open("w") as f:
+            csv.writer(f,delimiter="\t").writerows(data)
+    try:
+        sizes,targets=review["tables"](elf,ss,sorted(helper_sizes),helper_sizes)
+        ref=peer/"vmlinux"
+        old,_=review["tables"](ref,sections(ref.read_bytes()),[],{})
+        inside=sum(row[-1] is not None for row in targets)
+        with (folder/"faults.tsv").open("w") as f:csv.writer(f,delimiter="\t").writerows(targets)
+        invalid=[]
+        for _,_,_,_,value,_ in targets:
+            pc=int(value,16)&~1
+            covering=[i for i,(_,s) in enumerate(ss) if s[2]&4 and s[3]<=pc<s[3]+s[5]]
+            if len(covering)!=1 or state(covering[0],pc) not in ("a","t"):invalid.append(value)
+        s4=["FAIL" if inside else "PASS" if sizes.get("__ex_table") and not invalid and sizes==old else "REVIEW",sizes,old,len(invalid),inside]
+    except (ValueError,OSError,subprocess.SubprocessError) as exc:s4=["REVIEW",str(exc)[:500]]
+    helper=syms_by_name.get("asm_store_regs_values")
+    calls_ok=bool(dump_edges) and all((op.split(".")[0]=="blx" if mode=="t" else op.split(".")[0]=="bl" and mode=="a")
+                                     for _,_,mode,op,_ in dump_edges)
+    body_ok=bool(helper and len(dests)==1 and state(helper[1],helper[0])=="a" and dump_body and
+                 dump_body[-1][-2]=="bx" and dump_body[-1][-1].split()[0]=="lr")
+    unwind=subprocess.check_output(["readelf","--unwind","--wide",elf],text=True)
+    (folder/"unwind.txt").write_text(unwind)
+    arm=special["pm_small_stack_arm_return"]
+    normal=special["pm_stack_thumb_restore"]
+    switch=special["pm_stack_boundary_switch"]
+    clean=lambda op:op.lower().split(".")[0]
+    a=syms_by_name.get("pm_small_stack_arm_return",(0,0))[0]
+    regions=[(int(m[1],16)&~1,l) for l in unwind.splitlines()
+             if (m:=re.match(r"^0x([0-9a-fA-F]+)\b",l))]
+    starts=[v for v,_ in regions]
+    u=bisect_right(starts,a)-1
+    region=regions[u][1] if u>=0 else ""
+    write_spsr=any(mode=="a" and op=="msr" and "spsr" in arg.lower() and "r5" in arg.lower() for _,_,mode,op,arg in arm)
+    old_return=any(mode=="a" and op.startswith("ldm") and "pc" in arg and "^" in arg for _,_,mode,op,arg in arm)
+    normal_return=any(mode=="t" and op.startswith("rfe") and "sp!" in arg for _,_,mode,op,arg in normal)
+    bx=any(mode=="t" and op=="bx" and arg.strip()=="lr" for _,_,mode,op,arg in switch)
+    pointer=False
+    for pc,_,mode,op,arg in switch:
+        if mode!="t":continue
+        imm=re.search(r"#(-?(?:0x[0-9a-f]+|[0-9]+))",arg)
+        if imm and re.match(r"lr,\s*(?:pc,|#)",arg) and clean(op) in ("adr","add","addw","sub","subw"):
+            offset=int(imm[1],0)*(-1 if clean(op).startswith("sub") else 1)
+            pointer |= ((int(pc,16)+4)&~3)+offset==a
+        elif "pm_small_stack_arm_return" in arg and "lr," in arg:pointer=True
+    calls_ok_c=(len(overflow_calls)==1 and overflow_calls[0][1]=="__dabt_svc" and
+                overflow_calls[0][3].split(".")[0] in ("bl","blx"))
+    restored=all((write_spsr,old_return,normal_return,bx,pointer,"cantunwind" in region.lower(),calls_ok_c))
+    summary={"patched_return":["PASS" if restored else "REVIEW",
+                    dict(spsr=write_spsr,ldm_exception=old_return,rfe=normal_return,bx=bx,
+                         arm_target=pointer,unwind=region,sole_overflow_caller=calls_ok_c)],
+             "S1":["FAIL" if reached_helpers or helper_critical else "REVIEW",len(rows),dict(counts),len(reached_helpers),len(reached & hidden),len(ind)],
+             "S4":s4,"S9":["REVIEW" if thunk_edges or not calls_ok or not body_ok else "PASS",len(thunk_edges),
+                             len(dump_edges),body_ok,calls_ok],
+             "S11":["REVIEW" if any(x[-1]=="owner review" for x in privileged) or counts["undecoded_helper_instructions"]
+                    or (folder.name=="K5" and not counts["outlined_instructions"]) else "PASS",len(privileged)],
+             "entry_return":["REVIEW",len(returns),"confirm vector reset state, SPSR.T and all indirect transitions"]}
+    (folder/"static.json").write_text(json.dumps(summary,indent=2)+"\n")
+    print("STATIC",folder.name,json.dumps(summary),flush=True)

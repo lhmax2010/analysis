@@ -1,0 +1,148 @@
+"""Materialise the four shelf files from the byte-pinned CL 14427407 inputs."""
+import hashlib
+import re
+
+ENTRY = "arch/arm/kernel/entry-armv.S"
+DUMP = "arch/arm/lib/backtrace-clang.S"
+TRAPS = "arch/arm/kernel/traps.c"
+CONFIG = "arch/arm/configs/KANTSU2E_perf_defconfig"
+PINS = {ENTRY:"9a5a28c8733c686d3679482bbdb0c17bd2e12873bde74852205197887ca1cbc8",
+        DUMP:"8a46e43a51ac1a23a8f9414f4d513caef7234cea4742c72f3947798ca73775f4",
+        CONFIG:"11c224a1247eeb20c72efc6548808a564b0766321c2b0570dc20d18d965f4caf"}
+
+
+def normal(s):
+    return re.sub(r"\s+", "", s.split("@")[0].split("//")[0])
+
+
+def twin(lines, number, expected, thumb):
+    old = lines[number-1].strip()
+    instruction = old.partition("@")[0].strip()
+    if normal(instruction)!=normal(expected):
+        raise ValueError(f"assembly anchor {number}: {old}")
+    # Keep the A32 instruction at its original logical source line for DWARF.
+    lines[number-1] = f"\tARM({instruction}) THUMB({thumb})\n"
+
+
+def return_code(header):
+    macro = re.search(r"(?ms)^\s*\.macro\s+svc_exit,.*?^\s*\.endm",header)
+    if not macro:
+        raise ValueError("missing svc_exit")
+    body = macro[0].split("@ Thumb mode SVC restore",1)[1].split("#endif",1)[0]
+    instructions = [s.split("@")[0].strip() for s in body.splitlines() if normal(s)]
+    expected = [r"ldr lr,[sp,#S_SP]",r"ldrd r0,r1,[sp,#S_LR]",r"strex r2,r1,[sp,#S_LR]",
+                r"stmdb lr!,{r0,r1,\rpsr}",r"ldmia sp,{r0-r12}",r"mov sp,lr",r"ldr lr,[sp],#4","rfeia sp!"]
+    if list(map(normal,instructions))!=list(map(normal,expected)):
+        raise ValueError("local Thumb svc_exit tail changed; review frame restore")
+    return "".join("\t"+line.replace(r"\rpsr","r5")+"\n" for line in instructions)
+
+
+def edit_entry(text, header):
+    lines = text.splitlines(keepends=True)
+    for line in (225,303):
+        twin(lines,line,"mov r8,sp,lsr #PAGE_SHIFT","mov r8, sp; lsr.w r8, r8, #PAGE_SHIFT")
+    for line in (258,335):
+        twin(lines,line,"mov r8,r7","mov r8, sp")
+        twin(lines,line+1,"eor r8,r8,sp","eor.w r8, r8, r7")
+    # Change SP only after computing the final address. Extension needs the
+    # original IRQ stack top in r7 again after the C call; overflow reloads r7.
+    twin(lines,270,"sub sp,r7,#START_SP","sub.w r7, r7, #START_SP; mov sp, r7; add.w r7, r7, #START_SP")
+    twin(lines,346,"sub sp,r7,#(SVC_REGS_SIZE + 8)","sub.w r7, r7, #(SVC_REGS_SIZE + 8); mov sp, r7")
+    if list(map(normal,lines[362:365]))!=list(map(normal,["ldr r0,[sp,#S_PSR]","msr spsr_cxsf,r0","ldmia sp,{r0-pc}^"])):
+        raise ValueError("overflow restore anchor")
+    # Label is adjacent in the same input section as __dabt_svc. Keep a
+    # dedicated unwind range so an asynchronous unwinder cannot use SVC rules
+    # for this register-only A32 tail. The T32 skip precludes fall-through.
+    lines[369:369]=["""#if defined(CONFIG_THUMB2_KERNEL) && defined(CONFIG_KERNEL_STACK_SMALL)
+        b.w     .Lpm_after_boundary
+        .p2align 2
+        .arm
+        .type   pm_small_stack_arm_return, %function
+pm_small_stack_arm_return:
+        UNWIND(.fnstart)
+        UNWIND(.cantunwind)
+        msr     spsr_cxsf, r5
+        ldmia   sp, {r0 - pc}^
+        UNWIND(.fnend)
+        .size   pm_small_stack_arm_return, . - pm_small_stack_arm_return
+        .thumb
+.Lpm_after_boundary:
+#endif
+#line 370
+"""]
+    lines[362:365]=["""#ifdef CONFIG_THUMB2_KERNEL
+        @ The IRQ-stack pt_regs is complete. r0 is the mapped base or NULL.
+        disable_irq_notrace
+        ldr     r5, [sp, #S_PSR]
+        cbz     r0, .Lpm_boundary\\@
+        ldr     lr, [sp, #S_SP]
+        tst.w   lr, #3
+        bne     .Lpm_boundary\\@
+        subs.w  r2, lr, r0
+        blo     .Lpm_boundary\\@
+        @ Keep the page pointer at [base,base+4); the return frame is 12 bytes.
+        cmp     r2, #16
+        blo     .Lpm_boundary\\@
+        cmp.w   r2, #PAGE_SIZE
+        bhi     .Lpm_boundary\\@
+pm_stack_thumb_restore:
+""",return_code(header),""".Lpm_boundary\\@:
+pm_stack_boundary_switch:
+        adr.w   lr, pm_small_stack_arm_return
+        bx      lr
+#else
+#line 363
+""",*lines[362:365],"#endif\n#line 366\n"]
+    return "".join(lines)
+
+
+def edit_dump(text):
+    lines=text.splitlines(keepends=True)
+    if ([s.strip() for s in (lines[17],lines[20])]!=["ENTRY(asm_store_regs_values)","ENDPROC(asm_store_regs_values)"]
+            or normal(lines[18])!="stmiar0,{r0-r15}"):
+        raise ValueError("register-dump anchors")
+    lines[17]="THUMB(.arm;) "+lines[17]
+    twin(lines,20,"ret lr","bx lr")
+    lines[20]=lines[20].rstrip()+"; THUMB(.thumb)\n"
+    return "".join(lines)
+
+
+def edit_traps(text):
+    lines=text.splitlines(keepends=True)
+    pattern="asmlinkage void do_stackoverflow("
+    starts=[i for i,s in enumerate(lines) if s.startswith(pattern)]
+    if len(starts)!=1:raise ValueError("expected single do_stackoverflow definition")
+    i=starts[0]
+    end=next(j for j in range(i,len(lines)) if lines[j].startswith("}"))
+    returns=[j for j in range(i,end) if lines[j].strip()=="return;"]
+    die=[j for j in range(i,end) if 'die("Kernel stack extension failed", regs, 0);' in lines[j]]
+    body="".join(lines[i:end])
+    if len(returns)!=1 or die!=[end-1] or not all(x in body for x in
+            ("current->stack","vmap_pages_range_noflush(addr, addr + PAGE_SIZE, PAGE_KERNEL",
+             "*(unsigned long *)addr", "set_tsk_thread_flag(current, TIF_VM_STACK)")):
+        raise ValueError("unexpected mapping or failure path")
+    j=returns[0]
+    lines[end:end]=["#ifdef CONFIG_THUMB2_KERNEL\n\treturn NULL;\n#endif\n#line %d\n"%(end+1)]
+    lines[j:j+1]=["#ifdef CONFIG_THUMB2_KERNEL\n\treturn (void *)addr;\n#else\n#line %d\n"%(j+1),
+                  lines[j],"#endif\n#line %d\n"%(j+2)]
+    lines[i:i+1]=["#ifdef CONFIG_THUMB2_KERNEL\n",
+                  "/* SVC return uses the mapped stack base; a returning failure supplies NULL. */\n",
+                  lines[i].replace("void do_stackoverflow","void *do_stackoverflow"),
+                  "#else\n#line %d\n"%(i+1),lines[i],"#endif\n#line %d\n"%(i+2)]
+    return "".join(lines)
+
+
+def files(source, thumb):
+    data={p:(source/p).read_bytes() for p in PINS}
+    for p,b in data.items():
+        if hashlib.sha256(b).hexdigest()!=PINS[p]:
+            raise ValueError("CL 14427407 input mismatch: "+p)
+    result={ENTRY:edit_entry(data[ENTRY].decode(),(source/"arch/arm/kernel/entry-header.S").read_text()).encode(),
+            DUMP:edit_dump(data[DUMP].decode()).encode(),
+            TRAPS:edit_traps((source/TRAPS).read_text()).encode()}
+    if thumb:
+        cfg=data[CONFIG].splitlines(keepends=True)
+        if b"CONFIG_MLGO=y\n" not in cfg or any(s.startswith(b"CONFIG_THUMB2_KERNEL=") for s in cfg):
+            raise ValueError("unexpected base perf defconfig")
+        result[CONFIG]=b"".join(s for s in cfg if s!=b"# CONFIG_THUMB2_KERNEL is not set\n").rstrip()+b"\nCONFIG_THUMB2_KERNEL=y\n"
+    return result

@@ -1,6 +1,6 @@
 # Weekly report 2026-11-27 — backup copy
 
-Markdown backup of the English weekly report doc for 27 Nov 2026. The live doc is the source of truth; this file is the archived copy (exported at doc rev 16).
+Markdown backup of the English weekly report doc for 27 Nov 2026. The live doc is the source of truth; this file is the archived copy (exported at doc rev 18).
 
 | File | Doc | Live link |
 | --- | --- | --- |
