@@ -1,0 +1,23 @@
+#!/bin/bash
+set -eu -o pipefail
+[[ $# == 1 && $1 =~ ^[0-9a-f]{40}$ ]]
+pin=$1
+work=$(mktemp -d /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.XXXXXX)
+cd "$work"
+export TMPDIR="$work" LC_ALL=C DEBUGINFOD_URLS= PYTHONDONTWRITEBYTECODE=1
+printf 'WORKDIR %s\n' "$work"
+while read -r digest path; do
+    file=${path##*/}
+    curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 \
+        "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$file"
+    printf '%s  %s\n' "$digest" "$file" | sha256sum --check --status
+done <<'PINS'
+727f0f925ef2b1e5a1a9d1bc5a99ce45809d81431b11caba33468b1bd4902ebc  artifacts/scripts/r0013q/effects.py.txt
+3e0d8a77c310632e09415cdba74e84a380402a5c1c90eb866229c10946adc307  artifacts/scripts/r0013jk/thumb.py.txt
+f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726  artifacts/scripts/r0012c/image-tree.py.txt
+1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75  artifacts/scripts/r0004/image_mode_scan.py.txt
+8737d9644cc54bb633f01d1ca2eff45af283e609b82be460f53df6df55e2e3e2  artifacts/scripts/r0013f/pilot.py.txt
+f17849367d2f8f094d8789b70a45ac10a6f7ab7c28612f6b87bd5ccc3a8bf2df  artifacts/scripts/r0012f/kernel-audit.py.txt
+ca1eb96a3a3eb638455ebcc608aa640b25bf81163be4d9b88a1a30843459ea55  artifacts/scripts/r0012n/outline-metrics.py.txt
+PINS
+exec nice -n 19 ionice -c3 python3 -Bu effects.py.txt 2>diagnostics.log

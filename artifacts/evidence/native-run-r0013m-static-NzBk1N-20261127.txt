@@ -1,0 +1,30 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu -o pipefail
+p=9e8886d877244b9a75d16f6fa1a8f3fae734c600
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013m-launch.XXXXXX")
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0013jk/run.sh.txt" -o "$d/run"
+printf '%s  %s\n' eab44a8bada480181c2dbfda067e21f8ead269fa76c0ccbbc423a39a314e5b67 "$d/run" | sha256sum -c -
+bash "$d/run" "$p" static | tee "$d/combined.txt"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013m-launch.2juIhJ/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.NzBk1N
+S1 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S2 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S3 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S4 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S5 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S6 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S7 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S8 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S9 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S10 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S11 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S12 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S13 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S14 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+S15 K1:REVIEW "name 'route' is not defined" K3:REVIEW "name 'route' is not defined"
+C7/C8 {"REVIEW": "no supported RPM DB within the extracted filesystem"}
+BOARD_FLASH HOLD {"K1": ["S1", "S4", "S9", "S11", "S12", "S2"], "K3": ["S1", "S4", "S9", "S11", "S12", "S2"]} 6070868442a5c19d9e0c1ac7732c79e2437513ce050f354b7428e781ebec147d
+STATIC_GATE HOLD RECEIPT /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.NzBk1N/effects.json 2282b69c4da97202c270717ba212fadfd9bcc7bb58316e8a1042aedf8bfd07bb
+TABLES 3893e3e6e5896dc260ec8d8309e1cc30aa92357b8b37e578211b6f0f309386de /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.NzBk1N/side-effects.tar.gz
