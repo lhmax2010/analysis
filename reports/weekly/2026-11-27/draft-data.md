@@ -170,3 +170,29 @@ Outlining reduced linked .text in both comparisons while increasing compressed z
 Official versus GCC changes executable bytes by −33,871,486 (−4.60%) and estimated A32 bytes by +24,873,239. The GCC image has a different Product/Base. Equal totals for the two Official images do not establish file identity. The platform extraction passed on all three; 37777148 lacks an independent board hash readback in this return. [Census](../../../artifacts/evidence/native-run-r0013i-read-a0Pmc0-0013f-HgSjf0-0013g-nkPaPY-20261126.txt)
 
 **RELR estimate.** The two installed inventories cover 4,793 ELFs. The prior metadata join covered 374, leaving 4,419 unmatched. In the joined population, REL 2,201,840 B → estimated RELR 65,396 B, a saving of **2,136,444 B**. The largest RPM contribution was lightweight-web-engine-profile_tv at 1,194,020 B. Full installed-byte recount and a positive target glibc loader test remain open. This is relocation metadata size; per-page RAM and boot-time effects require measurement. [Coverage calculation](../../../artifacts/scripts/r0013f/review.py.txt)
+
+### Retained perf kernel outlining side effects, 0013m
+
+Both lane columns are observations from mo1VRK. The test-build override applies only to GBS and a pending test shelf. Board flash is HOLD.
+
+| Gate | K1, versus K0 | K3, versus K2 |
+|---|---|---|
+| S1 critical paths | 0 direct critical section hits; 3,466 reachable helpers; 616 reachable functions with an indirect site | 0; 4,602; 664 |
+| S2 critical LR stack saves | 5 sites; 8 B lower bound / 8,192 B | 8 sites; 8 B / 8,192 B |
+| S3 unwind | FP; 120 sampled; 3,016 bodies with FP operand | FP; 120 sampled; 3,174 |
+| S4 fault/bug tables | 219/1,387 entries, 0 helper hits, 210 references outside sized functions | 224/1,830; 0; 215 |
+| S5 exclusive/barrier | 0 groups, 14 partial decodes | 0, 14 |
+| S6 kernel config | FRAME_POINTER unwinder; function tracer, kprobes and kallsyms unset | Same |
+| S7 exports | 10,348 equal names; CRC unverified | Same |
+| S8 sites | 82,778; 77,115 input origins joined | 107,900; 94,685 joined |
+| S9 thunks | PASS, 0 | PASS, 0 |
+| S10 PC-relative literals | 0 observed; 14 partial decodes | 0; 14 |
+| S11 system-state instructions | 119; 14 partial helper decodes | 165; 14 |
+| S12 modules | 0/115 compared | 0/115 compared |
+| S13 source-level oops diagnosis | 0/20,324 helper entries resolved to function and line | 0/26,020 |
+| S14 profile weight | Board data required | Board data required |
+| S15 driver timing | 3,732 NVT sites; timing unmeasured | 4,469 NVT sites; timing unmeasured |
+
+S13 is a known debugging cost. Preserve the build ID and caller return address to recover the call site. Frame-walk behaviour needs target verification.
+
+Official 37736448 → 37777148: rebuilt, same aggregate executable and A32 sizes. Whole platform.img and both partition digests differ. File comparison gives 447 changed platform records and 2 changed prd records; neither partition added or removed a path. AVControl T4 passed on the baseline and default lanes; the package lane remains REVIEW. The package worker was absent at capture. [Native output](../../../artifacts/evidence/native-run-r0013jk-static-mo1VRK-r0013l-gBXGor-20261126.txt)
