@@ -1,0 +1,210 @@
+"""Read the retained PERF trees and PQnb3T tables. All outputs go to a fresh stage."""
+from collections import Counter, defaultdict
+import csv
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import runpy
+import struct
+import tarfile
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+import zipfile
+
+W = Path(__file__).resolve().parent
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+F = TEMP/"pm0013f-review.HgSjf0"
+C = TEMP/"pm0013l-static.PQnb3T/followup.tar.gz"
+OFF, GCC = "37777148", "37564293"
+LABELS = ("platform","prd")
+
+def lib(name):
+    return runpy.run_path(str(W/(name+".py.txt")))
+
+def require(ok, message):
+    if not ok:
+        raise ValueError(message)
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+def rows(file):
+    return list(csv.DictReader(file, delimiter="\t"))
+
+def tables():
+    require(sha(C.read_bytes())=="1906be8cb8647a3c18289ec2e2d46c976767ef8de7f858ad5ca9c6449f24102b","PQnb3T checksum")
+    names = {"e1-sources","a32-roster","installed-comment","kernel-module-exclusions"}
+    result = {}
+    with tarfile.open(C,"r|gz") as tar:
+        for e in tar:
+            if e.isfile() and e.name.removesuffix(".tsv") in names:
+                result[e.name[:-4]] = rows(io.StringIO(tar.extractfile(e).read().decode()))
+    require(result.keys()==names,"PQnb3T tables")
+    return result
+
+def gcc_owners():
+    """Use installed G1 NEVRA+SRPM and SHA-256 pkgid to join published filelists."""
+    repo = lib("image-repo-lib")
+    cap, = (TEMP.parent/"qb-evidence").glob(GCC+"-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1")
+    identity=json.loads((cap/"identity.json").read_bytes())
+    ledger=cap/"rpm-identities.tsv"
+    require(sha(ledger.read_bytes())==identity["files"][ledger.name],"GCC RPM inventory")
+    roster={tuple(s.split("\t")) for s in (W/"g1-roster.tsv").read_text().splitlines()}
+    with ledger.open() as f:
+        inv=rows(f)
+    base="http://repos.vd.sec.samsung.net/base/tizen-10.1-base/standard/tizen-10.1-base-standard_20260919.1/"
+    repos=[(identity["product"].rstrip("/")+"/repos/product/armv7l/packages/",inv)]
+    records=[]
+    for (n,e,v,r,a),(digest,src,url) in repo["inventory"](base,"armv7l",W).items():
+        records.append(dict(name=n,epoch=e,version=v,release=r,arch=a,srpm=src,sha256=digest))
+    repos.append((base+"repos/base/armv7l/packages/",records))
+    owners=defaultdict(set)
+    for url,inventory in repos:
+        packages={r["sha256"]:(r["name"],r["srpm"].removesuffix(".src.rpm").rsplit("-",2)[0])
+                  for r in inventory if tuple(r[k] or "0" for k in ("name","epoch","version","release","arch","srpm")) in roster}
+        root=ET.fromstring(repo["fetch"](url+"repodata/repomd.xml"))
+        entry=root.find("{*}data[@type='filelists']")
+        require(entry is not None,"filelists unavailable "+url)
+        compressed=repo["fetch"](urljoin(url,entry.find("{*}location").get("href")),256<<20)
+        ck=entry.find("{*}checksum")
+        alg=ck.get("type")
+        require(hashlib.new("sha1" if alg=="sha" else alg,compressed).hexdigest()==ck.text.strip(),"GCC filelists checksum")
+        for _,pkg in ET.iterparse(io.BytesIO(repo["unpack"](compressed)),events=("end",)):
+            if not pkg.tag.endswith("}package"):continue
+            owner=packages.get(pkg.get("pkgid"))
+            if owner:
+                for file in pkg.findall("{*}file"):
+                    if file.text and file.get("type")!="dir":owners[file.text].add(owner)
+            pkg.clear()
+    return owners
+
+def walk(root,label,errors):
+    """Include sectionless ET_DYN and all ELF members of TPK/WGT/ZIP containers."""
+    def fail(e):
+        errors.append((label,str(e)))
+    for d,_,names in os.walk(root,onerror=fail):
+        for name in names:
+            p=Path(d)/name
+            path=("/prd/" if label=="prd" else "/")+p.relative_to(root).as_posix()
+            if p.is_symlink() or not p.is_file() or "/usr/lib/debug/" in path:continue
+            try:
+                with p.open("rb") as f:
+                    head=f.read(4)
+                    if head==b"\x7fELF":
+                        yield path,head+f.read()
+                    elif p.suffix.lower() in (".zip",".tpk",".wgt"):
+                        with zipfile.ZipFile(p) as z:
+                            for e in z.infolist():
+                                if e.file_size<4:continue
+                                with z.open(e) as member:
+                                    if member.read(4)==b"\x7fELF":yield path+"!"+e.filename,b"\x7fELF"+member.read()
+            except Exception as exc:
+                errors.append((path,str(exc)))
+
+def scan(qb,parts,owners,official,tables06,mode):
+    checker=lib("perf-relocations")["elf_review"]
+    sections=lib("image_mode_scan")["secs_of"]
+    counts=Counter(); hitowners=Counter(); errors=[]; mismatches=[]; observed=set()
+    matched=defaultdict(dict)
+    expected={}
+    public=F if qb==OFF else W
+    for label in LABELS:
+        index=F/f"files-{qb}-{label}.tsv"
+        if index.is_file():
+            with index.open() as f: prior=rows(f)
+        elif qb==GCC and label=="prd":
+            with (TEMP/"pm0013-bce.qp4O4m"/f"image-{qb}.tsv").open() as f:
+                prior=[r for r in rows(f) if r["path"].startswith("/prd/")]
+        else:raise ValueError("missing retained index "+str(index))
+        for row in prior:expected[row["path"]]=row["sha256"]
+    require(len(expected)==(4793 if qb==OFF else 4796),"census total "+qb)
+    with (W/("pic-"+qb+".tsv")).open("w") as out:
+        ledger=csv.writer(out,delimiter="\t",lineterminator="\n")
+        ledger.writerow(("partition","path","owner","file_sha256","type","flags","origin","relocation","address","load_segments_lo_hi_pflags"))
+        for label in LABELS:
+            rec=parts.get(qb+"/"+label,{})
+            root=Path(rec.get("root","")).resolve()
+            require(root.is_relative_to(public) and root.is_dir() and rec.get("fsck")=="passed" and
+                    rec["entries"]+len(rec["verified_specials"])==rec["dump_entries"],"extraction "+qb+"/"+label+" "+str(rec.get("error","")))
+            for path,data in walk(root,label,errors):
+                if len(data)<20 or data[4]!=1 or data[5] not in (1,2):continue
+                etype,machine=struct.unpack_from(("<" if data[5]==1 else ">")+"HH",data,16)
+                if machine!=40 or etype not in (2,3):continue
+                digest=sha(data)
+                if path in observed:errors.append((path,"duplicate path"))
+                observed.add(path)
+                if path in expected and expected[path]!=digest:mismatches.append(path)
+                outer=path.split("!",1)[0]
+                choices=owners.get(outer,set())
+                rpm,source=official.get(path,("?","?")) if qb==OFF else next(iter(choices)) if len(choices)==1 else ("?","?")
+                if source in tables06:
+                    s=dict(sections(data) or [])
+                    matched[source][path]=s[".text"][5] if ".text" in s else None
+                if etype==2:
+                    counts["excluded_ET_EXEC"]+=1
+                    continue
+                counts["eligible"]+=1
+                if mode=="tables":continue
+                try:
+                    hits=[]
+                    def record(a,n,origin,reasons,seg):
+                        hits.append((",".join(reasons),origin,n,hex(a),json.dumps(seg)))
+                    res=checker(data,record)
+                    issues=res["issues"]
+                    flags=[k for k in ("DT_TEXTREL","DF_TEXTREL") if k in issues]
+                    if flags:counts["textrel_elfs"]+=1
+                    if res["pt_tls"]:flags.append("PT_TLS")
+                    if res["static_tls_flag"]:flags.append("DF_STATIC_TLS")
+                    counts["ro_dyn_relocs"]+=sum("DYNAMIC_TARGET_READONLY" in h[0] or "DYNAMIC_TARGET_EXECUTABLE" in h[0] for h in hits)
+                    counts["tls_le_dso"]+=int(any("DSO_TLS_LE_" in h[0] for h in hits))
+                    if hits or {"DF_TEXTREL","DT_TEXTREL"} & issues.keys():hitowners[rpm]+=1
+                    for why,origin,rel,addr,seg in hits or [("","","","","")]:
+                        ledger.writerow((label,path,rpm,digest,res["scope"],",".join(flags+[why]).strip(","),origin,rel,addr,seg))
+                    if "UNSUPPORTED_PACKED_DYNAMIC_RELOCS" in issues or "DYNAMIC_TARGET_UNMAPPED" in issues:
+                        errors.append((path,"unreconciled dynamic relocation"))
+                    else:counts["scanned"]+=1
+                    counts["unknown_owner"]+=int(rpm=="?")
+                except (ValueError,struct.error,IndexError) as exc:errors.append((path,str(exc)))
+    missing=set(expected)-observed
+    result=dict(counts=counts,missing=sorted(missing),extra=sorted(observed-expected.keys()),mismatch=mismatches,errors=errors,
+                top_owners=hitowners.most_common(),partitions=list(LABELS))
+    (W/f"coverage-{qb}.json").write_text(json.dumps(result))
+    if mode!="tables":
+        print("PIC_AUDIT",qb,*[f"{k}={counts[k]}" for k in ("textrel_elfs","ro_dyn_relocs","tls_le_dso")],
+              f"scanned={counts['scanned']}/{counts['eligible']}","unknown_owner",counts["unknown_owner"],
+              "gaps",len(missing)+len(mismatches)+len(errors),"extra_scanned",len(result["extra"]),"owners",hitowners.most_common(8))
+    return matched,not (missing or mismatches or errors)
+
+def main():
+    import sys
+    mode=sys.argv[1]
+    data=tables()
+    require(mode in ("tables","audit","both"),"mode")
+    official={r["path"]:(r["rpm"],r["source"]) for r in data["installed-comment"]}
+    owners=defaultdict(set)
+    owner_metadata=True
+    try:owners=gcc_owners()
+    except Exception as exc:
+        owner_metadata=False
+        print("GCC_OWNER_REVIEW",str(exc)[:250])
+    # Preserve confirmed PQnb3T owners for A32 paths even when the repo is offline.
+    for r in data["a32-roster"]:
+        if r["qb"]==GCC and r["rpm"]!="?":owners[r["path"].split("!",1)[0]].add((r["rpm"],r["source"]))
+    parts=json.loads((F/"partitions.json").read_bytes())
+    fixed={r["source"]:r["status"] for r in data["e1-sources"] if r["fixed27"]=="1"}
+    sizes={}; reconciled=True
+    for qb in (OFF,GCC):
+        if qb==GCC:
+            gcc={}
+            lib("review")["extract"](GCC,LABELS,gcc,retain_tree=True)
+            parts.update(gcc)
+        sizes[qb],ok=scan(qb,parts,owners,official,fixed,mode)
+        reconciled &= ok
+    if mode!="audit":
+        lib("tables")["render"](W,data,fixed,sizes,reconciled,bool(owners) and any(len(v) for v in owners.values()) and owner_metadata)
+    return 0 if reconciled else 2
+
+if __name__=="__main__":
+    raise SystemExit(main())

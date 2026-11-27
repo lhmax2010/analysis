@@ -280,7 +280,7 @@ def link_trace(lane_dir):
                 row = re.sub(r"^\[\s*\d+(?:\.\d+)?s\]\s*", "", line).strip()
                 if row.startswith("PM12_DRIVER "):
                     trace.add(row)
-                if re.match(r'^"[^"]*/(?:[^"/]*-)?ld(?:\.(?:bfd|gold|lld))?"\s', row):
+                if re.match(r'^"?(?:[^\s"]*/)?(?:[^/\s"]*-)?ld(?:\.(?:bfd|gold|lld))?"?\s', row):
                     links.add("PM12_LINK_ARGV " + row)
                 if RELOCATION.search(row) and not row.startswith(("PM12_", "+")):
                     errors.add(row[:1200])
@@ -428,17 +428,17 @@ def lane_build(settings, source, spec, original, folder, names, recipe, label, d
     if recipe["id"] != "THUMB":
         edits = {**edits, "compile": [*edits["compile"], "-grecord-command-line"]}
     meta = hook_source(driver, edits if recipe["id"] != "EXP-Z1" else {**edits, "link": ["-PM12_POLICY"]})
-    if recipe.get("workspace_policy_macros"):
-        # The staged spec consumes the same macros in A and B. Only the private
-        # build.conf defines their lane-specific values.
-        for phase in PHASES:
-            flags = edits[phase]
-            macro = "pm13_" + phase
-            text = text.rstrip() + "\n%" + macro + " " + (" ".join(flags) or "%{nil}") + "\n"
-            before = phase + "_edits=(" + " ".join(shlex.quote(f) for f in flags) + ")"
-            if meta.count(before) != 1:
-                raise ValueError("ambiguous RPM phase macro " + phase)
-            meta = meta.replace(before, phase + "_edits=(%{" + macro + "})")
+    if recipe.get("pkg_trial"):
+        # All substitutions precede RPM parsing. Use literal, validated argv arrays.
+        meta = rpm_stage_tools(original, "%{_builddir}/.pm12-driver", thumb_stage_setup(meta))
+        # Keep environment-selected Clang spellings, including absolute CC/CXX, on the traced route.
+        stage_path = 'export PATH="$pm_dir:$PATH"'
+        choose = ('for name in "${CC##*/}" "${CXX##*/}"; do '
+                  'test -n "$name" && test -x "$pm_dir/$name" || continue; '
+                  'if test "${CC##*/}" = "$name"; then export CC="$pm_dir/$name"; fi; '
+                  'if test "${CXX##*/}" = "$name"; then export CXX="$pm_dir/$name"; fi; done')
+        original = meta.replace(stage_path, stage_path+"\n"+choose)
+        meta = "export V=1 VERBOSE=1\n"
     if recipe["id"] == "EXP-Z1":
         meta = meta.replace("-PM12_POLICY", "%{pm12_native_link_flags}" if label == "treatment" else "")
     if recipe["id"] in ("T1","THUMB"):

@@ -1,0 +1,17 @@
+import base64, hashlib, sys, tarfile
+from pathlib import Path
+w=Path(__file__).resolve().parent
+p=w/"results.tar.gz"
+if sys.argv[1]=="pack":
+    with tarfile.open(p,"w:gz") as t:
+        for glob in ("*_rev3.md","pic-*.tsv","coverage-*.json","*.summary","phase2.tsv","matrix.log"):
+            for f in sorted(w.glob(glob)):t.add(f,arcname=f.name,recursive=False)
+    print("RESULTS",p,hashlib.sha256(p.read_bytes()).hexdigest(),"PARTS",(p.stat().st_size+11999)//12000)
+    print("PAGE_COMMAND","python3 -B",w/"return.py.txt","1")
+else:
+    n=int(sys.argv[1])
+    with p.open("rb") as f:
+        if n<1:raise ValueError("page starts at 1")
+        f.seek((n-1)*12000); b=f.read(12000)
+    if not b:raise ValueError("no such page")
+    print("PART",n,hashlib.sha256(b).hexdigest(),base64.b64encode(b).decode())

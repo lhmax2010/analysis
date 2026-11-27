@@ -1,0 +1,61 @@
+"""Render PM review deltas against the archived 20 Nov tables."""
+import csv
+from collections import Counter,defaultdict
+
+OFF,GCC="37777148","37564293"
+
+def md(row):
+    return "| "+" | ".join(str(s).replace("|","&#124;").replace("\n"," ") for s in row)+" |\n"
+
+def render(w,data,fixed,sizes,reconciled,owner_metadata):
+    import re
+    baseline=[tuple(x.strip().replace(r"\_","_") for x in line.strip("|").split("|")) for line in (w/"doc06.md").read_text().splitlines() if re.match(r"^\| \d+ \|",line)]
+    baseline=baseline[:27]
+    if len(fixed)!=27 or {r[1] for r in baseline}!=fixed.keys():raise ValueError("fixed 27 names")
+    with (w/"06_HQ_Table_GCC_Gpp_rev3.md").open("w") as out:
+        out.write("# HQ Table — Packages Built with GCC / G++ in the LLVM Image\n\nPM review · changed cells · 27 Nov 2026\n\n")
+        out.write("## Per-package list\n\n| # | Package | GCC image → LLVM (.text) | Build / runtime |\n|--:|---|---|---|\n")
+        for n,name,*_ in baseline:
+            a=sizes[GCC].get(name,{}); b=sizes[OFF].get(name,{})
+            both={p for p in a.keys() & b.keys() if a[p] is not None and b[p] is not None}
+            diff=f"{len(both)} matched paths, "+(f"{sum(a[p] for p in both):,} → {sum(b[p] for p in both):,} B" if both else "no matched .text measurement")
+            diff+=f"; GCC-only {len(a.keys()-b.keys())}, Official-only {len(b.keys()-a.keys())}, .text unavailable {len((a.keys() & b.keys())-both)}"
+            out.write(md((n,name,diff,fixed[name]+"; runtime pending board")))
+        out.write("\n## Changelog\n\n37564293 → 37777148, identical source-package name and ELF path intersection. Sizes use section bytes. Set differences refer to assigned paths. Unknown ownership limits completeness. Published producer evidence and installed size coverage are separate.\n")
+        out.write(f"\nPayload reconciliation {reconciled}; GCC filelists available {owner_metadata}.\n")
+        for status in ("NO_ELF_OR_ABSENT","COVERAGE_GAP"):
+            names=sorted(n for n,s in fixed.items() if s==status)
+            out.write(f"\n{status}: "+", ".join(names)+"\n")
+            print("HQ06",status,*names)
+    with (w/"a32-full-609.csv").open() as f: historic=list(csv.DictReader(f))
+    now=[r for r in data["a32-roster"] if r["qb"]==OFF]
+    if (len(now),len(historic),len(data["kernel-module-exclusions"]))!=(480,609,177):raise ValueError("A32 control totals")
+    old=defaultdict(list)
+    for r in historic:old[r["path"]].append(r)
+    paths={r["path"] for r in now}
+    markers={r["path"]:r["comment"] for r in data["installed-comment"]}
+    priorities=("tv-viewer","pkgmgr-extension","soc-ir-interface")
+    def classify(r):
+        prior={v["cause_class"] for v in old[r["path"]]}
+        if len(prior)==1:return next(iter(prior))+" (historical path)"
+        return r["class_evidence"] or "unattributed"
+    def rank(r):
+        cls=classify(r)
+        target=next((i for i,n in enumerate(priorities) if n in (r["source"]+" "+r["path"])),3)
+        return (r["rpm"]=="?",cls, target if "clang" in cls.lower() else 3,-int(r["a32_est"]),r["path"])
+    with (w/"07_HQ_Table_A32_Files_rev3.md").open("w") as out:
+        out.write("# HQ Table — ARM-Generated (A32) Files in the LLVM Image\n\nPM review · 27 Nov 2026\n\n## 1. Analysis\n\n")
+        out.write(f"{len(now)} ARM-predominant loadable files. {len(data['kernel-module-exclusions'])} kernel module paths counted separately. Cause classes carried by path describe the 20 Nov evidence. New compiler-command attribution requires the build log. Unknown owners have their own group.\n\n")
+        byte_rank={r["path"]:idx for idx,r in enumerate(sorted(now,key=lambda r:(-int(r["a32_est"]),r["path"])),1)}
+        out.write("## 2. Per-file list\n")
+        for unknown in (False,True):
+            out.write("\n### "+("Unknown owner" if unknown else "Assigned owner")+"\n\n| Byte rank | Package | File | Est. A32 B | Est. A32 KiB | Marker | Likely cause | 20 Nov path |\n|--:|---|---|--:|--:|---|---|---|\n")
+            for r in sorted(now,key=rank):
+                if (r["rpm"]=="?")!=unknown:continue
+                p=r["path"]; n=int(r["a32_est"])
+                out.write(md((byte_rank[p],r["rpm"],p,n,f"{n/1024:.1f}",markers.get(p,"?"),classify(r),"retained" if p in old else "new")))
+        out.write("\n## Changelog\n\nMembership compares exact image paths, including paths inside archives. Gone means absent from the ARM-predominant list; it does not establish removal from the image.\n\n| Historical RPM | Gone path |\n|---|---|\n")
+        for r in historic:
+            if r["path"] not in paths:out.write(md((r["package"],r["path"])))
+    print("HQ07",len(paths),"new",len(paths-old.keys()),"gone historical rows",sum(r["path"] not in paths for r in historic),
+          "unknown_owner",sum(r["rpm"]=="?" for r in now),"modules",len(data["kernel-module-exclusions"]))

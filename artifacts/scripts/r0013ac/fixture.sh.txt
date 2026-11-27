@@ -1,0 +1,99 @@
+#!/bin/bash
+# In an idle, retained Official armv7l GBS root as abuild.
+set -eu -o pipefail
+export PATH=/usr/bin:/bin LC_ALL=C
+cd "$1"
+cc=armv7l-tizen-linux-gnueabi-clang
+gcc=armv7l-tizen-linux-gnueabi-gcc
+for t in "$cc" "$gcc" ld.bfd ld.lld objcopy readelf grep awk sha256sum rpm sed cat; do
+    command -v "$t" >/dev/null || { echo "MISSING $t"; exit 2; }
+done
+version=$(rpm -q --qf '%{VERSION}-%{RELEASE}' clang)
+test "$version" = 22.1.8-9.1 || { echo "UNEXPECTED_CLANG $version"; exit 2; }
+cat > provider.c <<'EOF'
+int pm_data = 42;
+EOF
+"$cc" -fPIC -shared provider.c -Wl,-soname,libprovider.so -o libprovider.so
+cat > route.c <<'EOF'
+__attribute__((used,visibility("default"))) int pm_route_ir(void) {return 7;}
+EOF
+"$cc" -flto -ffat-lto-objects -fno-pic -fno-pie -c route.c -o selector.o
+objcopy --redefine-sym pm_route_ir=pm_route_native selector.o route.o
+readelf -SW route.o | grep -F .llvm.lto >/dev/null
+for name in abs writable rel mov tls pic; do
+    case "$name" in
+        abs) asm='.text\n.p2align 2\n.word pm_data'; want=R_ARM_ABS32 ;;
+        writable) asm='.data\n.p2align 2\n.word pm_data'; want=R_ARM_ABS32 ;;
+        rel) asm='.text\n.p2align 2\n.word pm_data - .'; want=R_ARM_REL32 ;;
+        mov) asm='.text\n.arm\nmovw r0, #:lower16:pm_data\nmovt r0, #:upper16:pm_data'; want=R_ARM_MOVW_ABS_NC ;;
+        tls) asm='.section .tdata,\"awT\",%progbits\n.globl pm_tls\n.type pm_tls,%tls_object\npm_tls: .word 23\n.text\n.p2align 2\n.word pm_tls(tpoff)'; want=R_ARM_TLS_LE32 ;;
+        pic) asm=''; want='' ;;
+    esac
+    printf '__asm__("%s\\n.text");\nint pm_check(void){return 42;}\n' "$asm" > "$name.c"
+    flags=(-fno-pic -fno-pie)
+    if test "$name" = pic; then flags=(-fPIC); fi
+    "$cc" -marm -flto -ffat-lto-objects "${flags[@]}" -c "$name.c" -o "$name.o"
+    readelf -SW "$name.o" > "$name.sections"
+    grep -F .llvm.lto "$name.sections" >/dev/null
+    readelf -rW "$name.o" > "$name.relocations"
+    if test -n "$want"; then grep -w "$want" "$name.relocations" >/dev/null; fi
+    if test "$name" = mov; then grep -w R_ARM_MOVT_ABS "$name.relocations" >/dev/null; fi
+done
+# One ordinary startup object for PIE links. Non-PIC test outputs are never executed.
+cat > main.c <<'EOF'
+extern int pm_check(void);
+int main(void){return pm_check()!=42;}
+EOF
+"$cc" -fPIE -c main.c -o main.o
+ldso=/lib/ld-linux.so.3
+test -x "$ldso"
+sha256sum *.c *.o
+printf 'route\tpolicy\toutput\tinput\trc\tselection\ttextrel\tcontrol_rc\tlog\n' >phase2.tsv
+for route in llvm-plugin gnu-native lld-native gcc-driver; do
+ for policy in default strict; do
+  for kind in shared pie; do
+   for input in pic abs writable rel mov tls; do
+    out=$route-$policy-$kind-$input
+    objs=("$input.o" route.o)
+    if test "$kind" = pie; then objs+=(main.o); fi
+    case "$route" in
+    llvm-plugin) argv=("$cc" -v -flto -ffat-lto-objects -fuse-ld=bfd "-$kind");;
+    gnu-native|lld-native)
+      ld=ld.bfd; if test "$route" = lld-native; then ld=ld.lld; fi
+      argv=("$ld" "-$kind")
+      if test "$kind" = pie; then
+        crt1=$("$cc" -print-file-name=Scrt1.o)
+        crti=$("$cc" -print-file-name=crti.o)
+        crtn=$("$cc" -print-file-name=crtn.o)
+        argv+=(-dynamic-linker "$ldso" "$crt1" "$crti")
+        objs+=(-lc "$crtn")
+      fi ;;
+    gcc-driver) argv=("$gcc" -v -fno-lto -fno-use-linker-plugin "-$kind");;
+    esac
+    if test "$policy" = strict; then argv+=(-z text); fi
+    argv+=(-o "$out" "${objs[@]}" ./libprovider.so)
+    printf '%q ' "${argv[@]}" > "$out.argv"
+    rc=0; selected=unproved; textrel=NA; runrc=NA
+    "${argv[@]}" > "$out.log" 2>&1 || rc=$?
+    if test "$rc" = 0; then
+      readelf -sW "$out" > "$out.symbols"
+      if grep -w pm_route_ir "$out.symbols" >/dev/null; then selected=IR; fi
+      if grep -w pm_route_native "$out.symbols" >/dev/null; then
+        if test "$selected" = IR; then selected=ambiguous; else selected=native; fi
+      fi
+      readelf -dWr "$out" > "$out.dynamic"
+      if grep -w TEXTREL "$out.dynamic" >/dev/null; then textrel=yes; else textrel=no; fi
+      if test "$input" = pic; then
+        runrc=0
+        if test "$kind" = shared; then
+          "$cc" -fPIE -pie main.o "./$out" -o "$out.runner" >> "$out.log" 2>&1 && LD_LIBRARY_PATH=. "./$out.runner" >> "$out.log" 2>&1 || runrc=$?
+        else
+          LD_LIBRARY_PATH=. "./$out" >> "$out.log" 2>&1 || runrc=$?
+        fi
+      fi
+    fi
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$route" "$policy" "$kind" "$input" "$rc" "$selected" "$textrel" "$runrc" "$out.log" >> phase2.tsv
+   done
+  done
+ done
+done

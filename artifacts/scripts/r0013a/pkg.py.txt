@@ -1,6 +1,5 @@
 """Single low-priority package worker. Never imports or acquires the kernel lock."""
 from collections import Counter
-from datetime import datetime,timezone,timedelta
 from pathlib import Path
 from types import SimpleNamespace
 import configparser
@@ -20,11 +19,9 @@ import time
 
 HERE=Path(__file__).resolve().parent
 WS=Path("/home1/chengkai/vd-tree/workspace")
-CUTOFF=datetime(2026,11,27,9,30,tzinfo=timezone(timedelta(hours=8))).timestamp()
 def lib(n):return runpy.run_path(str(HERE/(n+".py.txt")))
 class Stop(Exception):pass
 def capacity():
-    if time.time()>=CUTOFF:raise Stop("Friday 09:30 CST cutoff")
     if shutil.disk_usage(HERE).free<60*1024**3:raise Stop("60 GiB free-space floor")
 def check_credential(command, reason):
     try:
@@ -47,7 +44,7 @@ def admit_lane(work, reserve_disk, reserve_ram):
             check_credential(["sudo", "-n", "true"], "sudo")
             return
         print("PKG_WAIT ram", flush=True)
-        time.sleep(max(0, min(300, CUTOFF - time.time())))
+        time.sleep(300)
 
 def run_owned(cmd,cwd,log,timeout,check=True):
     capacity()
@@ -58,7 +55,7 @@ def run_owned(cmd,cwd,log,timeout,check=True):
                 while p.poll() is None:
                     capacity()
                     if time.time()>end:raise Stop("command time budget")
-                    try:p.wait(timeout=min(10,max(.1,CUTOFF-time.time())))
+                    try:p.wait(timeout=10)
                     except subprocess.TimeoutExpired:pass
             finally:
                 if p.poll() is None:
@@ -137,15 +134,18 @@ def n4_proof(folder,label,receipt):
         if not row.startswith("PM12_DRIVER "):continue
         words=shlex.split(row)
         if words[1] not in ("compile","link","compile-link"):continue
+        if any(re.search(r"cmTC_|CMake(?:C|CXX)CompilerId|conftest",x) for x in words):continue
         hook=next((s[5:] for s in words if s.startswith("HOOK=")),"")
         options=[x.removeprefix("+") for x in words+shlex.split(hook)]
         lto=[x for x in options if x in ("-flto","-fno-lto") or x.startswith("-flto=")]
         if not lto or (lto[-1]!="-fno-lto")!=on:gaps.append(row)
         phases[words[1]]+=1
     linklines=(folder/label/"link-argv.txt").read_text().splitlines()
-    plugin=[l for l in linklines if "LLVMgold.so" in l or "ld.lld" in l]
+    linklines=[l for l in linklines if not re.search(r"cmTC_|CMake(?:C|CXX)CompilerId|conftest",l)]
+    plugin=[l for l in linklines if "LLVMgold.so" in l or "ld.lld" in l and any(
+        t.startswith(("-plugin-opt=","--lto","--plugin-opt=")) or t=="--fat-lto-objects" or t.endswith(".bc") for t in shlex.split(l))]
     proof=receipt["delivery"]
-    eligible=bool(not receipt["error"] and phases["compile"] and phases["link"] and linklines and (plugin or not on) and not gaps
+    eligible=bool(not receipt["error"] and (phases["compile"] or phases["compile-link"]) and (phases["link"] or phases["compile-link"]) and linklines and (plugin or not on) and not gaps
                   and proof["dwarf_option_proof"] and not proof["missing_dwarf_elfs"] and not proof["response_unresolved"])
     return {"pass":eligible,"phases":dict(phases),"inconsistent_calls":gaps,"plugin_link_count":len(plugin)}
 
@@ -157,6 +157,65 @@ def release_measured(work, label):
     print(result.stdout[-1500:],end="",flush=True)
     if result.returncode:
         raise Stop("pkg reclaim needs review "+str(work/label))
+
+def has_optimization_argv(path,expected):
+    seen=False
+    for line in path.read_text().splitlines():
+        words=shlex.split(line)
+        if words[1] not in ("compile","compile-link"):continue
+        if any("cmTC_" in a or "CMakeCCompilerId" in a or "conftest" in a for a in words):continue
+        opts=[a for a in words if re.fullmatch(r"-O(?:[0-3zsg]|fast)?",a)]
+        if not opts or opts[-1]!=expected:return False
+        seen=True
+    return seen
+
+
+def paired_abi(lanes,work):
+    by_lane=[]
+    for label,lane in lanes.items():
+        by_file={}
+        for row in lane["metrics"]["files"]:
+            elf=work/label/"elf-proof"/(row["sha256"]+".elf")
+            out=subprocess.check_output(["readelf","-dW","--dyn-syms",elf],text=True)
+            tags=sorted(re.findall(r"\((NEEDED|SONAME)\).*?\[(.*?)\]",out))
+            syms=[]
+            for line in out.splitlines():
+                f=line.split()
+                if len(f)>=8 and re.fullmatch(r"\d+:",f[0]) and f[4] in ("GLOBAL","WEAK","UNIQUE"):
+                    syms.append((f[7],f[3],f[4],f[5],"UND" if f[6]=="UND" else "DEF",f[2] if f[3] in ("OBJECT","TLS") else ""))
+            by_file[row["rpm"]+"!"+row["path"]]=(tags,sorted(syms))
+        by_lane.append(by_file)
+    a,b=by_lane
+    diff={k:{"before":a.get(k),"after":b.get(k)} for k in a.keys()|b.keys() if a.get(k)!=b.get(k)}
+    (work/"abi-diff.json").write_text(json.dumps(diff))
+    return {"changed_paths":sorted(diff),"pass":not diff}
+
+
+def relr_evidence(work,lanes,n):
+    by={}
+    for label,lane in lanes.items():
+        by[label]={}
+        for row in lane["metrics"]["files"]:
+            elf=work/label/"elf-proof"/(row["sha256"]+".elf")
+            out=subprocess.check_output(["readelf","-dWrVS",elf],text=True)
+            path=row["path"]
+            (work/label/(row["sha256"]+".relr.txt")).write_text(out)
+            by[label][path]=(len(re.findall(r"\bR_ARM_RELATIVE\b",out)),all("("+t+")" in out for t in ("RELR","RELRSZ","RELRENT")) and bool(re.search(r"\(RELRENT\)\s+4\b",out)) and "GLIBC_ABI_DT_RELR" in out.partition("Version needs section")[2])
+    names=[p for p,(count,packed) in by["baseline"].items() if count and not packed and by["treatment"].get(p,(0,False))[1]]
+    if n=="org.tizen.tv-viewer":names=[p for p in names if Path(p).name=="tv-viewer"]
+    if n=="lightweight-web-engine-profile_tv":names=[p for p in names if Path(p).name=="liblightweight-web-engine.prod.tv-impl.so"]
+    return {"qualifying":sorted(names),"files":by}
+
+
+def failure_signature(work,error):
+    for log in [*sorted(work.glob("*/GBS-ROOT/local/repos/**/logs/fail/**/log.txt")), *sorted(work.glob("*/gbs.log"))]:
+        with log.open(errors="replace") as f:
+            for line in f:
+                m=re.search(r"(?:clang(?:\+\+)?|ld(?:\.lld)?): (?:fatal )?error:.*|fatal error:.*|nothing provides .*",line)
+                if m:
+                    return re.sub(r"/(?:[^ ]+/)+", "/", m[0].strip())[:220]
+    return error.strip()[:300]
+
 
 def worker():
     tracks=lib("tracks"); ole=lib("olevel"); dev=lib("development"); repo=lib("image-repo-lib");scan=lib("image_mode_scan")
@@ -180,15 +239,28 @@ def worker():
     rows=tracks["loadrows"](HERE/"olevel.tsv")
     n5=[r["doc_source"] for r in rows if int(r["rank"])>4]
     n4=[r[1] for r in tracks["markdown_rows"](HERE/"doc05.md")[4:80]]
-    rs=json.loads((HERE/"recipes.json").read_text())["experiments"]
-    targets=set(n4+n5+rs["R4-50"]["packages"]+rs["R5"]["packages"])
-    sizes=rank(inv,targets|{"libtvs-core"},scan,repo)
+    sizes=json.loads((HERE/"prior-plan.json").read_bytes())["bytes"]
     if "libtvs-core" in sizes:sizes["tvs-core"]=sizes["libtvs-core"]
     def order(names):return sorted((n for n in names if n in sizes),key=lambda n:(-sizes[n],n))
-    plan=[("N5",n) for n in order(n5)]+[("N4",n) for n in order(n4)[:10]]
-    for key in ("R4-50","R5"):plan.extend((key,n) for n in order(rs[key]["packages"]))
-    (HERE/"pkg-plan.json").write_text(json.dumps(dict(plan=plan,unranked=sorted(targets-set(sizes)),bytes=sizes)))
-    print("PKG_PLAN",len(plan),"unranked",sorted(targets-set(sizes)),flush=True)
+    order5,order4=order(n5),order(n4)
+    canary="org.tizen.webserver"
+    if canary not in order5[:10] or len(n5)!=30 or len(n4)!=76:
+        raise Stop("roster or top-ten canary changed")
+    top5=[canary]+[n for n in order5[:10] if n!=canary]
+    # Prioritize esg-api investigation without displacing the ten ranked N4 rows.
+    plan=[("N5",n) for n in top5]+[("N4",n) for n in dict.fromkeys(["esg-api"]+order4[:10])]
+    plan += [("N5",n) for n in order5[10:]]+[("N4",n) for n in order4[10:] if n!="esg-api"]
+    plan += [("R7",n) for n in ("org.tizen.tv-viewer","lightweight-web-engine-profile_tv","sys-tools")]
+    unranked=sorted(set(n4+n5)-set(order5+order4))
+    (HERE/"pkg-plan.json").write_text(json.dumps(dict(plan=plan,unranked=unranked,bytes=sizes)))
+    with (HERE/"pkg-holds.jsonl").open("w") as f:
+        for key,roster,ranked in (("N5",n5,order5),("N4",n4,order4)):
+            for name in sorted(set(roster)-set(ranked)):
+                reason=next((r["status"] for r in rows if r["doc_source"]==name),"RANK_UNAVAILABLE")
+                print(json.dumps(dict(step=key,package=name,row_status=reason,runtime="pending board")),file=f)
+    previous=None
+    reviews=0
+    print("PKG_PLAN",len(plan),"canary",canary,"unranked",unranked,flush=True)
     for idx,(key,n) in enumerate(plan):
         capacity()
         check_credential(["sudo", "-n", "true"], "sudo")
@@ -199,7 +271,13 @@ def worker():
             row,candidates,names=dev["resolve"](settings,"libtvs-core" if n=="tvs-core" else n)
             names={v for v in names if not v.endswith(("-debugsource","-debuginfo"))}
             if row["repository"]=="Base":
-                sr,={r["srpm"] for r in candidates}
+                if n=="rpm":
+                    pin=next(r["source_rpms"] for r in rows if r["doc_source"]=="rpm")
+                    candidates=[r for r in candidates if r["srpm"]==pin]
+                    names &= {r["name"] for r in candidates}
+                sources={r["srpm"] for r in candidates}
+                if len(sources)!=1:raise ValueError("unresolved published SRPM "+repr(sorted(sources)))
+                sr=sources.pop()
                 archive=lib("matched-qb")["find_srpm"](repo,"official",work,sr)
                 src,spec=ole["stage_srpm"](sr,dict(path=str(archive),sha256=gbs.sha(archive)),work)
             else:
@@ -212,37 +290,72 @@ def worker():
                     raise
             original=spec.read_text();spec.chmod(spec.stat().st_mode|0o200)
             gbs.local_git(src,work)
-            recipe=rs[key] if key in rs else dev["base_recipe"](key)
+            recipe=dev["base_recipe"](key)
             if key=="N5":recipe["treatment"]["compile"]=["-Os"]
             if key=="N4":
                 for label,opt in (("baseline","-fno-lto"),("treatment","-flto")):
                     recipe[label]=dict(compile=[opt],link=[opt],plugin=[])
-            recipe["workspace_policy_macros"]=True
+            if key=="R7":
+                for label in ("baseline","treatment"):
+                    recipe[label]=dict(compile=[],link=["-fuse-ld=lld"]+(["-Wl,-z,pack-relative-relocs"] if label=="treatment" else []),plugin=[])
+            if key=="N4":
+                recipe["dwarf_options"]={"baseline":[],"treatment":[]}
+            recipe["pkg_trial"]=True
+            dev["identities"](work,row["doc_source"],candidates)
             lanes={}
             for label in ("baseline","treatment"):
                 capacity()
                 lanes[label]=dev["lane_build"](settings,src,spec,original,work,names,recipe,label,HERE)
                 if lanes[label]["error"]:raise ValueError(str(lanes[label]["error"]))
             result["lanes"]={k:{"bytes":i["metrics"]["total"],"proof":i["delivery"],"link":i["link_argv_path"]} for k,i in lanes.items()}
-            if key in ("R4-50","R5"):
-                result["executed_linker_argv"]={label:Path(r["link_argv_path"]).read_text().splitlines() for label,r in lanes.items()}
             scope=dev["matching_binary_scopes"](*(lanes[k]["metrics"] for k in ("baseline","treatment")))
             result["delivery"]=all(i["delivery"]["observed"] for i in lanes.values()) and scope!="ELF_SCOPE_CHANGED"
             if key=="N4":
                 result["driver_cu_link"]={k:n4_proof(work,k,v) for k,v in lanes.items()}
                 result["delivery"]=scope!="ELF_SCOPE_CHANGED" and all(v["pass"] for v in result["driver_cu_link"].values())
-                result["gcc_abi"]=gcc_compare(settings,lanes["treatment"],work)
+            result["abi"]=paired_abi(lanes,work)
+            result["scope"]=scope
+            result["runtime"]="pending board"
+            a,b=[v["metrics"]["total"] for v in lanes.values()]
+            result["text_delta"]=b["text"]-a["text"]
+            result["file_delta"]=b["bytes"]-a["bytes"]
+            if key=="N5":
+                result["delivery"] &= has_optimization_argv(work/"treatment"/"driver-argv.txt","-Os")
+            if key=="R7":
+                result["relr"]=relr_evidence(work,lanes,n)
+                result["delivery"] &= bool(result["relr"]["qualifying"])
+            if not result["delivery"]:result["error"]="treatment argv or ELF scope unproved"
+            if key=="N4" and result["delivery"]:
+                try:result["gcc_reference_abi"]=gcc_compare(settings,lanes["treatment"],work)
+                except (OSError,ValueError,subprocess.SubprocessError) as exc:
+                    result["gcc_reference_abi"]={"review":str(exc)}
+            result["row_status"]="MEASURED_ABI_REVIEW" if not result["abi"]["pass"] else "MEASURED"
+            if not result["delivery"]:result["row_status"]="DELIVERY_REVIEW"
         except (OSError,ValueError,KeyError,subprocess.SubprocessError) as exc:result["error"]=str(exc)
+        result.setdefault("runtime","pending board")
+        result.setdefault("row_status","BUILD_OR_INPUT_REVIEW")
         with (HERE/"pkg-results.jsonl").open("a") as f:f.write(json.dumps(result)+"\n")
         print("PKG_RESULT",key,n,result.get("delivery","REVIEW"),str(result.get("error",""))[:180],flush=True)
-        if "error" not in result:
+        failed=result.get("error")
+        if idx==0:
+            if failed or not result.get("delivery") or not (result["text_delta"] or result["file_delta"]):
+                raise Stop("canary failed; no remaining package queued")
+            print("PKG_CANARY PASS",n,result["text_delta"],result["file_delta"],flush=True)
+        if failed:
+            reviews+=1
+            sig=failure_signature(work,failed)
+            if sig==previous: raise Stop("same-signature "+sig)
+            previous=sig
+            if key=="R7" and n=="org.tizen.tv-viewer":raise Stop("RELR canary")
+        else:
+            previous=None
             for label in ("baseline", "treatment"):
                 release_measured(work, label)
+    if reviews or unranked:raise Stop(f"batch contains {reviews} review rows and {len(unranked)} unranked")
 if __name__=="__main__":
     with (WS/"temp/pm0013-pkg.lock").open("a") as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        try:capacity();worker()
+        try:capacity();lib("prior")["report"]();worker()
         except Stop as reason:
             print("PKG_STOP", reason, flush=True)
-            if str(reason) != "Friday 09:30 CST cutoff":
-                sys.exit(2)
+            sys.exit(2)

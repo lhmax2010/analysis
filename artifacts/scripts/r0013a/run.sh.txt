@@ -56,7 +56,9 @@ pkg)
     stage pkg
     sudo -n true || { echo "PKG_STOP sudo"; exit 2; }
     job pkg python3 -Bu pkg.py.txt
-    cat pkg.status; tail -35 pkg.log | cut -c1-1800 ;;
+    cat pkg.status
+    awk '/^PRIOR_|^PKG_CANARY |^PKG_STOP /{print}' pkg.log | head -45
+    tail -35 pkg.log | cut -c1-1800 ;;
 roster)
     stage roster
     job roster python3 -Bu dispatch.py.txt roster "$@"

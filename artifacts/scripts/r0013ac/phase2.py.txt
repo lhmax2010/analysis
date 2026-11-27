@@ -1,0 +1,53 @@
+"""One attended fixture in a finished root. Preserve every cell and link log."""
+import csv, fcntl, hashlib, os, re, runpy, subprocess, sys
+from collections import Counter
+from pathlib import Path
+W=Path(__file__).resolve().parent
+temp=Path("/home1/chengkai/vd-tree/workspace/temp")
+root=Path(sys.argv[1]).resolve(strict=True)
+if not root.is_relative_to(temp) or root.name!="scratch.armv7l.0" or root.parent.name!="BUILD-ROOTS":
+    raise ValueError("expected a retained scratch.armv7l.0 under workspace/temp")
+if not W.is_relative_to(temp) or not re.fullmatch(r"pm0013ac-read\.[A-Za-z0-9]+",W.name):raise ValueError("workspace")
+def inroot(*args,**kwargs):
+    return subprocess.run(["sudo","-n","chroot",*args],check=True,**kwargs)
+with (temp/"pm0013-pkg.lock").open("a") as lock:
+    fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    uid,gid=next(tuple(s.split(":")[2:4]) for s in (root/"etc/passwd").read_text().splitlines() if s.startswith("abuild:"))
+    if min(int(uid),int(gid))<=0:raise ValueError("abuild identity")
+    user=["--userspec="+uid+":"+gid,"--groups="+gid,str(root)]
+    dest=inroot(*user,"mktemp","-d","/tmp/pm0013ac.XXXXXX",capture_output=True,text=True).stdout.strip()
+    if not re.fullmatch("/tmp/pm0013ac\.[A-Za-z0-9]+",dest):raise ValueError("fixture path")
+    print("FIXTURE",root,dest,flush=True)
+    with (W/"fixture.sh.txt").open("rb") as script,(W/"matrix.log").open("wb") as log:
+        inroot(*user,"/bin/bash","-s","--",dest,stdin=script,stdout=log,stderr=subprocess.STDOUT)
+    # rsync/copy is unnecessary. Read only this job's files as abuild.
+    def read(name):
+        return inroot(*user,"cat",dest+"/"+name,capture_output=True).stdout
+    table=read("phase2.tsv"); (W/"phase2.tsv").write_bytes(table)
+    rows=list(csv.DictReader(table.decode().splitlines(),delimiter="\t"))
+    inspect=runpy.run_path(str(W/"perf-relocations.py.txt"))["elf_review"]
+    cells={}; issues=[]; classifications=Counter()
+    for r in rows:
+        key=r["route"],r["output"],r["input"]
+        ok=r["rc"]=="0"
+        if ok:
+            issues_found=inspect(read(r["log"][:-4]))["issues"]
+            hit=any(t in issues_found for t in ("DYNAMIC_TARGET_READONLY","DYNAMIC_TARGET_EXECUTABLE","DT_TEXTREL","DF_TEXTREL"))
+            if r["selection"]!=("IR" if key[0]=="llvm-plugin" else "native"):issues.append([key,"route unproved",r["selection"]])
+            if r["textrel"]=="yes" and not hit:issues.append([key,"missed textrel"])
+            if r["policy"]=="strict" and hit:issues.append([key,"strict output has textrel"])
+        else:hit=False
+        if r["input"]=="pic" and (not ok or r["control_rc"]!="0"):issues.append([key,"PIC control",r["policy"]])
+        cells[key,r["policy"]]=ok,hit
+    for key in {k for k,p in cells}:
+        default,hit=cells[key,"default"]; strict,_=cells[key,"strict"]
+        if not default and not strict:
+            control=cells[(key[0],key[1],"pic"),"default"][0]
+            classifications["rejected both policies" if control else "route/control unavailable"]+=1
+        if default and hit and strict:issues.append([key,"strict accepted permissive textrel case"])
+        if default and hit and not strict:classifications["strict rejected default textrel"]+=1
+    if len(rows)!=96 or len(cells)!=96:issues.append("missing cells")
+    import json
+    (W/"fixture.summary").write_text(json.dumps(dict(classifications=classifications,issues=issues)))
+    print("PHASE2",len(rows),dict(classifications),"review",len(issues),"logs",str(root)+dest)
+    sys.exit(2 if issues else 0)

@@ -19,3 +19,5 @@ Doc 02 rev3 is superseded by rev4 (repo-authored, not the HQ text). [Retained re
 Doc 02 rev4 is the verbatim export of the live Claude Doc with the Step 2 result. [Doc 02 rev4](weekly/2026-11-20/02_MLGO_Kernel_Comparison_rev4.md) [Rev4 checksum](weekly/2026-11-20/SHA256SUMS.rev4)
 
 Claude authors the live HQ docs. Keep proposed wording in the round reply and archive the exports verbatim.
+
+The 27 Nov weekly report was exported at live document revision 16. Both entries in the supplied manifest verified against their archived bytes. [27 Nov backup](weekly/2026-11-27/README.md)

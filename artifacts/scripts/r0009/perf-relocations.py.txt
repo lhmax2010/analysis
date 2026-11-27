@@ -24,7 +24,7 @@ NATIVE = Path("/home1/chengkai/vd-tree/workspace")
 GIB = 1024**3
 OBJECT_LIMIT = 512 * 1024**2
 ENTRY_LIMIT = 4_000_000
-ARM = {2: "R_ARM_ABS32", 3: "R_ARM_REL32", 23: "R_ARM_RELATIVE",
+ARM = {19:"R_ARM_TLS_TPOFF32", 111:"R_ARM_TLS_IE12GP", 2: "R_ARM_ABS32", 3: "R_ARM_REL32", 23: "R_ARM_RELATIVE",
        104: "R_ARM_TLS_GD32", 107: "R_ARM_TLS_IE32", 108: "R_ARM_TLS_LE32",
        109: "R_ARM_TLS_LDO12", 110: "R_ARM_TLS_LE12", 55: "R_ARM_ABS32_NOI", 56: "R_ARM_REL32_NOI"}
 TLS_LE = {108, 110}
@@ -34,7 +34,7 @@ def out(tag, value):
     print(tag, json.dumps(value, ensure_ascii=True, sort_keys=True), flush=True)
 
 
-def elf_review(data):
+def elf_review(data, detail=None):
     if data[:4] != b"\x7fELF":
         return None
     if len(data) < 20 or data[4] not in (1, 2) or data[5] not in (1, 2):
@@ -54,6 +54,7 @@ def elf_review(data):
         raise ValueError("unsupported or invalid program-header table")
 
     loads, dynamic, interpreter = [], [], False
+    pt_tls = False
     for i in range(phnum):
         kind, offset, va, _, filesz, memsz, flags, _ = struct.unpack_from(order+"8I", data, phoff+i*32)
         if filesz and offset+filesz > len(data):
@@ -64,6 +65,8 @@ def elf_review(data):
             loads.append((va, va+memsz, flags, offset, filesz))
         elif kind == 2:
             dynamic.append((offset, filesz))
+        elif kind == 7:
+            pt_tls = True
         elif kind == 3:
             interpreter = True
     if elf_type == 2:
@@ -119,6 +122,12 @@ def elf_review(data):
                 types.append("DYNAMIC_TARGET_READONLY")
         if kind == "DSO" and insn in TLS_LE:
             types.append("DSO_TLS_LE_INPUT_RELOCATION" if origin == "section" else "DSO_TLS_LE_DYNAMIC_RELOCATION")
+        if detail is not None:
+            if kind == "DSO" and insn in (19,107,111):
+                types.append("TLS_TPOFF_DYNAMIC" if insn == 19 else "TLS_IE_RELOCATION")
+            if types:
+                seg = [(hex(lo),hex(hi),flags) for lo,hi,flags,_,_ in loads if lo <= address < hi]
+                detail(address, ARM.get(insn,f"ARM_RELOC_{insn}"),origin,types,seg)
         if types:
             name = ARM.get(insn, f"ARM_RELOC_{insn}")
             for issue in types:
@@ -188,11 +197,11 @@ def elf_review(data):
             for pos in range(offset, offset+size, stride):
                 if pos not in seen:
                     addr, info = struct.unpack_from(order+"II", data, pos)
-                    if info & 255 in TLS_LE:
+                    if info & 255 in TLS_LE or detail is not None and info & 255 in (107,111):
                         relocation(addr, info & 255, "section")
     for (category, _), count in totals.items():
         issues[category] = issues.get(category, 0) + count
-    return {"scope": kind, "issues": issues, "examples": examples,
+    return {"scope": kind, "pt_tls":pt_tls, "static_tls_flag":bool(tags.get(30,0)&16), "issues": issues, "examples": examples,
             "relocation_counts": [[tag, name, n] for (tag, name), n in sorted(totals.items())]}
 
 

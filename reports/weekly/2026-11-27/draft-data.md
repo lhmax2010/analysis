@@ -252,3 +252,12 @@ The seven disputed source files now have matching SHA-256 in shelf 14427407, K1 
 | Custom 20261118.1 | 37836654 | 37836727 | 130 (37777264) |
 
 The two same-day within-Base S12 comparisons precede the four-image board trial. Publication measurements and board results are outstanding. [Native retention readback](../../../artifacts/evidence/native-run-r0013z-retain-and-enum-stooH5-start-20261127.txt)
+
+### 27 Nov · Package measurements and native PIC audit
+
+| Table / check | Evidence available | Outstanding measurement |
+|---|---|---|
+| 04 / 05 | 41 attempted jobs, zero accepted pairs. 34 baseline GBS failures, two built pairs with zero compile/link receipts, five other errors or skips. | Revised worker awaits its first two-lane canary. Runtime pending board. |
+| 06 | Fixed 27, with 23 Clang-observed, 3 absent/no ELF and 1 gap in the published scan. | Matched-path installed ELF sizes, GCC 37564293 → Official 37777148. |
+| 07 | 480 Official ARM-predominant files. 177 kernel module paths counted separately. | Per-path differences against the historical 609 and owner/cause review. |
+| Native non-PIC | GNU ld 2.43 fixture previously reproduced a permissive text relocation. | Phase 1 scanning of both images, Phase 2 production FatLTO routes, then package enforcement and TLS consumers. |

@@ -556,3 +556,7 @@ PM designated same-day Official 37836579 → 37836693 and Custom 37836654 → 37
 ### 0013ab · PM decision on lane-specific S12 acceptance
 
 Official retains the 20,304–20,344 helper window. Custom requires ≥10,000 helpers and strictly smaller PERF `.text` than its same-day reference. Both references must have zero helpers. Exact Official K1 identity is informational. PM approved the original retention command. [Decision](../comms/claude_to_codex/0013ab_codex_s12_custom_helper_criterion.md)
+
+### 0013ad · Canary before each paired package batch
+
+Build one package in both lanes. Release the queue only after the baseline build succeeds, the real treatment argv shows the requested option, both builds yield a matched ELF set, and a measured outcome differs. A failed or identical canary stops the batch. Two consecutive jobs with the same failure signature stop it with `PKG_STOP same-signature`. Preserve failed receipts and logs. Runtime acceptance requires board evidence. [PM decision](../comms/claude_to_codex/0013ad_codex_pkg_worker_fix_and_hq_tables.md)

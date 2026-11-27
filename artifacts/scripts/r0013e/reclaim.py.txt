@@ -202,7 +202,7 @@ def stash_kernel(job,lane,row,apply):
 
 def package_lane(run, package, label, apply):
     require(run.parent==TEMP and re.fullmatch(r"pm0013-pkg\.[A-Za-z0-9]{6}",run.name),"pkg run path")
-    require(re.fullmatch(r"[0-9]{3}-(?:N4|N5|R4-50|R5)-[A-Za-z0-9_.+-]+",package),"package path")
+    require(re.fullmatch(r"[0-9]{3}-(?:N4|N5|R4-50|R5|R7)-[A-Za-z0-9_.+-]+",package),"package path")
     require(label in ("baseline","treatment"),"package lane")
     folder=safe(run/package/label)
     root=safe(folder/"GBS-ROOT/local/BUILD-ROOTS")
@@ -223,7 +223,7 @@ def package_lane(run, package, label, apply):
     idle([root])
     count=footprint(root)
     if apply:erase(root)
-    print("PKG_RECLAIMED" if apply else "PKG_RECLAIM_PLAN",re.sub(r"^[0-9]{3}-(?:N4|N5|R4-50|R5)-","",package),round(count/GIB,3),"GiB",label,flush=True)
+    print("PKG_RECLAIMED" if apply else "PKG_RECLAIM_PLAN",re.sub(r"^[0-9]{3}-(?:N4|N5|R4-50|R5|R7)-","",package),round(count/GIB,3),"GiB",label,flush=True)
 
 def kernel_sweep(selector, apply, follow):
     if selector=="auto":

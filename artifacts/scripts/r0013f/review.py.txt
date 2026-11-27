@@ -67,7 +67,7 @@ def rootless_extract(args, files, dump, part, skipped):
         skipped[name]={"type":kind[1],"dump":detail}
     return run.stdout
 
-def extract(qb,labels,results):
+def extract(qb,labels,results,retain_tree=False):
     img,tree,verify,scan,repo=map(lib,("images","image-tree","verify-reader","image_mode_scan","image-repo-lib"))
     raw=WS/"usb"/qb/"updateSU2E/platform.img"
     if qb in verify["IMAGES"]:
@@ -126,7 +126,7 @@ def extract(qb,labels,results):
                     official=files/"usr/apps/org.tizen.AVControl/bin/AVControl"
                     check(sha(official)==lib("pilot")["OFF_SHA"],"Official target digest")
                     shutil.copyfile(official,HERE/"official.elf")
-                if qb=="37777148" and label=="prd":
+                if retain_tree or qb=="37777148" and label=="prd":
                     keep=True
                     row["root"]=str(files)
                 if qb=="37777148" and label=="platform":

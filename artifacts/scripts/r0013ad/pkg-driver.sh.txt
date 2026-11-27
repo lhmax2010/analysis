@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# The GBS spec writes the immutable driver path and recipe arrays above this body.
+set -euo pipefail
+phase=link
+has_source=0
+lto=0
+for arg; do
+    case "$arg" in
+        -c|-S|-E|-M|-MM|-fsyntax-only|-emit-llvm|--analyze) phase=compile ;;
+        -r|-Wl,-r) phase=relocatable ;;
+        -###|--version|-dump*|-print*|--help*) phase=query ;;
+        @*) phase=response ;;
+        *.c|*.cc|*.cpp|*.cxx|*.C) has_source=1 ;;
+        -flto|-flto=*) lto=1 ;;
+        -fno-lto) lto=0 ;;
+    esac
+done
+# A response file can hide the phase or override, retain and gate it.
+for arg; do [[ "$arg" != @* ]] || phase=response; done
+if [[ "$phase" == link && $has_source == 1 ]]; then
+    phase=compile-link
+fi
+edits=()
+if [[ "$phase" == compile || "$phase" == compile-link ]]; then
+    edits+=(${compile_edits[@]+"${compile_edits[@]}"})
+fi
+if [[ "$phase" == link || "$phase" == compile-link ]]; then
+    edits+=(${link_edits[@]+"${link_edits[@]}"})
+    if ((lto)); then edits+=(${plugin_edits[@]+"${plugin_edits[@]}"}); fi
+fi
+# Receipts survive configure/SCons redirecting stderr. RPM stages run separate shells.
+receipt="${0%/*}/receipts/driver.$$"
+set -- "$@" ${edits[@]+"${edits[@]}"}
+if [[ "$phase" != query ]]; then
+    {
+        printf 'PM12_DRIVER %s %q' "$phase" "$real"
+        printf ' %q' "$@"
+        printf ' HOOK=%q\n' "${CCC_OVERRIDE_OPTIONS:-}"
+    } >> "$receipt"
+fi
+if [[ "$phase" == link || "$phase" == compile-link ]]; then
+    rc=0
+    "$real" -v "$@" 2>"$receipt.link" || rc=$?
+    cat "$receipt.link" >&2
+    exit "$rc"
+fi
+exec "$real" "$@"

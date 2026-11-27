@@ -165,8 +165,10 @@ def source_for(gbs, lib, stager, row, candidates, manifest, source_inputs, folde
 
 def stage_srpm(srpm, spec_input, folder):
     archive=checked_file(native_path(Path(spec_input["path"])),spec_input["sha256"])
-    identity=rpm_query(archive,r"%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}").strip()
-    if identity+".rpm"!=srpm or rpm_query(archive,"%{SOURCERPM}").strip() not in {"","(none)"}:
+    # Source packages may record the build target (e.g. armv7l) in RPMTAG_ARCH.
+    # The source-package marker plus NVR qualify the source, independently of the filename.
+    marker,identity=rpm_query(archive,r"%{SOURCEPACKAGE}\n%{NAME}-%{VERSION}-%{RELEASE}.src").splitlines()
+    if marker!="1" or identity+".rpm"!=srpm or rpm_query(archive,"%{SOURCERPM}").strip() not in {"","(none)"}:
         raise ValueError("SRPM bytes belong to a different source identity")
     project=folder/"source"
     packaging=project/"packaging"

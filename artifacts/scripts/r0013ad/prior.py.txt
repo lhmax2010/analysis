@@ -1,0 +1,35 @@
+"""Reconcile the returned job ledger with the retained native logs."""
+from pathlib import Path
+import hashlib
+import json
+import re
+
+def report():
+    root = Path("/home1/chengkai/vd-tree/workspace/temp/pm0013-pkg.Nr2wmG")
+    ledger = (root/"pkg-results.jsonl").read_bytes()
+    if hashlib.sha256(ledger).hexdigest() != "e7372ee72a29b2fe69509dec2ee7d5a729d45c7935555e644678b2ea643c8026":
+        raise ValueError("previous job ledger differs from returned packet")
+    for i,line in enumerate(ledger.splitlines()):
+        row = json.loads(line)
+        key = f"{i:03d}-{row['step']}-{row['package']}"
+        logs = root/key/"baseline"
+        if not row.get("error","").startswith("GBS_FAILURE_LOG"):
+            if row["package"] in ("org.tizen.easysetup-daemon","iotivity"):
+                print("PRIOR_DELIVERY",key,{k:(v["proof"]["compile_calls"],v["proof"]["links"]) for k,v in row["lanes"].items()})
+                details=[]
+                for spec in sorted((root/key).glob("**/packaging/*.spec"))[:12]:
+                    with spec.open(errors="replace") as stream:
+                        for j,s in enumerate(stream,1):
+                            if re.search(r"(?i)\b(CC|CXX|LD|scons|cmake|meson|clang)\b",s):
+                                details.append((str(spec.relative_to(root/key)),j,s.strip()[:400]))
+                (Path(__file__).resolve().parent/(row["package"]+"-old-spec.jsonl")).write_text("".join(json.dumps(d)+"\n" for d in details))
+            continue
+        export = failure = False
+        paths = [logs/"gbs.log", *logs.glob("GBS-ROOT/local/repos/**/logs/fail/**/log.txt")]
+        for path in paths:
+            if not path.is_file():continue
+            with path.open(errors="replace") as f:
+                for s in f:
+                    export |= "CCC_OVERRIDE_OPTIONS" in s and "%{pm13_compile}" in s
+                    failure |= "no such file or directory" in s and "%{pm13_compile}" in s
+        print("PRIOR_MACRO",key,"CONFIRMED" if export and failure else "NO_MATCH_OR_LOG_MISSING")

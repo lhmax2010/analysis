@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+pin=$1
+mode=$2
+[[ $pin =~ ^[0-9a-f]{40}$ ]]
+case "$mode" in both|audit|tables|fixture) ;; *) exit 2;; esac
+cd /home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$PWD/pm0013ac-read.XXXXXX")
+cd "$d"
+export TMPDIR="$d" XDG_CACHE_HOME="$d/cache" PYTHONDONTWRITEBYTECODE=1
+echo "NATIVE_RUN $d"
+get() {
+    curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 150 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$1" -o "$2"
+}
+while read -r scope digest source dest; do
+    if [[ $scope != all && $scope != "$mode" && ( $scope != scan || $mode == fixture ) ]]; then continue; fi
+    get "$source" "$dest"
+    printf '%s  %s\n' "$digest" "$dest" | sha256sum -c --status
+done <<'INPUTS'
+all 806360db82edcf2123e37a61f01ffe5f7ee5730735c0fb72e90991a9285c2393 artifacts/scripts/r0009/perf-relocations.py.txt perf-relocations.py.txt
+all 97fbbb5a150251fc03544e1d3d2744d1194731fb56845be4b0ecbe0ca34c0f44 artifacts/scripts/r0013ac/return.py.txt return.py.txt
+fixture 8a8160c0f7e69036ba87a6de6a741db0429ca2299bd4c4bf86ad7e43c6ffcaa0 artifacts/scripts/r0013ac/phase2.py.txt phase2.py.txt
+fixture 49064727a03d74d23312f10357fd7cdfce1c757b0723b305abba4f8d14ba03e1 artifacts/scripts/r0013ac/fixture.sh.txt fixture.sh.txt
+scan 906e0145526355a530ab2a6fbc8fc0adbe5b1e8e730b0897bd664fac94be7fd6 artifacts/scripts/r0013ac/images-audit.py.txt images-audit.py.txt
+scan 68ed32805384d593441c91604c7de8154462e3c2dc2253a398abceec83ab44c5 artifacts/scripts/r0013ad/tables.py.txt tables.py.txt
+scan c00d68a1c378ba698c59b5adfb1478a31c14d7e1e34fa4d120b5b864a2f889dc artifacts/scripts/r0013f/review.py.txt review.py.txt
+scan 8737d9644cc54bb633f01d1ca2eff45af283e609b82be460f53df6df55e2e3e2 artifacts/scripts/r0013f/pilot.py.txt pilot.py.txt
+scan d9620fad6f97d27014a2bde2f0e9c1d13500ff2239f253b69464ef2d0ac1e601 artifacts/scripts/r0013a/images.py.txt images.py.txt
+scan f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726 artifacts/scripts/r0012c/image-tree.py.txt image-tree.py.txt
+scan cb67e6f58fbb7f6ed59370516fd652ae595adc9e2efb44ba72de26601ec59c42 artifacts/scripts/r0012z/verify-reader.py.txt verify-reader.py.txt
+scan 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75 artifacts/scripts/r0004/image_mode_scan.py.txt image_mode_scan.py.txt
+scan 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f artifacts/scripts/r0005/image-repo-lib.py.txt image-repo-lib.py.txt
+scan ec46dd6c0ec0ff589a76fbc0347d81e019069bec953a3485a979ec96865641f3 artifacts/evidence/board/g1-37564293/0012v/installed-rpms.tsv g1-roster.tsv
+scan 4f0a76b186e906be4042a1eb9860b33292e30eb6f75dd31ba383342f5cdcf43a artifacts/thumb-repro/a32-full-609.csv a32-full-609.csv
+scan b13fdbd3ab3be696143d2adc8b9fa1192852fe613399c6de9d7b48a1076e6dce reports/weekly/2026-11-20/06_HQ_Table_GCC_Gpp.md doc06.md
+INPUTS
+rc=0
+if [[ $mode == fixture ]]; then
+    root=${PHASE2_ROOT:-/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.0}
+    sudo -v
+    nice -n 19 ionice -c 3 python3 -Bu phase2.py.txt "$root" > run.summary 2>error.log || rc=$?
+else
+    nice -n 19 ionice -c 3 python3 -Bu images-audit.py.txt "$mode" > run.summary 2>error.log || rc=$?
+fi
+tail -25 run.summary
+if ((rc)); then tail -12 error.log; if [[ -f matrix.log ]]; then tail -8 matrix.log; fi; fi
+python3 -B return.py.txt pack
+exit "$rc"

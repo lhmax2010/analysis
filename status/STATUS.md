@@ -258,3 +258,9 @@ Retain each QB at publication. Both within-Base S12 comparisons gate board use. 
 ### 0013ab · S12 command 2 re-pinned
 
 Retention at `4d71d0e` is approved. The paired command implements the PM criteria separately for Official and Custom. Local Python 3.10 checks passed. The paired command awaits PM review and the four native QB measurements. [Command 2](../comms/codex_to_claude/0013ab_reply.md)
+
+### 27 Nov · 0013ad / 0013ac
+
+HQ tables 04/05 had **zero measured rows this week**. The failed harness ran 41 jobs and returned process status zero. The canary-first replacement awaits PM review and native execution. Tables 06/07 refresh in progress on GCC 37564293 and Official 37777148. PQnb3T records 23 Clang-observed sources, three absent/no ELF, and one coverage gap among the 27 fixed packages. Official has 480 ARM-predominant paths and 177 module paths counted separately.
+
+LTO native path implementation started. Phase 1 image audit pending. Phase 2 has a separate GBS-root fixture. Phase 3 depends on a proven package canary. Phase 4 needs selected-member maps for each TLS archive. The 27 Nov live report export at revision 16 and its original manifests are archived. [Worker evidence](../artifacts/evidence/native-run-r0013e-pkg-Nr2wmG-20261127.txt) · [Weekly backup](../reports/weekly/2026-11-27/README.md)
