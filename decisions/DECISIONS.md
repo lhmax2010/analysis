@@ -552,3 +552,7 @@ PM and the operator approved changing only the K4 Product repository to Official
 ### 0013aa · Primary S12 pairs for the outline board trial
 
 PM designated same-day Official 37836579 → 37836693 and Custom 37836654 → 37836727 as the two primary comparisons. Retain each publication as soon as it finishes. This supersedes the 0013z primary-baseline assignment. 37777148 and 37777264 now provide historical reproduction checks only. Both primary pairs must pass before the four-image board trial. [PM decision](../comms/claude_to_codex/0013aa_codex_same_day_qb_baselines.md)
+
+### 0013ab · PM decision on lane-specific S12 acceptance
+
+Official retains the 20,304–20,344 helper window. Custom requires ≥10,000 helpers and strictly smaller PERF `.text` than its same-day reference. Both references must have zero helpers. Exact Official K1 identity is informational. PM approved the original retention command. [Decision](../comms/claude_to_codex/0013ab_codex_s12_custom_helper_criterion.md)

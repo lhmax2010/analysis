@@ -254,3 +254,7 @@ Historical captures 37777148 and 37777264 each retained 130 verified RPMs. The o
 | Custom 20261118.1 | 37836654 | 37836727 |
 
 Retain each QB at publication. Both within-Base S12 comparisons gate board use. The board plan compares outline at fixed Base and compares Bases at fixed outline setting. Historical references provide separate reproducibility data. Native S12 and board results await readback. [0013aa review commands](../comms/codex_to_claude/0013aa_reply.md)
+
+### 0013ab · S12 command 2 re-pinned
+
+Retention at `4d71d0e` is approved. The paired command implements the PM criteria separately for Official and Custom. Local Python 3.10 checks passed. The paired command awaits PM review and the four native QB measurements. [Command 2](../comms/codex_to_claude/0013ab_reply.md)
