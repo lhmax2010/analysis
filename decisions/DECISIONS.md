@@ -536,3 +536,7 @@ PM accepts the shipped glibc 2.40 provider pair for a three-package RELR trial a
 ### 0013u · PM acceptance rule for verifying jEMVH7 after RPM packaging
 
 Require the shipped zImage hash and K0 config in the same tree and retain the SERET-UL GCC, perf Clang and module argv checks. Use a matching ELF when available. The no-ELF path requires the exact K1 Image length and zImage within 0.10%, with .text and helper count explicitly unmeasured. S12 remains a separate per-QB pre-flash gate. [PM decision](../comms/claude_to_codex/0013u_codex_verify_no_vmlinux.md) · [Verification command](../comms/codex_to_claude/0013u_reply.md)
+
+### 0013v · Perf output directory and config provenance
+
+For jEMVH7, match the packaged perf zImage, the adjacent ELF build ID and the reconstructed Image against the RPM. Qualify config separately. PM accepts a pinned spec and identical defconfig input when the effective config cannot be recovered. Record that method distinctly from a measured effective-config hash. The compiler argument and per-QB S12 requirements continue. [PM instruction](../comms/claude_to_codex/0013v_codex_verify_image_perf_dir.md)

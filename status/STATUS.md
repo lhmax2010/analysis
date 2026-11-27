@@ -229,3 +229,7 @@ R1 historical forced-option variants have delivery evidence for four measured pa
 ### 0013u · Retained Official outlining build
 
 BbbAhy issued the board PM_PASS receipt with S12 required per QB and verified the CRCs and payload length. It stopped before issuing a build receipt. The pinned verifier now inventories candidate trees and can qualify a cleaned tree with matching RPM zImage, K0 config, payload identity, K1 sizes and target argv. Await the new native receipt. [Command and validation](../comms/codex_to_claude/0013u_reply.md)
+
+### 0013v · Official TEST-ONLY perf build verification
+
+Y8W62v located the RPM-matched zImage and adjacent ELF in the perf packaging directory. Both files can now be verified independently of the effective-config location. The native build receipt awaits readback. [Pinned command, evidence and validation](../comms/codex_to_claude/0013v_reply.md)
