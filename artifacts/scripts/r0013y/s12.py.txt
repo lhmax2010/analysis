@@ -30,6 +30,8 @@ SUBMITTED = {"37836579": ("Official", "ref"), "37836693": ("Official", "candidat
 OPERAND = r"[0-9]{8}(?:=https?://[^=\s]+)?"
 ERRORS = (OSError, ValueError, ET.ParseError, KeyError, IndexError, struct.error, subprocess.SubprocessError)
 K1_HELPERS = 20324
+K1_TEXT = 8214312
+K1_BUILD_ID = "99518c24394ed1496461993969922d425986ddc5"
 meta = runpy.run_path(str(HERE/"metadata.py.txt"))
 lib = meta["lib"]
 elf_sections = runpy.run_path(str(HERE/"image_mode_scan.py.txt"))["secs_of"]
@@ -326,15 +328,24 @@ def read_snapshot(label,url,base_id,work,qb,inputs=None):
     return result
 
 
-def compare(ref,test):
+def compare(lane,ref,test):
     reasons=[]; rows=[]
     if ref["build_id"]==test["build_id"]:reasons.append("unchanged kernel build ID")
     if ref["release"]!=test["release"]:reasons.append("kernel release changed")
     if ref["symvers"]!=test["symvers"]:reasons.append("Module.symvers availability or export CRCs changed")
     if ref["helpers"] != 0:
         reasons.append("no-outline reference helper count is missing or nonzero")
-    if test["helpers"] is None or abs(test["helpers"]-K1_HELPERS)*1000 > K1_HELPERS:
-        reasons.append("candidate helper count missing or outside K1 +/-0.10%")
+    helpers = test["helpers"]
+    if lane == "Official":
+        if helpers is None or abs(helpers-K1_HELPERS)*1000 > K1_HELPERS:
+            reasons.append("candidate helper count missing or outside K1 +/-0.10%")
+    elif lane == "Custom":
+        if helpers is None or helpers < 10000:
+            reasons.append("Custom candidate helper count missing or below 10000")
+        if None not in (ref["text"],test["text"]) and test["text"] >= ref["text"]:
+            reasons.append("Custom candidate PERF .text did not shrink")
+    else:
+        raise ValueError("unknown lane: "+lane)
     if ref["text"] is None or test["text"] is None:
         reasons.append("missing build-ID-matched PERF .text")
     for k in sorted(ref["modules"].keys()|test["modules"].keys()):
@@ -344,6 +355,16 @@ def compare(ref,test):
         rows.append(dict(module=k,reference=a,candidate=b,text_delta=delta,reasons=changed))
         reasons.extend(changed)
     return rows,sorted(set(reasons))
+
+
+def report_k1_match(candidate):
+    expected = {"text": K1_TEXT, "helpers": K1_HELPERS, "build_id": K1_BUILD_ID}
+    measured = candidate or {}
+    missing = any(measured.get(k) is None for k in expected)
+    different = any(measured.get(k) is not None and measured[k] != v for k,v in expected.items())
+    status = "DIFFERENT" if different else "UNAVAILABLE" if missing else "IDENTICAL"
+    details = [f"{k}={measured.get(k)} expected={v}" for k,v in expected.items()]
+    print("S12_K1_MATCH",status,"Official",*details)
 
 
 def repro(ref, old):
@@ -416,14 +437,20 @@ def main():
                     snapshots[role] = read_snapshot(*captured[lane,role])
                 except ERRORS as exc:
                     reasons.append(role+": "+str(exc)[:250])
+        if lane == "Official":
+            report_k1_match(snapshots.get("candidate"))
         metrics = ""
         if len(snapshots)==2:
             ref,test=snapshots["ref"],snapshots["candidate"]
-            rows,reasons=compare(ref,test)
+            rows,reasons=compare(lane,ref,test)
             (W/(lane+"-modules.json")).write_text(json.dumps(rows))
             for row in sorted(rows,key=lambda r:-abs(r["text_delta"] or 0))[:6]:
                 print("S12_TEXT",lane,row["module"],row["text_delta"])
             delta = test["text"]-ref["text"] if None not in (ref["text"],test["text"]) else None
+            if lane == "Custom":
+                signed_delta = "UNAVAILABLE" if delta is None else f"{delta:+d}"
+                print("S12_CUSTOM_HELPERS",test["helpers"],"(K1 Official MLGO 20,324; K3 MLGO-off 26,020)",
+                      "perf_text_delta_bytes="+signed_delta)
             metrics = (f"helpers={ref['helpers']}/{test['helpers']} perf_text_bytes={ref['text']}/{test['text']} "
                        f"delta={delta} anchors_K0_K1=8564600/8214312 modules={len(ref['modules'])}/{len(test['modules'])} "
                        f"symvers_sources={len(ref['symvers'])}/{len(test['symvers'])}")

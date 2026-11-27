@@ -16,7 +16,7 @@ while read -r sum path; do
     printf '%s  %s\n' "$sum" "${path##*/}" | sha256sum -c -
 done <<'PINS'
 87e59f8c2b263ed8521521bc8e5983f2af9f43cf3acc3c2d3b02c37d5c5cb7d7 artifacts/scripts/r0013y/source.py.txt
-54e7c4bd32f23e422f897d615e1da50f3677737086ab6a54e7ffa535e10fe87e artifacts/scripts/r0013y/s12.py.txt
+8ee2251a5bebf1a1e7e53be50d1136a6b455fca643bb3c666f7c3bcc950a9785 artifacts/scripts/r0013y/s12.py.txt
 e00cd458899ac8aec648d684c1d64ca9049ffe48e9e948bd9e4f4055917e6930 artifacts/scripts/r0013x/metadata.py.txt
 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f artifacts/scripts/r0005/image-repo-lib.py.txt
 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75 artifacts/scripts/r0004/image_mode_scan.py.txt

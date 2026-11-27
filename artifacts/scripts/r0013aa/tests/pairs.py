@@ -60,11 +60,26 @@ with TemporaryDirectory() as tmp:
     baseline = dict(build_id="aa",release="6.12",modules={"p!/a.ko":mod},symvers={"map":{"x":2}},text=8564600,helpers=0)
     outline = dict(baseline,build_id="bb",text=8214312,helpers=20324)
     compare = api["compare"]
-    assert not compare(baseline,outline)[1]
+    assert not compare("Official",baseline,outline)[1]
     for changes in (dict(helpers=0),dict(helpers=20345),dict(text=None),dict(symvers={}),dict(modules={}),
                     dict(modules={"p!/a.ko":dict(mod,signed=False)})):
-        assert compare(baseline,dict(outline,**changes))[1]
-    assert compare(dict(baseline,helpers=None),outline)[1]
+        assert compare("Official",baseline,dict(outline,**changes))[1]
+    assert compare("Official",dict(baseline,helpers=None),outline)[1]
+    for n in (20304,20344):
+        assert not compare("Official",baseline,dict(outline,helpers=n))[1]
+    assert compare("Official",baseline,dict(outline,helpers=20303))[1]
+    for n in (10000,20303,26020):
+        assert not compare("Custom",baseline,dict(outline,helpers=n))[1]
+    for changes in (dict(helpers=9999),dict(helpers=None),dict(text=None),
+                    dict(text=baseline["text"]),dict(text=baseline["text"]+1)):
+        assert compare("Custom",baseline,dict(outline,**changes))[1]
+    for lane in ("Official","Custom"):
+        assert compare(lane,dict(baseline,helpers=1),outline)[1]
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        api["report_k1_match"](dict(outline,build_id=api["K1_BUILD_ID"]))
+        api["report_k1_match"](None)
+    assert "S12_K1_MATCH IDENTICAL Official" in buf.getvalue() and "S12_K1_MATCH UNAVAILABLE Official" in buf.getvalue()
     repro = api["repro"]
     assert repro(baseline,baseline)[0]=="IDENTICAL"
     assert repro(baseline,dict(baseline,modules={ }))[0]=="DIFFERENT"
@@ -76,7 +91,9 @@ with TemporaryDirectory() as tmp:
             raise ValueError("historical inputs unavailable")
         if qb=="37777264":
             return dict(baseline,text=33)
-        return outline if qb in ids[1::2] else baseline
+        if qb == ids[3]:
+            return dict(outline,helpers=26020)
+        return outline if qb == ids[1] else baseline
     def invoke(args,**changes):
         buf=io.StringIO()
         run_dir = work.with_name("pm0013y-s12."+str(len(list(work.parent.iterdir()))))
@@ -88,6 +105,8 @@ with TemporaryDirectory() as tmp:
     rc,out=invoke(explicit)
     assert not rc and "S12_REPRO Official UNAVAILABLE" in out and "S12_REPRO Custom DIFFERENT" in out
     assert "helpers=0/20324" in out and "delta=-350288" in out and "S12 PASS" in out
+    assert out.count("S12_K1_MATCH") == 1 and "S12_K1_MATCH DIFFERENT Official" in out
+    assert "S12_CUSTOM_HELPERS 26020 (K1 Official MLGO 20,324; K3 MLGO-off 26,020) perf_text_delta_bytes=-350288" in out
     seen.clear()
     rc,out=invoke([explicit[0].replace(ids[0]+"="+urls[ids[0]],"38888888"),explicit[1]])
     assert rc and all(q in seen for q in ids[1:]) and "S12 FAIL" in out
