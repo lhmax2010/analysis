@@ -5,6 +5,7 @@ import configparser
 import difflib
 from contextlib import ExitStack
 import fcntl
+import gzip
 import hashlib
 import json
 import marshal
@@ -13,6 +14,7 @@ from pathlib import Path
 import re
 import runpy
 import shlex
+import shutil
 import subprocess
 import struct
 import zlib
@@ -164,8 +166,9 @@ def retained_trees(work, zhash, reference, g):
                 key: [symbols.get(key), other.get(key)] for key in sorted(symbols.keys() | other.keys())
                 if symbols.get(key) != other.get(key)}
         rows.append(row)
-        if actual_z == zhash and actual_cfg == config_sha:
-            matches.append((not kbuild, tree))
+        output = tree.parts[-3:] == ("KANTSU2E", "image", "perf")
+        if actual_z == zhash and (output or actual_cfg == config_sha):
+            matches.append((not output, tree))
     data = json.dumps(rows, separators=(",", ":")).encode()
     (W/"tree-candidates.json").write_bytes(data)
     if len(rows) <= 70:
@@ -302,6 +305,168 @@ def retained_measurement(work, trees, payload, zbytes, file_sha):
     sizes.update(text="NOT_MEASURED_NO_ELF", helpers="NOT_MEASURED_NO_ELF")
     return identity, sizes, None
 
+K0_CONFIG = "2a31652557d89d100d3c1bc6b0116556e32a56f03b0145eba12af425c75379f3"
+RETAINED_SPEC = "0994c745b120f29218f96e6262b7af84f50d073a94716c4212263285a0448b23"
+DEFCONFIG = "linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig"
+
+
+def elf_id(elf):
+    with elf.open("rb") as f:
+        h = f.read(20)
+    need(h[:6] == b"\x7fELF\x01\x01" and h[16:20] == struct.pack("<HH", 2, 40),
+         "expected linked little-endian ARM32 kernel: " + str(elf))
+    values = set(re.findall(rb"Build ID:\s*([0-9a-f]+)", read("readelf", "-nW", elf)))
+    need(len(values) == 1, "missing or ambiguous ELF build ID: " + str(elf))
+    return values.pop().decode()
+
+
+def flatten_arm(raw, secs, payload):
+    # ARM Kbuild's flat Image uses initialized, allocated sections at their load addresses.
+    # Use the ELF32 program headers for the physical address, as objcopy -O binary does.
+    phoff, = struct.unpack_from("<I", raw, 28)
+    stride, count = struct.unpack_from("<HH", raw, 42)
+    loads = [struct.unpack_from("<8I", raw, phoff + stride*i) for i in range(count)]
+    parts = []
+    for name, (_, typ, flags, addr, offset, size, *_) in secs.items():
+        if not flags & 2 or typ == 8 or not size or name in (".comment", ".note"):
+            continue
+        addresses = {paddr + addr - vaddr for typ, off, vaddr, paddr, length, _, _, _ in loads
+                     if typ == 1 and off <= offset and offset + size <= off + length and addr - vaddr == offset - off}
+        need(len(addresses) == 1, "unmapped kernel section: "+name)
+        parts.append((addresses.pop(), offset, size))
+    parts.sort()
+    need(parts and max(a+n for a, _, n in parts)-parts[0][0] == len(payload), "ELF-derived Image length mismatch")
+    flat = bytearray(len(payload))
+    for a, offset, n in parts:
+        start = a - parts[0][0]
+        flat[start:start+n] = raw[offset:offset+n]
+    return flat
+
+
+def packaged_perf_sizes(elf, payload, zbytes):
+    identity = kernel_id(payload)
+    need(elf_id(elf) == identity, "perf output ELF and uImage build IDs differ: " + str(elf))
+    print("PERF_ELF_BUILD_ID", identity, elf, flush=True)
+    raw = elf.read_bytes()
+    secs = dict(runpy.run_path(str(W/"image_mode_scan.py.txt"))["secs_of"](raw))
+    need(".symtab" in secs and ".text" in secs and secs[".text"][1] == 1, "perf ELF needs .symtab and executable .text")
+    tools = ["llvm-objcopy", *(f"llvm-objcopy-{i}" for i in range(22,10,-1)),
+             "arm-linux-gnueabi-objcopy","arm-linux-gnueabihf-objcopy"]
+    objcopy = next((shutil.which(tool) for tool in tools if shutil.which(tool)), None)
+    if objcopy:
+        dest = W/"perf-derived.Image"
+        read(objcopy, "-O", "binary", "-R", ".comment", "-R", ".note", "-S", elf, dest)
+        flat = dest.read_bytes()
+    else:
+        flat = flatten_arm(raw, secs, payload)
+    need(flat == payload, "ELF-derived ARM Image differs from RPM uImage payload")
+    helpers = set(re.findall(rb"^(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$", read("nm","-n",elf), re.M))
+    actual = dict(text=secs[".text"][5], helpers=len(helpers), Image=len(flat), zImage=zbytes)
+    print("ELF_IMAGE_BYTE_MATCH", len(flat), sha(flat), "PERF", actual, flush=True)
+    need(all(abs(actual[k]-v) <= 0.001*v for k,v in K1.items()), "outside proposed 0.10% K1 tolerance")
+    return identity, actual
+
+
+def perf_config(work, tree, payload, identity, rpm, members, expected, spec, g):
+    need(expected == K0_CONFIG, "K0 reference config hash")
+    build = next(p for p in tree.parents if p.name == "BUILD" and p.parent.name == "rpmbuild")
+    candidates = sorted(build.rglob(".config")) + sorted(build.glob("**/include/config/auto.conf"))
+    for cfg in candidates:
+        if not cfg.is_file() or not cfg.resolve().is_relative_to(build):
+            continue
+        parent = cfg.parent if cfg.name == ".config" else cfg.parents[2]
+        elf, image = parent/"vmlinux", parent/"arch/arm/boot/Image"
+        exact = g.sha(cfg) == expected
+        if not exact and (cfg.name != ".config" or not (elf.is_file() or image.is_file())):
+            continue
+        if elf.is_file():
+            with elf.open("rb") as fp:
+                hdr = fp.read(20)
+            if hdr[:6] != b"\x7fELF\x01\x01" or hdr[16:20] != struct.pack("<HH", 2, 40):
+                continue
+            if identity.encode() not in re.findall(rb"Build ID:\s*([0-9a-f]+)", read("readelf","-nW",elf)):
+                continue
+        if image.is_file() and g.sha(image) != sha(payload):
+            continue
+        need(exact, "effective .config conflicts with K0 beside matching perf artifact: "+str(cfg))
+        return dict(method="BUILD_CONFIG_SHA256", source=str(cfg), effective_sha256=expected,
+                    artifact_linked_tree=str(parent) if elf.is_file() or image.is_file() else None)
+    for name in sorted(members):
+        if not re.fullmatch(r"/(?:perf/(?:\.config|config(?:[-.][\w.-]+)?)|boot/config-[\w.-]*perf[\w.-]*)", name):
+            continue
+        with subprocess.Popen(["rpm2cpio", rpm],stdout=subprocess.PIPE) as proc:
+            data = subprocess.check_output(["cpio","-i","--quiet","--to-stdout","."+name],stdin=proc.stdout)
+            proc.stdout.close()
+            need(proc.wait() == 0 and sha(data) == members[name], "RPM config extraction/digest "+name)
+        if name.endswith(".gz"):
+            data = gzip.decompress(data)
+        need(sha(data) == expected, "shipped perf config conflicts with K0: "+name)
+        return dict(method="RPM_CONFIG_SHA256",source=str(rpm)+"!"+name,effective_sha256=expected)
+    for source, binary in [(tree/"vmlinux", None), ("uImage payload", payload)]:
+        if binary is None:
+            binary = source.read_bytes()
+        marker = b"IKCFG_ST"
+        pos = binary.find(marker+b"\x1f\x8b")
+        if pos >= 0:
+            decoder = zlib.decompressobj(31)
+            data = decoder.decompress(binary[pos+len(marker):], 4<<20)
+            need(decoder.eof and decoder.unused_data.startswith(b"IKCFG_ED") and sha(data) == expected,
+                 "embedded perf config conflicts with K0 or is truncated")
+            return dict(method="IKCONFIG_SHA256",source=str(source),effective_sha256=expected)
+    config = work/"vdlinux"/DEFCONFIG
+    need(sha(spec) == RETAINED_SPEC and g.sha(config) == g.CONFIG_SHA, "spec/defconfig input preflight")
+    return dict(method="SPEC_PREFLIGHT_IDENTICAL_DEFCONFIG",spec_sha256=sha(spec),source=DEFCONFIG,
+                defconfig_sha256=g.CONFIG_SHA,effective_sha256=None)
+
+
+def perf_target_row(row, linked_prefix=None):
+    where, driver, _, line = row
+    if "clang" not in driver or "SERET-UL" in where:
+        return False
+    words = shlex.split(line)
+    if "-D__KERNEL__" not in words or "-o" not in words[:-1]:
+        return False
+    obj = words[words.index("-o")+1]
+    if re.search(r"(?:^|/)(?:tools|scripts|vdso|boot/compressed)/", obj):
+        return False
+    return obj.endswith(".o") and (re.search(r"/KANTSU2E/(?:build/)?perf(?:/|$)", where, re.I)
+                                   or where.startswith("log [perf] ") or (linked_prefix and where.startswith(linked_prefix)))
+
+
+def perf_log_rows(log, inspect):
+    # Nested make directories can change between compilation and the packaging copy.
+    # Keep a stack and the actual BUILD.sh phase; reset at each new flavour invocation.
+    stack, phase = [], ""
+    with log.open(errors="replace") as stream:
+        for number, line in enumerate(stream, 1):
+            line = re.sub(r"^\s*\[\s*\d+s\]\s*", "", line).strip()
+            if "./BUILD.sh " in line and line.startswith("+"):
+                try:
+                    args = shlex.split(line.partition("./BUILD.sh ")[2])
+                except ValueError:
+                    args = []
+                phase = " ".join(args[:2]).lower() if len(args) >= 2 else ""
+                stack.clear()
+            if re.match(r"^(?:\+\s*)?(?:\S*/)?(?:make|gmake|cp)\s", line):
+                selected = re.search(r"(?:^|[ /])KANTSU2E_(perf|debug|release)_defconfig(?:\s|$)",line)
+                if selected:
+                    phase = "kantsu2e "+selected[1]
+            m = re.search(r"(Entering|Leaving) directory ['`](.+?)'", line)
+            if m:
+                if m[1] == "Entering":
+                    stack.append(m[2])
+                elif m[2] in stack:
+                    del stack[len(stack)-1-stack[::-1].index(m[2]):]
+                continue
+            directory = next((p for p in reversed(stack) if re.search(r"/KANTSU2E/(?:debug|release|perf)(?:/|$)|/SERET-UL/",p,re.I)), "")
+            perf = (bool(re.search(r"/KANTSU2E/perf(?:/|$)", directory,re.I)) if directory
+                    else phase == "kantsu2e perf")
+            context = directory or (stack[-1] if stack else "")
+            tag = "[perf] " if perf and "SERET-UL" not in context else ""
+            if "-c" in line:
+                inspect(line, f"log {tag}{context} line {number}")
+
+
 def build():
     spec=staged(show_diff=True)
     g=SimpleNamespace(**runpy.run_path(str(W/"gbs-mlgo-t7.py.txt")))
@@ -370,7 +535,15 @@ def post_build(work, spec, g, cmd):
     goodcfg=g.sha(T/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K0/generated.config")
     if cmd is None:
         trees = retained_trees(work, zhash, T/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K0/generated.config", g)
-        identity, actual, origin = retained_measurement(work, trees, payload, zbytes, g.sha)
+        output_tree = next((t for t in trees if t.parts[-3:] == ("KANTSU2E","image","perf")), None)
+        if output_tree:
+            elf = output_tree/"vmlinux"
+            identity, actual = packaged_perf_sizes(elf, payload, zbytes)
+            origin = str(elf)
+            config_proof = perf_config(work, output_tree, payload, identity, rpm, members, goodcfg, spec, g)
+            print("PERF_CONFIG_PROOF", json.dumps(config_proof), flush=True)
+        else:
+            identity, actual, origin = retained_measurement(work, trees, payload, zbytes, g.sha)
         print("VERIFY_PERF_ID", identity, "ELF_SOURCE", origin or "NO_MATCHING_ELF", flush=True)
     else:
         tree,identity=perf_tree(root,zhash,goodcfg,payload,g)
@@ -394,17 +567,31 @@ def post_build(work, spec, g, cmd):
             if "-c" not in argv or not any(x.endswith((".c",".S",".s")) for x in argv):continue
             gcc="gcc" in driver
             if gcc and "-moutline" in argv:raise ValueError("GCC received -moutline: "+where)
-            evidence.append((where,driver,"-moutline" in argv,line.strip()));return
+            on = "-moutline" in argv
+            if cmd is None and on and "-mno-outline" in argv:
+                on = argv[::-1].index("-moutline") < argv[::-1].index("-mno-outline")
+            evidence.append((where,driver,on,line.strip()));return
     for p in root.glob("**/rpmbuild/BUILD/**/.*.cmd"):
         with p.open(errors="replace") as f:inspect(f.readline(),str(p.relative_to(root)))
     context=""
-    with (work/"gbs.log").open(errors="replace") as f:
-        for line in f:
-            if "Entering directory " in line:context=line.strip()
-            inspect(re.sub(r"^\[\s*\d+s\]\s*","",line),"log "+context)
+    if cmd is None and output_tree:
+        perf_log_rows(work/"gbs.log", inspect)
+    else:
+        with (work/"gbs.log").open(errors="replace") as f:
+            for line in f:
+                if "Entering directory " in line:context=line.strip()
+                inspect(re.sub(r"^\[\s*\d+s\]\s*","",line),"log "+context)
     (W/"argv.json").write_text(json.dumps(evidence))
     need(any("SERET-UL" in w and "gcc" in d for w,d,on,_ in evidence),"SERET-UL GCC argv unavailable")
-    if cmd is None:
+    if cmd is None and output_tree:
+        tree = output_tree
+        linked_tree = config_proof.get("artifact_linked_tree")
+        prefix = str(Path(linked_tree).relative_to(root)) + "/" if linked_tree else None
+        perfrows = [r for r in evidence if perf_target_row(r, prefix)]
+        print("PERF_ARGV_COUNTS", len(perfrows), "with_outline", sum(r[2] for r in perfrows), flush=True)
+        need({"-DMODULE" in shlex.split(r[3]) for r in perfrows} == {True,False}
+             and all(r[2] for r in perfrows), "perf-scoped kernel/module Clang argv unavailable or missing -moutline")
+    elif cmd is None:
         for tree in trees:
             perfrows=[r for r in evidence if r[0].startswith(str(tree.relative_to(root))+"/") and not re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",r[0])]
             clangrows = [r for r in perfrows if "clang" in r[1]]
@@ -422,6 +609,8 @@ def post_build(work, spec, g, cmd):
         if "/kernel/" not in w and "/drivers/" not in w and "/mm/" not in w:continue
         need(on,"target Clang omitted -moutline: "+w)
         families[w.split("/drivers/")[0].split("/kernel/")[0].split("/mm/")[0]]=True
+    if cmd is None and output_tree:
+        families[str(output_tree.relative_to(root))] = True
     need(families and any("clang" in d and on and "-DMODULE" in shlex.split(l) for w,d,on,l in perfrows),"missing module argv")
     report={"status":"PASS","static":os.environ["PM_STATIC_SHA"],"script":sha(Path(__file__).read_bytes()),"spec":sha(spec),"rpm":g.sha(rpm),"sizes":actual,"observed_build_dirs":sorted(families),"argv":g.sha(W/"argv.json"),"command":cmd}
     report.update(source_workdir=str(work), verification="retained" if cmd is None else "fresh",
@@ -429,6 +618,9 @@ def post_build(work, spec, g, cmd):
                   rpm_path=str(rpm), config_sha256=goodcfg)
     if cmd is None:
         report.update(elf_source=origin, elf_build_id=identity if origin else None, image_build_id=identity, tree_candidates_sha256=g.sha(W/"tree-candidates.json"))
+    if cmd is None and output_tree:
+        report.update(config_proof=config_proof, config_sha256=config_proof["effective_sha256"],
+                      k0_config_sha256=goodcfg, elf_image_sha256=sha(payload), elf_sha256=g.sha(elf))
     print("ARGV_PASS", "SERET_UL_GCC", sum("SERET-UL" in w and "gcc" in d for w,d,on,l in evidence),
           "PERF_CLANG", sum("clang" in d and on for w,d,on,l in perfrows),
           "PERF_MODULE_CLANG", sum("clang" in d and on and "-DMODULE" in shlex.split(l)
