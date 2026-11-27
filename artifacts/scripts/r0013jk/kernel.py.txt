@@ -26,7 +26,7 @@ SOURCE="packaging/tztv-kernel.spec"
 DEPOT="//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/"+SOURCE
 CLIENT="DEV-IPTV-VC_TOOLCHAIN"
 TITLE="[TEST ONLY - DO NOT SUBMIT] kernel: clang-only -moutline for KantSU2E perf (LLVM adaptation measurement)"
-MARK=b'    env $KERNEL_TOOLCHAIN_ENV ./BUILD.sh'
+MARK=b'\tenv $KERNEL_TOOLCHAIN_ENV ./BUILD.sh'
 FLAGS=b"""KCFLAGS="${KCFLAGS:+$KCFLAGS }"'$(if $(filter clang clang-%% %%-clang,$(notdir $(lastword $(CC)))),-moutline)'"""
 BUILD_CONF="98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"
 K1={"text":8214312,"helpers":20324,"Image":10996388,"zImage":5449312}
@@ -35,10 +35,17 @@ def need(v,msg):
     if not v:raise ValueError(msg)
 def sha(data):return hashlib.sha256(data).hexdigest()
 def read(*args):return subprocess.check_output(args,stderr=subprocess.PIPE)
-def staged():
+def staged(show_diff=False):
     raw=(OLD/"tztv-kernel.spec.before-trace").read_bytes()
-    need(sha(raw)==ORIGINAL and raw.count(MARK)==1,"spec pin/anchor")
-    return raw.replace(MARK,MARK.replace(b"./BUILD.sh",FLAGS+b" ./BUILD.sh"))
+    need(sha(raw)==ORIGINAL, "unexpected source spec SHA-256: "+sha(raw))
+    count=raw.count(MARK)
+    need(count==1, f"expected one TAB-prefixed kernel BUILD.sh anchor, found {count}")
+    patched=raw.replace(MARK,MARK.replace(b"./BUILD.sh",FLAGS+b" ./BUILD.sh"))
+    if show_diff:
+        diff=difflib.diff_bytes(difflib.unified_diff, raw.splitlines(True), patched.splitlines(True),
+                                b"a/"+SOURCE.encode(), b"b/"+SOURCE.encode(), n=0)
+        print(b"".join(diff).decode(), end="", flush=True)
+    return patched
 def receipt(name,basename,prefix):
     p=Path(os.environ[name]).resolve(strict=True)
     need(p.name==basename and p.parent.parent==T and p.parent.name.startswith(prefix),"receipt location "+name)
@@ -93,6 +100,7 @@ def matched_elf(root,payload):
             if struct.pack("<III",4,len(digest),3)+b"GNU\x00"+digest in payload:return elf
     raise ValueError("retained same-build-ID perf vmlinux required")
 def build():
+    spec=staged(show_diff=True)
     g=SimpleNamespace(**runpy.run_path(str(W/"gbs-mlgo-t7.py.txt")))
     select=runpy.run_path(str(W/"kernel-spec.py.txt"))
     need(sys.stdin.isatty(),"build requires attended tty")
@@ -117,7 +125,7 @@ def build():
         conf,=(D/"workspace/qb-evidence").glob("37777148-*/published-build.conf")
         need(g.sha(conf)==BUILD_CONF,"published build.conf")
         src=select["reuse"](W,OLD,g)
-        (src/SOURCE).write_bytes(staged());select["commit_lane"](src,"clean-outline")
+        (src/SOURCE).write_bytes(spec);select["commit_lane"](src,"clean-outline")
         cpus=",".join(map(str,sorted(os.sched_getaffinity(0))[:6]))
         cmd=["taskset","-c",cpus,"gbs","-c",str(W/"gbs.conf"),"build","-A","armv7l","-B",str(root),"-D",str(conf),"--threads","1","--packaging-dir","packaging","--spec","tztv-kernel.spec"]
         print("GBS_START",shlex.join(cmd),flush=True)
@@ -170,7 +178,7 @@ def build():
             need(on,"target Clang omitted -moutline: "+w)
             families[w.split("/drivers/")[0].split("/kernel/")[0].split("/mm/")[0]]=True
         need(families and any("clang" in d and on and "-DMODULE" in l for w,d,on,l in evidence),"missing module argv")
-        report={"status":"PASS","static":os.environ["PM_STATIC_SHA"],"script":sha(Path(__file__).read_bytes()),"spec":sha(staged()),"rpm":g.sha(rpm),"sizes":actual,"observed_build_dirs":sorted(families),"argv":g.sha(W/"argv.json"),"command":cmd}
+        report={"status":"PASS","static":os.environ["PM_STATIC_SHA"],"script":sha(Path(__file__).read_bytes()),"spec":sha(spec),"rpm":g.sha(rpm),"sizes":actual,"observed_build_dirs":sorted(families),"argv":g.sha(W/"argv.json"),"command":cmd}
         (W/"build.json").write_text(json.dumps(report,indent=2))
         print("BUILD_RECEIPT",W/"build.json",g.sha(W/"build.json"))
 def p4(*args):
@@ -184,6 +192,13 @@ def p4(*args):
     need(not rc and all(r.get("code")!="error" for r in records),str(records)[:800])
     return records
 def shelve():
+    try:
+        ticket=subprocess.run(["p4","-c",CLIENT,"login","-s"], stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
+    except OSError as exc:
+        raise SystemExit(f"P4_LOGIN_CHECK_FAILED: {exc}")
+    if ticket.returncode:
+        raise SystemExit(f"P4_LOGIN_REQUIRED: {ticket.stdout.strip()}\nRun p4 login on the native host, then retry shelve.")
     r=receipt("PM_BUILD","build.json","pm0013jk-build.")
     data=staged()
     need(r["status"]=="PASS" and r["static"]==os.environ["PM_STATIC_SHA"] and r["spec"]==sha(data) and r["script"] in (sha(Path(__file__).read_bytes()),"20deebd23c7cec23238d4801a94d1512168a612934bc94bfea9b6cc77164c342"),"clean build receipt")
