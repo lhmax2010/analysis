@@ -5,7 +5,7 @@ pin=${1:?full commit}
 shift
 mode=${1:?source or s12}
 shift
-case "$mode" in source) [[ $# == 0 ]] ;; s12) [[ $# == 2 || ( $# == 1 && $1 == --retain-baselines ) ]] ;; *) exit 2 ;; esac
+case "$mode" in source) [[ $# == 0 ]] ;; s12) [[ $# -gt 0 ]] ;; *) exit 2 ;; esac
 t=/home1/chengkai/vd-tree/workspace/temp
 d=$(mktemp -d "$t/pm0013y-$mode.XXXXXX")
 cd "$d"
@@ -16,7 +16,7 @@ while read -r sum path; do
     printf '%s  %s\n' "$sum" "${path##*/}" | sha256sum -c -
 done <<'PINS'
 87e59f8c2b263ed8521521bc8e5983f2af9f43cf3acc3c2d3b02c37d5c5cb7d7 artifacts/scripts/r0013y/source.py.txt
-3b413ea6c0e3e98232f64ea0574ce9e8418f3840075357a8bb7529aeb6a1e09d artifacts/scripts/r0013y/s12.py.txt
+54e7c4bd32f23e422f897d615e1da50f3677737086ab6a54e7ffa535e10fe87e artifacts/scripts/r0013y/s12.py.txt
 e00cd458899ac8aec648d684c1d64ca9049ffe48e9e948bd9e4f4055917e6930 artifacts/scripts/r0013x/metadata.py.txt
 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f artifacts/scripts/r0005/image-repo-lib.py.txt
 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75 artifacts/scripts/r0004/image_mode_scan.py.txt

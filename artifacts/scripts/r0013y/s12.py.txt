@@ -5,6 +5,7 @@ import base64
 import zlib
 import hashlib
 import json
+import mmap
 import os
 from pathlib import Path
 import re
@@ -20,8 +21,15 @@ HERE = Path(__file__).resolve().parent
 W = Path.cwd()
 VD = Path("/home1/chengkai/vd-tree")
 WS = VD/"workspace"
-BASES = {"37777148":("20261113.1","168.219.236.43:81/PRV/builds/b567/19437567","20261125.1"),
+HISTORICAL = {"37777148":("20261113.1","168.219.236.43:81/PRV/builds/b567/19437567","20261125.1"),
          "37777264":("20261118.1","168.219.236.55:81/PRV/builds/b655/19437655","20261125.2")}
+LANE_BASE = {"Official": "20261113.1", "Custom": "20261118.1"}
+HISTORY = {"Official": "37777148", "Custom": "37777264"}
+SUBMITTED = {"37836579": ("Official", "ref"), "37836693": ("Official", "candidate"),
+             "37836654": ("Custom", "ref"), "37836727": ("Custom", "candidate")}
+OPERAND = r"[0-9]{8}(?:=https?://[^=\s]+)?"
+ERRORS = (OSError, ValueError, ET.ParseError, KeyError, IndexError, struct.error, subprocess.SubprocessError)
+K1_HELPERS = 20324
 meta = runpy.run_path(str(HERE/"metadata.py.txt"))
 lib = meta["lib"]
 elf_sections = runpy.run_path(str(HERE/"image_mode_scan.py.txt"))["secs_of"]
@@ -36,28 +44,26 @@ def need(cond,why):
         raise ValueError(why)
 
 
+def known_product(qb):
+    urls = set()
+    root = WS/"qb-evidence"
+    for filename, field, id_field in (("identity.json","product","qb_id_operator_supplied"), ("s12/inputs.json","product","qb")):
+        for path in root.glob(qb+"-*/"+filename):
+            entry = json.loads(path.read_bytes())
+            need(str(entry[id_field])==qb,"retained QB identity mismatch")
+            urls.add(entry[field].rstrip("/")+"/")
+    for path in (VD/"config").glob("*_qb"+qb+".conf"):
+        cfg = configparser.RawConfigParser()
+        cfg.read(path)
+        urls.add(cfg["repo.product_NikeM"]["url"].rstrip("/")+"/")
+    need(len(urls)<=1, "conflicting local publications for QB "+qb)
+    return next(iter(urls),None)
+
+
 def resolve(arg):
-    if arg in BASES:
-        _,build,stamp=BASES[arg]
+    if arg in HISTORICAL:
+        _,build,stamp=HISTORICAL[arg]
         url=f"http://{lib['HOST']}/priv/{build}/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_{stamp}/"
-    elif re.fullmatch(r"[0-9]+",arg):
-        caps=list((WS/"qb-evidence").glob(arg+"-*/identity.json"))
-        if not caps:
-            saved=list((WS/"qb-evidence").glob(arg+"-*/s12/inputs.json"))
-            if len(saved)==1:
-                record=json.loads(saved[0].read_bytes())
-                need(record["qb"]==arg,"S12 capture QB identity mismatch")
-                verify_url(record["product"])
-                return record["product"]
-        if len(caps)==1:
-            cap=json.loads(caps[0].read_bytes())
-            need(cap["qb_id_operator_supplied"]==arg,"QB identity")
-            url=cap["product"]
-        else:
-            configs=list((VD/"config").glob("*_qb"+arg+".conf"))
-            need(len(configs)==1,"supply the Product artifacts URL for QB "+arg)
-            cfg=configparser.RawConfigParser();cfg.read(configs)
-            url=cfg["repo.product_NikeM"]["url"]
     else:
         url=arg
     url=url.rstrip("/")+"/"
@@ -65,26 +71,34 @@ def resolve(arg):
     return url
 
 
-def candidate(arg):
-    if re.fullmatch(r"\d{8}",arg):
-        qb,url=arg,resolve(arg)
-    elif re.match(r"^\d{8}=",arg):
-        qb,raw=arg.split("=",1)
-        url=resolve(raw)
-    else:
-        url=resolve(arg)
-        matches=set()
-        for p in (WS/"qb-evidence").glob("????????-"+verify_url(url)):
-            matches.add(p.name[:8])
-        for p in (VD/"config").glob("*_qb????????.conf"):
-            cfg=configparser.RawConfigParser()
-            cfg.read(p)
-            if cfg.get("repo.product_NikeM","url",fallback="").rstrip("/")==url.rstrip("/"):
-                matches.add(p.stem[-8:])
-        need(len(matches)==1,"URL has no unique QB mapping; supply QB=Product-URL")
-        qb=matches.pop()
-    need(qb not in {*BASES,"37736448","37736427"} and url not in {resolve(b) for b in BASES},"candidate must be a new outline QB")
-    return qb,url
+def operand(arg):
+    need(re.fullmatch(OPERAND, arg), "expected QB or QB=Product-URL")
+    qb, _, explicit = arg.partition("=")
+    need(qb not in {*HISTORICAL, "37736448", "37736427"}, "historical or retired primary QB " + qb)
+    known = known_product(qb)
+    need(explicit or known, "supply "+qb+"=Product-URL")
+    url = resolve(explicit or known)
+    need(known is None or url == known, "explicit URL conflicts with retained QB or operator config for "+qb)
+    need(url not in {resolve(b) for b in HISTORICAL}, "historical Product supplied as primary")
+    return qb, url
+
+
+def pairs(args):
+    result = {}
+    ids = set()
+    for arg in args:
+        lane, _, spec = arg.partition(":")
+        need(lane in LANE_BASE and lane not in result, "expected one pair for each lane")
+        match = re.fullmatch(f"({OPERAND})=({OPERAND})", spec)
+        need(match, "expected Lane:REF=CAND; either QB may include =Product-URL")
+        result[lane] = match.groups()
+        for role, value in zip(("ref", "candidate"), match.groups()):
+            qb = value.split("=", 1)[0]
+            need(qb not in ids and qb not in {*HISTORICAL, "37736448", "37736427"}, "duplicate or retired QB " + qb)
+            need(SUBMITTED.get(qb, (lane, role)) == (lane, role), "submitted QB in wrong lane or role: " + qb)
+            ids.add(qb)
+    need(result.keys() == LANE_BASE.keys(), "both Official and Custom pairs required")
+    return result
 
 
 def selected(name,path):
@@ -207,15 +221,35 @@ def symbols(elf,bid):
     if h[:6]!=b"\x7fELF\x01\x01" or h[16:20]!=b"\x02\x00\x28\x00":return None
     ids=re.findall(r"Build ID:\s*([0-9a-f]+)",subprocess.check_output(["readelf","-nW",elf],text=True))
     if set(ids)!={bid}:return None
-    text=subprocess.check_output(["nm","-n","--defined-only",elf],text=True,stderr=subprocess.DEVNULL)
-    if not re.search(r"^\w+\s+[tT]\s+_stext$",text,re.M):return None
+    with elf.open("rb") as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as data:
+        sections = dict(elf_sections(data) or [])
+    size = sections[".text"][5]
+    need(size > 0, "empty .text in matched kernel ELF")
+    text = subprocess.check_output(["nm", "-n", "--defined-only", elf], text=True, stderr=subprocess.DEVNULL)
+    return size, helper_count(text)
+
+
+def helper_count(text):
+    # A global-only symbol list cannot establish that no local helpers exist.
+    if not re.search(r"^\w+\s+[tT]\s+_stext$", text, re.M) or not re.search(r"^\w+\s+t\s+[a-zA-Z_]", text, re.M):
+        return None
     return len(set(HELPER.findall(text)))
 
 
 def retained_inputs(qb,url,base_id,work):
     cache_module=runpy.run_path(str(HERE/"capture.py.txt"))
     store=cache_module["Capture"](WS/"qb-evidence",qb,url,work)
-    store.publication(lib["PREFIX"]+BASES[base_id][0])
+    if base_id in HISTORICAL:
+        stamp = HISTORICAL[base_id][0]
+    elif base_id is None:
+        raw = store.data("build.xml", url+"builddata/build.xml", 2<<20, "build.xml")
+        published = ET.fromstring(raw).findtext("base_repo", "").rstrip("/")
+        stamps = [s for s in LANE_BASE.values() if published == lib["PREFIX"] + s]
+        need(len(stamps) == 1, "unsupported published LLVM Base")
+        stamp = stamps[0]
+    else:
+        stamp = LANE_BASE[base_id]
+    store.publication(lib["PREFIX"]+stamp)
     rows,owners=inventory(url,store.metadata)
     core={"tztv-kernel","tztv-kernel-devel","tztv-kernel-perf","tztv-kernel-release"}
     need(core<=rows.keys(),"missing kernel RPMs: "+", ".join(sorted(core-rows.keys())))
@@ -228,9 +262,11 @@ def retained_inputs(qb,url,base_id,work):
     return rows,owners,paths
 
 
-def read_snapshot(label,url,base_id,work,qb):
-    work.mkdir()
-    rows,owners,paths=retained_inputs(qb,url,base_id,work)
+def read_snapshot(label,url,base_id,work,qb,inputs=None):
+    if inputs is None:
+        work.mkdir()
+        inputs = retained_inputs(qb,url,base_id,work)
+    rows,owners,paths=inputs
     mod={};boot={};elfs=[];symvers={}; maps=[]
     for name,(h,link) in sorted(rows.items()):
         path=paths[name]
@@ -257,30 +293,34 @@ def read_snapshot(label,url,base_id,work,qb):
             else:elfs.append(f)
     payload,bid=raw_kernel(*(boot[n].read_bytes() for n in ("/perf/uImage","/perf/zImage")))
     # Local ELFs can supply symbols only when their own GNU Build ID equals the published boot payload.
-    supplied=os.environ.get("S12_"+label.upper()+"_ELF")
+    supplied = os.environ.get("S12_"+qb+"_ELF") or os.environ.get("S12_"+label.upper()+"_ELF")
     if supplied:
         local=Path(supplied).resolve(strict=True)
         need(local.is_relative_to(WS.resolve()),"ELF must be under workspace")
         elfs.append(local)
-    if label=="Official":
-        elfs.extend((WS/"temp/pm0013jk-build.jEMVH7/GBS-ROOT/local/BUILD-ROOTS").glob(
-            "*/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux"))
+    root = WS/"temp"
+    lane = base_id.lower()
+    trees = [root/"pm0005-gbs-kernel.mtob625f"/lane/"GBS-ROOT/local/BUILD-ROOTS"]
+    if base_id == "Official":
+        trees.append(root/"pm0013jk-build.jEMVH7/GBS-ROOT/local/BUILD-ROOTS")
+    for tree in trees:
+        elfs.extend(tree.glob("*/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux"))
     symbol_sources={str(e):n for e in set(elfs) if (n:=symbols(e,bid)) is not None}
-    counts=set(symbol_sources.values())
+    sizes={size for size,count in symbol_sources.values()}
+    counts={count for size,count in symbol_sources.values() if count is not None}
     for m in maps:
-        t=m.read_text()
-        need(re.search(r"^\w+\s+[Tt]\s+_stext$",t,re.M),"invalid perf System.map")
-        count=len(set(HELPER.findall(t)))
-        symbol_sources[str(m)]=count
-        counts.add(count)
-    need(len(counts)<=1,"symbol sources disagree")
+        count = helper_count(m.read_text())
+        if count is not None:
+            symbol_sources[str(m)] = (None, count)
+            counts.add(count)
+    need(len(counts)<=1 and len(sizes)<=1,"symbol sources disagree")
     release={v["release"] for v in mod.values() if v}
-    if label in BASES:
+    if label.endswith("-ref") or qb in HISTORICAL:
         need(sum(k.startswith("tztv-kernel-perf!") for k in mod)==115,"baseline perf module coverage differs from 115")
     need(mod and len(release)==1,"empty or mixed perf kernel release")
     banners=re.findall(rb"Linux version ([^ \0\n]+) ",payload)
     need(release=={v.decode() for v in banners},"kernel banner differs from module release")
-    result=dict(url=url,symbol_sources=symbol_sources,build_id=bid,release=release.pop(),helpers=next(iter(counts),None),modules=mod,symvers=symvers,rpms=rows)
+    result=dict(text=next(iter(sizes),None),url=url,symbol_sources=symbol_sources,build_id=bid,release=release.pop(),helpers=next(iter(counts),None),modules=mod,symvers=symvers,rpms=rows)
     (work/"snapshot.json").write_text(json.dumps(result,sort_keys=True))
     print("S12_SNAPSHOT",label,"build_id",bid,"modules",len(mod),"symvers",len(symvers),"helpers",result["helpers"])
     return result
@@ -291,8 +331,12 @@ def compare(ref,test):
     if ref["build_id"]==test["build_id"]:reasons.append("unchanged kernel build ID")
     if ref["release"]!=test["release"]:reasons.append("kernel release changed")
     if ref["symvers"]!=test["symvers"]:reasons.append("Module.symvers availability or export CRCs changed")
-    if not test["helpers"] or ref["helpers"] is not None and test["helpers"]<=ref["helpers"]:
-        reasons.append("outlined-helper increase unproved")
+    if ref["helpers"] != 0:
+        reasons.append("no-outline reference helper count is missing or nonzero")
+    if test["helpers"] is None or abs(test["helpers"]-K1_HELPERS)*1000 > K1_HELPERS:
+        reasons.append("candidate helper count missing or outside K1 +/-0.10%")
+    if ref["text"] is None or test["text"] is None:
+        reasons.append("missing build-ID-matched PERF .text")
     for k in sorted(ref["modules"].keys()|test["modules"].keys()):
         a,b=ref["modules"].get(k),test["modules"].get(k)
         changed=["module set"] if not a or not b else [f for f in ("name","vermagic","signed","relocations") if a[f]!=b[f]]
@@ -302,40 +346,97 @@ def compare(ref,test):
     return rows,sorted(set(reasons))
 
 
+def repro(ref, old):
+    differences, missing = [], []
+    for key in ("text", "helpers"):
+        a, b = ref[key], old[key]
+        if a is None or b is None:
+            missing.append(f"{key} unavailable (current={a},historical={b})")
+        elif a != b:
+            differences.append(f"{key} current={a} historical={b}")
+    a, b = set(ref["modules"]), set(old["modules"])
+    if a != b:
+        differences.append(f"module set current-only={len(a-b)} historical-only={len(b-a)}")
+    status = "DIFFERENT" if differences else "UNAVAILABLE" if missing else "IDENTICAL"
+    return status, "; ".join(differences + missing) or ".text, helpers and module set match"
+
+
 def main():
-    parser=argparse.ArgumentParser()
-    parser.add_argument("--retain-baselines", action="store_true")
-    parser.add_argument("candidates", nargs="*")
-    args=parser.parse_args()
-    if len(args.candidates)!=(0 if args.retain_baselines else 2):
-        parser.error("use --retain-baselines alone, or supply Official and Custom candidate QBs")
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--retain", nargs="+", metavar="QB[=URL]")
+    group.add_argument("--retain-baselines", action="store_true")
+    parser.add_argument("pairs", nargs="*")
+    args = parser.parse_args()
     need(W.parent==WS/"temp" and W.name.startswith("pm0013y-s12."),"workspace required")
-    all_reasons=[]
-    for index,(baseline,lane) in enumerate(zip(BASES,("Official","Custom"))):
-        try:
-            ref_url=resolve(baseline)
-            if args.retain_baselines:
-                work=W/baseline
+    all_reasons = []
+    if args.retain or args.retain_baselines:
+        if args.pairs:
+            parser.error("retention mode accepts no comparison pairs")
+        for arg in args.retain or list(HISTORICAL):
+            try:
+                qb,url = (arg, resolve(arg)) if args.retain_baselines else operand(arg)
+                work = W/qb
+                work.mkdir(exist_ok=True)
+                base = qb if args.retain_baselines else SUBMITTED.get(qb, (None,None))[0]
+                retained_inputs(qb,url,base,work)
+            except ERRORS as exc:
+                all_reasons.append(arg.split("=")[0]+": "+str(exc)[:250])
+        print("S12_BASELINE_RETENTION" if args.retain_baselines else "S12_RETENTION",
+              "FAIL" if all_reasons else "COMPLETE", "; ".join(all_reasons))
+        return bool(all_reasons)
+    try:
+        plan = pairs(args.pairs)
+    except ValueError as exc:
+        parser.error(str(exc))
+    # Retain every available primary publication before spending time on ELF and historical checks.
+    urls = set()
+    captured = {}
+    failures = {lane: [] for lane in LANE_BASE}
+    for lane in LANE_BASE:
+        for role,arg in zip(("ref","candidate"),plan[lane]):
+            try:
+                qb,url = operand(arg)
+                need(url not in urls, "duplicate publication across primary QBs")
+                urls.add(url)
+                label = lane+"-ref" if role == "ref" else lane
+                work = W/label
                 work.mkdir()
-                retained_inputs(baseline,ref_url,baseline,work)
-                continue
-            arg=args.candidates[index]
-            qb,url=candidate(arg)
-            need(url!=ref_url,"candidate is its own baseline")
-            test=read_snapshot(lane,url,baseline,W/lane,qb)
-            ref=read_snapshot(baseline,ref_url,baseline,W/(baseline+"-ref"),baseline)
+                inputs = retained_inputs(qb,url,lane,work)
+                captured[lane,role] = (label,url,lane,work,qb,inputs)
+            except ERRORS as exc:
+                failures[lane].append(role+" "+arg.split("=")[0]+": "+str(exc)[:250])
+    for lane in LANE_BASE:
+        snapshots = {}
+        reasons = failures[lane]
+        ids = [a.split("=",1)[0] for a in plan[lane]]
+        for role in ("ref","candidate"):
+            if (lane,role) in captured:
+                try:
+                    snapshots[role] = read_snapshot(*captured[lane,role])
+                except ERRORS as exc:
+                    reasons.append(role+": "+str(exc)[:250])
+        metrics = ""
+        if len(snapshots)==2:
+            ref,test=snapshots["ref"],snapshots["candidate"]
             rows,reasons=compare(ref,test)
             (W/(lane+"-modules.json")).write_text(json.dumps(rows))
             for row in sorted(rows,key=lambda r:-abs(r["text_delta"] or 0))[:6]:
                 print("S12_TEXT",lane,row["module"],row["text_delta"])
-            print("S12_PAIR",lane,baseline,arg,"helpers",ref["helpers"],test["helpers"],"symvers",len(test["symvers"]),
-                  "PASS" if not reasons else "FAIL",reasons)
-            all_reasons.extend(lane+": "+r for r in reasons)
-        except (OSError,ValueError,ET.ParseError,KeyError,IndexError,struct.error,subprocess.SubprocessError) as exc:
-            all_reasons.append(lane+": "+str(exc)[:250])
-    if args.retain_baselines:
-        print("S12_BASELINE_RETENTION","FAIL" if all_reasons else "COMPLETE", "; ".join(all_reasons))
-        return bool(all_reasons)
+            delta = test["text"]-ref["text"] if None not in (ref["text"],test["text"]) else None
+            metrics = (f"helpers={ref['helpers']}/{test['helpers']} perf_text_bytes={ref['text']}/{test['text']} "
+                       f"delta={delta} anchors_K0_K1=8564600/8214312 modules={len(ref['modules'])}/{len(test['modules'])} "
+                       f"symvers_sources={len(ref['symvers'])}/{len(test['symvers'])}")
+        print("S12_PAIR",lane,*ids,"FAIL" if reasons else "PASS",metrics,"; ".join(reasons) or "all primary checks passed")
+        all_reasons.extend(lane+": "+r for r in reasons)
+        try:
+            need("ref" in snapshots,"same-day reference unavailable")
+            old = HISTORY[lane]
+            historical = read_snapshot(old,resolve(old),lane,W/old,old)
+            status, detail = repro(snapshots["ref"],historical)
+        except ERRORS as exc:
+            status, detail = "UNAVAILABLE", str(exc)[:250]
+        print("S12_REPRO",lane,status,"current",ids[0],"historical",HISTORY[lane],detail)
     data={p.stem:json.loads(p.read_bytes()) for p in W.glob("*-modules.json")}
     if data:
         raw=json.dumps(data,sort_keys=True,separators=(",",":")).encode()

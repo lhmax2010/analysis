@@ -1,0 +1,57 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu
+pin=95697996283f9cacde8d685800c8cbb37ab9cba0
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013z-launcher.XXXXXX")
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013y/read.sh.txt" -o "$d/run.sh"
+printf '%s  %s\n' 409dadca91376e4cad16581f708fdbc195250b2e6248df1da01219d007364435 "$d/run.sh" | sha256sum -c -
+bash "$d/run.sh" "$pin" s12 --retain-baselines
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013z-launcher.Q3Npdd/run.sh: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013y-s12.oWhw52
+source.py.txt: OK
+s12.py.txt: OK
+metadata.py.txt: OK
+image-repo-lib.py.txt: OK
+image_mode_scan.py.txt: OK
+kernel-size.py.txt: OK
+qb-retain.py.txt: OK
+product.py.txt: OK
+capture.py.txt: OK
+S12_RETAINED 37777148 /home1/chengkai/vd-tree/workspace/qb-evidence/37777148-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1 rpms 130 local 4 fetched 126 manifest_sha256 24efe90557f81836be57b06f052f3b5de6e13ad2c244a375eb9b3e7cdfe1b251
+S12_RETAINED 37777264 /home1/chengkai/vd-tree/workspace/qb-evidence/37777264-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.2 rpms 130 local 4 fetched 126 manifest_sha256 b6780cf0a5274e7bf51ff9ca09b130b8e23df9f9624848b093085a42af80b8d9
+S12_BASELINE_RETENTION COMPLETE
+chengkai@risc-v-Alienware-Aurora-R16:temp$ sha256sum /home1/chengkai/vd-tree/workspace/qb-evidence/37777148-*/published-build.conf 2>/dev/null | grep -q '^98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 ' && echo "BUILD_CONF OK" || { echo "BUILD_CONF MISSING in 37777148 - do not launch, send me this"; ls /home1/chengkai/vd-tree/workspace/qb-evidence/37777148-*/; }
+BUILD_CONF OK
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu
+pin=95697996283f9cacde8d685800c8cbb37ab9cba0
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013z-launcher.XXXXXX")
+PRODUCT_URL=${PRODUCT_URL:-http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/}
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013x/enumerate.sh.txt" -o "$d/run.sh"
+printf '%s  %s\n' 327c2d80ccfd9e972e1554cbde2dfec6393c402d0fb2e52813db5497f4a82ce7 "$d/run.sh" | sha256sum -c -
+bash "$d/run.sh" "$pin" "$PRODUCT_URL"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013z-launcher.tsgjra/run.sh: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5
+enumerate.py.txt: OK
+metadata.py.txt: OK
+image-repo-lib.py.txt: OK
+asm.py.txt: OK
+product.py.txt: OK
+qb-retain.py.txt: OK
+ENUM_INPUT fae92f998a51e8493e2ed452381aad73c2ce689e /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K4/gbs.conf 51ebc338914c983efbff4f2af90ceb33a34b5bc3acc8dc3171ab1308a48083fd {"repo.product_NikeM": "http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/", "repo.base_standard": "http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/"}
+ENUM_INPUT PRODUCT_SUBSTITUTED http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/ -> http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/
+ENUM_PROVIDER secureboot-signer secureboot-signer http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/
+ENUM_PROVIDER vd-kernel-dtb-devel vd-kernel-dtb-devel http://repos.vd.sec.samsung.net/priv/168.219.236.43:81/PRV/builds/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/
+ENUM_INPUT fae92f998a51e8493e2ed452381aad73c2ce689e 51ebc338914c983efbff4f2af90ceb33a34b5bc3acc8dc3171ab1308a48083fd 98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.stooH5/GBS-ROOT
+[sudo] password for chengkai:
+
+Below is the QB information, it's under running
+14427407:
+Official Model https://vdcosmos-hub.sec.samsung.net/build/37836579
+Customized Model https://vdcosmos-hub.sec.samsung.net/build/37836654
+14507546:
+Official Model https://vdcosmos-hub.sec.samsung.net/build/37836693
+Customized Model https://vdcosmos-hub.sec.samsung.net/build/37836727
