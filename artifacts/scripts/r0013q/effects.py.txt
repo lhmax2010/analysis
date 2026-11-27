@@ -507,15 +507,14 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
         evidence = helper_data()
         state=sum(r[-1]=="system state" for r in evidence.hazards)
         disposition=[]
+        classify = runpy.run_path(str(OUT/"board.py.txt"))["classify"]
         for ha,pc,op,arg,kind in evidence.hazards:
             if kind!="system state":continue
-            operand=re.sub(r"[#\s]","",arg.lower()).replace("cr","c")
-            benign=op=="mrc" and re.fullmatch(r"p15,0,(?:r(?:1[0-4]|[0-9])|ip|fp|sl|sb|lr),c13,c0,[34]",operand)
-            category="TPIDR read" if benign else "owner review"
+            category=classify(op,arg)
             disposition.append((ha,pc,op,arg,category,sorted({c["caller"] for c in evidence.helpers[int(ha,16)]["calls"]})))
         table(lane,"system-state",("helper","pc","op","operand","classification","direct_callers"),disposition)
-        review=sum(r[4]=="owner review" for r in disposition)
-        return ("REVIEW" if review or evidence.body_missing else "PASS",dict(system_state_instructions=state,tp_reads=state-review,owner_review=review,undecoded_helpers=evidence.body_missing))
+        review=sum(r[4] not in ("TPIDRURO read","TPIDRPRW read") for r in disposition)
+        return ("REVIEW" if review or evidence.body_missing else "PASS",dict(system_state_instructions=state,tp_reads=sum(r[4] in ("TPIDRURO read","TPIDRPRW read") for r in disposition),owner_review=review,undecoded_helpers=evidence.body_missing))
 
     def s12():
         trees = output_trees()

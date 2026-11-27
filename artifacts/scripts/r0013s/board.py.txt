@@ -1,0 +1,94 @@
+"""Evaluate the 0013s PM decision against the exact 00KP3P tables."""
+import csv
+import hashlib
+import io
+import json
+import re
+import tarfile
+from pathlib import Path
+
+STATIC = "57773c7c098a48e53f76e4f65d95288a5d1849c2b0d9eb39d5471b88bd481ec7"
+TABLES = "a55c079d449a4826ba6549a2204de5a56af31e6fb628ca4427233081e21d7500"
+COND = r"(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?"
+REG = r"(?:r(?:1[0-4]|[0-9])|sb|sl|fp|ip|sp|lr)"
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def classify(op, args):
+    op = op.strip().lower()
+    operands = re.sub(r"[#\s]", "", args.lower()).replace("cr", "c")
+    operands = re.sub(r"0x[0-9a-f]+", lambda m: str(int(m[0], 16)), operands)
+    if re.fullmatch("mrc" + COND, op):
+        match = re.fullmatch(r"p15,0," + REG + r",c13,c0,([34])", operands)
+        if match:
+            return {"3": "TPIDRURO read", "4": "TPIDRPRW read"}[match[1]]
+        if re.fullmatch(r"p15,[0-7]," + REG + r",c(?:1[0-5]|[0-9]),c(?:1[0-5]|[0-9]),[0-7]", operands):
+            return "CP15 register read"
+    if re.fullmatch("mrs" + COND, op) and re.fullmatch(REG + r",(?:cpsr|spsr|apsr(?:_nzcvq)?)", operands):
+        return "status register read"
+    return "owner review"
+
+
+def adjudicate(lane, rows, checks):
+    expected = {"K1": 119, "K3": 165}[lane]
+    if len(rows) != expected or len({row["pc"] for row in rows}) != expected:
+        raise ValueError(lane + " S11 row count or duplicate address")
+    normal = 0
+    residual = []
+    for row in rows:
+        category = classify(row["op"], row["operand"])
+        if row["op"] == "mrc" and category == "TPIDRURO read":
+            normal += 1
+        else:
+            residual.append(dict(row, disposition=category))
+    if normal != expected - 1 or len(residual) != 1:
+        raise ValueError(lane + " S11 published tally mismatch")
+    row = residual[0]
+    print("S11_REMAINING", lane, json.dumps(row), flush=True)
+    s2 = checks["S2"][1]
+    passed = (checks["S1"][1]["critical"] == 0 and
+              (s2["helper_chain_extra_save_lower_bound_bytes"], s2["stack_budget"]) == (8, 8192) and
+              checks["S4"][0] == checks["S9"][0] == "PASS" and
+              checks["S11"][1]["system_state_instructions"] == expected and
+              row["disposition"] != "owner review")
+    return {"ordinary_TPIDRURO": normal, "remaining": row, "PM_conditions_met": passed}
+
+
+def evaluate(work, out):
+    report = {"scope": "two TEST-ONLY KantSU2E perf -moutline QBs", "static_sha256": STATIC,
+              "tables_sha256": TABLES, "pairs": {}, "verdict": "HOLD", "flash_now": False,
+              "pre_flash_S12": "Compare shipped module sets, per-module sizes and relocation types "
+                               "against 37777148 (Official) and 37777264 (Custom); review deltas per lane."}
+    try:
+        source, tables = work / "effects.json", work / "side-effects.tar.gz"
+        if digest(source) != STATIC or digest(tables) != TABLES:
+            raise ValueError("00KP3P evidence SHA-256")
+        evidence = json.loads(source.read_bytes())
+        if evidence["gate"] is not False:
+            raise ValueError("00KP3P static verdict")
+        with tarfile.open(tables, "r|gz") as archive:
+            for member in archive:
+                match = re.fullmatch(r"(K[13])-system-state\.tsv", member.name)
+                if not match:
+                    continue
+                lane = match[1]
+                if lane in report["pairs"] or not member.isfile() or member.size > 8 << 20:
+                    raise ValueError("invalid S11 table " + member.name)
+                content = archive.extractfile(member).read().decode()
+                rows = list(csv.DictReader(io.StringIO(content), delimiter="\t"))
+                report["pairs"][lane] = adjudicate(lane, rows, evidence["pairs"][lane])
+        if set(report["pairs"]) == {"K1", "K3"} and all(v["PM_conditions_met"] for v in report["pairs"].values()):
+            report["verdict"] = "PM_PASS"
+    except (OSError, ValueError, KeyError, tarfile.TarError, EOFError, csv.Error) as exc:
+        report["error"] = str(exc)
+    path = out / "board-flash.json"
+    path.write_text(json.dumps(report, indent=2) + "\n")
+    print("BOARD_FLASH", report["verdict"], "RECEIPT", path, digest(path),
+          "S12_REQUIRED_BEFORE_FLASH", report.get("error", ""), flush=True)

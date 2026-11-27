@@ -1,0 +1,164 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu -o pipefail
+p=d42878214663d2d6d2a81bf7e61464cfdf0589f8
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013p-launch.XXXXXX")
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 \
+  "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0013jk/run.sh.txt" -o "$d/run"
+printf '%s  %s\n' 70011df334cf1b7a2861910fe17a0d8960e89ba273b4d0ff8b9064f5949517ed "$d/run" | sha256sum -c -
+bash "$d/run" "$p" build
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013p-launch.Ko8Pwe/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7
+Paste STATIC_GATE PASS or PM_OVERRIDE HOLD followed by RECEIPT <path> <sha>: PM_OVERRIDE HOLD RECEIPT /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.mo1VRK/effects.json ef577b30f542286ccfe09a4297f186bc3e1c76262a03bd23ecad5e96a919563b
+PM_OVERRIDE build ef577b30f542286ccfe09a4297f186bc3e1c76262a03bd23ecad5e96a919563b BOARD_FLASH HOLD
+--- a/packaging/tztv-kernel.spec
++++ b/packaging/tztv-kernel.spec
+@@ -301 +301 @@
+-       env $KERNEL_TOOLCHAIN_ENV ./BUILD.sh "$PROJECT" "$RELEASE_MODE" "$SIGN_CHIP" "$VERIFIER" "$SANITIZER"
++       env $KERNEL_TOOLCHAIN_ENV KCFLAGS="${KCFLAGS:+$KCFLAGS }"'$(if $(filter clang clang-%% %%-clang,$(notdir $(lastword $(CC)))),-moutline)' ./BUILD.sh "$PROJECT" "$RELEASE_MODE" "$SIGN_CHIP" "$VERIFIER" "$SANITIZER"
+CAPACITY disk_free_gib 389 ram_available_gib 73
+[sudo] password for chengkai:
+RETAINED_LOG git-add.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG git-commit.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG base-print.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG shelf.log 4958 e3ebefa63f3e9f8b926e45ba42d101d7b9c7d8f2978dbdc86914ed489dc3d53a
+RETAINED_TRACKED_SPECS ['linux-6.12/scripts/package/kernel.spec', 'packaging/tztv-kernel.spec']
+RETAINED_PACKAGING_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/gbs.conf <unset; default packaging>
+RETAINED_PACKAGING_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux/.gbs.conf <unset; default packaging>
+GBS_GUESS_SPEC WC.UNTRACKED 0 packaging/tztv-kernel.spec
+Checking object directories: 100% (256/256), done.
+Checking objects: 100% (152619/152619), done.
+Verifying commits in commit graph: 100% (1/1), done.
+GBS_SOURCE_REUSED /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux 962eb82dc2246ea3a05e5565836d0e81ce8cd955 P4_FETCH_SKIPPED
+GBS_GUESS_SPEC HEAD 0 packaging/tztv-kernel.spec
+GBS_SPEC_PREFLIGHT_PASS clean-outline 8b0eec57103fee38dd9e75635b4ffe1cccda9033 packaging/tztv-kernel.spec 0994c745b120f29218f96e6262b7af84f50d073a94716c4212263285a0448b23
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37777148-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/published-build.conf --threads 1 --packaging-dir packaging --spec tztv-kernel.spec
+Traceback (most recent call last):
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/kernel.py.txt", line 248, in <module>
+    {"build":build,"shelve":shelve}[sys.argv[1]]()
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/kernel.py.txt", line 139, in build
+    payload,zbytes=rpm_boot(rpm,members)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/kernel.py.txt", line 91, in rpm_boot
+    payload=u[64:];need(length==len(payload) and crc==zlib.crc32(payload),"kernel payload CRC")
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/kernel.py.txt", line 35, in need
+    if not v:raise ValueError(msg)
+ValueError: kernel payload CRC
+chengkai@risc-v-Alienware-Aurora-R16:~$ (
+w=/home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.00KP3P
+echo "== archive members"; tar -tzf $w/side-effects.tar.gz | head -40
+for m in $(tar -tzf $w/side-effects.tar.gz | grep -i -E 's11|system|sensitive'); do
+  echo "===== $m"; tar -xOzf $w/side-effects.tar.gz "$m" | head -4 | cut -c1-250
+  echo "-- mnemonics"; tar -xOzf $w/side-effects.tar.gz "$m" | grep -o -i -E '\b(mrs|msr|cpsid|cpsie|cps|mcr2?|mrc2?|mcrr|mrrc|wfi|wfe|sev|svc|smc|hvc|setend|isb|dsb|dmb)\b' | sort | uniq -c | sort -rn | head -20
+  echo "-- p15 operands"; tar -xOzf $w/side-effects.tar.gz "$m" | grep -o -i -E '\b(mrc|mcr)[[:space:]]+p15,[^" ]{0,40}' | sort | uniq -c | sort -rn | head -20
+done
+)
+== archive members
+K1-calls.tsv
+K1-critical-stack.tsv
+K1-critical.tsv
+K1-dwarf.tsv
+K1-exports.tsv
+K1-fixups-no-size.tsv
+K1-fixups.tsv
+K1-frames.tsv
+K1-helper-size-histogram.tsv
+K1-helpers.tsv
+K1-instructions.tsv
+K1-ksymtab.tsv
+K1-literals.tsv
+K1-module-search.tsv
+K1-modules.tsv
+K1-samples.tsv
+K1-sensitive-ops.tsv
+K1-source-sites.tsv
+K1-system-state.tsv
+K1-thunks.tsv
+K1-vendor-timing.tsv
+K3-calls.tsv
+K3-critical-stack.tsv
+K3-critical.tsv
+K3-dwarf.tsv
+K3-exports.tsv
+K3-fixups-no-size.tsv
+K3-fixups.tsv
+K3-frames.tsv
+K3-helper-size-histogram.tsv
+K3-helpers.tsv
+K3-instructions.tsv
+K3-ksymtab.tsv
+K3-literals.tsv
+K3-module-search.tsv
+K3-modules.tsv
+K3-samples.tsv
+K3-sensitive-ops.tsv
+K3-source-sites.tsv
+K3-system-state.tsv
+===== K1-sensitive-ops.tsv
+helper  pc      op      args    class
+0xc000b2cc      0xc000b2cc      mrc     p15, #0x0, r6, c13, c0, #0x3    system state
+0xc0011bac      0xc0011bb4      mrc     p15, #0x0, r0, c13, c0, #0x3    system state
+0xc0027c20      0xc0027c20      mrc     p15, #0x0, r4, c13, c0, #0x3    system state
+-- mnemonics
+    118 mrc
+-- p15 operands
+     54 mrc     p15, #0x0, r0, c13, c0, #0x3
+     22 mrc     p15, #0x0, r1, c13, c0, #0x3
+     13 mrc     p15, #0x0, r4, c13, c0, #0x3
+     10 mrc     p15, #0x0, r2, c13, c0, #0x3
+      9 mrc     p15, #0x0, r7, c13, c0, #0x3
+      6 mrc     p15, #0x0, r6, c13, c0, #0x3
+      2 mrc     p15, #0x0, r5, c13, c0, #0x3
+      1 mrc     p15, #0x0, r9, c13, c0, #0x3
+      1 mrc     p15, #0x0, r3, c13, c0, #0x3
+===== K1-system-state.tsv
+helper  pc      op      operand classification  direct_callers
+0xc000b2cc      0xc000b2cc      mrc     p15, #0x0, r6, c13, c0, #0x3    owner review    "[""vfp_preserve_user_clear_hwstate"", ""vfp_restore_user_hwstate""]"
+0xc0011bac      0xc0011bb4      mrc     p15, #0x0, r0, c13, c0, #0x3    owner review    "[""sys_rt_sigreturn"", ""sys_sigreturn""]"
+0xc0027c20      0xc0027c20      mrc     p15, #0x0, r4, c13, c0, #0x3    owner review    "[""cpus_read_lock"", ""cpus_read_trylock"", ""cpus_read_unlock""]"
+-- mnemonics
+    118 mrc
+-- p15 operands
+     54 mrc     p15, #0x0, r0, c13, c0, #0x3
+     22 mrc     p15, #0x0, r1, c13, c0, #0x3
+     13 mrc     p15, #0x0, r4, c13, c0, #0x3
+     10 mrc     p15, #0x0, r2, c13, c0, #0x3
+      9 mrc     p15, #0x0, r7, c13, c0, #0x3
+      6 mrc     p15, #0x0, r6, c13, c0, #0x3
+      2 mrc     p15, #0x0, r5, c13, c0, #0x3
+      1 mrc     p15, #0x0, r9, c13, c0, #0x3
+      1 mrc     p15, #0x0, r3, c13, c0, #0x3
+===== K3-sensitive-ops.tsv
+helper  pc      op      args    class
+0xc0012bf0      0xc0012bf8      mrc     p15, #0x0, r0, c13, c0, #0x3    system state
+0xc001f37c      0xc001f37c      mrc     p15, #0x0, r0, c13, c0, #0x3    system state
+0xc002a3f0      0xc002a3f0      mrc     p15, #0x0, r4, c13, c0, #0x3    system state
+-- mnemonics
+    164 mrc
+-- p15 operands
+     63 mrc     p15, #0x0, r0, c13, c0, #0x3
+     36 mrc     p15, #0x0, r1, c13, c0, #0x3
+     18 mrc     p15, #0x0, r4, c13, c0, #0x3
+     16 mrc     p15, #0x0, r2, c13, c0, #0x3
+     11 mrc     p15, #0x0, r5, c13, c0, #0x3
+      7 mrc     p15, #0x0, r7, c13, c0, #0x3
+      7 mrc     p15, #0x0, r3, c13, c0, #0x3
+      6 mrc     p15, #0x0, r6, c13, c0, #0x3
+===== K3-system-state.tsv
+helper  pc      op      operand classification  direct_callers
+0xc0012bf0      0xc0012bf8      mrc     p15, #0x0, r0, c13, c0, #0x3    owner review    "[""sys_rt_sigreturn"", ""sys_sigreturn""]"
+0xc001f37c      0xc001f37c      mrc     p15, #0x0, r0, c13, c0, #0x3    owner review    "[""cpu_v7_ca15_ibe"", ""cpu_v7_ca8_ibe""]"
+0xc002a3f0      0xc002a3f0      mrc     p15, #0x0, r4, c13, c0, #0x3    owner review    "[""cpus_read_lock"", ""cpus_read_trylock"", ""cpus_read_unlock""]"
+-- mnemonics
+    164 mrc
+-- p15 operands
+     63 mrc     p15, #0x0, r0, c13, c0, #0x3
+     36 mrc     p15, #0x0, r1, c13, c0, #0x3
+     18 mrc     p15, #0x0, r4, c13, c0, #0x3
+     16 mrc     p15, #0x0, r2, c13, c0, #0x3
+     11 mrc     p15, #0x0, r5, c13, c0, #0x3
+      7 mrc     p15, #0x0, r7, c13, c0, #0x3
+      7 mrc     p15, #0x0, r3, c13, c0, #0x3
+      6 mrc     p15, #0x0, r6, c13, c0, #0x3
+chengkai@risc-v-Alienware-Aurora-R16:~$
+

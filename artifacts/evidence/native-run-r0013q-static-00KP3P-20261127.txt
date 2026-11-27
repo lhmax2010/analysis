@@ -1,0 +1,44 @@
+chengkai@risc-v-Alienware-Aurora-R16:~$ (
+set -eu -o pipefail
+pin=598e2e4664bd4a1fbccf828f4ac907fcc5206052
+d=$(mktemp -d /home1/chengkai/vd-tree/workspace/temp/pm0013q-launch.XXXXXX)
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 \
+  "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013q/static.sh.txt" -o "$d/static.sh"
+printf '%s  %s\n' 7c43b68bef017924068a561ea5181e320024ee9bbd75f5574a19786ef6f78d2b "$d/static.sh" | sha256sum -c -
+bash "$d/static.sh" "$pin" | tee "$d/combined.txt"
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013q-launch.NDkTqd/static.sh: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.00KP3P
+STACK_SITE K1 0xc00ca280 acct_write_process ['.text', '.text'] [('kernel/acct.o', '.text')] context requires review
+STACK_SITE K1 0xc01f5b74 make_vfsuid ['.text', '.text'] [('fs/mnt_idmapping.o', '.text')] context requires review
+STACK_SITE K1 0xc01f5bd8 make_vfsgid ['.text', '.text'] [('fs/mnt_idmapping.o', '.text')] context requires review
+STACK_SITE K1 0xc01f5c3c from_vfsuid ['.text', '.text'] [('fs/mnt_idmapping.o', '.text')] context requires review
+STACK_SITE K1 0xc01f5ca0 from_vfsgid ['.text', '.text'] [('fs/mnt_idmapping.o', '.text')] context requires review
+STACK_SITE K3 0xc01c5280 get_page_from_freelist ['.text', '.text'] [('mm/page_alloc.o', '.text')] context requires review
+STACK_SITE K3 0xc01c5320 get_page_from_freelist ['.text', '.text'] [('mm/page_alloc.o', '.text')] context requires review
+STACK_SITE K3 0xc01c8674 free_page_is_bad_report ['.text', '.text'] [('mm/page_alloc.o', '.text')] context requires review
+STACK_SITE K3 0xc0233ff4 make_vfsuid ['.text', '.text'] [('fs/mnt_idmapping.o', '.text')] context requires review
+STACK_SITE K3 0xc0234058 make_vfsgid ['.text', '.text'] [('fs/mnt_idmapping.o', '.text')] context requires review
+STACK_SITE K3 0xc02340bc from_vfsuid ['.text', '.text'] [('fs/mnt_idmapping.o', '.text')] context requires review
+STACK_SITE K3 0xc0234120 from_vfsgid ['.text', '.text'] [('fs/mnt_idmapping.o', '.text')] context requires review
+STACK_SITE K3 0xc033ef4c smk_import_entry ['.text', '.text'] [('security/smack/smack_access.o', '.text')] context requires review
+S1 K1:FAIL {"critical":0,"reachable_helpers":3466,"unjoined":5663,"unresolved_helper_sections":540,"without_direct_caller":0,"critical_indirect":616,"linked_map_ranges":0} K3:FAIL {"critical":0,"reachable_helpers":4602,"unjoined":13215,"unresolved_helper_sections":1509,"without_direct_caller":0,"critical_indirect":664,"linked_map_ranges":0}
+S2 K1:FAIL {"variants":{"UNRESOLVED":3327,"NO_LOCAL_LR_SAVE":36156,"THUNK":30093,"TAIL_CALL":12375,"LR_REGISTER":537,"LR_STACK":290},"critical_stack_sites":5,"helper_chain_extra_save_lower_bound_bytes":8,"stack_budget":8192} K3:FAIL {"variants":{"UNRESOLVED":4292,"NO_LOCAL_LR_SAVE":47016,"THUNK":41802,"TAIL_CALL":14076,"LR_REGISTER":583,"LR_STACK":131},"critical_stack_sites":8,"helper_chain_extra_save_lower_bound_bytes":8,"stack_budget":8192}
+S3 K1:REVIEW {"unwinder":"FRAME_POINTER","sampled":120,"fp_operand_bodies":3016,"runtime_walk":"required"} K3:REVIEW {"unwinder":"FRAME_POINTER","sampled":120,"fp_operand_bodies":3174,"runtime_walk":"required"}
+S4 K1:PASS {"counts":{"__ex_table":219,"__bug_table":1387},"baseline":{"__ex_table":219,"__bug_table":1387},"inside_helpers":0,"without_function":210} K3:PASS {"counts":{"__ex_table":224,"__bug_table":1830},"baseline":{"__ex_table":224,"__bug_table":1830},"inside_helpers":0,"without_function":215}
+S5 K1:REVIEW {"exclusive_or_barrier_groups":0,"undecoded":14} K3:REVIEW {"exclusive_or_barrier_groups":0,"undecoded":14}
+S6 K1:RECORDED {"CONFIG_FTRACE":"y","CONFIG_FUNCTION_TRACER":"unset","CONFIG_KPROBES":"unset","CONFIG_KALLSYMS":"unset","CONFIG_STACKPROTECTOR":"unset","CONFIG_STACKPROTECTOR_STRONG":"unset","CONFIG_UNWINDER_FRAME_POINTER":"y"} K3:RECORDED {"CONFIG_FTRACE":"y","CONFIG_FUNCTION_TRACER":"unset","CONFIG_KPROBES":"unset","CONFIG_KALLSYMS":"unset","CONFIG_STACKPROTECTOR":"unset","CONFIG_STACKPROTECTOR_STRONG":"unset","CONFIG_UNWINDER_FRAME_POINTER":"y"}
+S7 K1:REVIEW {"export_names_equal":true,"export_symbols":10348,"symvers_equal":null,"SERET_UL":"requires clean verification build","external_modules":"owner ABI verification"} K3:REVIEW {"export_names_equal":true,"export_symbols":10348,"symvers_equal":null,"SERET_UL":"requires clean verification build","external_modules":"owner ABI verification"}
+S8 K1:RECORDED {"helpers":20324,"sites":82778,"hot":{"mm/":5395,"irq":1385,"entry":463,"kernel/sched/":1969,"fs/":10074,"drivers/media/":1885,"net/core/":5324},"origin_joined":77115} K3:RECORDED {"helpers":26020,"sites":107900,"hot":{"entry":613,"mm/":6632,"irq":1980,"kernel/sched/":2335,"net/core/":6439,"fs/":13380,"drivers/media/":2000},"origin_joined":94685}
+S9 K1:PASS {"new":[0,0],"old":[0,0],"critical":0} K3:PASS {"new":[0,0],"old":[0,0],"critical":0}
+S10 K1:REVIEW {"sites":0,"undecoded":14} K3:REVIEW {"sites":0,"undecoded":14}
+S11 K1:REVIEW {"system_state_instructions":119,"tp_reads":0,"owner_review":119,"undecoded_helpers":14} K3:REVIEW {"system_state_instructions":165,"tp_reads":0,"owner_review":165,"undecoded_helpers":14}
+S12 K1:REVIEW {"conditional_cases":[],"covered":0,"baseline":115,"expected":115,"unknown":[],"new_types":[]} K3:REVIEW {"conditional_cases":[],"covered":0,"baseline":115,"expected":115,"unknown":[],"new_types":[]}
+S13 K1:RECORDED {"entry_line_and_function":0,"helpers":20324,"percent":0.0} K3:RECORDED {"entry_line_and_function":0,"helpers":26020,"percent":0.0}
+S14 K1:BOARD {"static_sites":82778,"profile_weight":"unmeasured; join sampled helper PC and caller stack by build ID"} K3:BOARD {"static_sites":107900,"profile_weight":"unmeasured; join sampled helper PC and caller stack by build ID"}
+S15 K1:REVIEW {"driver_sites":{"nvt":3732,"novatek":3,"spi":1409,"drivers/samsung":146,"gpio":1510,"display":29,"drivers/soc/":1493,"i2c":893},"denominator":82778,"timing":"inspect matched caller context and measure on target"} K3:REVIEW {"driver_sites":{"nvt":4469,"novatek":3,"spi":2340,"drivers/samsung":200,"gpio":2048,"display":29,"drivers/soc/":1830,"i2c":990},"denominator":107900,"timing":"inspect matched caller context and measure on target"}
+C7/C8 {"REVIEW": "no supported RPM DB within the extracted filesystem"}
+BOARD_FLASH HOLD {"K1": ["S1", "S11", "S12", "S2"], "K3": ["S1", "S11", "S12", "S2"]} 313c18c1263ec1489c11805d5db67a8ae6bc9431e6fe3f54500f147a774090e1
+STATIC_GATE HOLD RECEIPT /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.00KP3P/effects.json 57773c7c098a48e53f76e4f65d95288a5d1849c2b0d9eb39d5471b88bd481ec7
+TABLES a55c079d449a4826ba6549a2204de5a56af31e6fb628ca4427233081e21d7500 /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.00KP3P/side-effects.tar.gz
+chengkai@risc-v-Alienware-Aurora-R16:~$

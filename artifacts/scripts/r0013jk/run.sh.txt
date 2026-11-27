@@ -3,9 +3,11 @@ set -eu -o pipefail
 pin=${1:?full commit}
 [[ $pin =~ ^[0-9a-f]{40}$ ]]
 mode=${2:-static}
-case $mode in static|build|shelve) ;; *) exit 2 ;; esac
+case $mode in static|build|verify|shelve) ;; *) exit 2 ;; esac
 t=/home1/chengkai/vd-tree/workspace/temp
-d=$(mktemp -d "$t/pm0013jk-$mode.XXXXXX")
+prefix=$mode
+if [[ $mode == verify ]]; then prefix=build; fi
+d=$(mktemp -d "$t/pm0013jk-$prefix.XXXXXX")
 cd "$d"
 export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1 DEBUGINFOD_URLS= LC_ALL=C
 printf 'WORKDIR %s\n' "$d"
@@ -14,10 +16,11 @@ while read -r digest path; do
     curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180         "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$name" 2>>download.log
     printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
 done <<'PINS'
+ad285b19af32a79f397389fe11a93765f752cb59e21155bdcd0fe017e3465f6b artifacts/scripts/r0013s/board.py.txt
 f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726 artifacts/scripts/r0012c/image-tree.py.txt
 0fbf289005794e593c5359bd8af907b4832ed577aff84d92b90e3bd25e470eef artifacts/scripts/r0013jk/effects.py.txt
 3e0d8a77c310632e09415cdba74e84a380402a5c1c90eb866229c10946adc307 artifacts/scripts/r0013jk/thumb.py.txt
-fcffc6ef4b0349760a52085c4cd67ca73953066cfb00e1884832fe3ed0b0d8eb artifacts/scripts/r0013jk/kernel.py.txt
+827e2378acfe984dc1dba54257cdce1f59c5926180edf90a37a1e5faf52f6df5 artifacts/scripts/r0013jk/kernel.py.txt
 f17849367d2f8f094d8789b70a45ac10a6f7ab7c28612f6b87bd5ccc3a8bf2df artifacts/scripts/r0012f/kernel-audit.py.txt
 ca1eb96a3a3eb638455ebcc608aa640b25bf81163be4d9b88a1a30843459ea55 artifacts/scripts/r0012n/outline-metrics.py.txt
 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75 artifacts/scripts/r0004/image_mode_scan.py.txt

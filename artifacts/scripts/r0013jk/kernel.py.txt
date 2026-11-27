@@ -62,10 +62,36 @@ def gate(mode):
              Path(os.environ["PM_STATIC"])==T/d["evidence"] and
              os.environ["PM_STATIC_SHA"]==d["static_sha256"] and r["gate"] is False,
              "PM override must reference the original mo1VRK HOLD")
-        print("PM_OVERRIDE",mode,d["static_sha256"],"BOARD_FLASH HOLD",flush=True)
+        print("PM_OVERRIDE",mode,d["static_sha256"],"BUILD_SHELVE_ONLY",flush=True)
         return
     need(r.get("input")=="f7f1148e7927bc4e0b8353213932d3a5ba077cf9319a021c71a7c53588cfcf06" and r["script"]==sha((W/"effects.py.txt").read_bytes()),"static tool or lane identity")
     need(r["gate"] and all(r["pairs"][p][g][0]=="PASS" for p in ("K1","K3") for g in ("S1","S4","S9","S11","S12")),"STATIC HOLD")
+OFFICIAL_UIMAGE = "f38df43d15c773b0e1ca6dbfd60dbef3079822b87b1f2ca559e72bd617275f86"
+
+def uimage(data):
+    need(len(data) >= 64 and data[:4] == bytes.fromhex("27051956") and
+         data[28:32] == bytes((5, 2, 2, 0)), "uncompressed ARM kernel header")
+    header = bytearray(data[:64])
+    stored_hcrc = struct.unpack_from(">I", header, 4)[0]
+    struct.pack_into(">I", header, 4, 0)
+    need(zlib.crc32(header) == stored_hcrc, "uImage header CRC")
+    length = struct.unpack_from(">I", header, 12)[0]
+    crc = struct.unpack_from(">I", header, 24)[0]
+    need(0 < length <= len(data) - 64, "truncated or empty uImage payload")
+    payload = data[64:64 + length]
+    need(zlib.crc32(payload) == crc, "kernel payload CRC")
+    return payload, {"ih_size": length, "ih_dcrc": f"{crc:08x}", "ih_hcrc": f"{stored_hcrc:08x}",
+                     "trailer_bytes": len(data) - 64 - length}
+
+def compare_uimage(candidate, official):
+    need(sha(official) == OFFICIAL_UIMAGE, "Official QB 37777148 USB uImage SHA-256")
+    _, reference = uimage(official)
+    payload, header = uimage(candidate)
+    need(header["trailer_bytes"] == reference["trailer_bytes"],
+         f"uImage trailer {header['trailer_bytes']} vs Official {reference['trailer_bytes']}")
+    header.update(official_trailer_bytes=reference["trailer_bytes"], official_sha256=OFFICIAL_UIMAGE)
+    return payload, header
+
 def rpm_boot(rpm,members):
     files={}
     with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as proc:
@@ -85,20 +111,24 @@ def rpm_boot(rpm,members):
                     b=stream.read(min(left,1<<20));need(b,"truncated RPM");left-=len(b)
             stream.read(-size%4)
         stream.read();need(proc.wait()==0,"RPM extraction")
-    u=files["/perf/uImage"];z=files["/perf/zImage"]
-    need(len(u)>64 and u[:4]==bytes.fromhex("27051956") and u[28:32]==bytes((5,2,2,0)),"uncompressed ARM kernel header")
-    length,crc=struct.unpack_from(">I",u,12)[0],struct.unpack_from(">I",u,24)[0]
-    payload=u[64:];need(length==len(payload) and crc==zlib.crc32(payload),"kernel payload CRC")
-    return payload,len(z)
-def matched_elf(root,payload):
-    for elf in root.glob("**/rpmbuild/BUILD/**/vmlinux"):
-        with elf.open("rb") as f:magic=f.read(4)
-        if magic!=b"\x7fELF":continue
-        ids=re.findall(rb"Build ID: ([0-9a-f]+)",read("readelf","-nW",elf))
-        for identity in set(ids):
-            digest=bytes.fromhex(identity.decode())
-            if struct.pack("<III",4,len(digest),3)+b"GNU\x00"+digest in payload:return elf
-    raise ValueError("retained same-build-ID perf vmlinux required")
+    official = T.parent / "usb/37777148/updateSU2E/uImage"
+    payload, header = compare_uimage(files["/perf/uImage"], official.read_bytes())
+    return payload, len(files["/perf/zImage"]), header
+
+def perf_tree(root, zhash, config_sha, payload, g):
+    for zimage in root.glob("**/rpmbuild/BUILD/**/arch/arm/boot/zImage"):
+        tree = zimage.parents[3]
+        if not (tree/".config").is_file() or g.sha(tree/".config") != config_sha or g.sha(zimage) != zhash:
+            continue
+        elf = tree/"vmlinux"
+        if not elf.is_file():
+            continue
+        for identity in set(re.findall(rb"Build ID: ([0-9a-f]+)", read("readelf", "-nW", elf))):
+            digest = bytes.fromhex(identity.decode())
+            if struct.pack("<III", 4, len(digest), 3) + b"GNU\x00" + digest in payload:
+                return tree, identity.decode()
+    raise ValueError("no single perf tree matches RPM zImage SHA-256, config and uImage build ID")
+
 def build():
     spec=staged(show_diff=True)
     g=SimpleNamespace(**runpy.run_path(str(W/"gbs-mlgo-t7.py.txt")))
@@ -131,56 +161,88 @@ def build():
         print("GBS_START",shlex.join(cmd),flush=True)
         with (W/"gbs.log").open("wb") as log:
             subprocess.run(cmd,cwd=src,stdout=log,stderr=subprocess.STDOUT,env=dict(os.environ,KBUILD_VERBOSE="1",MAKEFLAGS="V=1"),check=True)
-        rpms=[p for p in g.kernel_rpms(root) if read("rpm","-qp","--qf","%{NAME}",p)==b"tztv-kernel-perf"]
-        rpm,=rpms
-        members={s.split()[0]:s.split()[3] for s in read("rpm","-qp","--dump",rpm).decode().splitlines()}
-        zhash=members["/perf/zImage"]
-        trees=[p.parents[3] for p in root.glob("**/rpmbuild/BUILD/**/arch/arm/boot/zImage") if g.sha(p)==zhash]
-        payload,zbytes=rpm_boot(rpm,members)
-        elf=matched_elf(root,payload)
-        goodcfg=g.sha(T/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K0/generated.config")
-        trees.extend(p.parent for p in root.glob("**/rpmbuild/BUILD/**/.config") if g.sha(p)==goodcfg)
-        trees=[p for p in set(trees) if (p/".config").is_file() and g.sha(p/".config")==goodcfg]
-        need(trees,"matching perf config absent")
+        post_build(W, spec, g, cmd)
 
-        secs=dict(runpy.run_path(str(W/"image_mode_scan.py.txt"))["secs_of"](elf.read_bytes()))
-        actual={"text":secs[".text"][5],"helpers":len(set(re.findall(rb"^(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",read("nm","-n",elf),re.M)))}
-        actual.update(Image=len(payload),zImage=zbytes)
-        print("PERF",actual,flush=True)
-        need(all(abs(actual[k]-v)<=0.001*v for k,v in K1.items()),"outside proposed 0.10% K1 tolerance")
-        evidence=[]
-        def inspect(line,where):
-            try:words=shlex.split(line)
-            except ValueError:return
-            for i,w in enumerate(words):
-                driver=Path(w).name
-                if not re.fullmatch(r"(?:[\w.-]+-)?(?:gcc|clang)(?:-\d+)?",driver):continue
-                argv=words[i+1:]
-                if "-c" not in argv or not any(x.endswith((".c",".S",".s")) for x in argv):continue
-                gcc="gcc" in driver
-                if gcc and "-moutline" in argv:raise ValueError("GCC received -moutline: "+where)
-                evidence.append((where,driver,"-moutline" in argv,line.strip()));return
-        for p in root.glob("**/rpmbuild/BUILD/**/.*.cmd"):
-            with p.open(errors="replace") as f:inspect(f.readline(),str(p.relative_to(root)))
-        context=""
-        with (W/"gbs.log").open(errors="replace") as f:
-            for line in f:
-                if "Entering directory " in line:context=line.strip()
-                inspect(re.sub(r"^\[\s*\d+s\]\s*","",line),"log "+context)
-        (W/"argv.json").write_text(json.dumps(evidence))
-        need(any("SERET-UL" in w and "gcc" in d for w,d,on,_ in evidence),"SERET-UL GCC argv unavailable")
-        perfrows=[r for r in evidence if any(r[0].startswith(str(t.relative_to(root))+"/") for t in trees) and not re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",r[0])]
-        need(perfrows and all(on for w,d,on,l in perfrows if "clang" in d) and any("clang" in d and on for w,d,on,l in perfrows),"perf Clang argv")
-        families={}
-        for w,d,on,l in evidence:
-            if w.startswith("log ") or "clang" not in d or re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",w):continue
-            if "/kernel/" not in w and "/drivers/" not in w and "/mm/" not in w:continue
-            need(on,"target Clang omitted -moutline: "+w)
-            families[w.split("/drivers/")[0].split("/kernel/")[0].split("/mm/")[0]]=True
-        need(families and any("clang" in d and on and "-DMODULE" in l for w,d,on,l in evidence),"missing module argv")
-        report={"status":"PASS","static":os.environ["PM_STATIC_SHA"],"script":sha(Path(__file__).read_bytes()),"spec":sha(spec),"rpm":g.sha(rpm),"sizes":actual,"observed_build_dirs":sorted(families),"argv":g.sha(W/"argv.json"),"command":cmd}
-        (W/"build.json").write_text(json.dumps(report,indent=2))
-        print("BUILD_RECEIPT",W/"build.json",g.sha(W/"build.json"))
+def verify():
+    work = T/"pm0013jk-build.jEMVH7"
+    g = SimpleNamespace(**runpy.run_path(str(W/"gbs-mlgo-t7.py.txt")))
+    spec = (work/"vdlinux"/SOURCE).read_bytes()
+    need(sha(spec) == "0994c745b120f29218f96e6262b7af84f50d073a94716c4212263285a0448b23" and
+         spec == staged(), "retained spec identity")
+    need(read("git", "-C", work/"vdlinux", "rev-parse", "HEAD").strip() ==
+         b"8b0eec57103fee38dd9e75635b4ffe1cccda9033", "retained source commit")
+    need(g.sha(work/"kernel.py.txt") == "fcffc6ef4b0349760a52085c4cd67ca73953066cfb00e1884832fe3ed0b0d8eb",
+         "retained build driver identity")
+    cfg = configparser.RawConfigParser()
+    cfg.read_string((work/"gbs.conf").read_text())
+    need(cfg.get("general","profile") == "profile.qb1111" and
+         cfg.get("profile.qb1111","repos").replace(" ","") == "repo.product_NikeM,repo.base_standard" and
+         cfg.get("profile.qb1111","buildroot") == str(work/"GBS-ROOT") and
+         cfg.get("repo.base_standard","url").rstrip("/").endswith("tizen-10.0-base-dev-llvm-standard_20261113.1") and
+         cfg.get("repo.product_NikeM","url").rstrip("/").endswith("/b567/19437567/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1"),
+         "retained Official config")
+    conf, = (D/"workspace/qb-evidence").glob("37777148-*/published-build.conf")
+    need(g.sha(conf) == BUILD_CONF, "Official published build.conf")
+    print("VERIFY_RETAINED", work, flush=True)
+    post_build(work, spec, g, None)
+
+def post_build(work, spec, g, cmd):
+    root = work/"GBS-ROOT"
+    rpms=[p for p in g.kernel_rpms(root) if read("rpm","-qp","--qf","%{NAME}",p)==b"tztv-kernel-perf"]
+    rpm,=rpms
+    members={s.split()[0]:s.split()[3] for s in read("rpm","-qp","--dump",rpm).decode().splitlines()}
+    zhash=members["/perf/zImage"]
+    payload,zbytes,header=rpm_boot(rpm,members)
+    print("UIMAGE_VERIFIED", json.dumps(header), flush=True)
+    goodcfg=g.sha(T/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K0/generated.config")
+    tree,identity=perf_tree(root,zhash,goodcfg,payload,g)
+    elf=tree/"vmlinux"
+    print("PERF_TREE", tree, "BUILD_ID", identity, "ZIMAGE_SHA256", zhash, flush=True)
+    secs=dict(runpy.run_path(str(W/"image_mode_scan.py.txt"))["secs_of"](elf.read_bytes()))
+    actual={"text":secs[".text"][5],"helpers":len(set(re.findall(rb"^(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",read("nm","-n",elf),re.M)))}
+    actual.update(Image=len(payload),zImage=zbytes)
+    print("PERF",actual,flush=True)
+    need(all(abs(actual[k]-v)<=0.001*v for k,v in K1.items()),"outside proposed 0.10% K1 tolerance")
+    evidence=[]
+    def inspect(line,where):
+        try:words=shlex.split(line)
+        except ValueError:return
+        for i,w in enumerate(words):
+            driver=Path(w).name
+            if not re.fullmatch(r"(?:[\w.-]+-)?(?:gcc|clang)(?:-\d+)?",driver):continue
+            argv=words[i+1:]
+            if "-c" not in argv or not any(x.endswith((".c",".S",".s")) for x in argv):continue
+            gcc="gcc" in driver
+            if gcc and "-moutline" in argv:raise ValueError("GCC received -moutline: "+where)
+            evidence.append((where,driver,"-moutline" in argv,line.strip()));return
+    for p in root.glob("**/rpmbuild/BUILD/**/.*.cmd"):
+        with p.open(errors="replace") as f:inspect(f.readline(),str(p.relative_to(root)))
+    context=""
+    with (work/"gbs.log").open(errors="replace") as f:
+        for line in f:
+            if "Entering directory " in line:context=line.strip()
+            inspect(re.sub(r"^\[\s*\d+s\]\s*","",line),"log "+context)
+    (W/"argv.json").write_text(json.dumps(evidence))
+    need(any("SERET-UL" in w and "gcc" in d for w,d,on,_ in evidence),"SERET-UL GCC argv unavailable")
+    perfrows=[r for r in evidence if r[0].startswith(str(tree.relative_to(root))+"/") and not re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",r[0])]
+    need(perfrows and all(on for w,d,on,l in perfrows if "clang" in d) and any("clang" in d and on for w,d,on,l in perfrows),"perf Clang argv")
+    families={}
+    for w,d,on,l in evidence:
+        if w.startswith("log ") or "clang" not in d or re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",w):continue
+        if "/kernel/" not in w and "/drivers/" not in w and "/mm/" not in w:continue
+        need(on,"target Clang omitted -moutline: "+w)
+        families[w.split("/drivers/")[0].split("/kernel/")[0].split("/mm/")[0]]=True
+    need(families and any("clang" in d and on and "-DMODULE" in shlex.split(l) for w,d,on,l in perfrows),"missing module argv")
+    report={"status":"PASS","static":os.environ["PM_STATIC_SHA"],"script":sha(Path(__file__).read_bytes()),"spec":sha(spec),"rpm":g.sha(rpm),"sizes":actual,"observed_build_dirs":sorted(families),"argv":g.sha(W/"argv.json"),"command":cmd}
+    report.update(source_workdir=str(work), verification="retained" if cmd is None else "fresh",
+                  boot_header=header, elf_build_id=identity, zImage_sha256=zhash, perf_tree=str(tree),
+                  rpm_path=str(rpm), config_sha256=goodcfg)
+    print("ARGV_PASS", "SERET_UL_GCC", sum("SERET-UL" in w and "gcc" in d for w,d,on,l in evidence),
+          "PERF_CLANG", sum("clang" in d and on for w,d,on,l in perfrows),
+          "PERF_MODULE_CLANG", sum("clang" in d and on and "-DMODULE" in shlex.split(l)
+                                    for w,d,on,l in perfrows), flush=True)
+    (W/"build.json").write_text(json.dumps(report,indent=2))
+    print("BUILD_RECEIPT",W/"build.json",g.sha(W/"build.json"))
 def p4(*args):
     records=[]
     with subprocess.Popen(["p4","-c",CLIENT,"-G",*args],stdout=subprocess.PIPE) as proc:
@@ -244,5 +306,9 @@ def shelve():
     need(file.read_bytes()==original,"working bytes after revert")
     print(read("p4","-c",CLIENT,"describe","-S","-s",cl).decode())
 if __name__=="__main__":
-    gate(sys.argv[1])
-    {"build":build,"shelve":shelve}[sys.argv[1]]()
+    mode = sys.argv[1]
+    gate("build" if mode == "verify" else mode)
+    if mode == "verify":
+        board = runpy.run_path(str(W/"board.py.txt"))
+        board["evaluate"](T/"pm0013jk-static.00KP3P", W)
+    {"build":build,"verify":verify,"shelve":shelve}[mode]()

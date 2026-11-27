@@ -37,6 +37,7 @@ class SideEffects(unittest.TestCase):
         source = root / "arch/arm/kernel/module.c"
         source.parent.mkdir(parents=True)
         source.write_text("case R_ARM_CALL:\ncase R_ARM_JUMP24:\n")
+        (root / "board.py.txt").symlink_to(SCRIPTS / "r0013s/board.py.txt")
         (root / "outline-metrics.py.txt").symlink_to(SCRIPTS / "r0012n/outline-metrics.py.txt")
         env = runpy.run_path(str(SCRIPTS / "r0013q/effects.py.txt"))
         self.lane = env["lane"]

@@ -12,7 +12,8 @@ while read -r digest path; do
         "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$file"
     printf '%s  %s\n' "$digest" "$file" | sha256sum --check --status
 done <<'PINS'
-727f0f925ef2b1e5a1a9d1bc5a99ce45809d81431b11caba33468b1bd4902ebc  artifacts/scripts/r0013q/effects.py.txt
+ad285b19af32a79f397389fe11a93765f752cb59e21155bdcd0fe017e3465f6b artifacts/scripts/r0013s/board.py.txt
+966ba4f5da0880c51e7231b8ee1fffa106d40c7ab9dacf0de977ff7f8f290644  artifacts/scripts/r0013q/effects.py.txt
 3e0d8a77c310632e09415cdba74e84a380402a5c1c90eb866229c10946adc307  artifacts/scripts/r0013jk/thumb.py.txt
 f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726  artifacts/scripts/r0012c/image-tree.py.txt
 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75  artifacts/scripts/r0004/image_mode_scan.py.txt
