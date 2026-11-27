@@ -544,3 +544,7 @@ For jEMVH7, match the packaged perf zImage, the adjacent ELF build ID and the re
 ### 0013y · PM acceptance of dMztOS and inputs for the outline QBs
 
 PM accepted the retained Official build by outliner effect and successful SERET-UL GCC compilation. The historical verifier observed zero retained PERF argv. The final self-contained TEST-ONLY shelf is 14507546 alone for vdlinux in both clones. It includes 24 files verified against 14427407 plus the clean one-line spec change. Before either board flash, qualify the published modules and kernel effect against the corresponding baseline. [PM decision and receipts](../comms/codex_to_claude/0013y_reply.md)
+
+### 0013z · Current LLVM Product for kernel builds
+
+PM and the operator approved changing only the K4 Product repository to Official 37777148 on Base 20261113.1. Custom 37777264 is the corresponding Product for Custom Base 20261118.1. On Product expiry, request the next LLVM Official QB URL. Exclude GCC daily products. Before any Thumb patch byte-identity claim, repeat the unpatched A32 K1 control with the same replacement Product. Use retained 37777148/37777264 inputs for S12 and retain the outline clone inputs on first read. [Decision](../comms/claude_to_codex/0013z_codex_product_repo_expiry_fix.md)

@@ -239,3 +239,7 @@ Y8W62v located the RPM-matched zImage and adjacent ELF in the perf packaging dir
 DsfXAe stopped at dependency resolution for secureboot-signer and vd-kernel-dtb-devel. The replacement enumerator traces the K4 config and checks its live providers before GBS. Native enumeration and assembly changes await that check. [K4 launcher](../comms/codex_to_claude/0013x_reply.md)
 
 dMztOS exactly reproduced K1 on all four measured metrics and received PM acceptance by effect. The final TEST-ONLY CL 14507546 is self-contained. The seven-file source comparison awaits immutable Git/P4 readback. Both clone IDs and their pre-flash S12 results are outstanding. The 0013o pkg-worker review remains open. [Source check and paired S12 command](../comms/codex_to_claude/0013y_reply.md)
+
+### 0013z · Official Product substitution and S12 retention deadline
+
+0013y §2b is closed with seven of seven source hashes equal across 14427407, K1 and jEMVH7. The K4 Product expired before enumeration started. Official 37777148 supplies the two missing dependencies. PRV QB artifacts can expire within approximately 2–4 days. Retain both current S12 baselines now, then run S12 within one day of each new outline QB finishing. Native retention counts, enumeration and both S12 verdicts are outstanding. [Pinned launch commands](../comms/codex_to_claude/0013z_reply.md)

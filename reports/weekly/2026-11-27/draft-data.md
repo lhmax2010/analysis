@@ -241,3 +241,5 @@ For Official 37777148 the uImage digest is `f38df43d…`. Its clear/set masks ar
 PM accepted the measured effect and the successful SERET-UL GCC step. The verifier recorded zero retained PERF compile lines. TEST-ONLY shelf 14507546 contains all 24 vdlinux inputs for the new Official and Custom clones. Their published module comparisons and helper counts await QB artifacts. [Evidence and S12 procedure](../../../comms/codex_to_claude/0013y_reply.md)
 
 The DsfXAe Thumb-2 attempt failed to resolve two build requirements and compiled zero translation units. Its run adds no assembler sites to the earlier K4 evidence. [Dependency and provenance check](../../../comms/codex_to_claude/0013x_reply.md)
+
+The seven disputed source files now have matching SHA-256 in shelf 14427407, K1 and jEMVH7. The w5 24-file shelf check and spec hash connect TEST-ONLY CL 14507546 to that measured source. The r0013x K4 preflight stopped on an expired Product index before GBS. The next enumeration uses Official QB 37777148 with the same Base. [Source hashes and Product evidence](../../../comms/codex_to_claude/0013z_reply.md)
