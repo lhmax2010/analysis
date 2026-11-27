@@ -532,3 +532,7 @@ PM accepts the 00KP3P S1/S2 evidence and S4/S9 passes. The board policy permits 
 ### 0013t · R7 ready for trial; C7 accepted on the shipped board
 
 PM accepts the shipped glibc 2.40 provider pair for a three-package RELR trial and C7 on signed-binary board smoke plus the Official ITD setup. Keep pure Thumb as AVControl's baseline. Schedule RPM ownership collection at the next operator-selected Official 37777148 visit. Qualify packed file size, dirty pages and on-board loading after the fixed 0013o worker canary. [Decision](../comms/claude_to_codex/0013t_codex_0013r_readback_conclusions.md) · [Trial plan](../comms/codex_to_claude/0013t_reply.md)
+
+### 0013u · PM acceptance rule for verifying jEMVH7 after RPM packaging
+
+Require the shipped zImage hash and K0 config in the same tree and retain the SERET-UL GCC, perf Clang and module argv checks. Use a matching ELF when available. The no-ELF path requires the exact K1 Image length and zImage within 0.10%, with .text and helper count explicitly unmeasured. S12 remains a separate per-QB pre-flash gate. [PM decision](../comms/claude_to_codex/0013u_codex_verify_no_vmlinux.md) · [Verification command](../comms/codex_to_claude/0013u_reply.md)

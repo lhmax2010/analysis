@@ -225,3 +225,7 @@ R1 historical forced-option variants have delivery evidence for four measured pa
 27 Nov · 0013s · jEMVH7 completed the GBS build. The first RPM post-check included the uImage trailer in the data CRC. A verify-only rerun at dad2b85 reuses the retained build. The two residual S11 instructions are conditional TPIDRURO reads (K1 119/119 and K3 165/165 reads). Await native verification receipts and S12 review on each eventual QB. PM approved the 0013r reader. [Commands](../comms/codex_to_claude/0013s_reply.md)
 
 27 Nov · 0013t · jFI9ye received and archived. R7 ready for trial after the tier-2 worker fix; C7 accepted for shipped Official; AVControl has zero static importers in the full image scan. Board owner collection awaits matched Official visit. [Weekly data](../reports/weekly/2026-11-27/draft-data.md) · [Native runbook](../comms/codex_to_claude/0013t_reply.md)
+
+### 0013u · Retained Official outlining build
+
+BbbAhy issued the board PM_PASS receipt with S12 required per QB and verified the CRCs and payload length. It stopped before issuing a build receipt. The pinned verifier now inventories candidate trees and can qualify a cleaned tree with matching RPM zImage, K0 config, payload identity, K1 sizes and target argv. Await the new native receipt. [Command and validation](../comms/codex_to_claude/0013u_reply.md)
