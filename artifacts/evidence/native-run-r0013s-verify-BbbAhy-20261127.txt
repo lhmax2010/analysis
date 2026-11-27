@@ -1,0 +1,28 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu -o pipefail
+pin=dad2b85ee6868e7fcc7cdc8af648b06f57cf36f4
+d=$(mktemp -d /home1/chengkai/vd-tree/workspace/temp/pm0013s-launch.XXXXXX)
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 \
+  "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013jk/run.sh.txt" -o "$d/run"
+printf '%s  %s\n' 880111930007bbbf19c957c46a8c74c5650c407ed5438d990523412f6da3ce2a "$d/run" | sha256sum -c -
+bash "$d/run" "$pin" verify
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013s-launch.qy7ti9/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.BbbAhy
+Paste STATIC_GATE PASS or PM_OVERRIDE HOLD followed by RECEIPT <path> <sha>: PM_OVERRIDE HOLD RECEIPT /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.mo1VRK/effects.json ef577b30f542286ccfe09a4297f186bc3e1c76262a03bd23ecad5e96a919563b
+PM_OVERRIDE build ef577b30f542286ccfe09a4297f186bc3e1c76262a03bd23ecad5e96a919563b BUILD_SHELVE_ONLY
+S11_REMAINING K1 {"helper": "0xc01315bc", "pc": "0xc01315c0", "op": "mrcne", "operand": "p15, #0x0, r1, c13, c0, #0x3", "classification": "owner review", "direct_callers": "[\"__perf_event_enable\", \"perf_adjust_freq_unthr_events\", \"perf_iterate_ctx\"]", "disposition": "TPIDRURO read"}
+S11_REMAINING K3 {"helper": "0xc0156778", "pc": "0xc015677c", "op": "mrcne", "operand": "p15, #0x0, r1, c13, c0, #0x3", "classification": "owner review", "direct_callers": "[\"__perf_event_enable\", \"__perf_pmu_output_stop\", \"perf_adjust_freq_unthr_events\"]", "disposition": "TPIDRURO read"}
+BOARD_FLASH PM_PASS RECEIPT /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.BbbAhy/board-flash.json 060446c6ce292bac41198c1bf6cfe62da096d939c5c918822a3df369dfeaf5cf S12_REQUIRED_BEFORE_FLASH
+VERIFY_RETAINED /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7
+UIMAGE_VERIFIED {"ih_size": 10996388, "ih_dcrc": "9742a207", "ih_hcrc": "980d92a8", "trailer_bytes": 260, "official_trailer_bytes": 260, "official_sha256": "f38df43d15c773b0e1ca6dbfd60dbef3079822b87b1f2ca559e72bd617275f86"}
+Traceback (most recent call last):
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.BbbAhy/kernel.py.txt", line 314, in <module>
+    {"build":build,"verify":verify,"shelve":shelve}[mode]()
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.BbbAhy/kernel.py.txt", line 187, in verify
+    post_build(work, spec, g, None)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.BbbAhy/kernel.py.txt", line 198, in post_build
+    tree,identity=perf_tree(root,zhash,goodcfg,payload,g)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.BbbAhy/kernel.py.txt", line 130, in perf_tree
+    raise ValueError("no single perf tree matches RPM zImage SHA-256, config and uImage build ID")
+ValueError: no single perf tree matches RPM zImage SHA-256, config and uImage build ID

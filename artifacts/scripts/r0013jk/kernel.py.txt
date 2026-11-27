@@ -1,4 +1,6 @@
 """Attended Official verification or shelving; actions require immutable prior receipts."""
+import base64
+import stat
 import configparser
 import difflib
 from contextlib import ExitStack
@@ -129,6 +131,177 @@ def perf_tree(root, zhash, config_sha, payload, g):
                 return tree, identity.decode()
     raise ValueError("no single perf tree matches RPM zImage SHA-256, config and uImage build ID")
 
+def config_symbols(path):
+    result = {}
+    for line in path.read_text(errors="replace").splitlines():
+        if line.startswith("CONFIG_") and "=" in line:
+            key, value = line.split("=", 1)
+            result[key] = value
+        elif line.startswith("# CONFIG_") and line.endswith(" is not set"):
+            result[line.split()[1]] = "n"
+    return result
+
+
+def retained_trees(work, zhash, reference, g):
+    root = work/"GBS-ROOT"
+    config_sha = g.sha(reference)
+    symbols = config_symbols(reference)
+    rows, matches = [], []
+    for path in sorted(root.glob("**/rpmbuild/BUILD/**/zImage")):
+        if not path.is_file():
+            continue
+        kbuild = path.parts[-4:] == ("arch", "arm", "boot", "zImage")
+        tree = path.parents[3] if kbuild else path.parent
+        cfg = tree/".config"
+        actual_z = g.sha(path)
+        actual_cfg = g.sha(cfg) if cfg.is_file() else None
+        row = dict(tree=str(tree), zImage=str(path), z_sha=actual_z, rpm_z_sha=zhash,
+                   config=cfg.is_file(), config_sha=actual_cfg, k0_config_sha=config_sha,
+                   vmlinux=(tree/"vmlinux").is_file(), system_map=(tree/"System.map").is_file())
+        if actual_cfg and actual_cfg != config_sha:
+            other = config_symbols(cfg)
+            row["symbol_diff_K0_to_candidate"] = {
+                key: [symbols.get(key), other.get(key)] for key in sorted(symbols.keys() | other.keys())
+                if symbols.get(key) != other.get(key)}
+        rows.append(row)
+        if actual_z == zhash and actual_cfg == config_sha:
+            matches.append((not kbuild, tree))
+    data = json.dumps(rows, separators=(",", ":")).encode()
+    (W/"tree-candidates.json").write_bytes(data)
+    if len(rows) <= 70:
+        for r in rows:
+            diff = r.get("symbol_diff_K0_to_candidate", {})
+            preview = {k: v for k, v in r.items() if k != "symbol_diff_K0_to_candidate"}
+            print("ZIMAGE_CANDIDATE", json.dumps(preview), flush=True)
+            if "symbol_diff_K0_to_candidate" in r:
+                # Preserve the complete symbol delta even for another kernel variant.
+                if len(diff) <= 12:
+                    print("CONFIG_SYMBOL_DIFF", r["tree"], json.dumps(diff), flush=True)
+                else:
+                    print("CONFIG_SYMBOL_DIFF_ZLIB_BASE64", r["tree"], len(diff),
+                          base64.b64encode(zlib.compress(json.dumps(diff).encode())).decode(), flush=True)
+    else:
+        print("ZIMAGE_CANDIDATES_ZLIB_BASE64", base64.b64encode(zlib.compress(data)).decode(), flush=True)
+    print("ZIMAGE_CANDIDATES", len(rows), "MATCHES", len(matches), W/"tree-candidates.json", flush=True)
+    need(matches, "no single perf tree matches RPM zImage SHA-256 and K0 .config SHA-256")
+    return list(dict.fromkeys(tree for _, tree in sorted(matches)))
+
+
+def kernel_id(payload):
+    note = struct.pack("<III", 4, 20, 3) + b"GNU\0"
+    offset = payload.find(note)
+    need(offset >= 0 and offset % 4 == 0 and payload.count(note) == 1, "missing or ambiguous GNU SHA1 build-ID note")
+    value = payload[offset + len(note):offset + len(note) + 20]
+    need(len(value) == 20 and any(value), "truncated or zero GNU build ID")
+    return value.hex()
+
+
+def kernel_member(path, identity):
+    return (re.fullmatch(r"vmlinux(?:[-.].+)?", path.name) is not None or
+            path.as_posix().endswith(f"/.build-id/{identity[:2]}/{identity[2:]}.debug"))
+
+
+def packaged_kernels(root, identity, file_sha):
+    # Select by RPM path/digest. In newc the data for a hardlink can be under a different name.
+    for rpm in sorted((root/"local/repos").rglob("*kernel*.rpm")):
+        if not ("debuginfo" in rpm.name or "devel" in rpm.name) or rpm.name.endswith(".src.rpm"):
+            continue
+        fields = read("rpm", "-qp", "--qf", r"[%{FILENAMES}\t%{FILEMODES:octal}\t%{FILESIZES}\t%{FILEDIGESTS}\n]", rpm)
+        regular = {}
+        for line in fields.decode().splitlines():
+            name, mode, size, digest = line.split("\t")
+            if stat.S_ISREG(int(mode, 8)) and int(size) >= 20:
+                regular[name] = digest
+        wanted = {regular[n] for n in regular if kernel_member(Path(n), identity)}
+        print("DEBUG_RPM", rpm.name, "kernel_member_digests", len(wanted), flush=True)
+        if not wanted:
+            continue
+        need(all(re.fullmatch(r"[0-9a-f]{64}", h) for h in wanted), "kernel RPM member has no SHA-256: "+str(rpm))
+        paths = {n: h for n, h in regular.items() if h in wanted}
+        results = {}
+        with subprocess.Popen(["rpm2cpio", rpm], stdout=subprocess.PIPE) as proc:
+            stream = proc.stdout
+            try:
+                while True:
+                    header = stream.read(110)
+                    need(len(header) == 110 and header[:6] in (b"070701", b"070702"), "invalid kernel debug RPM cpio")
+                    size, n = int(header[54:62], 16), int(header[94:102], 16)
+                    need(0 < n <= 65536, "invalid cpio member name length")
+                    name = stream.read(n)[:-1].decode()
+                    stream.read(-(110+n) % 4)
+                    if name == "TRAILER!!!":
+                        break
+                    key = "/" + name.removeprefix("./").lstrip("/")
+                    h = paths.get(key)
+                    target = W/("member-"+h) if h and size and h not in results else None
+                    with ExitStack() as stack:
+                        dest = stack.enter_context(target.open("wb")) if target else None
+                        left = size
+                        while left:
+                            block = stream.read(min(left, 1<<20))
+                            need(block, "truncated debug RPM")
+                            if dest:
+                                dest.write(block)
+                            left -= len(block)
+                    if target:
+                        need(file_sha(target) == h, "debug member digest "+key)
+                        results[h] = (target, str(rpm)+"!"+key)
+                    stream.read(-size % 4)
+                while stream.read(1<<20):
+                    pass
+                need(proc.wait() == 0 and results.keys() == wanted, "incomplete debug RPM "+str(rpm))
+            finally:
+                if proc.poll() is None:
+                    proc.kill()
+        yield from results.values()
+
+
+def retained_measurement(work, trees, payload, zbytes, file_sha):
+    identity = kernel_id(payload)
+    def candidates():
+        # Check same-build copies including KANTSU2E/image/perf and the selected output trees.
+        for path in dict.fromkeys([*(tree/"vmlinux" for tree in trees), *sorted(work.rglob("vmlinux*"))]):
+            if path.is_file() and path.resolve().is_relative_to(work) and kernel_member(path, identity):
+                yield path, str(path)
+        yield from packaged_kernels(work/"GBS-ROOT", identity, file_sha)
+        # The earlier measured K1 ELF is useful only if this payload carries its ID.
+        prior = T/"pm0013i-read.a0Pmc0/lanes.json"
+        if prior.is_file() and file_sha(prior) == "f7f1148e7927bc4e0b8353213932d3a5ba077cf9319a021c71a7c53588cfcf06":
+            row = json.loads(prior.read_bytes())["lanes"]["K1"]["measurement"]
+            elf = (Path(row["tree"])/"vmlinux").resolve()
+            if elf.is_relative_to(T) and elf.is_file() and file_sha(elf) == row["sha256"]:
+                yield elf, str(elf)
+
+    sizes = {"Image":len(payload), "zImage":zbytes}
+    need(abs(zbytes-K1["zImage"]) <= 0.001*K1["zImage"], "zImage outside 0.10% K1 tolerance")
+    found = []
+    contradictions = []
+    for elf, origin in candidates():
+        with elf.open("rb") as f:
+            hdr = f.read(20)
+        # Includes raw BTF files named 'vmlinux' and relocatable vmlinux.o build intermediates.
+        if hdr[:6] != b"\x7fELF\x01\x01" or hdr[16:20] != struct.pack("<HH", 2, 40):
+            continue
+        ids = set(re.findall(rb"Build ID: ([0-9a-f]+)", read("readelf", "-nW", elf)))
+        if identity.encode() not in ids:
+            if elf in {p/"vmlinux" for p in trees} or ("-perf-" in origin and "!" in origin and "perf" in origin.split("!")[-1]):
+                contradictions.append(origin)
+            continue
+        found.append(origin)
+        secs = dict(runpy.run_path(str(W/"image_mode_scan.py.txt"))["secs_of"](elf.read_bytes()) or [])
+        if not {".text", ".symtab"}.issubset(secs):
+            continue
+        helpers = len(set(re.findall(rb"^(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",
+                                     read("nm", "-n", elf), re.M)))
+        sizes.update(text=secs[".text"][5], helpers=helpers)
+        if all(abs(sizes[k]-v) <= 0.001*v for k,v in K1.items()):
+            return identity, sizes, origin
+    need(not found, "matching ELF found but K1 section/helper checks failed: "+repr(found[:4]))
+    need(not contradictions, "conflicting perf ELF build ID: "+repr(contradictions[:4]))
+    need(len(payload) == K1["Image"], "no matched ELF: Image must equal K1 exactly")
+    sizes.update(text="NOT_MEASURED_NO_ELF", helpers="NOT_MEASURED_NO_ELF")
+    return identity, sizes, None
+
 def build():
     spec=staged(show_diff=True)
     g=SimpleNamespace(**runpy.run_path(str(W/"gbs-mlgo-t7.py.txt")))
@@ -195,14 +368,21 @@ def post_build(work, spec, g, cmd):
     payload,zbytes,header=rpm_boot(rpm,members)
     print("UIMAGE_VERIFIED", json.dumps(header), flush=True)
     goodcfg=g.sha(T/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K0/generated.config")
-    tree,identity=perf_tree(root,zhash,goodcfg,payload,g)
-    elf=tree/"vmlinux"
-    print("PERF_TREE", tree, "BUILD_ID", identity, "ZIMAGE_SHA256", zhash, flush=True)
-    secs=dict(runpy.run_path(str(W/"image_mode_scan.py.txt"))["secs_of"](elf.read_bytes()))
-    actual={"text":secs[".text"][5],"helpers":len(set(re.findall(rb"^(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",read("nm","-n",elf),re.M)))}
-    actual.update(Image=len(payload),zImage=zbytes)
-    print("PERF",actual,flush=True)
-    need(all(abs(actual[k]-v)<=0.001*v for k,v in K1.items()),"outside proposed 0.10% K1 tolerance")
+    if cmd is None:
+        trees = retained_trees(work, zhash, T/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K0/generated.config", g)
+        identity, actual, origin = retained_measurement(work, trees, payload, zbytes, g.sha)
+        print("VERIFY_PERF_ID", identity, "ELF_SOURCE", origin or "NO_MATCHING_ELF", flush=True)
+    else:
+        tree,identity=perf_tree(root,zhash,goodcfg,payload,g)
+        elf=tree/"vmlinux"
+        print("PERF_TREE", tree, "BUILD_ID", identity, "ZIMAGE_SHA256", zhash, flush=True)
+        secs=dict(runpy.run_path(str(W/"image_mode_scan.py.txt"))["secs_of"](elf.read_bytes()))
+        actual={"text":secs[".text"][5],"helpers":len(set(re.findall(rb"^(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",read("nm","-n",elf),re.M)))}
+        actual.update(Image=len(payload),zImage=zbytes)
+        print("PERF",actual,flush=True)
+        need(all(abs(actual[k]-v)<=0.001*v for k,v in K1.items()),"outside proposed 0.10% K1 tolerance")
+    if cmd is None:
+        print("PERF", actual, flush=True)
     evidence=[]
     def inspect(line,where):
         try:words=shlex.split(line)
@@ -224,8 +404,18 @@ def post_build(work, spec, g, cmd):
             inspect(re.sub(r"^\[\s*\d+s\]\s*","",line),"log "+context)
     (W/"argv.json").write_text(json.dumps(evidence))
     need(any("SERET-UL" in w and "gcc" in d for w,d,on,_ in evidence),"SERET-UL GCC argv unavailable")
-    perfrows=[r for r in evidence if r[0].startswith(str(tree.relative_to(root))+"/") and not re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",r[0])]
-    need(perfrows and all(on for w,d,on,l in perfrows if "clang" in d) and any("clang" in d and on for w,d,on,l in perfrows),"perf Clang argv")
+    if cmd is None:
+        for tree in trees:
+            perfrows=[r for r in evidence if r[0].startswith(str(tree.relative_to(root))+"/") and not re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",r[0])]
+            clangrows = [r for r in perfrows if "clang" in r[1]]
+            module_modes = {"-DMODULE" in shlex.split(r[3]) for r in clangrows}
+            if module_modes == {False, True} and all(r[2] for r in clangrows):
+                break
+        else:
+            raise ValueError("matching perf tree lacks Clang kernel or module argv proof")
+    else:
+        perfrows=[r for r in evidence if r[0].startswith(str(tree.relative_to(root))+"/") and not re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",r[0])]
+        need(perfrows and all(on for w,d,on,l in perfrows if "clang" in d) and any("clang" in d and on for w,d,on,l in perfrows),"perf Clang argv")
     families={}
     for w,d,on,l in evidence:
         if w.startswith("log ") or "clang" not in d or re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",w):continue
@@ -237,6 +427,8 @@ def post_build(work, spec, g, cmd):
     report.update(source_workdir=str(work), verification="retained" if cmd is None else "fresh",
                   boot_header=header, elf_build_id=identity, zImage_sha256=zhash, perf_tree=str(tree),
                   rpm_path=str(rpm), config_sha256=goodcfg)
+    if cmd is None:
+        report.update(elf_source=origin, elf_build_id=identity if origin else None, image_build_id=identity, tree_candidates_sha256=g.sha(W/"tree-candidates.json"))
     print("ARGV_PASS", "SERET_UL_GCC", sum("SERET-UL" in w and "gcc" in d for w,d,on,l in evidence),
           "PERF_CLANG", sum("clang" in d and on for w,d,on,l in perfrows),
           "PERF_MODULE_CLANG", sum("clang" in d and on and "-DMODULE" in shlex.split(l)
