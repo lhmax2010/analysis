@@ -15,9 +15,9 @@ while read -r sum path; do
     printf '%s  %s\n' "$sum" "$file" | sha256sum -c --status
 done <<'PINS'
 8a459b568b22274da25e82417f0df203eeaf56fe34c6f9e95de7a413e4b71ed2 artifacts/scripts/r0013ae/context.py.txt
-ce32afec2eb683571b391b1f8b4bcc9e721875a5d1a87d242427180e0e05d5a8 artifacts/scripts/r0013ae/build.py.txt
-60d798a33b15f5be14da85b4b2f5ac61b7a9acfb31409198092ea94ed9123568 artifacts/scripts/r0013ae/port.py.txt
-1772c90a6e83098eea07a41d3cae8f40f4239a38c50c9b2f84f0d5681cca8b07 artifacts/scripts/r0013ae/static.py.txt
+417c9dd459a2749726e42259665438aa505ffaa8b7d20f9ba1fbe47cdd62d71d artifacts/scripts/r0013ae/build.py.txt
+3e57f290800c0b62a5d782bbf377f1a5fe689e960ff04abf8293a45ba9a66b13 artifacts/scripts/r0013ae/port.py.txt
+a7a95d35260fd05f9faa1eceb1990f441ecf2960a3c4df8434a08d4f7fc95400 artifacts/scripts/r0013ae/static.py.txt
 22d46ca18f9ea2be2a5e7723f2de1dfebf51b5a74a9e329527965abee19ff028 artifacts/scripts/r0013x/enumerate.py.txt
 e00cd458899ac8aec648d684c1d64ca9049ffe48e9e948bd9e4f4055917e6930 artifacts/scripts/r0013x/metadata.py.txt
 d97b445ffcaabb93e69f2b9d0c7ff84419e84d4b2ba11b7cbec4559350ef1d2c artifacts/scripts/r0013z/product.py.txt

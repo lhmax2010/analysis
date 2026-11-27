@@ -1,0 +1,193 @@
+--- a/linux-6.12/arch/arm/kernel/entry-armv.S
++++ b/linux-6.12/arch/arm/kernel/entry-armv.S
+@@ -222,7 +222,7 @@
+ 	.macro	check_extension
+ 	str	r7, [r0, #12]	@ save r7, r8 to detect stack overflow
+ 	str	r8, [r0, #16]
+-	mov	r8, sp, lsr #PAGE_SHIFT
++	ARM(mov	r8, sp, lsr #PAGE_SHIFT) THUMB(mov r8, sp; lsr.w r8, r8, #PAGE_SHIFT)
+ 	lsl	r8, #PAGE_SHIFT
+ 	sub	r8, sp, r8
+ 
+@@ -255,8 +255,8 @@
+ 	 */
+ 	sub	r7, #THREAD_SIZE	@bottom of IRQ_STACK
+ 
+-	mov     r8, r7
+-	eor     r8, r8, sp
++	ARM(mov     r8, r7) THUMB(mov r8, sp)
++	ARM(eor     r8, r8, sp) THUMB(eor.w r8, r8, r7)
+ 	lsrs    r8, #THREAD_SIZE_ORDER + PAGE_SHIFT
+ 	ldreq	r9, [r0, #20]
+ 	beq     9999f
+@@ -267,7 +267,7 @@
+ 	str	ip, [r7, #12]
+ 	add	r7, #THREAD_SIZE	@top of IRQ_STACK
+ 
+-	sub     sp, r7, #START_SP	@switch stack now
++	ARM(sub     sp, r7, #START_SP) THUMB(sub.w r7, r7, #START_SP; mov sp, r7; add.w r7, r7, #START_SP)
+ 	push	{r0 - r3}
+ 	push	{lr}
+ 
+@@ -300,7 +300,7 @@
+ 	mrc	p15, 0, r7, c6, c0, 0   @ Read Data Fault Address Register
+ 	lsr	r7, #PAGE_SHIFT
+ 	lsl	r7, #PAGE_SHIFT
+-	mov	r8, sp, lsr #PAGE_SHIFT
++	ARM(mov	r8, sp, lsr #PAGE_SHIFT) THUMB(mov r8, sp; lsr.w r8, r8, #PAGE_SHIFT)
+ 	lsl	r8, #PAGE_SHIFT
+ 	cmp	r7, r8
+ 	beq	9998f
+@@ -332,8 +332,8 @@
+ 
+ 	sub	r7, #THREAD_SIZE	@bottom of IRQ_STACK
+ 
+-	mov	r8, r7
+-	eor	r8, r8, sp
++	ARM(mov	r8, r7) THUMB(mov r8, sp)
++	ARM(eor	r8, r8, sp) THUMB(eor.w r8, r8, r7)
+ 	lsrs	r8, #THREAD_SIZE_ORDER + PAGE_SHIFT
+ 	ldreq	r9, [r0, #20]
+ 	beq	9999f
+@@ -343,7 +343,7 @@
+ 	str	sp, [r7, #8]
+ 	add	r7, #THREAD_SIZE	@top of IRQ_STACK
+ 
+-	sub	sp, r7, #(SVC_REGS_SIZE + 8)	@switch stack now
++	ARM(sub	sp, r7, #(SVC_REGS_SIZE + 8)) THUMB(sub.w r7, r7, #(SVC_REGS_SIZE + 8); mov sp, r7)
+ 	str	r8, [sp, #S_SP]         // Store SP
+ 	ldr	r7, [r0, #4]
+ 	str	r7, [sp, #S_PC]         // Store Return PC
+@@ -360,13 +360,61 @@
+ 	mrc	p15, 0, r1, c6, c0, 0
+ 	mrc	p15, 0, r2, c5, c0, 0
+ 	bl	do_stackoverflow
++#ifdef CONFIG_THUMB2_KERNEL
++        @ The IRQ-stack pt_regs is complete. r0 is the mapped base or NULL.
++        disable_irq_notrace
++        ldr     r5, [sp, #S_PSR]
++        cbz     r0, .Lpm_boundary\@
++        ldr     lr, [sp, #S_SP]
++        tst.w   lr, #3
++        bne     .Lpm_boundary\@
++        subs.w  r2, lr, r0
++        blo     .Lpm_boundary\@
++        @ Keep the page pointer at [base,base+4); the return frame is 12 bytes.
++        cmp     r2, #16
++        blo     .Lpm_boundary\@
++        cmp.w   r2, #PAGE_SIZE
++        bhi     .Lpm_boundary\@
++pm_stack_thumb_restore:
++	ldr	lr, [sp, #S_SP]
++	ldrd	r0, r1, [sp, #S_LR]
++	strex	r2, r1, [sp, #S_LR]
++	stmdb	lr!, {r0, r1, r5}
++	ldmia	sp, {r0 - r12}
++	mov	sp, lr
++	ldr	lr, [sp], #4
++	rfeia	sp!
++.Lpm_boundary\@:
++pm_stack_boundary_switch:
++        adr.w   lr, pm_small_stack_arm_return
++        bx      lr
++#else
++#line 363
+ 	ldr	r0, [sp, #S_PSR]
+ 	msr	spsr_cxsf, r0
+ 	ldmia	sp, {r0 - pc}^
++#endif
++#line 366
+ 9999:
+ 	ldr	r7, [r0, #12]		@ Restore r7
+ 	ldr	r8, [r0, #16]		@ Restore r8
+ 	.endm
++#if defined(CONFIG_THUMB2_KERNEL) && defined(CONFIG_KERNEL_STACK_SMALL)
++        b.w     .Lpm_after_boundary
++        .p2align 2
++        .arm
++        .type   pm_small_stack_arm_return, %function
++pm_small_stack_arm_return:
++        UNWIND(.fnstart)
++        UNWIND(.cantunwind)
++        msr     spsr_cxsf, r5
++        ldmia   sp, {r0 - pc}^
++        UNWIND(.fnend)
++        .size   pm_small_stack_arm_return, . - pm_small_stack_arm_return
++        .thumb
++.Lpm_after_boundary:
++#endif
++#line 370
+ 
+ 
+ 	.align	5
+--- a/linux-6.12/arch/arm/lib/backtrace-clang.S
++++ b/linux-6.12/arch/arm/lib/backtrace-clang.S
+@@ -15,10 +15,10 @@
+  *
+  * @r0: address of pt_regs to store registers.
+  */
+-ENTRY(asm_store_regs_values)
++THUMB(.arm;) ENTRY(asm_store_regs_values)
+ 		stmia	r0, {r0 - r15}
+-		ret	lr
+-ENDPROC(asm_store_regs_values)
++	ARM(ret	lr) THUMB(bx lr)
++ENDPROC(asm_store_regs_values); THUMB(.thumb)
+ 
+ /* fp is 0 or stack frame */
+ 
+--- a/linux-6.12/arch/arm/kernel/traps.c
++++ b/linux-6.12/arch/arm/kernel/traps.c
+@@ -2012,7 +2012,14 @@
+  *
+  * die on any issue while handling overflow.
+  */
++#ifdef CONFIG_THUMB2_KERNEL
++/* SVC return uses the mapped stack base; a returning failure supplies NULL. */
++asmlinkage void *do_stackoverflow(struct pt_regs *regs, unsigned long far, unsigned int fsr)
++#else
++#line 2015
+ asmlinkage void do_stackoverflow(struct pt_regs *regs, unsigned long far, unsigned int fsr)
++#endif
++#line 2016
+ {
+ 	int err = 0, try_count = 1, step = 0;
+ 	struct page *page;
+@@ -2063,12 +2070,22 @@
+ 	*(unsigned long *)addr = (unsigned long)page;
+ 	set_tsk_thread_flag(current, TIF_VM_STACK);
+ 	clear_tsk_thread_flag(current, TIF_VMAP_STACK_ALLOC);
++#ifdef CONFIG_THUMB2_KERNEL
++	return (void *)addr;
++#else
++#line 2066
+ 	return;
++#endif
++#line 2067
+ 
+ error:
+ 	clear_tsk_thread_flag(current, TIF_VMAP_STACK_ALLOC);
+ 	printk_deferred(KERN_ALERT"step failed: %d, retries: %d, err: %d\n", step, try_count, err);
+ 	die("Kernel stack extension failed", regs, 0);
++#ifdef CONFIG_THUMB2_KERNEL
++	return NULL;
++#endif
++#line 2072
+ }
+ #endif
+ 
+--- a/linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig
++++ b/linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig
+@@ -458,7 +458,6 @@
+ # CONFIG_HZ_1000 is not set
+ CONFIG_HZ=250
+ CONFIG_SCHED_HRTICK=y
+-# CONFIG_THUMB2_KERNEL is not set
+ # CONFIG_ARM_PATCH_IDIV is not set
+ CONFIG_AEABI=y
+ # CONFIG_OABI_COMPAT is not set
+@@ -5865,3 +5864,4 @@
+ CONFIG_ARM_KERNEL_IOMEM_RODATA=y
+ # end of Core System options
+ # end of Samsung
++CONFIG_THUMB2_KERNEL=y

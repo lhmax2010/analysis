@@ -66,6 +66,11 @@ def stage_spec(data, lane):
     anchor = "for f in kernel/sched/core.o "
     need(anchor in data, "zImage evidence hook missing")
     data = data.replace(anchor, "for f in "+" ".join(OBJS)+" kernel/sched/core.o ")
+    snap='touch "$dest/complete"'
+    need(snap in data,"missing snapshot completion hook")
+    data = data.replace(snap, """find . -type f -name '*.o' ! -name 'vmlinux.o' -exec grep -alFZ -e do_stackoverflow -e asm_store_regs_values {} + > "$dest/xref-files" || :
+        xargs -0 -r -a "$dest/xref-files" -n 1 sh -c 'printf "OBJECT %%s\\n" "$1"; readelf -rW "$1" | grep -E "do_stackoverflow|asm_store_regs_values" || :' sh > "$dest/xrefs.txt" || exit 2
+        """+snap)
     if lane in ("K4","K5"):
         anchor = 'echo CONFIG_THUMB2_KERNEL=y >> "$pm_def"'
         need(anchor in data, "unexpected defconfig wrapper")
@@ -89,6 +94,9 @@ def measure(root, lane, log):
     want = ("9a07c28a94fc2e7bef4a5341d45c3e1e95ec7ffd899313cd9593403b97a0e7e4"
             if lane in ("K4","K5") else sha(J/"K0/generated.config"))
     need(config == want,"effective perf config differs")
+    xrefs=tree/"xrefs.txt"
+    need(xrefs.is_file(),"missing reference inventory")
+    shutil.copyfile(xrefs,log.parent/"object-xrefs.txt")
     objects = {}
     for obj in OBJS:
         p = tree/obj
@@ -135,6 +143,8 @@ def build(label, config, old, product, conf):
     if label!="K1-unpatched":
         for path, data in patch["files"](src/"linux-6.12", thumb=lane in ("K4","K5")).items():
             dest = src/"linux-6.12"/path
+            digest=hashlib.sha256(data).hexdigest()
+            need(digest==patch["AFTER"][path], "materialised patch differs from 3rWNs0: "+path)
             dest.write_bytes(data)
             paths.append("linux-6.12/"+path)
         manifest = {p:sha(src/p) for p in paths[1:]}

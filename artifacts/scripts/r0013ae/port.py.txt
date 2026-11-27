@@ -6,8 +6,13 @@ ENTRY = "arch/arm/kernel/entry-armv.S"
 DUMP = "arch/arm/lib/backtrace-clang.S"
 TRAPS = "arch/arm/kernel/traps.c"
 CONFIG = "arch/arm/configs/KANTSU2E_perf_defconfig"
+AFTER = {ENTRY:"df3f874af40e76b796c1dd8435bd17fd2f0e39c677344a09990d3b573316f04d",
+         DUMP:"0761192a9336e2c06b8034b96d53cb5c3d7f4787174e7d705a9a44fa37b95e0a",
+         TRAPS:"ced2d314a4c2eb6834cbb8c4cfeb6b8e5306c95cca627053af0a01d31ef5a595",
+         CONFIG:"d9ef5d653eee71aae4ead4810457652e5b0e3ec1f120b14245997bb6c4a4480f"}
 PINS = {ENTRY:"9a5a28c8733c686d3679482bbdb0c17bd2e12873bde74852205197887ca1cbc8",
         DUMP:"8a46e43a51ac1a23a8f9414f4d513caef7234cea4742c72f3947798ca73775f4",
+        TRAPS:"a9c1d774dcf9848b4cdec9dfbc762f05f9e4cf51a1d87b17067a333f2d00e420",
         CONFIG:"11c224a1247eeb20c72efc6548808a564b0766321c2b0570dc20d18d965f4caf"}
 
 

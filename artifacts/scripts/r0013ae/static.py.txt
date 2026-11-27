@@ -44,7 +44,7 @@ def inspect(tree, folder, peer):
 
     spans=review["range_names"](tree)
     def critical(idx,pc,name):
-        return (review["CRITICAL"].search(name) or review["CRITICAL"].search(ss[idx][0])
+        return (re.search(r"^__.*_(?:svc|usr)$|^pm_(?:stack|small_stack)|^stext$",name) or review["CRITICAL"].search(name) or review["CRITICAL"].search(ss[idx][0])
                 or any(lo<=pc<hi and review["CRITICAL"].search(n) for lo,hi,n in spans))
 
     helper_sizes={a:size for a,n,typ,bit,idx,size in symbols if n.startswith("OUTLINED_FUNCTION_") and size}
@@ -64,6 +64,7 @@ def inspect(tree, folder, peer):
     secnum={n:i for i,(n,_) in enumerate(ss)}
     returns=[]; dump_edges=[]; privileged=[]; thunk_edges=[]; helper_critical=[]
     special=defaultdict(list); overflow_calls=[]
+    decoded_helpers=set()
     dump_body=[]; ind=[]; sec=None; fn=""
     edges=defaultdict(set); roots=set(); hidden=set()
     with (folder/"disassembly.txt").open("w") as f:
@@ -104,6 +105,7 @@ def inspect(tree, folder, peer):
                 if op.startswith(("bx","blx")) and "<" not in args:ind.append(detail)
                 if "OUTLINED_FUNCTION_" in fn or "OUTLINED_FUNCTION_" in args:helper_critical.append(detail)
             if fn.startswith("OUTLINED_FUNCTION_"):
+                if fn in syms_by_name:decoded_helpers.add(fn)
                 counts["outlined_instructions"]+=1
                 if mode not in ("a","t") or op in ("<unknown>",".inst",".word",".short"):
                     counts["undecoded_helper_instructions"]+=1
@@ -166,14 +168,30 @@ def inspect(tree, folder, peer):
         elif "pm_small_stack_arm_return" in arg and "lr," in arg:pointer=True
     calls_ok_c=(len(overflow_calls)==1 and overflow_calls[0][1]=="__dabt_svc" and
                 overflow_calls[0][3].split(".")[0] in ("bl","blx"))
+    parts=(folder/"object-xrefs.txt").read_text().splitlines()
+    relocation_review=[]; seen=set()
+    for l in parts:
+        if l.startswith("OBJECT "):current=l[7:];continue
+        if "do_stackoverflow" not in l and "asm_store_regs_values" not in l:continue
+        # Debug relocations do not call a routine. Preserve data references for review.
+        target="do_stackoverflow" if "do_stackoverflow" in l else "asm_store_regs_values"
+        if re.search(r"R_ARM_(?:THM_)?CALL\b",l):
+            seen.add((current,target))
+            if target=="do_stackoverflow" and not current.endswith("/arch/arm/kernel/entry-armv.o"):
+                calls_ok_c=False
+        else:relocation_review.append((current,l))
+    calls_ok_c &= any(n=="do_stackoverflow" for _,n in seen)
+    calls_ok &= any(n=="asm_store_regs_values" for _,n in seen)
+    with (folder/"reference-review.tsv").open("w") as f:
+        csv.writer(f,delimiter="\t").writerows(relocation_review)
     restored=all((write_spsr,old_return,normal_return,bx,pointer,"cantunwind" in region.lower(),calls_ok_c))
     summary={"patched_return":["PASS" if restored else "REVIEW",
                     dict(spsr=write_spsr,ldm_exception=old_return,rfe=normal_return,bx=bx,
                          arm_target=pointer,unwind=region,sole_overflow_caller=calls_ok_c)],
              "S1":["FAIL" if reached_helpers or helper_critical else "REVIEW",len(rows),dict(counts),len(reached_helpers),len(reached & hidden),len(ind)],
-             "S4":s4,"S9":["REVIEW" if thunk_edges or not calls_ok or not body_ok else "PASS",len(thunk_edges),
+             "S4":s4,"S9":["REVIEW" if thunk_edges or relocation_review or not calls_ok or not body_ok else "PASS",len(thunk_edges),
                              len(dump_edges),body_ok,calls_ok],
-             "S11":["REVIEW" if any(x[-1]=="owner review" for x in privileged) or counts["undecoded_helper_instructions"]
+             "S11":["REVIEW" if any(x[-1]=="owner review" for x in privileged) or len(decoded_helpers)<len(helper_sizes) or counts["undecoded_helper_instructions"]
                     or (folder.name=="K5" and not counts["outlined_instructions"]) else "PASS",len(privileged)],
              "entry_return":["REVIEW",len(returns),"confirm vector reset state, SPSR.T and all indirect transitions"]}
     (folder/"static.json").write_text(json.dumps(summary,indent=2)+"\n")
