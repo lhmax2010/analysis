@@ -1,0 +1,44 @@
+"""Hash committed inputs of both real builds against immutable build records and the shelf."""
+from pathlib import Path
+import hashlib
+import subprocess
+import sys
+
+T=Path("/home1/chengkai/vd-tree/workspace/temp")
+DEPOT="//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/"
+FILES={"Makefile":"b9da89aa1a9d","arch/arm/configs/KANTSU2E_debug_defconfig":"6bf8e5380ca2",
+       "arch/arm/configs/KANTSU2E_perf_defconfig":"11c224a1247e","arch/arm/configs/KANTSU2E_release_defconfig":"2053dab86bdb",
+       "fs/minimal_core.c":"8500db4e7a10","init/Kconfig":"325ccaa4df64","ipc/kdbus/connection.c":"f1d2a1bf16e6"}
+
+
+def main():
+    subprocess.run(["p4","login","-s"],check=True)
+    base=T/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb"
+    import re
+    refs=set(re.findall(r"^GBS_SPEC_PREFLIGHT_PASS K1 ([a-f0-9]{40}) packaging/tztv-kernel.spec", (base/"job.log").read_text(),re.M))
+    if len(refs)!=1:
+        raise ValueError("No unique K1 commit in build-time job.log")
+    builds=[("K1",base/"vdlinux",refs.pop()),("jEMVH7",T/"pm0013jk-build.jEMVH7/vdlinux","8b0eec57103fee38dd9e75635b4ffe1cccda9033")]
+    print("SOURCE_REVISIONS",[(tag,rev) for tag,_,rev in builds])
+    failed=set()
+    for f,h in FILES.items():
+        path="linux-6.12/"+f
+        expected=hashlib.sha256(subprocess.check_output(["p4","print","-q",DEPOT+path+"@=14427407"])).hexdigest()
+        if not expected.startswith(h):
+            raise ValueError("14427407 hash conflicts with recorded prefix: "+path)
+        values=[]
+        for lane,d,rev in builds:
+            actual=hashlib.sha256(subprocess.check_output(["git","-C",d,"show",rev+":"+path])).hexdigest()
+            values.append(actual)
+            if actual!=expected:
+                failed.add(lane)
+        print("SOURCE_FILE",path,expected,*values)
+    print("SOURCE_EQUIV", "FAIL "+",".join(sorted(failed)) if failed else "PASS", "scope=seven-files")
+    return bool(failed)
+
+
+if __name__=="__main__":
+    try:
+        sys.exit(main())
+    except (OSError,ValueError,subprocess.CalledProcessError) as e:
+        print("SOURCE_EQUIV UNPROVED",e);sys.exit(2)

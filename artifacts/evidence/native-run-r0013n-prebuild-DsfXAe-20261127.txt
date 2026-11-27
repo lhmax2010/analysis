@@ -1,0 +1,61 @@
+== workdir files (depth 2)
+18:09:32.2575585290       7011 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/enumerate.py.txt
+18:09:32.6379153500       7109 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/asm.py.txt
+18:09:32.9710003570      21041 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/BUILD.sh
+18:09:32.9710003570       2888 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/.checkpatch.conf
+18:09:33.4541795050      12335 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/apply_config.py
+18:09:33.4541795050       1255 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/kbot_verifier.config
+18:09:33.4541795050      21557 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/check_config.py
+18:09:33.4541795050       2990 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/autofix_manual_config.sh
+18:09:33.4541795050        544 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/kcsan_verifier.config
+18:09:33.4541795050       9083 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/README.md
+18:09:33.4541795050        968 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/kasan.config
+18:09:39.9520436870        163 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/syzkaller.config
+18:09:39.9520436870      31234 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/scan_kernel_config.py
+18:09:39.9520436870         79 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/vdlinux/tztv-kernel.manifest
+18:09:41.0316784520        640 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/gbs.conf
+18:11:14.5530053170       1982 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/gbs.log
+18:49:32.5701153980      15568 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/enumeration.json
+18:49:32.5708409990       4451 /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/packet.txt
+== build roots
+ls: cannot access '/home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/GBS-ROOT/local/BUILD-ROOTS/': No such file or directory
+no .build.log
+== /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/gbs.log
+18:=== the following packages failed to build due to missing build dependencies (1) ===
+20:  nothing provides secureboot-signer
+21:  nothing provides vd-kernel-dtb-devel
+34:error: <gbs>some packages failed to be built
+-- tail
+  nothing provides secureboot-signer
+  nothing provides vd-kernel-dtb-devel
+
+=== Total succeeded built packages: (0) ===
+info: generated html format report:
+     /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/GBS-ROOT/local/repos/qb1111/armv7l/index.html
+info: generated RPM packages can be found from local repo:
+     /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/GBS-ROOT/local/repos/qb1111/armv7l/RPMS
+info: generated source RPM packages can be found from local repo:
+     /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/GBS-ROOT/local/repos/qb1111/armv7l/SRPMS
+info: build logs can be found in:
+     /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/GBS-ROOT/local/repos/qb1111/armv7l/logs
+info: build roots located in:
+     /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.*
+error: <gbs>some packages failed to be built
+== /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/gbs.conf
+-- tail
+profile = profile.qb1111
+
+[repo.base_standard]
+url = http://repos.vd.sec.samsung.net/obs220/tizen-rsa/tizen-10.0-base-dev-llvm/standard/tizen-10.0-base-dev-llvm-standard_20261113.1/
+
+[repo.product_NikeM]
+url = http://repos.vd.sec.samsung.net/priv/168.219.246.226:81/PRV/builds/b776/19414776/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261123.2/
+
+[profile.qb1111]
+repos = repo.local_thumb, repo.product_NikeM, repo.base_standard
+buildroot = /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/GBS-ROOT
+
+[repo.local_thumb]
+url = /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.dkyJ0S/jobs/kernel-thumb/K4/empty-repo
+
+chengkai@risc-v-Alienware-Aurora-R16:~$

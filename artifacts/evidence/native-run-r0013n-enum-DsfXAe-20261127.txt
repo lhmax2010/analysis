@@ -1,0 +1,967 @@
+
+== decoded ENUM_PART 1/1
+{
+  "status": "INCOMPLETE",
+  "gbs_exit": 1,
+  "config": [],
+  "make_k_seen": false,
+  "source_revision": "fae92f998a51e8493e2ed452381aad73c2ce689e",
+  "rows": [
+    {
+      "path": "",
+      "line": 0,
+      "kind": "tool/build",
+      "detail": "error: <gbs>some packages failed to be built",
+      "context": [
+        "     /home1/chengkai/vd-tree/workspace/temp/pm0013n-enum.DsfXAe/GBS-ROOT/local/BUILD-ROOTS/scratch.armv7l.*",
+        "error: <gbs>some packages failed to be built"
+      ]
+    }
+  ],
+  "origins": {
+    "arch/arm/lib/backtrace-clang.S": "VDLinux-modified file; individual instruction origin unproved",
+    "arch/arm/kernel/entry-armv.S": "VDLinux-modified file; individual instruction origin unproved"
+  },
+  "source_context": {
+    "arch/arm/lib/backtrace-clang.S": [
+      [
+        1,
+        "/* SPDX-License-Identifier: GPL-2.0-only */"
+      ],
+      [
+        2,
+        "/*"
+      ],
+      [
+        3,
+        " *  linux/arch/arm/lib/backtrace-clang.S"
+      ],
+      [
+        4,
+        " *"
+      ],
+      [
+        5,
+        " *  Copyright (C) 2019 Nathan Huckleberry"
+      ],
+      [
+        6,
+        " *"
+      ],
+      [
+        7,
+        " */"
+      ],
+      [
+        8,
+        "#include <linux/kern_levels.h>"
+      ],
+      [
+        9,
+        "#include <linux/linkage.h>"
+      ],
+      [
+        10,
+        "#include <asm/assembler.h>"
+      ],
+      [
+        11,
+        "\t\t.text"
+      ],
+      [
+        12,
+        "/*"
+      ],
+      [
+        13,
+        " * asm_store_regs_values:"
+      ],
+      [
+        14,
+        " * store current registers(r0 - r15) value into r0."
+      ],
+      [
+        15,
+        " *"
+      ],
+      [
+        16,
+        " * @r0: address of pt_regs to store registers."
+      ],
+      [
+        17,
+        " */"
+      ],
+      [
+        18,
+        "ENTRY(asm_store_regs_values)"
+      ],
+      [
+        19,
+        "\t\tstmia\tr0, {r0 - r15}"
+      ],
+      [
+        20,
+        "\t\tret\tlr"
+      ],
+      [
+        21,
+        "ENDPROC(asm_store_regs_values)"
+      ],
+      [
+        22,
+        ""
+      ],
+      [
+        23,
+        "/* fp is 0 or stack frame */"
+      ],
+      [
+        24,
+        ""
+      ],
+      [
+        25,
+        "#define frame\tr4"
+      ],
+      [
+        26,
+        "#define sv_fp\tr5"
+      ],
+      [
+        27,
+        "#define sv_pc\tr6"
+      ],
+      [
+        28,
+        "#define mask\tr7"
+      ],
+      [
+        29,
+        "#define sv_lr\tr8"
+      ],
+      [
+        30,
+        "#define loglvl\tr9"
+      ],
+      [
+        31,
+        ""
+      ],
+      [
+        32,
+        "ENTRY(c_backtrace)"
+      ],
+      [
+        33,
+        ""
+      ],
+      [
+        34,
+        "#if !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)"
+      ],
+      [
+        35,
+        "\t\tret\tlr"
+      ],
+      [
+        36,
+        "ENDPROC(c_backtrace)"
+      ],
+      [
+        37,
+        "#else"
+      ]
+    ],
+    "arch/arm/kernel/entry-armv.S": [
+      [
+        126,
+        ""
+      ],
+      [
+        127,
+        "__und_invalid:"
+      ],
+      [
+        128,
+        "\tinv_entry BAD_UNDEFINSTR"
+      ],
+      [
+        129,
+        ""
+      ],
+      [
+        130,
+        "\t@"
+      ],
+      [
+        131,
+        "\t@ XXX fall through to common_invalid"
+      ],
+      [
+        132,
+        "\t@"
+      ],
+      [
+        133,
+        ""
+      ],
+      [
+        134,
+        "@"
+      ],
+      [
+        135,
+        "@ common_invalid - generic code for failed exception (re-entrant version of handlers)"
+      ],
+      [
+        136,
+        "@"
+      ],
+      [
+        137,
+        "common_invalid:"
+      ],
+      [
+        138,
+        "\tzero_fp"
+      ],
+      [
+        139,
+        ""
+      ],
+      [
+        140,
+        "\tldmia\tr0, {r4 - r6}"
+      ],
+      [
+        141,
+        "\tadd\tr0, sp, #S_PC\t\t@ here for interlock avoidance"
+      ],
+      [
+        142,
+        "\tmov\tr7, #-1\t\t\t@  \"\"   \"\"    \"\"        \"\""
+      ],
+      [
+        143,
+        "\tstr\tr4, [sp]\t\t@ save preserved r0"
+      ],
+      [
+        144,
+        "\tstmia\tr0, {r5 - r7}\t\t@ lr_<exception>,"
+      ],
+      [
+        145,
+        "\t\t\t\t\t@ cpsr_<exception>, \"old_r0\""
+      ],
+      [
+        146,
+        ""
+      ],
+      [
+        147,
+        "\tmov\tr0, sp"
+      ],
+      [
+        148,
+        "\tb\tbad_mode"
+      ],
+      [
+        149,
+        "ENDPROC(__und_invalid)"
+      ],
+      [
+        150,
+        ""
+      ],
+      [
+        151,
+        "/*"
+      ],
+      [
+        152,
+        " * SVC mode handlers"
+      ],
+      [
+        153,
+        " */"
+      ],
+      [
+        154,
+        ""
+      ],
+      [
+        155,
+        "#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5)"
+      ],
+      [
+        156,
+        "#define SPFIX(code...) code"
+      ],
+      [
+        157,
+        "#else"
+      ],
+      [
+        158,
+        "#define SPFIX(code...)"
+      ],
+      [
+        159,
+        "#endif"
+      ],
+      [
+        160,
+        ""
+      ],
+      [
+        161,
+        "\t.macro\tsvc_entry, stack_hole=0, trace=1, uaccess=1, overflow_check=1"
+      ],
+      [
+        162,
+        " UNWIND(.fnstart\t\t)"
+      ],
+      [
+        207,
+        "\t@  r5 - spsr_<exception>"
+      ],
+      [
+        208,
+        "\t@  r6 - orig_r0 (see pt_regs definition in ptrace.h)"
+      ],
+      [
+        209,
+        "\t@"
+      ],
+      [
+        210,
+        "\tstmia\tr7, {r2 - r6}"
+      ],
+      [
+        211,
+        ""
+      ],
+      [
+        212,
+        "\tget_thread_info tsk"
+      ],
+      [
+        213,
+        "\tuaccess_entry tsk, r0, r1, r2, \\uaccess"
+      ],
+      [
+        214,
+        ""
+      ],
+      [
+        215,
+        "\t.if \\trace"
+      ],
+      [
+        216,
+        "#ifdef CONFIG_TRACE_IRQFLAGS"
+      ],
+      [
+        217,
+        "\tbl\ttrace_hardirqs_off"
+      ],
+      [
+        218,
+        "#endif"
+      ],
+      [
+        219,
+        "\t.endif"
+      ],
+      [
+        220,
+        "\t.endm"
+      ],
+      [
+        221,
+        ""
+      ],
+      [
+        222,
+        "\t.macro\tcheck_extension"
+      ],
+      [
+        223,
+        "\tstr\tr7, [r0, #12]\t@ save r7, r8 to detect stack overflow"
+      ],
+      [
+        224,
+        "\tstr\tr8, [r0, #16]"
+      ],
+      [
+        225,
+        "\tmov\tr8, sp, lsr #PAGE_SHIFT"
+      ],
+      [
+        226,
+        "\tlsl\tr8, #PAGE_SHIFT"
+      ],
+      [
+        227,
+        "\tsub\tr8, sp, r8"
+      ],
+      [
+        228,
+        ""
+      ],
+      [
+        229,
+        "#ifdef CONFIG_TRACE_IRQFLAGS"
+      ],
+      [
+        230,
+        "\tcmp\tr8, #400\t@ check 400 bytes available on stack or not."
+      ],
+      [
+        231,
+        "#else"
+      ],
+      [
+        232,
+        "\tcmp\tr8, #200\t@ check 200 bytes available on stack or not."
+      ],
+      [
+        233,
+        "#endif"
+      ],
+      [
+        234,
+        "\tbgt\t9999f"
+      ],
+      [
+        235,
+        "9998:\t\t\t\t@ Fault Address point to Stack pointer"
+      ],
+      [
+        236,
+        "\t\t\t\t@ and it hits Gaurd Page or going to hit"
+      ],
+      [
+        237,
+        "\t\t\t\t@ if less than 100 bytes reamin on stack."
+      ],
+      [
+        238,
+        "\t/* Switch to IRQ Stack */"
+      ],
+      [
+        239,
+        "\tstr\tr9, [r0, #20]\t@ save r9"
+      ],
+      [
+        240,
+        "\tget_thread_info\tr9"
+      ],
+      [
+        241,
+        "\tldr\tr8, [r9, #TI_FLAGS]"
+      ],
+      [
+        242,
+        "\ttst\tr8, #_TIF_VM_STACK + _TIF_VM_KTHREAD\t@ check if extra stack is already mapped."
+      ],
+      [
+        243,
+        "\t\t\t\t\t\t\t@ or if kernel thread, already 8 KB."
+      ],
+      [
+        273,
+        ""
+      ],
+      [
+        274,
+        "\tmov\tr0, r8"
+      ],
+      [
+        275,
+        "\tbl\tdo_stack_extension"
+      ],
+      [
+        276,
+        "\tpop\t{lr}"
+      ],
+      [
+        277,
+        "\tpop\t{r0 - r3}"
+      ],
+      [
+        278,
+        ""
+      ],
+      [
+        279,
+        "\tsub\tr7, #THREAD_SIZE"
+      ],
+      [
+        280,
+        "\tldr     fp, [r7, #4]"
+      ],
+      [
+        281,
+        "\tldr     sp, [r7, #8]"
+      ],
+      [
+        282,
+        "\tldr     ip, [r7, #12]"
+      ],
+      [
+        283,
+        ""
+      ],
+      [
+        284,
+        "\tldr\tr9, [r0, #20]\t\t@ Restore r9"
+      ],
+      [
+        285,
+        "9999:"
+      ],
+      [
+        286,
+        "\tldr\tr7, [r0, #12]\t\t@ Restore r7"
+      ],
+      [
+        287,
+        "\tldr\tr8, [r0, #16]\t\t@ Restore r8"
+      ],
+      [
+        288,
+        ""
+      ],
+      [
+        289,
+        "\t.endm"
+      ],
+      [
+        290,
+        ""
+      ],
+      [
+        291,
+        "\t.macro\tcheck_overflow"
+      ],
+      [
+        292,
+        "\tstr\tr7, [r0, #12]\t@ save r7, r8 to detect stack overflow"
+      ],
+      [
+        293,
+        "\tstr\tr8, [r0, #16]"
+      ],
+      [
+        294,
+        ""
+      ],
+      [
+        295,
+        "\tget_thread_info\tr7"
+      ],
+      [
+        296,
+        "\tldr\tr8, [r7, #TI_FLAGS]"
+      ],
+      [
+        297,
+        "\ttst\tr8, #_TIF_VMAP_STACK_ALLOC\t@ check if extra stack mapping requested."
+      ],
+      [
+        298,
+        "\tbne\t9998f"
+      ],
+      [
+        299,
+        ""
+      ],
+      [
+        300,
+        "\tmrc\tp15, 0, r7, c6, c0, 0   @ Read Data Fault Address Register"
+      ],
+      [
+        301,
+        "\tlsr\tr7, #PAGE_SHIFT"
+      ],
+      [
+        302,
+        "\tlsl\tr7, #PAGE_SHIFT"
+      ],
+      [
+        303,
+        "\tmov\tr8, sp, lsr #PAGE_SHIFT"
+      ],
+      [
+        304,
+        "\tlsl\tr8, #PAGE_SHIFT"
+      ],
+      [
+        305,
+        "\tcmp\tr7, r8"
+      ],
+      [
+        306,
+        "\tbeq\t9998f"
+      ],
+      [
+        307,
+        "\tsub\tr8, sp, r8"
+      ],
+      [
+        308,
+        "\tcmp\tr8, #200\t@ check 200 bytes available on stack or not."
+      ],
+      [
+        309,
+        "\tbgt\t9999f"
+      ],
+      [
+        310,
+        "9998:\t\t\t\t@ Fault Address point to Stack pointer"
+      ],
+      [
+        311,
+        "\t\t\t\t@ and it hits Guard Page or going to hit"
+      ],
+      [
+        312,
+        "\t\t\t\t@ if less than 200 bytes reamin on stack."
+      ],
+      [
+        313,
+        ""
+      ],
+      [
+        314,
+        "\t/* Switch to IRQ Stack */"
+      ],
+      [
+        315,
+        "\tstr\tr9, [r0, #20]\t@ save r9 to handle stack overflow."
+      ],
+      [
+        316,
+        "\tget_thread_info\tr9"
+      ],
+      [
+        317,
+        "\tldr\tr8, [r9, #TI_FLAGS]"
+      ],
+      [
+        318,
+        "\ttst\tr8, #_TIF_VM_STACK + _TIF_VM_KTHREAD\t@ check if extra stack is already mapped."
+      ],
+      [
+        319,
+        "\t\t\t\t\t\t\t@ or if kernel thread, already 8 KB."
+      ],
+      [
+        320,
+        "\tldrne\tr9, [r0, #20]"
+      ],
+      [
+        321,
+        "\tbne\t9999f"
+      ],
+      [
+        357,
+        "\tstmia\tsp, {r0 - r12}"
+      ],
+      [
+        358,
+        ""
+      ],
+      [
+        359,
+        "\tmov\tr0, sp"
+      ],
+      [
+        360,
+        "\tmrc\tp15, 0, r1, c6, c0, 0"
+      ],
+      [
+        361,
+        "\tmrc\tp15, 0, r2, c5, c0, 0"
+      ],
+      [
+        362,
+        "\tbl\tdo_stackoverflow"
+      ],
+      [
+        363,
+        "\tldr\tr0, [sp, #S_PSR]"
+      ],
+      [
+        364,
+        "\tmsr\tspsr_cxsf, r0"
+      ],
+      [
+        365,
+        "\tldmia\tsp, {r0 - pc}^"
+      ],
+      [
+        366,
+        "9999:"
+      ],
+      [
+        367,
+        "\tldr\tr7, [r0, #12]\t\t@ Restore r7"
+      ],
+      [
+        368,
+        "\tldr\tr8, [r0, #16]\t\t@ Restore r8"
+      ],
+      [
+        369,
+        "\t.endm"
+      ],
+      [
+        370,
+        ""
+      ],
+      [
+        371,
+        ""
+      ],
+      [
+        372,
+        "\t.align\t5"
+      ],
+      [
+        373,
+        "__dabt_svc:"
+      ],
+      [
+        374,
+        "#if CONFIG_KERNEL_STACK_SMALL"
+      ],
+      [
+        375,
+        "\tcheck_overflow"
+      ],
+      [
+        376,
+        "#endif"
+      ],
+      [
+        377,
+        "\tsvc_entry uaccess=0"
+      ],
+      [
+        378,
+        "\tmov\tr2, sp"
+      ],
+      [
+        379,
+        "\tdabt_helper"
+      ],
+      [
+        380,
+        " THUMB(\tldr\tr5, [sp, #S_PSR]\t)\t@ potentially updated CPSR"
+      ],
+      [
+        381,
+        "\tsvc_exit r5\t\t\t\t@ return from exception"
+      ],
+      [
+        382,
+        " UNWIND(.fnend\t\t)"
+      ],
+      [
+        383,
+        "ENDPROC(__dabt_svc)"
+      ],
+      [
+        384,
+        ""
+      ],
+      [
+        385,
+        "\t.align\t5"
+      ],
+      [
+        386,
+        ""
+      ],
+      [
+        387,
+        ".pushsection   .irqentry.text, \"ax\""
+      ],
+      [
+        388,
+        "__irq_svc:"
+      ],
+      [
+        389,
+        "#ifdef CONFIG_KERNEL_STACK_SMALL"
+      ],
+      [
+        390,
+        "\tcheck_extension"
+      ],
+      [
+        391,
+        "#endif"
+      ],
+      [
+        392,
+        "\tsvc_entry"
+      ],
+      [
+        393,
+        "\tirq_handler from_user=0"
+      ],
+      [
+        534,
+        " ATRAP(\tldr_va\tr8, cr_alignment)"
+      ],
+      [
+        535,
+        ""
+      ],
+      [
+        536,
+        "\tldmia\tr0, {r3 - r5}"
+      ],
+      [
+        537,
+        "\tadd\tr0, sp, #S_PC\t\t@ here for interlock avoidance"
+      ],
+      [
+        538,
+        "\tmov\tr6, #-1\t\t\t@  \"\"  \"\"     \"\"        \"\""
+      ],
+      [
+        539,
+        ""
+      ],
+      [
+        540,
+        "\tstr\tr3, [sp]\t\t@ save the \"real\" r0 copied"
+      ],
+      [
+        541,
+        "\t\t\t\t\t@ from the exception stack"
+      ],
+      [
+        542,
+        ""
+      ],
+      [
+        543,
+        "\t@"
+      ],
+      [
+        544,
+        "\t@ We are now ready to fill in the remaining blanks on the stack:"
+      ],
+      [
+        545,
+        "\t@"
+      ],
+      [
+        546,
+        "\t@  r4 - lr_<exception>, already fixed up for correct return/restart"
+      ],
+      [
+        547,
+        "\t@  r5 - spsr_<exception>"
+      ],
+      [
+        548,
+        "\t@  r6 - orig_r0 (see pt_regs definition in ptrace.h)"
+      ],
+      [
+        549,
+        "\t@"
+      ],
+      [
+        550,
+        "\t@ Also, separately save sp_usr and lr_usr"
+      ],
+      [
+        551,
+        "\t@"
+      ],
+      [
+        552,
+        "\tstmia\tr0, {r4 - r6}"
+      ],
+      [
+        553,
+        " ARM(\tstmdb\tr0, {sp, lr}^\t\t\t)"
+      ],
+      [
+        554,
+        " THUMB(\tstore_user_sp_lr r0, r1, S_SP - S_PC\t)"
+      ],
+      [
+        555,
+        ""
+      ],
+      [
+        556,
+        "\t.if \\uaccess"
+      ],
+      [
+        557,
+        "\tuaccess_disable ip"
+      ],
+      [
+        558,
+        "\t.endif"
+      ],
+      [
+        559,
+        ""
+      ],
+      [
+        560,
+        "\t@ Enable the alignment trap while in kernel mode"
+      ],
+      [
+        561,
+        " ATRAP(\tteq\tr8, r7)"
+      ],
+      [
+        562,
+        " ATRAP( mcrne\tp15, 0, r8, c1, c0, 0)"
+      ],
+      [
+        563,
+        ""
+      ],
+      [
+        564,
+        "\treload_current r7, r8"
+      ],
+      [
+        565,
+        ""
+      ],
+      [
+        566,
+        "\t@"
+      ],
+      [
+        567,
+        "\t@ Clear FP to mark the first stack frame"
+      ],
+      [
+        568,
+        "\t@"
+      ],
+      [
+        569,
+        "\tzero_fp"
+      ],
+      [
+        570,
+        ""
+      ]
+    ]
+  }
+}

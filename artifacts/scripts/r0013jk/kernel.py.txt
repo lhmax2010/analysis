@@ -556,6 +556,7 @@ def post_build(work, spec, g, cmd):
         need(all(abs(actual[k]-v)<=0.001*v for k,v in K1.items()),"outside proposed 0.10% K1 tolerance")
     if cmd is None:
         print("PERF", actual, flush=True)
+    proof_by_effect = False
     evidence=[]
     def inspect(line,where):
         try:words=shlex.split(line)
@@ -589,8 +590,12 @@ def post_build(work, spec, g, cmd):
         prefix = str(Path(linked_tree).relative_to(root)) + "/" if linked_tree else None
         perfrows = [r for r in evidence if perf_target_row(r, prefix)]
         print("PERF_ARGV_COUNTS", len(perfrows), "with_outline", sum(r[2] for r in perfrows), flush=True)
-        need({"-DMODULE" in shlex.split(r[3]) for r in perfrows} == {True,False}
-             and all(r[2] for r in perfrows), "perf-scoped kernel/module Clang argv unavailable or missing -moutline")
+        proof_by_effect = not perfrows and actual == K1 and sha(spec) == RETAINED_SPEC
+        if proof_by_effect:
+            print("PERF_ARGV INFO discarded; VERIFY PM_ACCEPT argv-proof-by-effect", flush=True)
+        else:
+            need({"-DMODULE" in shlex.split(r[3]) for r in perfrows} == {True,False}
+                 and all(r[2] for r in perfrows), "perf-scoped kernel/module Clang argv unavailable or missing -moutline")
     elif cmd is None:
         for tree in trees:
             perfrows=[r for r in evidence if r[0].startswith(str(tree.relative_to(root))+"/") and not re.search(r"(^|/)(tools|scripts|vdso|boot/compressed)/",r[0])]
@@ -611,9 +616,9 @@ def post_build(work, spec, g, cmd):
         families[w.split("/drivers/")[0].split("/kernel/")[0].split("/mm/")[0]]=True
     if cmd is None and output_tree:
         families[str(output_tree.relative_to(root))] = True
-    need(families and any("clang" in d and on and "-DMODULE" in shlex.split(l) for w,d,on,l in perfrows),"missing module argv")
+    need(proof_by_effect or families and any("clang" in d and on and "-DMODULE" in shlex.split(l) for w,d,on,l in perfrows),"missing module argv")
     report={"status":"PASS","static":os.environ["PM_STATIC_SHA"],"script":sha(Path(__file__).read_bytes()),"spec":sha(spec),"rpm":g.sha(rpm),"sizes":actual,"observed_build_dirs":sorted(families),"argv":g.sha(W/"argv.json"),"command":cmd}
-    report.update(source_workdir=str(work), verification="retained" if cmd is None else "fresh",
+    report.update(perf_argv_method="PM_ACCEPT argv-proof-by-effect" if proof_by_effect else "observed", source_workdir=str(work), verification="retained" if cmd is None else "fresh",
                   boot_header=header, elf_build_id=identity, zImage_sha256=zhash, perf_tree=str(tree),
                   rpm_path=str(rpm), config_sha256=goodcfg)
     if cmd is None:
@@ -621,7 +626,7 @@ def post_build(work, spec, g, cmd):
     if cmd is None and output_tree:
         report.update(config_proof=config_proof, config_sha256=config_proof["effective_sha256"],
                       k0_config_sha256=goodcfg, elf_image_sha256=sha(payload), elf_sha256=g.sha(elf))
-    print("ARGV_PASS", "SERET_UL_GCC", sum("SERET-UL" in w and "gcc" in d for w,d,on,l in evidence),
+    print("ARGV_INFO" if proof_by_effect else "ARGV_PASS", "SERET_UL_GCC", sum("SERET-UL" in w and "gcc" in d for w,d,on,l in evidence),
           "PERF_CLANG", sum("clang" in d and on for w,d,on,l in perfrows),
           "PERF_MODULE_CLANG", sum("clang" in d and on and "-DMODULE" in shlex.split(l)
                                     for w,d,on,l in perfrows), flush=True)

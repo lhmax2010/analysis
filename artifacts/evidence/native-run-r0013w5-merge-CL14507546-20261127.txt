@@ -1,0 +1,21 @@
+r0013w5 merge 14427407 files into TEST-ONLY CL 14507546 (user-run 2026-11-27, client DEV-IPTV-VC_TOOLCHAIN)
+== 14427407 shelves 24 files; 14507546 shelves 1 files
+A (open in default, identical to 14427407; moved, shelved, moved back) = 16:
+  BUILD.sh, block/iomon/iomon-logger.h, block/iomon/iomon.c, drivers/hid/hid-microsoft.c, drivers/hid/hid-nvidia.c,
+  drivers/soc/nvt/bsp/ndp_hwmem.c, drivers/soc/nvt/bsp/nvt_auth.c, drivers/usb/host/ehci-hcd.c, fs/proc/task_mmu.c,
+  ipc/kdbus/metadata.c, lib/sf/transport/netlink/SfNetlinkKernel.c, mm/oom_kill.c, mm/slab_common.c, mm/vmalloc.c,
+  scripts/Makefile.extrawarn, security/sfd/uep/SfdUepHookHandlers.c
+B (NOT open in the client; opened in 14507546, 14427407 content written, shelved, reverted) = 7:
+  linux-6.12/Makefile                                  have#10 -> 14427407 sha b9da89aa1a9d
+  linux-6.12/arch/arm/configs/KANTSU2E_debug_defconfig   have#23 -> 6bf8e5380ca2
+  linux-6.12/arch/arm/configs/KANTSU2E_perf_defconfig    have#22 -> 11c224a1247e
+  linux-6.12/arch/arm/configs/KANTSU2E_release_defconfig have#22 -> 2053dab86bdb
+  linux-6.12/fs/minimal_core.c                         have#4  -> 8500db4e7a10
+  linux-6.12/init/Kconfig                              have#8  -> 325ccaa4df64
+  linux-6.12/ipc/kdbus/connection.c                    have#8  -> f1d2a1bf16e6
+SPEC (already in 14507546 as 0994c745)
+Change 14507546 files shelved. Change 14507546 updated (description: self-contained, use alone in QB).
+SHELF_CHECK match=24 mismatch=0 of 24
+CL 14507546 now shelves 24 files
+DONE: QB uses ONLY shelve CL 14507546 (never submit)
+RESTORED: A files back in default, B files reverted IDENTICAL

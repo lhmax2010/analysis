@@ -1,0 +1,24 @@
+"""Read checksum-pinned RPM-MD streams from fixed VD snapshots."""
+from hashlib import new
+import runpy
+from pathlib import Path
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+lib = runpy.run_path(str(Path(__file__).with_name("image-repo-lib.py.txt")))
+
+
+def metadata(repo, kind):
+    lib["require_repo"](repo)
+    md = ET.fromstring(lib["fetch"](repo+"repodata/repomd.xml", 2<<20))
+    entry = md.find("{*}data[@type='%s']" % kind)
+    if entry is None:
+        raise ValueError("no "+kind+" metadata in "+repo)
+    url = urljoin(repo, entry.find("{*}location").attrib["href"])
+    if not url.startswith(repo+"repodata/"):
+        raise ValueError("unexpected metadata path")
+    data = lib["fetch"](url, 128<<20)
+    check = entry.find("{*}checksum")
+    if new(check.attrib["type"], data).hexdigest() != check.text.strip():
+        raise ValueError("metadata checksum: "+url)
+    return ET.fromstring(lib["unpack"](data))

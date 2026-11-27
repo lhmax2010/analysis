@@ -1,0 +1,17 @@
+r0013w3 manual TEST-ONLY shelve in DEV-IPTV-VC_TOOLCHAIN (user-run, 2026-11-27 ~20:44 +0800)
+LOCAL_FILE /home1/chengkai/vd-tree/src/TIZEN/MAIN/TIZENPROD_Prj/INT/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/packaging/tztv-kernel.spec
+LOCAL_BACKUP sha256 5663f9c9c074f74e69a57bec9fb3dcc595512985a778814e311e0658e2b12cc5 (local open spec == shelf 14427407 version)
+NEW_CL 14507546
+//TIZEN/[MAIN]/[TIZENPROD_Prj]/[INT]/PRODUCT/SYSARCH/Sysarch/bsp/vdlinux/packaging/tztv-kernel.spec#61 - reopened; change 14507546
+SPEC_EDIT_OK 0994c745b120f29218f96e6262b7af84f50d073a94716c4212263285a0448b23
+== diff against the 14427407 version
+@@ -298,7 +298,7 @@
+-       env $KERNEL_TOOLCHAIN_ENV ./BUILD.sh "$PROJECT" "$RELEASE_MODE" "$SIGN_CHIP" "$VERIFIER" "$SANITIZER"
++       env $KERNEL_TOOLCHAIN_ENV KCFLAGS="${KCFLAGS:+$KCFLAGS }"'$(if $(filter clang clang-%% %%-clang,$(notdir $(lastword $(CC)))),-moutline)' ./BUILD.sh "$PROJECT" "$RELEASE_MODE" "$SIGN_CHIP" "$VERIFIER" "$SANITIZER"
+Change 14507546 files shelved.
+shelved spec sha256 0994c745b120f29218f96e6262b7af84f50d073a94716c4212263285a0448b23
+Change 14507546 by hao.lin@DEV-IPTV-VC_TOOLCHAIN on 2026/11/27 20:44:24 *pending*
+        [TEST ONLY - DO NOT SUBMIT] kernel: clang-only -moutline for KantSU2E perf (LLVM adaptation measurement)
+Shelved files: .../bsp/vdlinux/packaging/tztv-kernel.spec#61 edit
+DONE TEST-ONLY CL 14507546 (never submit). QB shelves: 14427407 then 14507546
+RESTORED local spec sha256 5663f9c9... IDENTICAL ; open in: default

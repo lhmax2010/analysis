@@ -1,0 +1,222 @@
+"""Rebuild the exact retained K4 GBS revision with keep-going in a private buildroot."""
+from collections import Counter
+from contextlib import ExitStack
+import base64
+import configparser
+import shlex
+import signal
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import subprocess
+import sys
+import zlib
+
+w = Path.cwd()
+vd = Path("/home1/chengkai/vd-tree")
+temp = vd/"workspace/temp"
+job = temp/"pm0012-kernel.dkyJ0S/jobs/kernel-thumb"
+original = job/"vdlinux"
+spec = "packaging/tztv-kernel.spec"
+
+def output(*args, **kwargs):
+    return subprocess.check_output(args, text=True, errors="replace", **kwargs)
+
+def require(check, reason):
+    if not check:
+        raise ValueError(reason)
+
+def hash_file(p):
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+def parse(lines):
+    """Keep raw neighboring lines, including assembler macro notes and linker errors."""
+    rows = []
+    for i,line in enumerate(lines):
+        m = re.search(r'(?:^|\s)([\w+/<>.\-]+):(\d+)(?::\d+)?: (error|fatal error|note):\s*(.*)', line)
+        if m:
+            rows.append(dict(path=m[1], line=int(m[2]), kind=m[3], detail=m[4], context=lines[max(0,i-1):i+4]))
+        elif re.search(r'\berror:|undefined reference|No rule to make target|cannot find |not found|Exec format error|Permission denied|\*\*\*.*(?:Error|Stop)', line, re.I):
+            rows.append(dict(path="",line=0,kind="tool/build",detail=line,context=lines[max(0,i-1):i+3]))
+    return rows
+
+REQUIRED = {"secureboot-signer","vd-kernel-dtb-devel"}
+
+
+def provenance():
+    lane = job/"K4"
+    hits = set()
+    for line in (job/"job.log").read_text().splitlines():
+        if "GBS_START " not in line or " LOG " not in line:
+            continue
+        command, log = line.split("GBS_START ",1)[1].rsplit(" LOG ",1)
+        if Path(log.strip()) == lane/"gbs.log":
+            args = shlex.split(command)
+            if "gbs" not in args or "-c" not in args or "-B" not in args or Path(args[args.index("-B")+1]) != lane/"GBS-ROOT":
+                raise ValueError("K4 invocation/root")
+            hits.add(Path(args[args.index("-c",args.index("gbs"))+1]))
+    require(len(hits)==1,"K4 GBS_START command/config missing or ambiguous")
+    path = hits.pop()
+    require(path.resolve(strict=True).is_relative_to(job),"K4 config location")
+    cfg = configparser.RawConfigParser()
+    cfg.read_string(path.read_text())
+    profile = cfg[cfg["general"]["profile"]]
+    require(Path(profile["buildroot"]) == lane/"GBS-ROOT","K4 config root mismatch")
+    urls = {}
+    for repo in map(str.strip, profile["repos"].split(",")):
+        url = cfg[repo]["url"]
+        if repo == "repo.local_thumb":
+            require(Path(url)==lane/"empty-repo" and not any(Path(url).iterdir()), "nonempty or missing local K4 repo")
+        else:
+            require(repo in {"repo.product_NikeM","repo.base_standard"} and url.startswith(("http://","https://")), "unexpected K4 repo")
+            urls[repo]=url
+    require(set(urls)=={"repo.product_NikeM","repo.base_standard"} and "20261113.1" in urls["repo.base_standard"],"K4 remote repositories")
+    return path, urls
+
+
+def preflight(urls):
+    def expired(*unused):
+        raise TimeoutError("50s dependency preflight deadline")
+    old = signal.signal(signal.SIGALRM,expired)
+    signal.alarm(50)
+    try:
+        load = runpy.run_path(str(w/"metadata.py.txt"))["metadata"]
+        found = set()
+        for name,url in urls.items():
+            group = "product" if name=="repo.product_NikeM" else "base"
+            primary = load(url.rstrip("/")+f"/repos/{group}/armv7l/packages/","primary")
+            for pkg in primary.findall("{*}package"):
+                if pkg.findtext("{*}arch") not in ("noarch","armv7l"):
+                    continue
+                names = {pkg.findtext("{*}name")} | {v.get("name") for v in pkg.findall("{*}format/{*}provides/{*}entry")}
+                for dep in sorted((names & REQUIRED)-found):
+                    print("ENUM_PROVIDER",dep,pkg.findtext("{*}name"),url,flush=True)
+                    found.add(dep)
+        require(found==REQUIRED,"missing: "+", ".join(sorted(REQUIRED-found)))
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM,old)
+
+
+def setup_failed(reason, detail):
+    result=dict(status="SETUP_FAILED",reason=reason,detail=str(detail),source_workdir=str(job/"K4"))
+    (w/"enumeration.json").write_text(json.dumps(result,indent=2))
+    print("ENUM_RESULT SETUP_FAILED",reason,str(detail)[:1400],flush=True)
+    raise SystemExit(2)
+
+
+def execution_setup(lines, root, called):
+    matches = [x.strip() for x in lines if re.search(r"missing build dependencies|nothing provides|have choice|unresolvable",x,re.I)]
+    if matches:
+        return "deps", "; ".join(dict.fromkeys(matches))
+    if not any(p.is_dir() for p in (root/"local/BUILD-ROOTS").glob("*.armv7l.*")):
+        return "build-root","GBS created no ARM build root"
+    if not called:
+        return "make-k","no PM_ENUM_KEEP_GOING marker"
+    return None
+
+
+def main():
+    require(w.parent==temp and w.name.startswith("pm0013n-enum.") and sys.stdin.isatty(),"native foreground workspace required")
+    git=["git","-c","core.hooksPath=/dev/null"]
+    try:
+        config,urls=provenance()
+    except (OSError,ValueError,KeyError,IndexError,configparser.Error) as exc:
+        setup_failed("repo-provenance",exc)
+    refs=output(*git,"-C",original,"log","--all","--format=%H","--grep=^Local measured kernel K4$").split()
+    require(len(refs)==1,"expected one retained K4 local GBS revision")
+    require(refs==["fae92f998a51e8493e2ed452381aad73c2ce689e"],"K4 source revision")
+    print("ENUM_INPUT",refs[0],config,hash_file(config),json.dumps(urls),flush=True)
+    try:
+        preflight(urls)
+    except Exception as exc:
+        setup_failed("deps",exc)
+    src=w/"vdlinux"
+    with ExitStack() as locks:
+        for name in ("pm0012-queue.lock","pm0004-native-lock/heavy.lock","pm0005-native-lock/heavy.lock"):
+            lock=locks.enter_context((temp/name).open("a"));fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        require(shutil.disk_usage(w).free>=105*1024**3 and int(re.search(r'MemAvailable:\s*(\d+)',Path('/proc/meminfo').read_text())[1])>=32*1024**2,"requires 105 GiB disk and 32 GiB available RAM")
+        subprocess.run([*git,"clone","-q","--local","--no-hardlinks",original,src],check=True)
+        subprocess.run([*git,"-C",src,"checkout","-q","--detach",refs[0]],check=True)
+        p=src/spec
+        data=p.read_text()
+        anchor='"$PM_REAL_MAKE" "$@" || exit $?'
+        require("pm_lane=K4" in data and data.count(anchor)>=1,"retained K4 spec wrapper differs")
+        replay = ('echo PM_ENUM_KEEP_GOING "$PWD" "$@"\n'
+                  'if "$PM_REAL_MAKE" -k "$@"; then :; else pm_rc=$?; '
+                  'echo PM_ENUM_SECOND_PASS; "$PM_REAL_MAKE" -k "$@" || :; exit "$pm_rc"; fi')
+        p.write_text(data.replace(anchor,replay))
+        subprocess.run([*git,"-C",src,"-c","user.name=GBS staging","-c","user.email=gbs@localhost","commit","-qm","Diagnostic K4 keep-going", "--",spec],check=True)
+        contents=config.read_text()
+        require("20261113.1" in contents,"Official Base unavailable")
+        root=w/"GBS-ROOT"
+        contents,n=re.subn(r"(?mi)^\s*buildroot\s*=.*$","buildroot = "+str(root),contents)
+        require(n==1,"ambiguous buildroot");cfg=w/"gbs.conf";cfg.write_text(contents)
+        conf=next((p for p in sorted((vd/"workspace/qb-evidence").glob("377*-*/published-build.conf")) if hash_file(p)=="98690f234ec8b79c728ae624f3ea91b12e6db5d918c70cfacb277d798dc95e03"),None)
+        require(conf,"published build.conf unavailable")
+        print("ENUM_INPUT",refs[0],hash_file(config),hash_file(conf),str(root),flush=True)
+        subprocess.run(["sudo","-v"],check=True)
+        keep=subprocess.Popen(["bash","-c","while sleep 50; do sudo -n -v || exit 1; done"])
+        try:
+            cpus=",".join(map(str,sorted(os.sched_getaffinity(0))[:6]))
+            args=["taskset","-c",cpus,"gbs","-c",str(cfg),"build","-A","armv7l","-B",str(root),"-D",str(conf),"--threads","1","--packaging-dir","packaging","--spec",p.name]
+            with (w/"gbs.log").open("wb") as f:rc=subprocess.run(args,cwd=src,stdout=f,stderr=subprocess.STDOUT).returncode
+        finally:
+            keep.terminate();keep.wait()
+    logs = [w/"gbs.log"]
+    for pattern in ("local/repos/*/armv7l/logs/*/tztv-kernel*/log.txt","local/BUILD-ROOTS/*/.build.log"):
+        logs.extend(sorted(root.glob(pattern)))
+    # Keep contexts within their original file. GBS may print only a tail to stdout.
+    rows = []
+    seen = set()
+    lines = []
+    for log in logs:
+        segment=[re.sub(r'^\[\s*[\d.]+s\]\s*','',x) for x in log.read_text(errors="replace").splitlines()]
+        lines.extend(segment)
+        for row in parse(segment):
+            key = (row["path"],row["line"],row["detail"],tuple(row["context"]))
+            if key not in seen:
+                seen.add(key)
+                rows.append(dict(row,log=str(log)))
+
+    called=any(x.startswith("PM_ENUM_KEEP_GOING") for x in lines)
+    failed=execution_setup(lines,root,called)
+    if failed:
+        setup_failed(*failed)
+    configs=[]
+    for p in root.glob("local/BUILD-ROOTS/*/home/abuild/rpmbuild/BUILD/**/.config"):
+        values=set(p.read_text(errors="replace").splitlines())
+        if {"CONFIG_THUMB2_KERNEL=y","CONFIG_UNWINDER_ARM=y"}<=values:configs.append((str(p),hash_file(p)))
+    asm=runpy.run_path(str(w/"asm.py.txt"))
+    source=src/"linux-6.12"
+    names={r["path"] for r in rows if r["path"] and (source/r["path"]).resolve().is_relative_to(source) and (source/r["path"]).is_file()}
+    names.update(n for n in ("arch/arm/lib/backtrace-clang.S","arch/arm/kernel/entry-armv.S"))
+    origins=asm["provenance"](source,names)
+    snippets={}
+    for name in names:
+        raw=(source/name).read_text(errors="replace").splitlines()
+        picks={r["line"] for r in rows if r["path"]==name}
+        picks.update(i for i,x in enumerate(raw,1) if re.search(r'check_overflow|stmia\s+r0|sp,\s*lsr',x))
+        snippets[name]=[(i,raw[i-1]) for i in sorted({i for v in picks for i in range(max(1,v-18),min(len(raw),v+18)+1)})]
+    concrete=[r for r in rows if r["kind"] in ("error","fatal error")]
+    called=any(x.startswith("PM_ENUM_KEEP_GOING") for x in lines)
+    status="COMPLETE" if configs and (rc==0 or concrete) else "INCOMPLETE"
+    result=dict(status=status,gbs_exit=rc,config=configs,make_k_seen=called,source_revision=refs[0],rows=rows,origins=origins,source_context=snippets)
+    dst=w/"enumeration.json";dst.write_text(json.dumps(result,indent=2))
+    print("ENUM_RESULT",status,rc,"diagnostics",len(rows),"known_errors",len(concrete),"config",configs)
+    for detail,n in Counter((r["path"],r["line"],r["detail"]) for r in concrete).most_common(24):print("SITE",*detail,n)
+    payload=zlib.compress(dst.read_bytes(),9)
+    packets=[base64.b64encode(payload[i:i+9000]).decode() for i in range(0,len(payload),9000)]
+    packet=w/"packet.txt";packet.write_text("\n".join(f"ENUM_PART {i}/{len(packets)} {v}" for i,v in enumerate(packets,1))+"\n")
+    print("ENUM_JSON_SHA256",hash_file(dst),"PACKETS",len(packets))
+    print("READ_PART sed -n '1p'",packet)
+    if len(packets)<=4: print(packet.read_text().rstrip())
+    if status=="INCOMPLETE":
+        print("TAIL","\n".join(lines[-8:]))
+        sys.exit(1)
+if __name__=="__main__":main()

@@ -123,6 +123,13 @@ cp %{SOURCE0} %{SOURCE1} %{SOURCE2} %{buildroot}/perf/
                 log.write_text("\n".join([lines[0],clang,*lines[3:],module]))
                 with self.assertRaisesRegex(ValueError,"perf-scoped"):
                     fn(work,spec,g,None)
+                log.write_text("\n".join([lines[0],*lines[3:]]))
+                fn(work,spec,g,None)
+                self.assertEqual(json.loads((out/"build.json").read_bytes())["perf_argv_method"],
+                                 "PM_ACCEPT argv-proof-by-effect")
+                log.write_text("\n".join([lines[0],clang.replace("-moutline","-mno-outline"),module,*lines[3:]]))
+                with self.assertRaisesRegex(ValueError,"perf-scoped"):
+                    fn(work,spec,g,None)
                 with patch("shutil.which",return_value=None):
                     self.assertEqual(K["packaged_perf_sizes"](elf,payload,len(b"packed perf"))[1],expected)
                 with self.assertRaisesRegex(ValueError,"differs|mismatch"):

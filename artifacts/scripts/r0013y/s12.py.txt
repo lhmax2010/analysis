@@ -1,0 +1,296 @@
+"""S12 on two published perf kernel pairs. Read metadata and verified RPMs only."""
+import argparse
+import configparser
+import base64
+import zlib
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import struct
+import subprocess
+import sys
+from urllib.error import HTTPError
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+HERE = Path(__file__).resolve().parent
+W = Path.cwd()
+VD = Path("/home1/chengkai/vd-tree")
+WS = VD/"workspace"
+BASES = {"37777148":("20261113.1","168.219.236.43:81/PRV/builds/b567/19437567","20261125.1"),
+         "37777264":("20261118.1","168.219.236.55:81/PRV/builds/b655/19437655","20261125.2")}
+meta = runpy.run_path(str(HERE/"metadata.py.txt"))
+lib = meta["lib"]
+elf_sections = runpy.run_path(str(HERE/"image_mode_scan.py.txt"))["secs_of"]
+raw_kernel = runpy.run_path(str(HERE/"kernel-size.py.txt"))["raw_kernel"]
+verify_url = runpy.run_path(str(HERE/"qb-retain.py.txt"))["product_url"]
+KO = re.compile(r"\.ko(?:\.(?:gz|xz|zst))?$")
+HELPER = re.compile(r"^(\w+)\s+[tT]\s+OUTLINED_FUNCTION_\d+(?:\.\w+)*$",re.M)
+
+
+def need(cond,why):
+    if not cond:
+        raise ValueError(why)
+
+
+def resolve(arg):
+    if arg in BASES:
+        _,build,stamp=BASES[arg]
+        url=f"http://{lib['HOST']}/priv/{build}/artifacts/TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_{stamp}/"
+    elif re.fullmatch(r"[0-9]+",arg):
+        caps=list((WS/"qb-evidence").glob(arg+"-*/identity.json"))
+        if len(caps)==1:
+            cap=json.loads(caps[0].read_bytes())
+            need(cap["qb_id_operator_supplied"]==arg,"QB identity")
+            url=cap["product"]
+        else:
+            configs=list((VD/"config").glob("*_qb"+arg+".conf"))
+            need(len(configs)==1,"supply the Product artifacts URL for QB "+arg)
+            cfg=configparser.RawConfigParser();cfg.read(configs)
+            url=cfg["repo.product_NikeM"]["url"]
+    else:
+        url=arg
+    url=url.rstrip("/")+"/"
+    verify_url(url)
+    return url
+
+
+def selected(name,path):
+    if not KO.search(path) or "debuginfo" in name:
+        return False
+    if any(x in path.split("/") for x in ("release","debug")) or name.endswith(("-debug","-release")):
+        return False
+    return not (name.startswith("tztv-kernel") and name!="tztv-kernel-perf")
+
+
+def inventory(url):
+    repo=url+"repos/product/armv7l/packages/"
+    primary=meta["metadata"](repo,"primary")
+    files=meta["metadata"](repo,"filelists")
+    owners={}
+    symver_packages=set()
+    for p in files.findall("{*}package"):
+        name=p.get("name")
+        if p.get("arch") not in ("armv7l","noarch"):
+            continue
+        paths={f.text for f in p.findall("{*}file") if f.text and selected(name,f.text)}
+        if name.startswith("tztv-kernel") and any(re.search(r"/Module\.symvers(?:\.(?:gz|xz|zst))?$", f.text or "") for f in p.findall("{*}file")):
+            symver_packages.add(p.get("pkgid"))
+        if paths:
+            owners[p.get("pkgid")]=paths
+    allrows={}
+    def add(metadata, directory):
+        for p in metadata.findall("{*}package"):
+            name=p.findtext("{*}name"); ck=p.find("{*}checksum")
+            if p.findtext("{*}arch") not in ("armv7l","noarch"):
+                continue
+            if not (ck.text in owners or ck.text in symver_packages or name in {"tztv-kernel-perf","tztv-kernel-devel","tztv-kernel-perf-devel",
+                                                    "tztv-kernel-perf-debuginfo","tztv-kernel-debuginfo"}):
+                continue
+            link=urljoin(directory,p.find("{*}location").get("href"))
+            need(link.startswith(url) and ck.get("type")=="sha256" and re.fullmatch(r"[0-9a-f]{64}",ck.text),"bad RPM identity")
+            if name in allrows:
+                need(allrows[name][0]==ck.text,"ambiguous package "+name)
+            allrows[name]=(ck.text,link)
+    add(primary,repo)
+    for sub in ("debug/","debuginfo/"):
+        directory=url+"repos/product/armv7l/"+sub
+        try:
+            idx=meta["metadata"](directory,"primary")
+        except HTTPError as e:
+            if e.code==404:continue
+            raise
+        add(idx,directory)
+    need("tztv-kernel-perf" in allrows and owners and set(owners)<={r[0] for r in allrows.values()},"incomplete kernel/filelists join")
+    return allrows,owners
+
+
+def module(blob):
+    if not blob.startswith(b"\x7fELF"):
+        blob=lib["unpack"](blob)
+    ordered=elf_sections(blob) or []
+    sections=dict(ordered)
+    need(".modinfo" in sections and ".text" in sections and blob[16:18]==b"\x01\0","not an ARM loadable module")
+    s=sections[".modinfo"]
+    fields=blob[s[4]:s[4]+s[5]].split(b"\0")
+    def field(key):
+        vals={v[len(key):].decode() for v in fields if v.startswith(key)}
+        need(len(vals)==1,"missing or ambiguous modinfo "+repr(key))
+        return vals.pop()
+    vermagic=field(b"vermagic=")
+    # Only relocation types targeting SHF_ALLOC sections affect the loader.
+    types=set()
+    for _,s in ordered:
+        if s[1] not in (4,9) or not ordered[s[7]][1][2]&2:continue
+        stride=12 if s[1]==4 else 8
+        need(s[9]==stride and s[5]%stride==0,"invalid module relocation table")
+        types.update(struct.unpack_from("<I",blob,i+4)[0]&255 for i in range(s[4],s[4]+s[5],stride))
+    return dict(name=field(b"name="),vermagic=vermagic,release=vermagic.split()[0],
+                signed=blob.endswith(b"~Module signature appended~\n"),text=sections[".text"][5],size=len(blob),relocations=sorted(types))
+
+
+def extract(rpm,names,directory):
+    # Materialize each distinct digest once even when cpio stores the hardlink data under an alias.
+    raw=subprocess.check_output(["rpm","-qp","--qf",r"[%{FILENAMES}\t%{FILEMODES:octal}\t%{FILEDIGESTS}\n]",rpm],text=True)
+    header={}
+    for line in raw.splitlines():
+        path,mode,h=line.split("\t")
+        if int(mode,8)&0o170000==0o100000:
+            header[path]=h
+    wanted={n:h for n,h in header.items() if names(n)}
+    need(all(re.fullmatch(r"[0-9a-f]{64}",h) for h in wanted.values()),"RPM file digests")
+    digests=set(wanted.values())
+    if not digests:return {}
+    with subprocess.Popen(["rpm2cpio",rpm],stdout=subprocess.PIPE) as proc:
+        stream=proc.stdout
+        while True:
+            hdr=stream.read(110)
+            need(len(hdr)==110 and hdr[:6] in (b"070701",b"070702"),"cpio header")
+            size,ns=int(hdr[54:62],16),int(hdr[94:102],16)
+            need(0<ns<65536,"cpio filename")
+            name=stream.read(ns)[:-1].decode();stream.read(-(110+ns)%4)
+            if name=="TRAILER!!!":break
+            h=header.get("/"+name.removeprefix("./").lstrip("/"))
+            remaining=size
+            path=directory/h if h in digests and size else None
+            f=path.open("wb") if path else None
+            try:
+                while remaining:
+                    block=stream.read(min(remaining,1<<20));need(block,"truncated RPM")
+                    if f:f.write(block)
+                    remaining-=len(block)
+            finally:
+                if f:f.close()
+            stream.read(-size%4)
+        while stream.read(1<<20):pass
+        need(proc.wait()==0,"rpm2cpio")
+    for h in digests:
+        if h==hashlib.sha256(b"").hexdigest():(directory/h).touch()
+        need(lib["file_sha"](directory/h)==h,"member checksum")
+    return {n:directory/h for n,h in wanted.items()}
+
+
+def symbols(elf,bid):
+    with elf.open("rb") as f:h=f.read(20)
+    if h[:6]!=b"\x7fELF\x01\x01" or h[16:20]!=b"\x02\x00\x28\x00":return None
+    ids=re.findall(r"Build ID:\s*([0-9a-f]+)",subprocess.check_output(["readelf","-nW",elf],text=True))
+    if set(ids)!={bid}:return None
+    text=subprocess.check_output(["nm","-n","--defined-only",elf],text=True,stderr=subprocess.DEVNULL)
+    if not re.search(r"^\w+\s+[tT]\s+_stext$",text,re.M):return None
+    return len(set(HELPER.findall(text)))
+
+
+def read_snapshot(label,url,base_id,work):
+    work.mkdir()
+    stamp=BASES[base_id][0]
+    xml=ET.fromstring(lib["fetch"](url+"builddata/build.xml",16<<20))
+    need(xml.findtext("id")==verify_url(url) and xml.findtext("base_repo","").rstrip("/")==lib["PREFIX"]+stamp,"Product ID or published LLVM Base mismatch")
+    rows,owners=inventory(url)
+    mod={};boot={};elfs=[];symvers={}; maps=[]
+    for name,(h,link) in sorted(rows.items()):
+        path=lib["cached_rpm"]((link,h),work)
+        def want(n):
+            return (selected(name,n) or name=="tztv-kernel-perf" and n in ("/perf/uImage","/perf/zImage")
+                    or bool(re.search(r"/Module\.symvers(?:\.(?:gz|xz|zst))?$",n)) and not {"debug","release"}.intersection(n.split("/"))
+                    or "perf" in n.split("/") and Path(n).name=="System.map"
+                    or bool(re.search(r"/(?:vmlinux(?:[-.][^/]*)?|\.build-id/[0-9a-f]{2}/[0-9a-f]+\.debug)$",n)))
+        extracted=extract(path,want,work)
+        need(owners.get(h,set())=={p for p in extracted if selected(name,p)},"module payload coverage: "+name)
+        for n,f in extracted.items():
+            if n in owners.get(h,set()):
+                key=name+"!"+n
+                mod[key]=module(f.read_bytes())
+            elif n in ("/perf/uImage","/perf/zImage"):boot[n]=f
+            elif "/Module.symvers" in n:
+                crcs={}
+                for line in lib["unpack"](f.read_bytes()).decode().splitlines():
+                    parts=line.split();need(len(parts)>=3 and re.fullmatch(r"0x[0-9A-Fa-f]+",parts[0]),"invalid Module.symvers")
+                    key=parts[2]+"!"+parts[1];need(key not in crcs or crcs[key]==int(parts[0],16),"conflicting CRC")
+                    crcs[key]=int(parts[0],16)
+                need(crcs,"empty Module.symvers");symvers[name+"!"+n]=crcs
+            elif n.endswith("/System.map") and name=="tztv-kernel-perf":maps.append(f)
+            else:elfs.append(f)
+    payload,bid=raw_kernel(*(boot[n].read_bytes() for n in ("/perf/uImage","/perf/zImage")))
+    # Local ELFs can supply symbols only when their own GNU Build ID equals the published boot payload.
+    supplied=os.environ.get("S12_"+label.upper()+"_ELF")
+    if supplied:
+        local=Path(supplied).resolve(strict=True)
+        need(local.is_relative_to(WS.resolve()),"ELF must be under workspace")
+        elfs.append(local)
+    if label=="Official":
+        elfs.extend((WS/"temp/pm0013jk-build.jEMVH7/GBS-ROOT/local/BUILD-ROOTS").glob(
+            "*/home/abuild/rpmbuild/BUILD/tztv-kernel-1/KANTSU2E/image/perf/vmlinux"))
+    symbol_sources={str(e):n for e in set(elfs) if (n:=symbols(e,bid)) is not None}
+    counts=set(symbol_sources.values())
+    for m in maps:
+        t=m.read_text()
+        need(re.search(r"^\w+\s+[Tt]\s+_stext$",t,re.M),"invalid perf System.map")
+        count=len(set(HELPER.findall(t)))
+        symbol_sources[str(m)]=count
+        counts.add(count)
+    need(len(counts)<=1,"symbol sources disagree")
+    release={v["release"] for v in mod.values() if v}
+    if label in BASES:
+        need(sum(k.startswith("tztv-kernel-perf!") for k in mod)==115,"baseline perf module coverage differs from 115")
+    need(mod and len(release)==1,"empty or mixed perf kernel release")
+    banners=re.findall(rb"Linux version ([^ \0\n]+) ",payload)
+    need(release=={v.decode() for v in banners},"kernel banner differs from module release")
+    result=dict(url=url,symbol_sources=symbol_sources,build_id=bid,release=release.pop(),helpers=next(iter(counts),None),modules=mod,symvers=symvers,rpms=rows)
+    (work/"snapshot.json").write_text(json.dumps(result,sort_keys=True))
+    print("S12_SNAPSHOT",label,"build_id",bid,"modules",len(mod),"symvers",len(symvers),"helpers",result["helpers"])
+    return result
+
+
+def compare(ref,test):
+    reasons=[]; rows=[]
+    if ref["build_id"]==test["build_id"]:reasons.append("unchanged kernel build ID")
+    if ref["release"]!=test["release"]:reasons.append("kernel release changed")
+    if ref["symvers"]!=test["symvers"]:reasons.append("Module.symvers availability or export CRCs changed")
+    if not test["helpers"] or ref["helpers"] is not None and test["helpers"]<=ref["helpers"]:
+        reasons.append("outlined-helper increase unproved")
+    for k in sorted(ref["modules"].keys()|test["modules"].keys()):
+        a,b=ref["modules"].get(k),test["modules"].get(k)
+        changed=["module set"] if not a or not b else [f for f in ("name","vermagic","signed","relocations") if a[f]!=b[f]]
+        delta=b["text"]-a["text"] if a and b else None
+        rows.append(dict(module=k,reference=a,candidate=b,text_delta=delta,reasons=changed))
+        reasons.extend(changed)
+    return rows,sorted(set(reasons))
+
+
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("official");parser.add_argument("custom");args=parser.parse_args()
+    need(W.parent==WS/"temp" and W.name.startswith("pm0013y-s12."),"workspace required")
+    all_reasons=[]
+    for (lane,arg),baseline in zip([("Official",args.official),("Custom",args.custom)],BASES):
+        try:
+            url=resolve(arg);ref_url=resolve(baseline)
+            need(url!=ref_url,"candidate is its own baseline")
+            ref=read_snapshot(baseline,ref_url,baseline,W/(baseline+"-ref"))
+            test=read_snapshot(lane,url,baseline,W/lane)
+            rows,reasons=compare(ref,test)
+            (W/(lane+"-modules.json")).write_text(json.dumps(rows))
+            for row in sorted(rows,key=lambda r:-abs(r["text_delta"] or 0))[:6]:
+                print("S12_TEXT",lane,row["module"],row["text_delta"])
+            print("S12_PAIR",lane,baseline,arg,"helpers",ref["helpers"],test["helpers"],"symvers",len(test["symvers"]),
+                  "PASS" if not reasons else "FAIL",reasons)
+            all_reasons.extend(lane+": "+r for r in reasons)
+        except (OSError,ValueError,ET.ParseError,KeyError,IndexError,struct.error,subprocess.SubprocessError) as exc:
+            all_reasons.append(lane+": "+str(exc)[:250])
+    data={p.stem:json.loads(p.read_bytes()) for p in W.glob("*-modules.json")}
+    if data:
+        raw=json.dumps(data,sort_keys=True,separators=(",",":")).encode()
+        compressed=zlib.compress(raw,9)
+        packet=W/"module-packet.txt"
+        blocks=[base64.b64encode(compressed[i:i+6000]).decode() for i in range(0,len(compressed),6000)]
+        packet.write_text("".join(f"S12_PART {i}/{len(blocks)} {part}\n" for i,part in enumerate(blocks,1)))
+        print("S12_PACKET",hashlib.sha256(raw).hexdigest(),"parts",len(blocks),"READ_PART sed -n '1p'",packet)
+    print("S12", "FAIL" if all_reasons else "PASS", "; ".join(all_reasons) or "both matched comparisons passed")
+    return bool(all_reasons)
+
+
+if __name__=="__main__":
+    sys.exit(main())
