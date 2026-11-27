@@ -264,3 +264,7 @@ Retention at `4d71d0e` is approved. The paired command implements the PM criteri
 HQ tables 04/05 had **zero measured rows this week**. The failed harness ran 41 jobs and returned process status zero. The canary-first replacement awaits PM review and native execution. Tables 06/07 refresh in progress on GCC 37564293 and Official 37777148. PQnb3T records 23 Clang-observed sources, three absent/no ELF, and one coverage gap among the 27 fixed packages. Official has 480 ARM-predominant paths and 177 module paths counted separately.
 
 LTO native path implementation started. Phase 1 image audit pending. Phase 2 has a separate GBS-root fixture. Phase 3 depends on a proven package canary. Phase 4 needs selected-member maps for each TLS archive. The 27 Nov live report export at revision 16 and its original manifests are archived. [Worker evidence](../artifacts/evidence/native-run-r0013e-pkg-Nr2wmG-20261127.txt) · [Weekly backup](../reports/weekly/2026-11-27/README.md)
+
+### 27 Nov · 0013ae · Thumb-2 perf kernel
+
+stooH5 completed the compile inventory (10 errors, eight sites). Native 3rWNs0 materialized the four-file TEST patch and returned its hashes. The same missing-tool messages occur in K0, K1, jEMVH7 and stooH5. Matched K1 controls and K4/K5 builds await PM review and native execution. Weekly report revision 18 is archived. [Native commands and gates](../comms/codex_to_claude/0013ae_reply.md)

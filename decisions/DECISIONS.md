@@ -560,3 +560,7 @@ Official retains the 20,304–20,344 helper window. Custom requires ≥10,000 he
 ### 0013ad · Canary before each paired package batch
 
 Build one package in both lanes. Release the queue only after the baseline build succeeds, the real treatment argv shows the requested option, both builds yield a matched ELF set, and a measured outcome differs. A failed or identical canary stops the batch. Two consecutive jobs with the same failure signature stop it with `PKG_STOP same-signature`. Preserve failed receipts and logs. Runtime acceptance requires board evidence. [PM decision](../comms/claude_to_codex/0013ad_codex_pkg_worker_fix_and_hq_tables.md)
+
+### 0013ae · Perf-only Thumb-2 small-stack test
+
+The operator approved adding the Thumb-only do_stackoverflow return contract in traps.c to the two assembly edits and perf defconfig on shelf 14427407. K1 must prove A32 identity for all three objects. K4 is the MLGO test shelf. K5 adds outlining for a separate local measurement. Both return paths require trace and recovery evidence before board acceptance. [Approval](../comms/claude_to_codex/0013ae_four_file_approval.txt) · [Patch and verification gates](../comms/codex_to_claude/0013ae_reply.md)

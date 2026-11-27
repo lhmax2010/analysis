@@ -1,0 +1,13 @@
+Approved: the traps.c change (4-file TEST-ONLY shelf), under these conditions:
+1. Thumb-only. Guard the change with #ifdef CONFIG_THUMB2_KERNEL, or a Thumb-only helper. In the A32 control, traps.o, entry-armv.o and backtrace-clang.o must be byte-identical (.text hash), and K1 .text must stay 8,214,312 B with 20,324 helpers.
+2. Caller proof. Show with a grep plus a disassembly cross-reference that do_stackoverflow has no callers other than the patched entry code. Document the new contract in a comment: on success it returns the actual mapped stack base; if failure returns, it returns NULL.
+3. The A32 boundary tail inside a Thumb kernel:
+  - keep it in a dedicated .arm block with correct mapping symbols and UNWIND/.cantunwind annotations;
+  - reach it through an explicit state switch (bx), not a fall-through;
+  - show its disassembly;
+  - prove the saved CPSR.T bit is restored correctly by the ldm … ^ return;
+  - also state briefly why the boundary path can't use the Thumb svc_exit tail.
+4. The 12-byte range check and page-first-pointer guard: list exactly which addresses are checked and why 12 bytes covers every load the tail performs.
+5. Board test: it must exercise both returns, the normal Thumb svc_exit path and the boundary A32 path, plus the NULL/failure branch if it can be reached by fault injection. Report do_stackoverflow output and successful recovery for each.
+6. Shelf file list with sha256s: backtrace-clang.S, entry-armv.S, traps.c, the defconfig, and the spec only if needed. MLGO, no -moutline.
+Continue with the A32 control and the K4/K5 builds, and send the hash-pinned commands for PM review.

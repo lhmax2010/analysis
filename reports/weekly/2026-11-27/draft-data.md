@@ -261,3 +261,7 @@ The two same-day within-Base S12 comparisons precede the four-image board trial.
 | 06 | Fixed 27, with 23 Clang-observed, 3 absent/no ELF and 1 gap in the published scan. | Matched-path installed ELF sizes, GCC 37564293 → Official 37777148. |
 | 07 | 480 Official ARM-predominant files. 177 kernel module paths counted separately. | Per-path differences against the historical 609 and owner/cause review. |
 | Native non-PIC | GNU ld 2.43 fixture previously reproduced a permissive text relocation. | Phase 1 scanning of both images, Phase 2 production FatLTO routes, then package enforcement and TLS consumers. |
+
+### Thumb-2 kernel · 0013ae
+
+stooH5 completed the keep-going inventory with ten diagnostics at eight instruction sites in two files. The approved patch also changes the Thumb-only return contract in traps.c and the perf defconfig. Native readback verified all four candidate hashes. K1 identity, K4/K5 sizes, linked caller and return-state proof, and board recovery have no new measured rows yet. [Patch, native gates and test plan](../../../comms/codex_to_claude/0013ae_reply.md)

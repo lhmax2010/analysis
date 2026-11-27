@@ -21,3 +21,5 @@ Doc 02 rev4 is the verbatim export of the live Claude Doc with the Step 2 result
 Claude authors the live HQ docs. Keep proposed wording in the round reply and archive the exports verbatim.
 
 The 27 Nov weekly report was exported at live document revision 16. Both entries in the supplied manifest verified against their archived bytes. [27 Nov backup](weekly/2026-11-27/README.md)
+
+The 27 Nov archive now holds the live revision 18 export with the completed Thumb-2 compile inventory. The revision 16 export remains available in Git history. [Revision 18 manifest](weekly/2026-11-27/SHA256SUMS)
