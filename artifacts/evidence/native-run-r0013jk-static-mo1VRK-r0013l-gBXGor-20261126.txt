@@ -1,0 +1,36 @@
+/home1/chengkai/vd-tree/workspace/temp/pm0013jk-launch.OMypmN/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.mo1VRK
+S1 K1:FAIL {"critical":0,"reachable_helpers":3466,"unjoined":5663,"unresolved_helper_sections":540,"without_direct_caller":0,"critical_indirect":616} K3:FAIL {"critical":0,"reachable_helpers":4602,"unjoined":13215,"unresolved_helper_sections":1509,"without_direct_caller":0,"critical_indirect":664}
+S2 K1:FAIL {"variants":{"UNRESOLVED":3327,"NO_LOCAL_LR_SAVE":36156,"THUNK":30093,"TAIL_CALL":12375,"LR_REGISTER":537,"LR_STACK":290},"critical_stack_sites":5,"helper_chain_extra_save_lower_bound_bytes":8,"stack_budget":8192} K3:FAIL {"variants":{"UNRESOLVED":4292,"NO_LOCAL_LR_SAVE":47016,"THUNK":41802,"TAIL_CALL":14076,"LR_REGISTER":583,"LR_STACK":131},"critical_stack_sites":8,"helper_chain_extra_save_lower_bound_bytes":8,"stack_budget":8192}
+S3 K1:REVIEW {"unwinder":"FRAME_POINTER","sampled":120,"fp_operand_bodies":3016,"runtime_walk":"required"} K3:REVIEW {"unwinder":"FRAME_POINTER","sampled":120,"fp_operand_bodies":3174,"runtime_walk":"required"}
+S4 K1:REVIEW {"counts":{"__ex_table":219,"__bug_table":1387},"baseline":{"__ex_table":219,"__bug_table":1387},"inside_helpers":0,"without_function":210} K3:REVIEW {"counts":{"__ex_table":224,"__bug_table":1830},"baseline":{"__ex_table":224,"__bug_table":1830},"inside_helpers":0,"without_function":215}
+S5 K1:REVIEW {"exclusive_or_barrier_groups":0,"undecoded":14} K3:REVIEW {"exclusive_or_barrier_groups":0,"undecoded":14}
+S6 K1:RECORDED {"CONFIG_FTRACE":"y","CONFIG_FUNCTION_TRACER":"unset","CONFIG_KPROBES":"unset","CONFIG_KALLSYMS":"unset","CONFIG_STACKPROTECTOR":"unset","CONFIG_STACKPROTECTOR_STRONG":"unset","CONFIG_UNWINDER_FRAME_POINTER":"y"} K3:RECORDED {"CONFIG_FTRACE":"y","CONFIG_FUNCTION_TRACER":"unset","CONFIG_KPROBES":"unset","CONFIG_KALLSYMS":"unset","CONFIG_STACKPROTECTOR":"unset","CONFIG_STACKPROTECTOR_STRONG":"unset","CONFIG_UNWINDER_FRAME_POINTER":"y"}
+S7 K1:REVIEW {"export_names_equal":true,"export_symbols":10348,"symvers_equal":null,"SERET_UL":"requires clean verification build","external_modules":"owner ABI verification"} K3:REVIEW {"export_names_equal":true,"export_symbols":10348,"symvers_equal":null,"SERET_UL":"requires clean verification build","external_modules":"owner ABI verification"}
+S8 K1:RECORDED {"helpers":20324,"sites":82778,"hot":{"mm/":5395,"irq":1385,"entry":463,"kernel/sched/":1969,"fs/":10074,"drivers/media/":1885,"net/core/":5324},"origin_joined":77115} K3:RECORDED {"helpers":26020,"sites":107900,"hot":{"entry":613,"mm/":6632,"irq":1980,"kernel/sched/":2335,"net/core/":6439,"fs/":13380,"drivers/media/":2000},"origin_joined":94685}
+S9 K1:PASS {"new":[0,0],"old":[0,0],"critical":0} K3:PASS {"new":[0,0],"old":[0,0],"critical":0}
+S10 K1:REVIEW {"sites":0,"undecoded":14} K3:REVIEW {"sites":0,"undecoded":14}
+S11 K1:REVIEW {"system_state_instructions":119,"undecoded_helpers":14} K3:REVIEW {"system_state_instructions":165,"undecoded_helpers":14}
+S12 K1:REVIEW {"conditional_cases":[],"covered":0,"baseline":115,"expected":115,"unknown":[],"new_types":[]} K3:REVIEW {"conditional_cases":[],"covered":0,"baseline":115,"expected":115,"unknown":[],"new_types":[]}
+S13 K1:RECORDED {"entry_line_and_function":0,"helpers":20324,"percent":0.0} K3:RECORDED {"entry_line_and_function":0,"helpers":26020,"percent":0.0}
+S14 K1:BOARD {"static_sites":82778,"profile_weight":"unmeasured; join sampled helper PC and caller stack by build ID"} K3:BOARD {"static_sites":107900,"profile_weight":"unmeasured; join sampled helper PC and caller stack by build ID"}
+S15 K1:REVIEW {"driver_sites":{"nvt":3732,"novatek":3,"spi":1409,"drivers/samsung":146,"gpio":1510,"display":29,"drivers/soc/":1493,"i2c":893},"denominator":82778,"timing":"inspect matched caller context and measure on target"} K3:REVIEW {"driver_sites":{"nvt":4469,"novatek":3,"spi":2340,"drivers/samsung":200,"gpio":2048,"display":29,"drivers/soc/":1830,"i2c":990},"denominator":107900,"timing":"inspect matched caller context and measure on target"}
+C7/C8 {"REVIEW": "no supported RPM DB within the extracted filesystem"}
+STATIC_GATE HOLD RECEIPT /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.mo1VRK/effects.json ef577b30f542286ccfe09a4297f186bc3e1c76262a03bd23ecad5e96a919563b
+TABLES 2d7462a799f296c93156f3cb449e9dd02d4614a06a63058646351787e70e369f /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.mo1VRK/side-effects.tar.gz
+
+/home1/chengkai/vd-tree/workspace/temp/pm0013l-launch.LNPXMq/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013l-static.gBXGor
+IMAGE_IDENTITY {"hashes": {"37777148": {"platform.img": "c94f75b02ee5c7370df9ef27d64cf3a2061d4ebaf46eecf6476c0bbf7bf83cf8", "platform": "883fb5b41df4865b27ad207dea6f8cd50d7884349f7455aa706bbb68e20c9d46", "prd": "65f42839469973ea4d5ebf18961711f84fe2060d4117f8af0edd89d0a4726edb"}, "37736448": {"platform.img": "4dedcae9475edb6ba18c522ba34887c928d28ba910a2c178a5631ee6b1d7e823", "platform": "1211e63e7e9cc043b8d8d20c1ad3c4320fe989d55075bc8c8eee357d80b2d079", "prd": "a34c6e0d8f3ff69a9431886d2dcecfee3957e361937766e13f997a3575cefe74"}}, "old_vs_new": [["platform", "REGULAR_AND_SYMLINK", 0, 0, 447], ["prd", "REGULAR_AND_SYMLINK", 0, 0, 2]]}
+images_REVIEW "no supported RPM DB within the extracted filesystem"
+rpmdb_REVIEW "no supported RPM DB within the extracted filesystem"
+census_REVIEW "'PosixPath' object has no attribute 'append'"
+loader_REVIEW "loader RPM file digest did not match /usr/lib/ld-linux.so.3"
+PILOT_baseline {"T1": "REVIEW", "T2": "PASS", "T3": "REFERENCE", "T4": "PASS", "T5": "N/A", "T6": "REVIEW (loader REVIEW; interworking/runtime pending)", "T7": "REVIEW", "T8": "N/A"}
+PILOT_default {"T1": "REVIEW", "T2": "REVIEW", "T3": "PASS", "T4": "PASS", "T5": "N/A", "T6": "REVIEW (loader REVIEW; interworking/runtime pending)", "T7": "REVIEW", "T8": "N/A"}
+PILOT_package {"T1": "REVIEW", "T2": "REVIEW", "T3": "PASS", "T4": "REVIEW", "T5": "N/A", "T6": "REVIEW (loader REVIEW; interworking/runtime pending)", "T7": "REVIEW", "T8": "N/A"}
+E1_REVIEW "unpack_from requires a buffer of at least 83322932 bytes for unpacking 40 bytes at offset 83322892 (actual buffer size is 161016)"
+TABLES 9a63ed6948e26eccdb0b5cfbcafdc62c4c183811681628167b80337db231e509 /home1/chengkai/vd-tree/workspace/temp/pm0013l-static.gBXGor/followup.tar.gz
+
+RUN
+no pm0013-pkg run found

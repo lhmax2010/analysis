@@ -1,0 +1,9 @@
+{
+  "decision": "0013m",
+  "evidence": "pm0013jk-static.mo1VRK/effects.json",
+  "static_sha256": "ef577b30f542286ccfe09a4297f186bc3e1c76262a03bd23ecad5e96a919563b",
+  "verdict": "HOLD",
+  "scope": ["build", "shelve"],
+  "open_items": ["S1 reachability and indirect edges", "S2 critical stack sites", "S4 unsized fixups", "S7 symbol CRCs", "S11 system-state operations", "S12 module coverage"],
+  "board_flash": "HOLD"
+}

@@ -44,8 +44,18 @@ def receipt(name,basename,prefix):
     b=p.read_bytes()
     need(sha(b)==os.environ[name+"_SHA"],"receipt checksum "+name)
     return json.loads(b)
-def gate():
+def gate(mode):
     r=receipt("PM_STATIC","effects.json","pm0013jk-static.")
+    if os.environ.get("PM_AUTH")=="PM_OVERRIDE":
+        decision=W/"test-only.json"
+        need(mode in ("build","shelve") and sha(decision.read_bytes())=="9f1cefebc89b58e29919b04117535306021fbca6066b9ac2fe7160e37d853a00","PM override scope or pin")
+        d=json.loads(decision.read_bytes())
+        need(mode in d["scope"] and d["board_flash"]=="HOLD" and
+             Path(os.environ["PM_STATIC"])==T/d["evidence"] and
+             os.environ["PM_STATIC_SHA"]==d["static_sha256"] and r["gate"] is False,
+             "PM override must reference the original mo1VRK HOLD")
+        print("PM_OVERRIDE",mode,d["static_sha256"],"BOARD_FLASH HOLD",flush=True)
+        return
     need(r.get("input")=="f7f1148e7927bc4e0b8353213932d3a5ba077cf9319a021c71a7c53588cfcf06" and r["script"]==sha((W/"effects.py.txt").read_bytes()),"static tool or lane identity")
     need(r["gate"] and all(r["pairs"][p][g][0]=="PASS" for p in ("K1","K3") for g in ("S1","S4","S9","S11","S12")),"STATIC HOLD")
 def rpm_boot(rpm,members):
@@ -207,5 +217,5 @@ def shelve():
     need(file.read_bytes()==original,"working bytes after revert")
     print(read("p4","-c",CLIENT,"describe","-S","-s",cl).decode())
 if __name__=="__main__":
-    gate()
+    gate(sys.argv[1])
     {"build":build,"shelve":shelve}[sys.argv[1]]()
