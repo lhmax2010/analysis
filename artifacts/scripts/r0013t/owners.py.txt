@@ -1,0 +1,127 @@
+"""Join the Official PERF installed RPM file list to the retained platform/prd ELF inventory."""
+import base64
+from collections import Counter, defaultdict
+import csv
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+import zlib
+
+QB = "37777148"
+PRODUCT = "TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1"
+UIMAGE = "f38df43d15c773b0e1ca6dbfd60dbef3079822b87b1f2ca559e72bd617275f86"
+SERIAL = "192.168.108.25:26101"
+TEMP = Path("/home1/chengkai/vd-tree/workspace/temp")
+FORMAT = r"%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\t%{SOURCERPM}"
+
+
+def remote(command):
+    marker = "PM0013T_RPM_RC"
+    cmd = "(\n" + command + "\n)\nr=$?; printf '\\n" + marker + " %s\\n' \"$r\""
+    p = subprocess.run(["sdb", "-s", SERIAL, "shell", cmd], stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE, timeout=600)
+    body, sep, rc = p.stdout.replace(b"\r\n", b"\n").rpartition(b"\n" + marker.encode() + b" ")
+    if p.returncode or not sep or rc.strip() != b"0":
+        raise ValueError("SDB query failed: " + repr((p.stderr + p.stdout)[-300:]))
+    return body
+
+
+def inventory():
+    paths = {}
+    for part in ("platform", "prd"):
+        src = TEMP / "pm0013f-review.HgSjf0" / f"files-{QB}-{part}.tsv"
+        if not src.is_file() and part == "prd":
+            src = TEMP / "pm0013-bce.qp4O4m" / f"image-{QB}.tsv"
+        with src.open() as f:
+            for row in csv.DictReader(f, delimiter="\t"):
+                path = row["path"]
+                if part == "prd" and not path.startswith("/prd/"):
+                    continue
+                if row["qb"] != QB or path in paths or not path.startswith("/"):
+                    raise ValueError("unexpected inventory row " + path)
+                paths[path] = int(row["a32_est_bytes"])
+    if len(paths) != 4793:
+        raise ValueError(f"expected 4793 ELF paths, got {len(paths)}")
+    return paths
+
+
+def join(paths, roster, files):
+    owners = defaultdict(set)
+    for line in files.splitlines():
+        owner, sep, path = line.rpartition("\t")
+        if not sep or owner not in roster or not path.startswith("/"):
+            raise ValueError("invalid board file list")
+        owners[path].add(owner)
+    rows = []
+    for path, size in sorted(paths.items()):
+        parent = path.split("!", 1)[0]
+        matches = sorted(owners.get(parent, ()))
+        kind = "ambiguous" if len(matches) > 1 else "missing" if not matches else (
+            "enclosing_RPM" if parent != path else "direct_RPM")
+        rows.append((path, size, kind, json.dumps([o.split("\t") for o in matches], separators=(",", ":"))))
+    return rows
+
+
+def collect():
+    paths = inventory()
+    subprocess.run(["sdb", "connect", SERIAL], check=True, stdout=subprocess.PIPE, timeout=30)
+    identity = remote("cat /etc/prd_info.ini")
+    Path("product.txt").write_bytes(identity)
+    lines = identity.decode().splitlines()
+    if f"Build={PRODUCT};" not in lines or "BuildType=perf;" not in lines:
+        raise ValueError("board is not Official 37777148 PERF; stopped before RPM collection")
+    rpm_dump = remote("rpm -q --dump tztv-kernel-perf")
+    Path("kernel-rpm.txt").write_bytes(rpm_dump)
+    dump = rpm_dump.decode().splitlines()
+    if not any(len(s) >= 4 and s[0] == "/perf/uImage" and s[3] == UIMAGE for s in map(str.split, dump)):
+        raise ValueError("board kernel RPM digest differs from Official")
+    boot = remote("cat /proc/sys/kernel/random/boot_id").strip()
+    Path("boot-id.txt").write_bytes(boot + b"\n")
+    roster_raw = remote("rpm -qa --qf '" + FORMAT + r"\n'")
+    roster = set(roster_raw.decode().splitlines())
+    if not roster or any(len(r.split("\t")) != 6 for r in roster):
+        raise ValueError("malformed RPM roster")
+    query = FORMAT.replace("%{", "%{=")
+    file_raw = remote("rpm -qa --qf '[" + query + r"\t%{FILENAMES}\n]'")
+    if remote("cat /proc/sys/kernel/random/boot_id").strip() != boot or remote("cat /etc/prd_info.ini") != identity:
+        raise ValueError("board identity changed during collection")
+    Path("board-roster.tsv").write_bytes(roster_raw)
+    Path("board-rpm-files.tsv").write_bytes(file_raw)
+    rows = join(paths, roster, file_raw.decode())
+    out = Path("owner-join.tsv")
+    with out.open("w", newline="") as f:
+        w = csv.writer(f, delimiter="\t", lineterminator="\n")
+        w.writerow(("image_path","a32_est_bytes","owner_status","owner_NEVRA_SOURCERPM"))
+        w.writerows(rows)
+    totals = Counter()
+    for _, size, kind, _ in rows:
+        totals[kind] += size
+    print("OFFICIAL", QB, PRODUCT, UIMAGE, "BOOT", boot.decode())
+    print("ROSTER", len(roster), hashlib.sha256(roster_raw).hexdigest())
+    print("ELFS", len(rows), dict(Counter(r[2] for r in rows)), "A32_BYTES", dict(totals))
+    print("JOIN", out.resolve(), hashlib.sha256(out.read_bytes()).hexdigest())
+    packet(0)
+
+
+def packet(part):
+    raw = Path("owner-join.tsv").read_bytes()
+    data = base64.b64encode(zlib.compress(raw, 9))
+    size = 9600
+    count = (len(data) + size - 1) // size
+    print("JOIN_PACKET_PARTS", count, "TSV_SHA256", hashlib.sha256(raw).hexdigest())
+    if part:
+        if not 1 <= part <= count:
+            raise ValueError("part outside range")
+        print("PART", part, "/", count)
+        print(data[(part-1)*size:part*size].decode())
+
+
+if __name__ == "__main__":
+    if sys.argv[1:2] == ["--part"] and len(sys.argv) == 3:
+        packet(int(sys.argv[2]))
+    elif len(sys.argv) == 1:
+        collect()
+    else:
+        raise SystemExit("usage: owners.py [--part N]")

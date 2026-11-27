@@ -1,0 +1,103 @@
+chengkai@risc-v-Alienware-Aurora-R16:temp$ (
+set -eu -o pipefail
+p=d42878214663d2d6d2a81bf7e61464cfdf0589f8
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013p-launch.XXXXXX")
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 \
+  "https://raw.githubusercontent.com/lhmax2010/analysis/$p/artifacts/scripts/r0013jk/run.sh.txt" -o "$d/run"
+printf '%s  %s\n' 70011df334cf1b7a2861910fe17a0d8960e89ba273b4d0ff8b9064f5949517ed "$d/run" | sha256sum -c -
+bash "$d/run" "$p" build
+)
+/home1/chengkai/vd-tree/workspace/temp/pm0013p-launch.Ko8Pwe/run: OK
+WORKDIR /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7
+Paste STATIC_GATE PASS or PM_OVERRIDE HOLD followed by RECEIPT <path> <sha>: PM_OVERRIDE HOLD RECEIPT /home1/chengkai/vd-tree/workspace/temp/pm0013jk-static.mo1VRK/effects.json ef577b30f542286ccfe09a4297f186bc3e1c76262a03bd23ecad5e96a919563b
+PM_OVERRIDE build ef577b30f542286ccfe09a4297f186bc3e1c76262a03bd23ecad5e96a919563b BOARD_FLASH HOLD
+--- a/packaging/tztv-kernel.spec
++++ b/packaging/tztv-kernel.spec
+@@ -301 +301 @@
+-       env $KERNEL_TOOLCHAIN_ENV ./BUILD.sh "$PROJECT" "$RELEASE_MODE" "$SIGN_CHIP" "$VERIFIER" "$SANITIZER"
++       env $KERNEL_TOOLCHAIN_ENV KCFLAGS="${KCFLAGS:+$KCFLAGS }"'$(if $(filter clang clang-%% %%-clang,$(notdir $(lastword $(CC)))),-moutline)' ./BUILD.sh "$PROJECT" "$RELEASE_MODE" "$SIGN_CHIP" "$VERIFIER" "$SANITIZER"
+CAPACITY disk_free_gib 389 ram_available_gib 73
+[sudo] password for chengkai:
+RETAINED_LOG git-add.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG git-commit.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG base-print.log 0 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+RETAINED_LOG shelf.log 4958 e3ebefa63f3e9f8b926e45ba42d101d7b9c7d8f2978dbdc86914ed489dc3d53a
+RETAINED_TRACKED_SPECS ['linux-6.12/scripts/package/kernel.spec', 'packaging/tztv-kernel.spec']
+RETAINED_PACKAGING_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/shared/gbs.conf <unset; default packaging>
+RETAINED_PACKAGING_DIR /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux/.gbs.conf <unset; default packaging>
+GBS_GUESS_SPEC WC.UNTRACKED 0 packaging/tztv-kernel.spec
+Checking object directories: 100% (256/256), done.
+Checking objects: 100% (152619/152619), done.
+Verifying commits in commit graph: 100% (1/1), done.
+GBS_SOURCE_REUSED /home1/chengkai/vd-tree/workspace/temp/pm0012-kernel.OwlD9Q/jobs/kernel-thumb/vdlinux 962eb82dc2246ea3a05e5565836d0e81ce8cd955 P4_FETCH_SKIPPED
+GBS_GUESS_SPEC HEAD 0 packaging/tztv-kernel.spec
+GBS_SPEC_PREFLIGHT_PASS clean-outline 8b0eec57103fee38dd9e75635b4ffe1cccda9033 packaging/tztv-kernel.spec 0994c745b120f29218f96e6262b7af84f50d073a94716c4212263285a0448b23
+GBS_START taskset -c 0,1,2,3,4,5 gbs -c /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/gbs.conf build -A armv7l -B /home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/GBS-ROOT -D /home1/chengkai/vd-tree/workspace/qb-evidence/37777148-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261125.1/published-build.conf --threads 1 --packaging-dir packaging --spec tztv-kernel.spec
+Traceback (most recent call last):
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/kernel.py.txt", line 248, in <module>
+    {"build":build,"shelve":shelve}[sys.argv[1]]()
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/kernel.py.txt", line 139, in build
+    payload,zbytes=rpm_boot(rpm,members)
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/kernel.py.txt", line 91, in rpm_boot
+    payload=u[64:];need(length==len(payload) and crc==zlib.crc32(payload),"kernel payload CRC")
+  File "/home1/chengkai/vd-tree/workspace/temp/pm0013jk-build.jEMVH7/kernel.py.txt", line 35, in need
+    if not v:raise ValueError(msg)
+ValueError: kernel payload CRC
+chengkai@risc-v-Alienware-Aurora-R16:~$ (
+set -eu -o pipefail
+pin=ee9983ff9a67645b2ff6b0e53c562d6607debd8d
+d=$(mktemp -d /home1/chengkai/vd-tree/workspace/temp/pm0013r-read.XXXXXX)
+cd "$d"
+curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 \
+  "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/artifacts/scripts/r0013r/read.py.txt" -o read.py
+printf '%s  %s\n' 9bb2e2e09b1fbcbf9bca1a759af257a74ee0c371cb0a24ae1639526b2941fbe6 read.py | sha256sum -c -
+export TMPDIR="$d" LC_ALL=C DEBUGINFOD_URLS=
+nice -n 19 ionice -c3 python3 -Bu read.py | tee combined.txt
+)
+read.py: OK
+ROSTER_COLUMNS ["rpm", "gcc_exec", "official_exec", "gcc_a32", "official_a32", "delta", "published_srpm_candidates"]
+TARGET ["bluetooth-impl-sec-oal", 26536228, 26246380, 25007569, 25006506, -1063, ["bluetooth-impl-sec-26.09.29-1.src.rpm"]]
+TARGET ["org.tizen.tv-viewer", 4195060, 4817952, 228084, 4693514, 4465430, ["org.tizen.tv-viewer-0.3.8-1.src.rpm"]]
+TARGET ["vdfs", 5419596, 5014776, 5073113, 4622699, -450414, ["vdfs-0004-3.src.rpm"]]
+TARGET ["sys-tools", 6132344, 4631082, 3435610, 2468830, -966780, ["sys-tools-0-0.src.rpm"]]
+TARGET ["deviced", 575852, 563524, 575387, 563400, -11987, ["deviced-1.0.3-1.src.rpm"]]
+TARGET ["unzip", 529732, 553720, 501403, 520097, 18694, ["unzip-610c25-2.16.src.rpm"]]
+TARGET ["lightweight-web-engine-profile_tv", 8433132, 6516442, 314982, 292840, -22142, ["lightweight-web-engine-1.5.7-1.src.rpm"]]
+TARGET ["soc-ai-acl", 3061394, 3809052, 270491, 268938, -1553, ["soc-ai-acl-v21.02-1.src.rpm"]]
+TARGET ["atsc3uhdcp", 215004, 215004, 212528, 212528, 0, ["atsc3uhdcp-26.09.16.0-1.src.rpm"]]
+TARGET ["pkgmgr-extension", 164252, 205024, 7105, 204554, 197449, ["pkgmgr-extension-1.13.4-1.src.rpm"]]
+TARGET ["com.samsung.tv.ghdaemon", 193016, 192976, 193016, 192976, -40, ["com.samsung.tv.ghdaemon-1.0.0-1.src.rpm"]]
+TARGET ["systemd", 2488928, 2065470, 120915, 126535, 5620, ["systemd-244-0.src.rpm"]]
+TARGET ["com.samsung.tv.coba.newhome.native", 2777852, 2314288, 38131, 118121, 79990, ["com.samsung.tv.coba.newhome.native-5.100.26370-1.src.rpm"]]
+TARGET ["native-home", 16129888, 2661444, 806568, 77095, -729473, ["native-home-1.0.2-1.src.rpm"]]
+TARGET ["capi-trackrenderer-tv", 1880864, 941960, 88087, 70264, -17823, ["capi-trackrenderer-tv-1.0.1-0.src.rpm"]]
+TARGET ["soc-ir-interface", 28000, 66256, 1808, 63576, 61768, ["soc-ir-interface-0.0.01-0.src.rpm"]]
+TARGET ["org.tizen.tv.swu", 8737676, 1166120, 208031, 59224, -148807, ["org.tizen.tv.swu-17.037.0-1.src.rpm"]]
+TARGET ["acm-core", 639692, 540538, 28376, 36245, 7869, ["acm-core-0.0.91-1.src.rpm"]]
+TARGET ["soc_vendor-user-bins", 154692, 135482, 34169, 34488, 319, ["soc_vendor-user-bins-0-0.src.rpm"]]
+TARGET ["capi-mde-framework-tv", 787248, 662372, 36047, 30340, -5707, ["capi-mde-framework-tv-25.11.27.0-0.src.rpm"]]
+TARGET ["org.tizen.smarthub-connection-test", 434928, 22944, 53978, 18793, -35185, ["org.tizen.smarthub-connection-test-0.2-0001.src.rpm"]]
+TARGET ["com.samsung.tv.hfp-agent", 789260, 609544, 19118, 15645, -3473, ["com.samsung.tv.hfp-agent-26.09.08.01-1.src.rpm"]]
+TARGET ["com.samsung.tv.home.mainhub", 257424, 255888, 6545, 13112, 6567, ["com.samsung.tv.home.mainhub-5.100.26370-1.src.rpm"]]
+TARGET ["SPhysics", 47400, 57864, 7370, 11293, 3923, ["SPhysics-2.0.1-20170825.src.rpm"]]
+TARGET ["libsystemd", 389008, 272304, 8481, 9924, 1443, ["systemd-244-0.src.rpm"]]
+TARGET ["mm-omxil-impl-sec", 196624, 170828, 10316, 9456, -860, ["mm-omxil-impl-sec-1.1.0-1.src.rpm"]]
+TARGET ["buxton2_lite", 123824, 102990, 8235, 8332, 97, ["buxton2_lite-1.1-0.src.rpm"]]
+TARGET ["scs-agent-perf", 1646324, 1954500, 7513, 7578, 65, ["scs-agent-2.1.5-1.src.rpm"]]
+TARGET ["ug-Network_StatusUG-efl", 240164, 12084, 11754, 7573, -4181, ["ug-Network_StatusUG-efl-15.12.01.1-1.src.rpm"]]
+TARGET ["menu-providers", 366696, 135016, 10137, 7042, -3095, ["menu-providers-0.2-1.src.rpm"]]
+UNKNOWN_OWNER {"rpm": "?", "gcc_exec": "36182416", "official_exec": "631491596", "gcc_a32": "18596572", "official_a32": "261056385", "delta": "242459813"}
+SCTLR_SETUP {"sha256": "f38df43d15c773b0e1ca6dbfd60dbef3079822b87b1f2ca559e72bd617275f86", "adr_file_offset": "0x1611c", "masks_file_offset": "0x15e54", "clear": "0x2120c302", "set": "0x10c03c7d", "setup_bit7": "PRESERVE"}
+SCTLR_SOURCE 53 [["mm/proc-v7-2level.S", 162, ".type\tv7_crval, #object"], ["mm/proc-v7-2level.S", 163, "v7_crval:"], ["mm/proc-v7-3level.S", 146, ".type\tv7_crval, #object"], ["mm/proc-v7-3level.S", 147, "v7_crval:"], ["mm/proc-v7.S", 549, "adr\tr3, v7_crval"]]
+LOADER_RPM ["glibc", "0", "2.40", "1.111", "armv7l", "glibc-2.40-1.111.src.rpm"] false "/lib/ld-linux.so.3" "[('.ARM.attributes', 18), ('.gnu_debuglink', 21), ('.shstrtab', 18), ('.shstrtab', 22), ('.strtab', 20), ('.symtab', 19)]"
+GLIBC "usr/lib/ld-linux.so.3" "aec21fb59b26192a42630bdec85b38dce32a6c5be1ee69e5cca62e1b619a76b4" ["ld.so (GNU libc) stable release version 2.40."] false
+GLIBC "usr/lib/libc-2.40.so" "ac1a09740a7f2028204055171063143cb271d6dd1ced1c5170f99d6f70b4192a" ["GNU C Library (GNU libc) stable release version 2.40."] true
+DATA_CONTAINER "038f6d98d40da3662351413125bfc40e4803d1cba17b9fcb052a6fc51313ac79" 1118429184 "56444653323030376d6b66732e76646673002d69002d56002d7a0033" "data"
+DATA_LAYOUT "partition.txt" ["21\t/dev/mmcblk0p21\t3986176K\tdata.img\tMLC\tOTHER\tCONTENT1\t/opt\tRW"]
+DATA_LAYOUT "partition_8G.txt" ["21\t/dev/mmcblk0p21\t3986176K\tdata.img\tMLC\tOTHER\tCONTENT1\t/opt\tRW"]
+DATA_FS "file byte offsets" [[458485760, "squashfs", null, null], [508682240, "squashfs", null, null], [524693504, "squashfs", null, null], [622735360, "squashfs", null, null], [709341184, "squashfs", null, null], [739721216, "squashfs", null, null], [850853888, "squashfs", null, null], [867893248, "squashfs", null, null], [890290176, "squashfs", null, null], [897179648, "squashfs", null, null], [903725056, "squashfs", null, null], [944148480, "squashfs", null, null]] {"total": 12, "claim": "probe signatures only"}
+DATA_RPMDB "UNPROVED"
+AVCONTROL 782 {"checked": 4793, "expected": 4793, "errors": 0, "scope_complete": true, "undefined_rows": 0, "literal_only_rows": 34} [["/usr/apps/scs-agent/SCSClient", "literal_only", "_ZNSt10lock_guardISt15recursive_mutexED2Ev", ""], ["/usr/apps/scs-agent/SCSClient", "literal_only", "_ZNSt15recursive_mutex6unlockEv", ""], ["/usr/apps/scs-agent/SCSClient", "literal_only", "_ZNSt6vectorIiSaIiEED2Ev", ""], ["/usr/apps/scs-agent/SCSClient", "literal_only", "_ZNSt7__cxx119to_stringEi", ""], ["/usr/apps/scs-agent/SCSClient", "literal_only", "_ZSt12__str_concatINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEET_PKNS6_10value_typeENS6_9size_typeES9_SA_RKNS6_14allocator_typeE", ""]] []
+WORKDIR "/home1/chengkai/vd-tree/workspace/temp/pm0013r-read.jFI9ye"
+
