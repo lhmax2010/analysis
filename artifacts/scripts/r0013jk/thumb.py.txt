@@ -59,7 +59,7 @@ def it_sites(data,start):
                 yield start+i,count,widths,"partial" if len(widths)!=count else "deprecated"
         i+=width(h)
 
-def run():
+def run(owner_rows=None, require_digest=False):
     scan=runpy.run_path(str(HERE/"image_mode_scan.py.txt"))
     spans=runpy.run_path(str(HERE/"pilot.py.txt"))["spans"]
     own=defaultdict(set)
@@ -68,9 +68,13 @@ def run():
     rpmrows=runpy.run_path(str(HERE/"image-tree.py.txt"))["rpm_rows"]
     fmt="[%{=NAME}\t%{FILENAMES}\\n]"
     packages=defaultdict(set)
-    for line in rpmrows(root("platform"),HERE,fmt).splitlines():
-        n,sep,p=line.partition("\t")
-        if sep:packages[p].add(n)
+    if owner_rows is None:
+        for line in rpmrows(root("platform"),HERE,fmt).splitlines():
+            n,sep,p=line.partition("\t")
+            if sep:packages[p].add(n)
+    else:
+        for n,v,s,p,h in owner_rows:
+            packages[(p,h) if require_digest else p].add(n)
     totals=Counter();by_package=defaultdict(Counter)
     dis=next((shutil.which(t) for t in ("llvm-objdump","llvm-objdump-22","arm-linux-gnueabi-objdump","arm-linux-gnueabihf-objdump") if shutil.which(t)),None)
     with (HERE/"thumb-sites.tsv").open("w") as out:
@@ -78,7 +82,9 @@ def run():
         for label in ("platform","prd"):
             base=root(label)
             for r in rows(label):
-                pkg="|".join(sorted(packages[r["path"].split("!",1)[0]])) or ("source:"+",".join(sorted(own[r["path"],r["sha256"]])))
+                outer=r["path"].split("!",1)[0]
+                key=(outer,r["sha256"]) if require_digest else outer
+                pkg="|".join(sorted(packages[key])) or ("source:"+",".join(sorted(own[r["path"],r["sha256"]])))
                 if pkg=="source:":pkg="?"
                 path=r["path"]
                 p,b=binary(base,label,r);ss=scan["secs_of"](b)

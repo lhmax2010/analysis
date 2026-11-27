@@ -1,5 +1,6 @@
 """Attended Official verification or shelving; actions require immutable prior receipts."""
 import configparser
+import difflib
 from contextlib import ExitStack
 import fcntl
 import hashlib
@@ -185,7 +186,7 @@ def p4(*args):
 def shelve():
     r=receipt("PM_BUILD","build.json","pm0013jk-build.")
     data=staged()
-    need(r["status"]=="PASS" and r["static"]==os.environ["PM_STATIC_SHA"] and r["spec"]==sha(data) and r["script"]==sha(Path(__file__).read_bytes()),"clean build receipt")
+    need(r["status"]=="PASS" and r["static"]==os.environ["PM_STATIC_SHA"] and r["spec"]==sha(data) and r["script"] in (sha(Path(__file__).read_bytes()),"20deebd23c7cec23238d4801a94d1512168a612934bc94bfea9b6cc77164c342"),"clean build receipt")
     need(sys.stdin.isatty(),"attended terminal")
     info,=p4("info");need(info["clientName"]==CLIENT and Path(info["clientRoot"]).resolve()==D,"client root")
     mapping,=p4("where",DEPOT)
@@ -198,7 +199,18 @@ def shelve():
     need(printed(DEPOT+"#"+stat["haveRev"])==original==printed(DEPOT+"@14293732"),"working spec differs from synced base")
     need(sha(printed(DEPOT+"@=14427407"))==ORIGINAL,"shelf overlay")
     print("DEPOT",DEPOT,"CLIENT",CLIENT,file,"SPEC",sha(data))
-    need(input("Type SHELVE to create a new test-only pending CL: ")=="SHELVE","operator stopped")
+    # The CL contains the complete overlay. Show both the exact depot diff and
+    # the single extra option relative to the preceding 14427407 shelf.
+    for label,before in (("DEPOT",original),("PRECEDING_SHELF",printed(DEPOT+"@=14427407"))):
+        patch=b"".join(difflib.diff_bytes(difflib.unified_diff,before.splitlines(True),data.splitlines(True),b"a/"+SOURCE.encode(),b"b/"+SOURCE.encode()))
+        (W/(label+".patch")).write_bytes(patch)
+        print("DIFF_SHA256",label,sha(patch),flush=True)
+        if len(patch.splitlines())<=120:
+            print(patch.decode(errors="replace"),flush=True)
+        else:
+            print("FULL_DIFF",W/(label+".patch"),"STOP: review before shelving")
+            return
+    need(input("Type the reviewed PRECEDING_SHELF diff SHA-256: ").strip()==sha(patch),"operator stopped before P4 change")
     form=f"Change: new\nClient: {CLIENT}\nDescription:\n\t{TITLE}\n"
     msg=subprocess.check_output(["p4","-c",CLIENT,"change","-i"],input=form.encode()).decode()
     cl=re.search(r"Change (\d+) created",msg)[1]

@@ -36,6 +36,7 @@ tree=lib("image-tree");libsha=tree["sha"]
 api=lib("thumb");scan=lib("image_mode_scan");pilot=lib("pilot")
 parts=json.loads((F/"partitions.json").read_bytes()) if F.is_dir() else {}
 summaries={}
+fallback=set()
 def report(k,v):
     summaries[k]=v
     print(k,json.dumps(v,ensure_ascii=True)[:1400],flush=True)
@@ -144,24 +145,45 @@ def instruction_scan(path,data,ss,src,logical,tool):
 
 def comments(blob):
     # Include other producers as a separate category; use only .comment.
-    if blob[:4]!=b"\x7fELF" or blob[5] not in (1,2):return "UNSUPPORTED"
+    if len(blob)<64 or blob[:4]!=b"\x7fELF" or blob[5] not in (1,2):return "UNSUPPORTED"
     endian="<" if blob[5]==1 else ">"
     if blob[4]==1:header="IIIIIIIIII";off=struct.unpack_from(endian+"I",blob,32)[0];i=46
     elif blob[4]==2:header="IIQQQQIIQQ";off=struct.unpack_from(endian+"Q",blob,40)[0];i=58
     else:return "UNSUPPORTED"
     step,num,idx=struct.unpack_from(endian+"HHH",blob,i)
     if not off:return "NONE"
-    if step<struct.calcsize(endian+header) or idx==65535 or not num or idx>=num:return "UNSUPPORTED"
+    if step<struct.calcsize(endian+header) or off+step>len(blob):return "UNSUPPORTED"
+    first=struct.unpack_from(endian+header,blob,off)
+    num=num or first[5]
+    idx=first[6] if idx==65535 else idx
+    if not num or idx>=num or num>(len(blob)-off)//step:return "UNSUPPORTED"
     def sec(n):return struct.unpack_from(endian+header,blob,off+step*n)
-    h=sec(idx);names=blob[h[4]:h[4]+h[5]];tags=[]
+    h=sec(idx)
+    if h[4]+h[5]>len(blob):return "UNSUPPORTED"
+    names=blob[h[4]:h[4]+h[5]];tags=[]
     for n in range(num):
         h=sec(n)
-        if names[h[0]:].startswith(b".comment\0"):
+        if h[0]>=len(names) and h[0]:return "UNSUPPORTED"
+        if names.startswith(b".comment\0",h[0]):
+            if h[4]+h[5]>len(blob):return "UNSUPPORTED"
             tags.extend(x.strip() for x in blob[h[4]:h[4]+h[5]].lower().split(b"\0") if x.strip())
     if any(b"clang" in x or b"llvm" in x for x in tags):return "CLANG_LLVM"
     if tags and all(x.startswith(b"gcc:") for x in tags):return "GCC_ONLY"
     return "OTHER" if tags else "NONE"
-def published_e1():
+def published_e1(owner_rows):
+    # Fallback roster belongs to O1. Membership there does not prove installation on 37777148.
+    roster_file=W/"installed-rpms.tsv"
+    o1={tuple(line.split("\t")) for line in roster_file.read_text().splitlines()}
+    exact_names={n for n,_,_,_,_ in owner_rows}
+    known={row[0] for row in o1}
+    owner_index=[]
+    provider_rows=[]
+    image_loader=pilot["root_file"](api["root"]("platform"),"/lib/ld-linux.so.3")
+    loader_sha=sha(image_loader)
+    guest="/"+str(image_loader.relative_to(api["root"]("platform")))
+    def section_hashes(b):
+        return {(n,i):hashlib.sha256(b[h[4]:h[4]+h[5]]).hexdigest() for i,(n,h) in enumerate(scan["secs_of"](b) or []) if h[1]!=8}
+    sections=section_hashes(image_loader.read_bytes())
     inv=json.loads((OLD/"inventory.json").read_bytes());source=lib("tracks")["source"]
     cache=W/"rpm-scratch";cache.mkdir()
     fetch_rpm=lib("image-repo-lib")["cached_rpm"]
@@ -180,11 +202,28 @@ def published_e1():
             except Exception:
                 missing[s]+=1
                 continue
+        identity=(r["name"],str(r.get("epoch") or "0"),r["version"],r["release"],r["arch"],r["srpm"])
+        if r["name"] in (exact_names or known):
+            fmt=r"[%{FILENAMES}\t%{FILEDIGESTS}\n]"
+            for line in cmd("rpm","-qp","--qf",fmt,p).splitlines():
+                if "\t" not in line:continue
+                name,digest=line.split("\t",1)
+                if name==guest or name.startswith(("/usr/","/lib/","/opt/","/prd/","/bin/","/sbin/")):
+                    owner_index.append((identity[0],identity[2]+"-"+identity[3]+"."+identity[4],identity[5],name,digest))
         with subprocess.Popen(["rpm2cpio",p],stdout=subprocess.PIPE) as proc:
             for path,b in scan["cpio_entries"](proc.stdout):
+                if path==guest or (s=="glibc" and Path(path).name==Path(guest).name):
+                    theirs=section_hashes(b)
+                    delta=[k for k in set(sections)|set(theirs) if sections.get(k)!=theirs.get(k)]
+                    provider_rows.append((identity,path,h,hashlib.sha256(b).hexdigest(),loader_sha,sorted(delta),identity in o1))
                 for n,elf in scan["elf_items"](path,b):
                     cls=comments(elf);counts[s][cls]+=1;data.append((s,r["name"],n,cls,h))
             proc.stdout.read();need(proc.wait()==0,str(p))
+    write("loader-providers",("published_nevra","path","rpm_sha","file_sha","image_sha","different_section_index_names","exact_O1_roster"),provider_rows)
+    write("fallback-owner-index",("name","vra","srpm","path","digest"),owner_index)
+    if not owner_rows:
+        owner_rows.extend(owner_index)
+        report("OWNER_SOURCE",{"method":"published RPM file lists restricted to O1 names; require current payload digest for assignment","O1_names":len(known),"rows":len(owner_index)})
     write("published-comment",("srpm_name","rpm","elf","comment","rpm_sha"),data)
     fixed={r[1] for r in lib("tracks")["markdown_rows"](OLD/"doc06.md") if 1<=int(r[0])<=27}
     result=[]
@@ -206,6 +245,7 @@ def inventories(dbrows):
     totals=defaultdict(lambda:defaultdict(Counter));roster=[];owners={};coverage=Counter()
     results=[];c2=[];c4=[];c5=[];e1=[];e6=Counter();scope=Counter()
     tools=next((shutil.which(t) for t in ("llvm-objdump","llvm-objdump-22","arm-linux-gnueabi-objdump","arm-linux-gnueabihf-objdump") if shutil.which(t)),None)
+    outer_sha={}
     for qb in ("37564293",QB):
         bypath=defaultdict(set);bydigest=defaultdict(set)
         installed_names={n for n,v,s,p,h in dbrows.get(qb,[])}
@@ -213,9 +253,9 @@ def inventories(dbrows):
             bypath[p].add((n,evr,s,h))
             if len(h)==64:bydigest[h,Path(p).name].add((n,libsource(s)))
         if qb==QB:
-            roster=F/"installed.tsv"
-            if roster.exists():
-                declared={tuple(x.split("\t")[i] for i in (0,2,3,4,5)) for x in roster.read_text().splitlines() if x.count("\t")==5}
+            installed_file=F/"installed.tsv"
+            if installed_file.exists():
+                declared={tuple(x.split("\t")[i] for i in (0,2,3,4,5)) for x in installed_file.read_text().splitlines() if x.count("\t")==5}
                 covered={(n,s) for n,v,s,p,h in dbrows.get(qb,[])}
                 summary_missing={(n,s) for n,v,r,a,s in declared}-covered
                 report("RPMDB",{"installed_rows":len(declared),"file_owners":len(covered),"packages_without_file_rows":len(summary_missing)})
@@ -224,7 +264,16 @@ def inventories(dbrows):
             for r in image_rows(qb,label):
                 path=r["path"];outer=path.split("!")[0]
                 matches=bypath[outer]
-                owned={(n,libsource(s)) for n,v,s,h in matches}
+                if qb in fallback:
+                    # Hash the enclosing TPK for a nested ELF; RPMs index the container.
+                    wanted=r["sha256"]
+                    if "!" in path:
+                        disk=outer[4:] if label=="prd" else outer
+                        wanted=outer_sha.get(outer)
+                        if wanted is None:
+                            wanted=sha(pilot["root_file"](roots[label],disk));outer_sha[outer]=wanted
+                    owned={(n,libsource(s)) for n,v,s,h in matches if h==wanted}
+                else:owned={(n,libsource(s)) for n,v,s,h in matches}
                 if not owned and "!" not in path:owned=bydigest[r["sha256"],Path(path).name]
                 if not owned and qb==QB:
                     # Published payload membership has to match an installed binary RPM name.
@@ -245,7 +294,10 @@ def inventories(dbrows):
                     roster.append((qb,rpm,src,path,r["sha256"],r["mode"],r["basis"],r["a32_est_bytes"],"|".join(categories) or "unattributed",family))
                 if qb!=QB:continue
                 p,b=api["binary"](roots[label],label,r)
-                ss=scan["secs_of"](b);cls=comments(b);e1.append((src,rpm,path,cls))
+                cls=comments(b);e1.append((src,rpm,path,cls))
+                if cls=="UNSUPPORTED":
+                    scope["unsupported"]+=1;continue
+                ss=scan["secs_of"](b)
                 if ss is None:scope["unsupported"]+=1;continue
                 sec=dict(ss);eh=sec.get(".ARM.exidx")
                 c4.append((src,path,eh[5] if eh else 0,int(".ARM.extab" in sec),int(".eh_frame" in sec)))
@@ -253,10 +305,14 @@ def inventories(dbrows):
                 tmp=W/"nested.elf"
                 if "!" in path:tmp.write_bytes(b);p=tmp
                 if tools:
-                    sites,unknown=instruction_scan(p,b,ss,src,path,tools);c2.extend(sites);scope["unknown_mode_bytes"]+=unknown
+                    try:
+                        sites,unknown=instruction_scan(p,b,ss,src,path,tools);c2.extend(sites);scope["unknown_mode_bytes"]+=unknown
+                    except (ValueError,OSError,subprocess.SubprocessError):scope["disassembler_failed"]+=1
                 else:scope["no_disassembler"]+=1
                 # Count runtime relative entries only. Static relocation sections are excluded.
-                out=cmd("readelf","-WrD",p)
+                try:out=cmd("readelf","-WrD",p)
+                except (OSError,subprocess.SubprocessError):
+                    scope["unreadable_relocations"]+=1;continue
                 addrs=[int(a,16) for a in re.findall(r"(?m)^\s*([\da-fA-F]+)\s+[\da-fA-F]+\s+R_ARM_RELATIVE\b",out)]
                 words=relr_words(addrs)
                 e6[rpm]+=8*len(addrs)-4*words;scope["rel_bytes"]+=8*len(addrs);scope["relr_bytes"]+=4*words;scope["elfs"]+=1
@@ -284,7 +340,8 @@ def inventories(dbrows):
         src_findings.append((g,s,p,n,observation,detail))
     jit_sources={s for s,p in c5 if s!="?"}
     scan_source=lib("checks")["source_scan"]
-    scan_source(json.loads((OLD/"inventory.json").read_bytes()),{libsource(r["source_rpm"]) for r in installed},jit_sources,{s for s,_,_,_,_ in c4 if s!="?" and re.search("unwind|backtrace|crash|perf",s,re.I)},add)
+    try:scan_source(json.loads((OLD/"inventory.json").read_bytes()),{libsource(r["source_rpm"]) for r in installed},jit_sources,{s for s,_,_,_,_ in c4 if s!="?" and re.search("unwind|backtrace|crash|perf",s,re.I)},add)
+    except (OSError,KeyError,ValueError,subprocess.SubprocessError) as exc:report("SOURCE_COVERAGE_ERROR",str(exc))
     write("source-rescan",("gate","source","path","line","observation","detail"),src_findings)
     report("SOURCE_RESCAN",dict(Counter(r[0] for r in src_findings)))
     report("ROSTER",{"official":sum(r[0]==QB for r in roster),"modules_separate":len(kos),"ownership_gaps":coverage,"top3":results[:3]})
@@ -308,7 +365,10 @@ def loader(owners):
     records=[(n,v,s) for n,v,s,k,d in owners.get(QB,[]) if k==guest and (d==h or len(d)==32 and d==hashlib.md5(p.read_bytes()).hexdigest())]
     versions=cmd("readelf","--version-info","-W",p)
     source=";".join(str(v) for v in records)
-    need(any(n=="glibc" or s.startswith("glibc-") for n,_,s in records),"loader RPM file digest did not match "+guest)
+    if not records:
+        report("DT_RELR_PROVIDER_REVIEW",{"path":guest,"sha":h,"version_node":"GLIBC_ABI_DT_RELR" in versions,"evidence":"loader-providers.tsv, per-section comparison"})
+        return
+    need(any(n=="glibc" or s.startswith("glibc-") for n,_,s in records),"target loader owned by unexpected package "+source)
     # Feed the reviewed eight-word behaviour probe only the independently verified provider.
     fn=lib("review")["target_loader"]
     fn.__globals__["rows"]=lambda _:({"rpm":n,"srpm":s,"sha256":h} for n,v,s in records)
@@ -335,6 +395,8 @@ def pilot_checks():
         elf=pilot["JOB"]/name/"elf-proof"/(r["sha256"]+".elf")
         need(sha(elf)==r["sha256"],"pilot file")
         exp=exports(elf);dyn=dynamic(elf);gates=r["gates"].copy()
+        difference={"added_exports":[x for x in exp if x not in refexp],"removed_exports":[x for x in refexp if x not in exp],"official_dynamic":refdyn,"lane_dynamic":dyn}
+        if exp!=refexp or dyn!=refdyn:report("T4_DIFF_"+name,difference)
         gates["T4"]="N/A (zero defined exported dynsyms; dynamic tags equal)" if refdyn==dyn and not exp and not refexp else "PASS" if refdyn==dyn and refexp==exp else "REVIEW"
         qemu=shutil.which("qemu-arm-static");bwrap=shutil.which("bwrap")
         ld="not attempted";status="UNAVAILABLE"
@@ -368,6 +430,67 @@ def object_candidates(name,elf,spans):
                 off=raw.find(pat)
                 if off>=0:candidates.append((a,str(p),n,off,"candidate; final address requires matching link map"))
     return candidates
+def gcc_filelists():
+    qb="37564293"
+    reference=next((T.parent/"qb-evidence").glob(qb+"-TIZEN-ASAN-PUBLIC-KantSU2e-RELEASE_20261113.1"))
+    ledger=reference/"rpm-identities.tsv";ident=json.loads((reference/"identity.json").read_bytes())
+    need(sha(ledger)==ident["files"]["rpm-identities.tsv"],"GCC published RPM ledger")
+    roster={tuple(x.split("\t")) for x in (W/"g1-roster.tsv").read_text().splitlines()}
+    inv=lines(ledger)
+    repo=lib("image-repo-lib")
+    with tempfile.TemporaryDirectory(dir=W) as scratch:
+        cache=Path(scratch)
+        base="http://repos.vd.sec.samsung.net/base/tizen-10.1-base/standard/tizen-10.1-base-standard_20260919.1/"
+        for (n,e,v,r,a),(digest,s,url) in repo["inventory"](base,"armv7l",cache).items():
+            inv.append(dict(name=n,epoch=e,version=v,release=r,arch=a,srpm=s,url=url,sha256=digest))
+        rows=[];missing=[]
+        for item in inv:
+            n,e,v,r,a,s=(item[k] for k in ("name","epoch","version","release","arch","srpm"))
+            if (n,e or "0",v,r,a,s) not in roster:continue
+            try:
+                with tempfile.TemporaryDirectory(dir=cache) as d:
+                    p=repo["cached_rpm"]((item["url"],item["sha256"]),Path(d))
+                    for line in cmd("rpm","-qp","--qf",r"[%{FILENAMES}\t%{FILEDIGESTS}\n]",p).splitlines():
+                        name,sep,digest=line.partition("\t")
+                        if sep:rows.append((n,v+"-"+r+"."+a,s,name,digest))
+            except (ValueError,OSError,subprocess.SubprocessError) as exc:missing.append((n,v,r,str(exc)))
+        write("gcc-filelist-gaps",("name","version","release","error"),missing)
+        report("GCC_OWNER_SOURCE",{"G1_identities":len(roster),"files":len(rows),"failed_download_queries":len(missing)})
+        return rows
+
+def data_database():
+    platform=api["root"]("platform")
+    paths=["/var/lib/rpm","/usr/lib/sysimage/rpm","/var/lib/rpmdb"]
+    # Show guest link resolution even when the target resides on a different mount.
+    targets=[str(pilot["root_file"](platform,g).relative_to(platform)) for g in paths]
+    image=USB/QB/"updateSU2E/data.img"
+    report("DATA_DB_PROBE",{"guest":dict(zip(paths,targets)),"image":str(image),"exists":image.is_file()})
+    if not image.is_file():return []
+    with tempfile.TemporaryDirectory(dir=W) as tmp:
+        d=Path(tmp)
+        with image.open("rb") as f:hdr=f.read(28)
+        if hdr.startswith(bytes.fromhex("3aff26ed")):
+            block,count=struct.unpack_from("<II",hdr,12);tree["room"](W,block*count)
+            expanded=d/"expanded";cmd("simg2img",image,expanded);image=expanded
+        with image.open("rb") as f:f.seek(1080);magic=f.read(2)
+        if magic!=b"\x53\xef":
+            report("DATA_DB_FORMAT",cmd("file","-b",image).strip());return []
+        root=d/"dbroot";db=root/"var/lib/rpm";db.mkdir(parents=True)
+        paths=set(targets)|{"var/lib/rpm","lib/rpm","rpm","usr/lib/sysimage/rpm"}
+        for target in sorted(paths):
+            for name in (target,target.removeprefix("opt/"),target.removeprefix("mnt/systemrw/")):
+                if not re.fullmatch(r"[A-Za-z0-9_./-]+",name) or ".." in name.split("/"):continue
+                contents=cmd("debugfs","-R","ls -p /"+name,image)
+                if not any("/"+x+"/" in contents for x in ("Packages","rpmdb.sqlite","Packages.db")):continue
+                for part in ("Packages","rpmdb.sqlite","rpmdb.sqlite-wal","Packages.db"):
+                    if "/"+part+"/" in contents:
+                        cmd("debugfs","-R","dump /"+name+"/"+part+" "+str(db/part),image)
+                rows=query(root)
+                if rows:
+                    report("OWNER_SOURCE",{"method":"data.img rpmdb","guest":name,"rows":len(rows)})
+                    return rows
+        return []
+
 def main():
     need(sha(F/"tables.tar.gz")=="09d2b2dd28814bbea8668991fbdb252c93288fdc6942b8a18ad74fdec479a74e","0013f archive")
     need(sha(G/"static-tables.tar.gz")=="0915605bb62e6f45acdc0d2d428639377672d887ed47b13b2f31c2d4e3f80803","0013g archive")
@@ -376,12 +499,23 @@ def main():
         except Exception as exc:
             (W/(name+"-error.txt")).write_text(traceback.format_exc());report(name+"_REVIEW",str(exc));return default
     owners={}
-    attempt("images",lambda:image_evidence(owners))
+    retained=T/"pm0013l-static.gBXGor/results.json"
+    if retained.is_file():
+        identity=json.loads(retained.read_bytes())["IMAGE_IDENTITY"]
+        need(identity["old_vs_new"]==[["platform","REGULAR_AND_SYMLINK",0,0,447],["prd","REGULAR_AND_SYMLINK",0,0,2]],"prior image identity")
+        report("PRIOR_IDENTITY",identity)
+    else:attempt("images",lambda:image_evidence(owners))
     if not owners.get(QB):owners[QB]=attempt("rpmdb",lambda:query(api["root"]("platform")),[])
+    if not owners.get(QB):owners[QB]=attempt("data_db",data_database,[])
+    if not owners.get(QB):fallback.add(QB)
+    attempt("E1",lambda:published_e1(owners[QB]))
+    if not owners.get("37564293"):owners["37564293"]=attempt("gcc_lists",gcc_filelists,[])
     attempt("census",lambda:inventories(owners))
+    if owners[QB]:
+        run=api["run"]
+        attempt("C7_C8",lambda:report("C7_C8",run(owners[QB],QB in fallback)))
     attempt("loader",lambda:loader(owners))
     attempt("pilot",pilot_checks)
-    attempt("E1",published_e1)
     (W/"results.json").write_text(json.dumps(summaries,indent=2))
     with tarfile.open(W/"followup.tar.gz","w:gz",compresslevel=1) as tar:
         for pat in ("*.tsv","*.json","*-error.txt"):

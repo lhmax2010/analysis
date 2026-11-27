@@ -1,0 +1,17 @@
+#!/bin/bash
+set -eu -o pipefail
+pin=${1:?full commit}
+[[ $pin =~ ^[0-9a-f]{40}$ ]]
+t=/home1/chengkai/vd-tree/workspace/temp
+d=$(mktemp -d "$t/pm0013n-enum.XXXXXX")
+cd "$d"
+export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1 LC_ALL=C
+printf 'WORKDIR %s\n' "$d"
+while read -r sum path; do
+    curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180 "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "${path##*/}"
+    printf '%s  %s\n' "$sum" "${path##*/}" | sha256sum -c -
+done <<'PINS'
+c5d99117957bacdfc542b2a6d74995733e38ba2ec325583aa380c42253304b1b artifacts/scripts/r0013n/enumerate.py.txt
+ed5934834fa1b431491f7f5e56a48b84b57ccbaf5f19f5a98f7537ebc2274386 artifacts/scripts/r0013i/asm.py.txt
+PINS
+exec python3 -Bu enumerate.py.txt

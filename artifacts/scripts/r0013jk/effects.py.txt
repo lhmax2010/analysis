@@ -84,8 +84,12 @@ def tables(image,ss,addresses,sizes):
 
 def extra_trees(lane,tree,digest):
     found=[tree]
-    for p in (JOB/lane/"GBS-ROOT/local/BUILD-ROOTS").glob("*/home/abuild/rpmbuild/BUILD/**/arch/arm/boot/zImage"):
-        t=p.parents[3]
+    record=json.loads((JOB/"kernel-matrix.json").read_bytes()).get(lane,{})
+    location=Path(record.get("reused") or JOB/lane)
+    need(location.resolve().is_relative_to(TEMP),"module scope")
+    product=location/"GBS-ROOT/local/BUILD-ROOTS"
+    for p in product.glob("*/**/vmlinux"):
+        t=p.parent
         if t!=tree and (t/"vmlinux").is_file() and sha(t/"vmlinux")==digest:found.append(t)
     return found
 
@@ -94,8 +98,11 @@ def modules(trees):
     result={}
     for t in trees:
         order=t/"modules.order"
-        if not order.is_file():continue
-        entries={str(Path(s).with_suffix(".ko")) for s in order.read_text().splitlines() if s}
+        if not order.is_file():
+            # Accept module paths within the verified output tree, record incomplete sets separately.
+            files={str(p.relative_to(t)) for p in t.rglob("*.ko") if p.is_file() and not p.is_symlink()}
+            if not files:continue
+        entries={str(Path(s.strip().removeprefix("./")).with_suffix(".ko")) for s in order.read_text().splitlines() if s.strip()} if order.is_file() else files
         if not entries:continue
         for key in sorted(entries):
             f=t/key
@@ -139,7 +146,12 @@ def rpm_modules(base,trees):
 def exports(trees):
     candidates=[p/"Module.symvers" for p in trees if (p/"Module.symvers").is_file()]
     if not candidates:return None
-    return sorted(tuple(l.split()) for l in candidates[0].read_text().splitlines() if l.strip())
+    crcs=set()
+    for line in candidates[0].read_text().splitlines():
+        fields=line.split()
+        need(len(fields)>=3 and re.fullmatch(r"0x[0-9a-fA-F]+",fields[0]),"invalid Module.symvers")
+        crcs.add((fields[1],int(fields[0],16)))
+    return sorted(crcs)
 
 def range_names(tree,ss):
     symbols={}
@@ -192,12 +204,71 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
         if sections:
             for n,va,size,sec in AUDIT["symbols"](blob,sections):
                 if AUDIT["HELPER"].fullmatch(n):input_sections.setdefault((obj,n),set()).add(sec)
+    # Clang emits local helper names per object; an index alone is not a unique join.
+    map_ranges=[]
+    for filename in (t/"vmlinux.map" for t in trees):
+        if not filename.is_file():continue
+        lines=filename.read_text(errors="replace").splitlines()
+        anchors={int(m[1],16) for l in lines if (m:=re.match(r"^\s*([a-fA-F0-9]+)\s+.*?\sOUTLINED_FUNCTION_\d+(?:[.$]\w+)*$",l))}
+        if len(anchors&set(starts))<min(len(starts),100) or anchors-set(starts):continue
+        for l in lines:
+            m=re.match(r"^\s*([a-fA-F0-9]+)\s+[a-fA-F0-9]+\s+([a-fA-F0-9]+)\s+\d+\s+(.+?):\(([^()]+)\)\s*$",l)
+            if m and int(m[2],16)>0:map_ranges.append((int(m[1],16),int(m[2],16),m[3],m[4]))
+        break
+    map_ranges.sort()
+    map_starts=[x[0] for x in map_ranges]
+    def map_section(a,n):
+        i=bisect_right(map_starts,a)-1
+        if i>=0:
+            lo,size,obj,section=map_ranges[i]
+            if lo<=a and a+n<=lo+size:return (obj,section)
     unresolved_helper_sections=0
+    recovered=[];decode_gaps=[]
+    image_bytes=image.read_bytes()
+    symbol_map=defaultdict(list)
+    for line in (tree/"System.map").read_text().splitlines():
+        fields=line.split()
+        if len(fields)>=3:symbol_map[int(fields[0],16)&~1].append(fields[-1])
+    section_labels=defaultdict(list)
+    for line in text("nm","-an",image).splitlines():
+        fields=line.split()
+        if len(fields)==3 and re.fullmatch(r"\$(?:a|t|d)(?:\..*)?",fields[2]):
+            section_labels[int(fields[0],16)].append(fields[2][:2])
+    for addr,labels in symbol_map.items():
+        for label in labels:
+            if label in ("$a","$d","$t") or re.match(r"^\$[adt]\.",label):section_labels[addr].append(label[:2])
+    # Linked helpers here are A32. Decode missing words only in confirmed A32 spans.
+    mode_addresses=sorted(section_labels)
+    def retry_body(addr,h):
+        old={pc:(op,arg) for pc,op,arg in h["body"]}
+        pcs=range(addr,addr+h["bytes"],4)
+        absent=[pc for pc in pcs if pc not in old or old[pc][0] in ("<unknown>",".word",".short",".inst")]
+        if not absent:return h["body"]
+        partial=h["bytes"]%4!=0
+        sec=dict(ss)[h["section"]]; off=sec[4]+addr-sec[3]
+        raw=image_bytes[off:off+h["bytes"]]
+        mc=shutil.which("llvm-mc") or shutil.which("llvm-mc-22")
+        for pc in absent:
+            j=bisect_right(mode_addresses,pc)-1
+            mode=set(section_labels[mode_addresses[j]]) if j>=0 else set()
+            if not mc or mode!={"$a"} or partial:
+                decode_gaps.append((hex(addr),hex(pc),sorted(mode),"undetermined mapping or decoder"));continue
+            word=raw[pc-addr:pc-addr+4]
+            run=subprocess.run([mc,"--disassemble","--triple=armv7-linux-gnueabi","--mcpu=cortex-a53"],input=" ".join(hex(b) for b in word)+"\n",text=True,capture_output=True)
+            ins=[l.strip() for l in run.stdout.splitlines() if l.strip() and not l.strip().startswith(".")]
+            if run.returncode or len(ins)!=1 or run.stderr.strip():
+                decode_gaps.append((hex(addr),hex(pc),word.hex(),run.stderr.strip()));continue
+            op,_,arg=ins[0].expandtabs().partition(" ")
+            old[pc]=(op,arg.strip());recovered.append((hex(addr),hex(pc),word.hex(),ins[0]))
+        return [(pc,*old[pc]) for pc in sorted(old) if addr<=pc<addr+h["bytes"]]
+
     for addr,h in helpers.items():
-        body=h["body"]; path=place(addr,h["section"])
+        body=retry_body(addr,h); path=place(addr,h["section"])
         if not body or set(range(addr,addr+h["bytes"],4))!={pc for pc,_,_ in body} or any(op in ("<unknown>",".word",".short",".inst") for _,op,_ in body):body_missing+=1
         distinct[addr]=len({c["caller_addr"] for c in h["calls"]})
         origins={s for c in h["calls"] for obj,_ in c["input_candidates"] for s in input_sections.get((obj,h["name"]),())}
+        mapped=map_section(addr,h["bytes"])
+        if mapped:origins={mapped[1]}
         if len(origins)!=1:unresolved_helper_sections+=1
         path+=sorted(origins)
         if any(CRITICAL.search(v) for v in path):critical.append((addr,"helper placement",path))
@@ -215,10 +286,13 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
         if exclusive or barriers:hazards.append((hex(addr),"","","",["exclusive/barrier",exclusive,barriers]))
         for c in h["calls"]:
             fn=c["caller_addr"]; loc=place(c["pc"],c["section"]); origins=c["input_candidates"]
+            mapped=map_section(c["pc"],4)
+            if mapped and c["attribution"]!="UNIQUE":
+                origins=[mapped];c["attribution"]="MAP"
             loc+=sorted({sec for obj,sec in origins})
             tag=" ".join(loc+[c["caller"]]+[o for o,s in origins])
             if any(CRITICAL.search(v) for v in loc):roots.add(fn);critical.append((c["pc"],"critical section caller",loc))
-            if c["attribution"]!="UNIQUE":uncertain+=1
+            if c["attribution"] not in ("UNIQUE","MAP"):uncertain+=1
             else:origin_sites+=1
             cls=c["call_class"];classes[cls]+=1
             sites_by_fn[fn].append((c["pc"],addr))
@@ -238,10 +312,11 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
                 by_variant[cls].add(addr)
             unwind.append((hex(addr),hex(c["pc"]),cls,c.get("frame_review",{})))
     # Follow direct control transfers from critical symbols, including through linker veneers.
-    indirect=set()
+    indirect=set();indirect_sites=[];labels={};parents={}
     near={}
     timing=re.compile(r"udelay|ndelay|delay_loop|readl|writel|ioread|iowrite|__raw_(?:read|write)",re.I)
     for section,fn,base,ins in AUDIT["functions"](exe,image):
+        labels[base]=(fn,section)
         if any(CRITICAL.search(v) for v in place(base,section)) or re.match(r"^(?:__idmap|idmap_|__turn_mmu_on|__enable_mmu|vector_|vectors_|__entry_|__hyp_|__vectors)",fn):roots.add(base)
         if base in sites_by_fn:
             pcs={pc for pc,_ in sites_by_fn[base]}
@@ -250,15 +325,16 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
                     neighborhood=ins[max(0,j-10):j+11]
                     near[pc]=[(hex(at),op,arg) for at,op,arg in neighborhood if timing.search(arg)]
         for pc,op,arg in ins:
-            if op.split(".")[0] in ("blx","bx") and arg.strip() not in ("lr","r14") and not AUDIT["direct"](arg):indirect.add(base)
+            if op.split(".")[0] in ("blx","bx") and arg.strip() not in ("lr","r14") and not AUDIT["direct"](arg):
+                indirect.add(base);indirect_sites.append((base,pc,op,arg))
             if re.match(r"^(?:ldr|mov|add)\w*\s+(?:pc|r15)\s*,",op+" "+arg) and not re.match(r"^(?:mov|movs) (?:pc|r15),\s*(?:lr|r14)$",op+" "+arg):
-                indirect.add(base)
+                indirect.add(base);indirect_sites.append((base,pc,op,arg))
             if not AUDIT["BRANCH"].fullmatch(op):continue
             m=AUDIT["direct"](arg)
             if m:
                 a=int(m[1],16)&~1
                 if a!=base and "+" not in m[2]:edges[base].add(a)
-    reached=set();todo=deque(roots)
+    reached=set();todo=deque(sorted(roots));parents={v:None for v in roots}
     while todo:
         a=todo.popleft()
         if a not in reached:reached.add(a);todo.extend(edges[a]-reached)
@@ -272,8 +348,17 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
     missing_callers=sum(not h["calls"] for h in helpers.values())
     # Merged input sections and unresolved indirect edges preclude a clean reachability verdict.
     effects["S1"]=("FAIL" if critical or reach else "REVIEW" if uncertain or unresolved_helper_sections or missing_callers or not roots or reached&indirect else "PASS",
-                   dict(critical=len(critical),reachable_helpers=len(reach),unjoined=uncertain,unresolved_helper_sections=unresolved_helper_sections,without_direct_caller=missing_callers,critical_indirect=len(reached&indirect)))
+                   dict(critical=len(critical),reachable_helpers=len(reach),unjoined=uncertain,unresolved_helper_sections=unresolved_helper_sections,without_direct_caller=missing_callers,critical_indirect=len(reached&indirect),linked_map_ranges=len(map_ranges)))
     stack_critical=sum(bool(cls=="LR_STACK" and (int(fn,16) in reached or re.search(r"irq|exception|entry",caller,re.I))) for _,caller,fn,_,_,_,_,cls,*_ in calls)
+    detail=[]
+    for pc,caller,fn,loc,ha,helper,_,cls,objects,_,_ in calls:
+        a=int(fn,16)
+        if cls=="LR_STACK" and (a in reached or re.search("irq|exception|entry",caller,re.I)):
+            context="entry/exception section" if any(CRITICAL.search(n) for n in loc) else "context requires review"
+            detail.append((pc,caller,loc,objects,helper,context,route(a)))
+    table(lane,"critical-stack",("site","caller","section","object","helper","context","direct_path"),detail)
+    for pc,caller,loc,objects,helper,context,chain in detail:
+        print("STACK_SITE",lane,pc,caller,str(loc)[:120],str(objects)[:160],context,flush=True)
     # Measure nested saves along direct helper-to-helper edges; ordinary callers, recursion and indirect targets can extend the chain.
     cache={};active=set()
     def depth(a):
@@ -298,7 +383,9 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
         table(lane,"fixups",("table","field","index","encoding","address","outlined_helper"),rows)
         hits=sum(r[-1] is not None for r in rows)
         bug_ok=counts["__bug_table"] is not None or config.get("CONFIG_BUG")!="y"
-        effects["S4"]=("FAIL" if hits else "PASS" if counts==old and counts["__ex_table"] and bug_ok and not outside else "REVIEW",dict(counts=counts,baseline=old,inside_helpers=hits,without_function=outside))
+        missing=[(r[0],r[1],r[4],symbol_map.get(int(r[4],16),[]),[n for n,v in ss if v[2]&4 and v[3]<=int(r[4],16)<v[3]+v[5]]) for r in rows if interval(int(r[4],16),fn_starts,symbol_sizes) is None]
+        table(lane,"fixups-no-size",("table","field","pc","symbols_at_pc","executable_section"),missing)
+        effects["S4"]=("FAIL" if hits else "PASS" if counts==old and counts["__ex_table"] and bug_ok and all(len(r[-1])==1 for r in missing) else "REVIEW",dict(counts=counts,baseline=old,inside_helpers=hits,without_function=outside))
     except (ValueError,OSError,subprocess.SubprocessError) as e:effects["S4"]=("REVIEW",str(e))
     table(lane,"sensitive-ops",("helper","pc","op","args","class"),hazards)
     effects["S5"]=("REVIEW" if any(isinstance(r[-1],list) for r in hazards) or body_missing else "PASS",dict(exclusive_or_barrier_groups=sum(isinstance(r[-1],list) for r in hazards),undecoded=body_missing))
@@ -329,9 +416,30 @@ def lane(lane,tree,peer,peer_trees,expected_modules,config,metrics):
     table(lane,"literals",("helper","pc","op","operand","target","disposition"),literals)
     effects["S10"]=("REVIEW" if body_missing or any(r[-1]!="within helper" for r in literals) else "PASS",dict(sites=len(literals),undecoded=body_missing))
     state=sum(r[-1]=="system state" for r in hazards)
-    effects["S11"]=("REVIEW" if state or body_missing else "PASS",dict(system_state_instructions=state,undecoded_helpers=body_missing))
+    disposition=[]
+    for ha,pc,op,arg,kind in hazards:
+        if kind!="system state":continue
+        operand=re.sub(r"[#\s]","",arg.lower()).replace("cr","c")
+        benign=op=="mrc" and re.fullmatch(r"p15,0,(?:r(?:1[0-4]|[0-9])|ip|fp|sl|sb|lr),c13,c0,[34]",operand)
+        category="TPIDR read" if benign else "owner review"
+        disposition.append((ha,pc,op,arg,category,sorted({c["caller"] for c in helpers[int(ha,16)]["calls"]})))
+    table(lane,"system-state",("helper","pc","op","operand","classification","direct_callers"),disposition)
+    review=sum(r[4]=="owner review" for r in disposition)
+    effects["S11"]=("REVIEW" if review or body_missing else "PASS",dict(system_state_instructions=state,tp_reads=state-review,owner_review=review,undecoded_helpers=body_missing))
     try:
         new,complete=modules(trees);old,complete_old=modules(peer_trees)
+        if not complete or len(new)!=expected_modules:
+            try:
+                packed,ok=rpm_modules(lane,trees)
+                if ok:new,complete=packed,True
+            except (KeyError,ValueError,OSError,subprocess.SubprocessError):pass
+        evidence_paths=[]
+        if len(new)!=expected_modules or not exports(trees):
+            lane_root=JOB/lane/"GBS-ROOT"
+            for pattern in ("**/Module.symvers","**/modules.order","**/tztv-kernel-perf-[0-9]*.armv7l.rpm","**/*.ko"):
+                for candidate in lane_root.glob(pattern):
+                    evidence_paths.append((str(candidate),candidate.stat().st_size,any(candidate.is_relative_to(t) for t in trees)))
+            table(lane,"module-search",("path","bytes","in_matched_output_tree"),evidence_paths)
         if not complete_old:
             old,complete_old=rpm_modules("K0" if lane=="K1" else "K2",peer_trees)
 
@@ -398,10 +506,14 @@ def main():
         table("thumb","itd-setup",("source","line","text"),[(str(procsetup),i,l) for i,l in enumerate(procsetup.read_text().splitlines(),1) if re.search(r"ITD|CR_[A-Z]|v7_crval|crval|SCTLR",l,re.I)])
     print("C7/C8",json.dumps(receipt["thumb"])[:750])
     receipt["gate"]=all(r[g][0]=="PASS" for r in receipt["pairs"].values() for g in GATES)
+    open_gates={lane:[g for g in (*GATES,"S2") if pairs[g][0]!="PASS"] for lane,pairs in receipt["pairs"].items()}
+    flash={"scope":"board flash","verdict":"HOLD" if any(open_gates.values()) else "STATIC_CHECKS_PASS","open":open_gates,"input":digest}
+    (OUT/"flash.json").write_text(json.dumps(flash,indent=2))
+    print("BOARD_FLASH",flash["verdict"],json.dumps(open_gates),sha(OUT/"flash.json"))
     (OUT/"effects.json").write_text(json.dumps(receipt,indent=2)+"\n")
     archive=OUT/"side-effects.tar.gz"
     with tarfile.open(archive,"w:gz",compresslevel=1) as tar:
-        for p in sorted([*OUT.glob("*.tsv"),*OUT.glob("*-error.txt"),OUT/"effects.json"]):tar.add(p,p.name)
+        for p in sorted([*OUT.glob("*.tsv"),*OUT.glob("*-error.txt"),OUT/"effects.json",OUT/"flash.json"]):tar.add(p,p.name)
     print("STATIC_GATE", "PASS" if receipt["gate"] else "HOLD", "RECEIPT",OUT/"effects.json",sha(OUT/"effects.json"))
     print("TABLES",sha(archive),archive)
 

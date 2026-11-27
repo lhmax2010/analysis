@@ -11,11 +11,12 @@ export TMPDIR="$d" PYTHONDONTWRITEBYTECODE=1 DEBUGINFOD_URLS= LC_ALL=C
 printf 'WORKDIR %s\n' "$d"
 while read -r digest path; do
     name=${path##*/}
+    case "$path" in */g1-37564293/*/installed-rpms.tsv) name=g1-roster.tsv;; esac
     curl -fsSL --retry 4 --retry-all-errors --connect-timeout 15 --max-time 180         "https://raw.githubusercontent.com/lhmax2010/analysis/$pin/$path" -o "$name" 2>>download.log
     printf '%s  %s\n' "$digest" "$name" | sha256sum --check --status
 done <<'PINS'
-846a0dd9a65de7d1e6d375ea17c66be6d1e76e7f19b0eb029493f332cb5ad06d artifacts/scripts/r0013l/census.py.txt
-58a960c64e6b4cc940439b9d0235da14632805e1ae6dfab5f4be878808f42851 artifacts/scripts/r0013jk/thumb.py.txt
+481ee515e53d41952ba95b60328dcbfaed37ee140af5dd9c9efcf6991a433a16 artifacts/scripts/r0013l/census.py.txt
+3e0d8a77c310632e09415cdba74e84a380402a5c1c90eb866229c10946adc307 artifacts/scripts/r0013jk/thumb.py.txt
 f4d6fab86cd6446853337427289a3287e3bcf4628dbc62fdb1a64136f113b726 artifacts/scripts/r0012c/image-tree.py.txt
 cb67e6f58fbb7f6ed59370516fd652ae595adc9e2efb44ba72de26601ec59c42 artifacts/scripts/r0012z/verify-reader.py.txt
 8737d9644cc54bb633f01d1ca2eff45af283e609b82be460f53df6df55e2e3e2 artifacts/scripts/r0013f/pilot.py.txt
@@ -24,5 +25,7 @@ cb67e6f58fbb7f6ed59370516fd652ae595adc9e2efb44ba72de26601ec59c42 artifacts/scrip
 4ada3c3a74557d697045e28f8fd0b92aaf0e4bb05eb8d4f627bf43d4bcd134f7 artifacts/scripts/r0013a/tracks.py.txt
 1f419accc77f0f5b6fdb7077030f8d2b51e4069ea995cc48fefd92c735043d75 artifacts/scripts/r0004/image_mode_scan.py.txt
 8ec5a561d6e01c7498211f56fb57ed9668f2bf3c6aa0b621811e86966a830e1f artifacts/scripts/r0005/image-repo-lib.py.txt
+9ddc02f5d7c6cb3fa328e31e5422b016ec2ddb82ba182b3aa4514d5cb1d7f3da artifacts/evidence/board/o1-37736448/installed-rpms.tsv
+ec46dd6c0ec0ff589a76fbc0347d81e019069bec953a3485a979ec96865641f3 artifacts/evidence/board/g1-37564293/0012v/installed-rpms.tsv
 PINS
 exec nice -n 19 ionice -c3 python3 -Bu census.py.txt 2>diagnostics.log
