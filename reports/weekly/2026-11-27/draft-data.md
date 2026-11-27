@@ -1,6 +1,6 @@
 # KantSU2E PERF · Friday 27 November 2026
 
-Evidence cutoff 26 November. One board. All kernel size and Thumb ELF size figures are bytes.
+Evidence cutoff 27 November (jFI9ye). One board. All kernel size and Thumb ELF size figures are bytes.
 
 ## Shipped kernel sizes
 
@@ -92,7 +92,7 @@ Build IDs are `de1c600eee82b0fdebd9f2d1161d2271b2c9b4cc` and `8f9c7262bfae0f13de
 | R4 inline threshold | No new measurement on 37777148. | Threshold-50 .text and codegen per package. | pkg paired runs, actual plugin argv, later hot-path timing. |
 | R5 machine outliner | New package and kernel outliner results outstanding. | .text, unwind and performance. | pkg four-package R5 plus separate K0–K5 experiment. |
 | R6 lld / ICF | No new matched result. | Linker-only A/B and subsequent safe ICF. | Resolve linker dependencies; qualify each change separately. |
-| R7 RELR | Earlier projection is historical. No new installed savings measured. | Packed-file estimate, loader evidence, acceptance by both linkers. | E6 and a future load/compatibility test. |
+| R7 RELR | 18,016,828 B estimated installed relocation-table saving. | Official glibc 2.40-1.111 libc defines GLIBC_ABI_DT_RELR. | Ready for three-package lld 22 trial after 0013o canary; actual size, dirty-page and board load results open. |
 
 [Pilot, reader and pair transcript](../../../artifacts/evidence/native-run-r0012z-pilot-pair-reader-20261126.txt) · [20 November reference figures](../2026-11-20/01_Optimization_Plan_and_New_Observations.md) · [Native measurements and gates](../../../comms/codex_to_claude/0013a_reply.md)
 
@@ -110,7 +110,7 @@ Owners below are proposed responsibilities for review. Each gate requires an evi
 | C4 frame pointers and unwind | Crash reporting + profiling + runtime owners | Find frame-pointer walkers and r11 assumptions; inspect EHABI tables, coverage and CANTUNWIND entries. Validate symbolized Thumb crash and sampled stacks against known call chains on board. | Crash reporter, profiler and applicable sanitizer/backtrace users resolve expected frames across ISA boundaries. Document compact exidx entries that do not require an extab. | Official static screen prepared; board proof open |
 | C5 generated code | Web, managed-runtime and FFI owners | Inventory V8/Chromium, .NET, JS/Lua JITs, FFI trampolines. Compare emitter options and boundaries in both builds, exercise JIT→native→JIT and callback paths. | Prove ISA settings unchanged or register explicit package exclusion. New code-generation modes require independent qualification. | Official inventory prepared; candidate comparison open |
 | C6 exclusions | Kernel, boot, TEE, firmware and package owners | Retain actual argv for kernel, modules, bootloader, firmware and explicit ARM overrides. Check final cc1 triple and mapping symbols, including authored NEON/asm. | Every excluded unit retains its intended mode. Explicit package -marm wins over the distribution default. | Candidate argv and outputs required |
-| C7 ARMv8 AArch32 IT | Toolchain + kernel | On each image count mapped T32 IT blocks with >1 slot or a 32-bit instruction; retain stripped/unknown coverage. Establish active ITD at the relevant exception level from validated board evidence or CPU setup. | ITD=0 confirmed and site count reviewed. If ITD=1, every deprecated site requires repair. | Official static launcher ready; candidate and ITD open |
+| C7 ARMv8 AArch32 IT | Toolchain + kernel | On each image count mapped T32 IT blocks with >1 slot or a 32-bit instruction; retain stripped/unknown coverage. Establish active ITD at the relevant exception level from validated board evidence or CPU setup. | ITD=0 confirmed and site count reviewed. If ITD=1, every deprecated site requires repair. | Accepted by PM on shipped Official; signed-binary board smoke confirms compatibility. Recheck candidate paths. |
 | C8 alignment | Kernel + package owners | Inventory mapped T32 LDRD/STRD/LDM/STM sites. Record /proc/cpu/alignment settings, counters and SIGBUS across matched soak intervals. | Zero new alignment fixups or SIGBUS; instruction counts alone do not establish address alignment. | Static launcher ready; board open |
 | C9 mixed control transfers | C++ runtime + QA | Signed fixtures for cross-ISA throw/catch, setjmp/longjmp and a Thumb signal handler with ucontext verification. Exercise both directions where applicable. | Expected handler, register state, exception and return in each case. | Signed fixtures and candidate needed |
 | C10 core analysis | Crash reporting + QA | Symbolize a known QA core against the actual build IDs; verify CPSR.T, mapping symbols and expected mixed frames. | Correct mode and frame order. Record missing/stripped symbols separately. | Board/core evidence required |
@@ -206,13 +206,27 @@ Official 37736448 → 37777148: rebuilt, same aggregate executable and A32 sizes
 | C2 ARMv7 interworking | 0 mapped Thumb ALU-to-PC candidates | 0 proven direct A32-to-candidate paths. Closed for this instruction class in decoded spans. 671,504,468 executable bytes have unknown mode. |
 | C4 EHABI | 4,688 / 4,793 ELFs with nonempty `.ARM.exidx` | 105 without that section. Target unwind behaviour remains a runtime check. |
 | C5 JIT/FFI | 55 candidates | Candidate count |
-| C7 deprecated IT forms | 17,236 sites in 6,983,954 mapped Thumb bytes | Static presence in the shipped files. Boot-time SCTLR.ITD is unverified. |
+| C7 deprecated IT forms | 17,236 sites in 6,983,954 mapped Thumb bytes | Accepted by PM on shipped Official. Setup preserves incoming SCTLR.ITD. Board smoke with signed binaries supports ITD=0 in practice; the direct bit value and execution of each counted site were not measured. |
 | C8 alignment | 212,289 candidates | Runtime check |
 | RELR | 18,672,840 B REL → 656,012 B estimated packed RELR | **18,016,828 B** potential relocation-table saving across 4,793 ELFs |
-| R7 loader | Shipped `/usr/lib/ld-linux.so.3`, SHA-256 `aec21fb59b26192a42630bdec85b38dce32a6c5be1ee69e5cca62e1b619a76b4`. No `GLIBC_ABI_DT_RELR` node observed there. | **Blocked** on the shipped libc/loader pair and a positive ARM relocation test. Prior Official board roster lists glibc 2.40-1.111.armv7l. The exact provider join for 37777148 remains open. |
-| AVControl T4 | Baseline PASS, pure Thumb default PASS, package lane REVIEW | Package lane drops defined executable dynsyms, including TCMarshalable and TCServiceData template instantiations. Shipped consumers and dynamic lookup remain to be qualified. |
-| A32 roster and ownership | 480 ARM-predominant Official entries, 177 separate module records. Ambiguous/missing owner on 4,404 Official ELF rows and 140 GCC rows. | Image `/var/lib/rpm` resolves to `/opt/var/lib/rpm`. The `data.img` readback says only `data`; the filesystem, its offset and the DB contents await the volume probe. |
+| R7 loader | glibc 2.40-1.111.armv7l; both loader and libc identify as 2.40. libc-2.40.so defines GLIBC_ABI_DT_RELR. | **Ready for trial** with the shipped pair; the ABI version definition resides in libc. Verify actual packed ELF loads and dirty pages in R7. |
+| AVControl T4 | 782 removed names; 4,793 ELFs checked, 0 errors, 0 undefined imports. 34 literal-only hits. | No shipped dynamic-symbol importer found. SCSClient template-name strings do not establish imports. Pure Thumb is the baseline. The LTO/visibility lane remains optional; runtime name construction and out-of-image consumers are outside the scan. |
+| A32 roster and ownership | 480 ARM-predominant Official entries, 177 separate modules; 4,404 ambiguous/missing Official owners and 140 GCC. | /var/lib/rpm resolves under /opt. data.img is Samsung VDFS (VDFS2007 followed by mkfs.vdfs); partition 21 is 3,986,176 K. Query the installed RPM DB on the next matched Official visit. |
 
 The original ROSTER sorts by **Official minus GCC estimated A32 bytes**. The unowned aggregate has 36,182,416 B of GCC executable sections, 631,491,596 B of Official executable sections, 18,596,572 B of GCC A32 and 261,056,385 B of Official A32. Its +242,459,813 B delta is sensitive to the different ownership coverage. The top-30 follow-up ranks named RPMs by **Official A32 bytes**. [PQnb3T evidence](../../../artifacts/evidence/native-run-r0013m-census-PQnb3T-20261127.txt)
 
 The retained 37736448 Official uImage contains a v7 setup path that preserves SCTLR bit 7. The clear and set masks are `0x2120c302` and `0x10c03c7d`. Neither mask writes that bit. This result leaves its incoming value open. [Decoded masks and uImage hash](../../../artifacts/evidence/local-r0013r-o1-v7-setup.json)
+
+### Package-level GCC and Official Thumb evidence, 0013t
+
+| Named RPM | GCC estimated A32 B | Official estimated A32 B | Official − GCC A32 B | Interpretation |
+|---|---:|---:|---:|---|
+| org.tizen.tv-viewer | 228,084 | 4,693,514 | +4,465,430 | Executable sections 4,195,060 → 4,817,952 B (+622,892 B, +14.8%). GCC predominantly Thumb; LLVM predominantly A32. Historical spec resets CFLAGS, and all 549 sampled argv omit -mthumb. First matched-size trial target. |
+| pkgmgr-extension | 7,105 | 204,554 | +197,449 | Thumb retest candidate; confirm current compile argv. |
+| soc-ir-interface | 1,808 | 63,576 | +61,768 | Thumb retest candidate; confirm current compile argv. |
+| bluetooth-impl-sec-oal | 25,007,569 | 25,006,506 | −1,063 | Mixed vendor package. The retained spec runs CMake/make and copies vendor DSOs, including libdualaudio.so and libbt-vendor_mtk.so. Explicit -marm is documented for a subset. Keep vendor/copied and source-linked paths separate. |
+| vdfs | 5,073,113 | 4,622,699 | −450,414 | Vendor filesystem tools, source RPM vdfs-0004-3.src.rpm. Historical mkfs/tune/fsck/unpack.vdfs have GCC+Clang markers. Exact current source-link vs copied input is open until a matching spec install rule or compile/link record is available. |
+
+The unknown-owner bucket holds 261,056,385 Official and 18,596,572 GCC A32 bytes. Exclude it from per-package deltas. The named-package deltas are observations across two Product/Base configurations. Quantify recoverable Thumb bytes using same-source, one-change builds. [jFI9ye roster and scans](../../../artifacts/evidence/native-run-r0013r-read-jFI9ye-20261127.txt) · [tv-viewer actual argv](../../../comms/codex_to_claude/0011b_reply.md) · [Historical vdfs path scan](../../../artifacts/evidence/native-run-r0005-argot-scan-gbs-20261118.txt)
+
+For Official 37777148 the uImage digest is `f38df43d…`. Its clear/set masks are `0x2120c302` and `0x10c03c7d`. Upstream Clang 22.1.8 on thumbv8a defaults to unrestricted IT generation; an explicit `-mrestrict-it` enables the restriction. R7 will first measure tv-viewer (PIE canary), lightweight-web-engine-profile_tv (large DSO) and sys-tools (high relocation count); the 18,016,828 B estimate covers the relocation tables across the whole inventory. [Trial plan and board owner procedure](../../../comms/codex_to_claude/0013t_reply.md) · [LLVM ARM default](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/lib/Target/ARM/ARMSubtarget.cpp#L256-L262)

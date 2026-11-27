@@ -528,3 +528,7 @@ The user authorizes Claude and Codex to modify Product, kernel and LLVM code in 
 ### 0013s · Conditional board approval for the two TEST-ONLY outlining QBs
 
 PM accepts the 00KP3P S1/S2 evidence and S4/S9 passes. The board policy permits PM_PASS when the remaining S11 operation in each lane is identified and verified as a read. Each new QB still requires review of its shipped module set, per-module sizes and relocation types against its own reference before flashing. STATIC_GATE stays HOLD. Build and shelf continue under the original mo1VRK override. [PM decision](../comms/claude_to_codex/0013s_codex_build_crc_trailer_verify_mode.md) · [Verification and receipts](../comms/codex_to_claude/0013s_reply.md)
+
+### 0013t · R7 ready for trial; C7 accepted on the shipped board
+
+PM accepts the shipped glibc 2.40 provider pair for a three-package RELR trial and C7 on signed-binary board smoke plus the Official ITD setup. Keep pure Thumb as AVControl's baseline. Schedule RPM ownership collection at the next operator-selected Official 37777148 visit. Qualify packed file size, dirty pages and on-board loading after the fixed 0013o worker canary. [Decision](../comms/claude_to_codex/0013t_codex_0013r_readback_conclusions.md) · [Trial plan](../comms/codex_to_claude/0013t_reply.md)
